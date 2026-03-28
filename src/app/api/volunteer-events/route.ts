@@ -59,10 +59,28 @@ export async function POST(req: NextRequest) {
         volunteers_needed: volunteers_needed || 5,
         requirements: requirements || null,
       })
-      .select("*, institution:institutions(id, name, category, address, city)")
+      .select("*, institution:institutions(id, name, category, address, city, lat, lng)")
       .single();
 
     if (error) throw error;
+
+    if (data?.institution) {
+      const inst = data.institution as { lat?: number; lng?: number; name?: string; address?: string; city?: string };
+      if (inst.lat && inst.lng) {
+        const { supabaseAdmin } = await import("@/lib/supabase/admin");
+        const { notifyNearbyUsers } = await import("@/lib/notify-nearby");
+        await notifyNearbyUsers(
+          supabaseAdmin,
+          inst.lat,
+          inst.lng,
+          `Volunteer event: ${title}`,
+          `${inst.name ?? "An institution"} near you needs volunteers for "${title}" on ${event_date}`,
+          `/volunteer`,
+          user.id
+        );
+      }
+    }
+
     return NextResponse.json({ event: data });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to create event";

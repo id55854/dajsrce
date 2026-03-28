@@ -111,5 +111,17 @@ export interface UserProfile {
   total_confirmed: number;
   total_volunteer_hours: number;
   badges: string[];
+  lat: number | null;
+  lng: number | null;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  link: string | null;
+  is_read: boolean;
   created_at: string;
 }

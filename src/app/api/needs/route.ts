@@ -86,6 +86,24 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    if (data?.institution) {
+      const inst = data.institution as { lat?: number; lng?: number; name?: string };
+      if (inst.lat && inst.lng) {
+        const { supabaseAdmin } = await import("@/lib/supabase/admin");
+        const { notifyNearbyUsers } = await import("@/lib/notify-nearby");
+        await notifyNearbyUsers(
+          supabaseAdmin,
+          inst.lat,
+          inst.lng,
+          `New need: ${title}`,
+          `${inst.name ?? "An institution"} near you posted a new ${urgency === "urgent" ? "URGENT " : ""}need: "${title}"`,
+          `/needs`,
+          user.id
+        );
+      }
+    }
+
     return NextResponse.json({ need: data });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to create need";

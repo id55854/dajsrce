@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Heart, LogOut, MapPin, Menu, User, X } from "lucide-react";
+import { Bell, Heart, LogOut, MapPin, Menu, User, X } from "lucide-react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
+import type { Notification } from "@/lib/types";
+import { formatDistanceToNow } from "date-fns";
 
 const navLinks = [
   { href: "/map", label: "Map" },
@@ -32,28 +34,187 @@ function NavLink({ href, label }: { href: string; label: string }) {
   );
 }
 
+function saveUserLocation() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      fetch("/api/location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        }),
+      }).catch(() => {});
+    },
+    () => {},
+    { enableHighAccuracy: false, timeout: 10000 }
+  );
+}
+
+function NotificationPanel({
+  notifications,
+  onMarkRead,
+  onMarkAllRead,
+  onClose,
+}: {
+  notifications: Notification[];
+  onMarkRead: (id: string) => void;
+  onMarkAllRead: () => void;
+  onClose: () => void;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  return (
+    <div
+      ref={panelRef}
+      className="absolute right-0 top-full z-[60] mt-2 w-80 max-h-[70vh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl sm:w-96"
+    >
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+        <h3 className="text-sm font-semibold text-gray-900">
+          Notifications {unreadCount > 0 ? `(${unreadCount})` : ""}
+        </h3>
+        {unreadCount > 0 ? (
+          <button
+            type="button"
+            onClick={onMarkAllRead}
+            className="text-xs font-medium text-red-500 hover:text-red-600"
+          >
+            Mark all read
+          </button>
+        ) : null}
+      </div>
+
+      <div className="max-h-[60vh] overflow-y-auto">
+        {notifications.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-gray-400">
+            No notifications yet
+          </p>
+        ) : (
+          notifications.map((n) => (
+            <div
+              key={n.id}
+              className={clsx(
+                "border-b border-gray-50 px-4 py-3 transition-colors",
+                n.is_read ? "bg-white" : "bg-red-50/50"
+              )}
+            >
+              {n.link ? (
+                <Link
+                  href={n.link}
+                  onClick={() => {
+                    if (!n.is_read) onMarkRead(n.id);
+                    onClose();
+                  }}
+                  className="block"
+                >
+                  <p className="text-sm font-semibold text-gray-900">{n.title}</p>
+                  <p className="mt-0.5 text-xs text-gray-600 line-clamp-2">{n.body}</p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                  </p>
+                </Link>
+              ) : (
+                <div
+                  onClick={() => { if (!n.is_read) onMarkRead(n.id); }}
+                  className="cursor-pointer"
+                >
+                  <p className="text-sm font-semibold text-gray-900">{n.title}</p>
+                  <p className="mt-0.5 text-xs text-gray-600 line-clamp-2">{n.body}</p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                  </p>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<SupaUser | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [panelOpen, setPanelOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      if (data.user) {
+        saveUserLocation();
+      }
+    });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        saveUserLocation();
+      }
     });
     return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+    function fetchNotifications() {
+      fetch("/api/notifications", { credentials: "include" })
+        .then((r) => r.json())
+        .then((data) => setNotifications(data.notifications ?? []))
+        .catch(() => {});
+    }
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30_000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const markRead = useCallback((id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+    );
+    fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
+  }, []);
+
+  const markAllRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mark_all_read: true }),
+    }).catch(() => {});
   }, []);
 
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
     setUser(null);
+    setNotifications([]);
     router.push("/map");
     router.refresh();
   }
@@ -89,6 +250,29 @@ export function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           {user ? (
             <>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPanelOpen((o) => !o)}
+                  className="relative inline-flex items-center rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100"
+                  aria-label="Notifications"
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 ? (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : null}
+                </button>
+                {panelOpen ? (
+                  <NotificationPanel
+                    notifications={notifications}
+                    onMarkRead={markRead}
+                    onMarkAllRead={markAllRead}
+                    onClose={() => setPanelOpen(false)}
+                  />
+                ) : null}
+              </div>
               <Link
                 href="/dashboard"
                 className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
@@ -114,17 +298,43 @@ export function Navbar() {
           )}
         </div>
 
-        <button
-          type="button"
-          className="inline-flex rounded-xl p-2 text-gray-700 md:hidden"
-          aria-expanded={mobileOpen}
-          aria-controls="mobile-nav"
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          onClick={() => setMobileOpen((o) => !o)}
-        >
-          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          {user && unreadCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => setPanelOpen((o) => !o)}
+              className="relative inline-flex items-center rounded-xl p-2 text-gray-700"
+              aria-label="Notifications"
+            >
+              <Bell className="h-5 w-5" />
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-bold text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="inline-flex rounded-xl p-2 text-gray-700"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
+
+      {panelOpen && (
+        <div className="md:hidden">
+          <NotificationPanel
+            notifications={notifications}
+            onMarkRead={markRead}
+            onMarkAllRead={markAllRead}
+            onClose={() => setPanelOpen(false)}
+          />
+        </div>
+      )}
 
       {mobileOpen ? (
         <div
