@@ -45,7 +45,7 @@ export function InstitutionDetailPanel({
     : null;
 
   return (
-    <div className="relative flex max-h-[min(85vh,720px)] flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg">
+    <div className="relative rounded-xl border border-gray-100 bg-white shadow-lg">
       {showCloseButton ? (
         <button
           type="button"
@@ -57,7 +57,7 @@ export function InstitutionDetailPanel({
         </button>
       ) : null}
 
-      <div className="flex-1 overflow-y-auto overscroll-contain">
+      <div>
         {institution.is_location_hidden ? (
           <div className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-900">
             The exact location of this institution is hidden for the safety of
