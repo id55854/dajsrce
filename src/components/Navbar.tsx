@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Heart, MapPin, Menu, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Heart, LogOut, MapPin, Menu, User, X } from "lucide-react";
 import clsx from "clsx";
+import { createClient } from "@/lib/supabase/client";
+import type { User as SupaUser } from "@supabase/supabase-js";
 
 const navLinks = [
   { href: "/map", label: "Karta" },
@@ -32,7 +34,34 @@ function NavLink({ href, label }: { href: string; label: string }) {
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<SupaUser | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setUser(null);
+    router.push("/map");
+    router.refresh();
+  }
+
+  const displayName =
+    user?.user_metadata?.name ||
+    user?.email?.split("@")[0] ||
+    "Korisnik";
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm">
@@ -57,13 +86,32 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden md:block">
-          <Link
-            href="/auth/login"
-            className="inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
-          >
-            Prijava
-          </Link>
+        <div className="hidden items-center gap-3 md:flex">
+          {user ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+              >
+                <User className="h-4 w-4" />
+                {displayName}
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
+            >
+              Prijava
+            </Link>
+          )}
         </div>
 
         <button
@@ -100,13 +148,35 @@ export function Navbar() {
                 </Link>
               );
             })}
-            <Link
-              href="/auth/login"
-              className="mt-2 inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2.5 text-sm font-semibold text-red-500"
-              onClick={() => setMobileOpen(false)}
-            >
-              Prijava
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="rounded-xl px-3 py-2 text-base font-medium text-red-500 hover:bg-red-50"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Moj profil
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    handleLogout();
+                  }}
+                  className="rounded-xl px-3 py-2 text-left text-base font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Odjava
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="mt-2 inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2.5 text-sm font-semibold text-red-500"
+                onClick={() => setMobileOpen(false)}
+              >
+                Prijava
+              </Link>
+            )}
           </nav>
         </div>
       ) : null}

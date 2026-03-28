@@ -54,10 +54,11 @@ export default function RegisterPage() {
 
     setLoading(true);
     const supabase = createClient();
-    const { error: signError } = await supabase.auth.signUp({
+    const { data, error: signError } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         data: {
           name,
           role,
@@ -74,8 +75,13 @@ export default function RegisterPage() {
       return;
     }
 
+    if (data.session) {
+      window.location.href = "/dashboard";
+      return;
+    }
+
     setSuccess(
-      "Račun je kreiran. Provjerite e-poštu za potvrdu ako je potrebno."
+      "Račun je kreiran! Provjerite e-poštu za potvrdu pa se prijavite."
     );
   }
 
