@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 import { INSTITUTIONS } from "@/lib/institutions-seed";
 
 export async function POST() {
+  const { supabaseAdmin } = await import("@/lib/supabase/admin");
+
   await supabaseAdmin
     .from("institutions")
     .delete()
