@@ -2,23 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_req: NextRequest) {
   try {
-    const { createServerSupabaseClient } = await import(
-      "@/lib/supabase/server"
-    );
+    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = await createServerSupabaseClient();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ pledges: [] });
     }
 
     const { data, error } = await supabase
       .from("pledges")
-      .select(
-        "*, need:needs(*, institution:institutions(id, name, category))"
-      )
+      .select("*, need:needs(*, institution:institutions(id, name, category))")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -31,29 +25,24 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { createServerSupabaseClient } = await import(
-      "@/lib/supabase/server"
-    );
+    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = await createServerSupabaseClient();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json({
-        pledge: { id: "demo", status: "pledged" },
-      });
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     const body = await req.json();
     const { need_id, quantity, message } = body;
+    const qty = quantity || 1;
 
     const { data, error } = await supabase
       .from("pledges")
       .insert({
         user_id: user.id,
         need_id,
-        quantity: quantity || 1,
+        quantity: qty,
         message: message || null,
         status: "pledged",
       })
@@ -61,10 +50,37 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    const { data: need } = await supabase
+      .from("needs")
+      .select("quantity_pledged")
+      .eq("id", need_id)
+      .single();
+
+    if (need) {
+      await supabase
+        .from("needs")
+        .update({ quantity_pledged: (need.quantity_pledged || 0) + qty })
+        .eq("id", need_id);
+    }
+
+    // Increment total_pledges on user profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("total_pledges")
+      .eq("id", user.id)
+      .single();
+
+    if (profile) {
+      await supabase
+        .from("profiles")
+        .update({ total_pledges: (profile.total_pledges || 0) + 1 })
+        .eq("id", user.id);
+    }
+
     return NextResponse.json({ pledge: data });
-  } catch {
-    return NextResponse.json({
-      pledge: { id: "demo", status: "pledged" },
-    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to create pledge";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

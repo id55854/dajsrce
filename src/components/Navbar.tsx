@@ -9,10 +9,10 @@ import { createClient } from "@/lib/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 
 const navLinks = [
-  { href: "/map", label: "Karta" },
-  { href: "/needs", label: "Potrebe" },
-  { href: "/volunteer", label: "Volontiraj" },
-  { href: "/quick-start", label: "Brzi start" },
+  { href: "/map", label: "Map" },
+  { href: "/needs", label: "Needs" },
+  { href: "/volunteer", label: "Volunteer" },
+  { href: "/quick-start", label: "Quick Start" },
 ] as const;
 
 function NavLink({ href, label }: { href: string; label: string }) {
@@ -61,7 +61,7 @@ export function Navbar() {
   const displayName =
     user?.user_metadata?.name ||
     user?.email?.split("@")[0] ||
-    "Korisnik";
+    "User";
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm">
@@ -80,7 +80,7 @@ export function Navbar() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex" aria-label="Glavna navigacija">
+        <nav className="hidden items-center gap-8 md:flex" aria-label="Main navigation">
           {navLinks.map(({ href, label }) => (
             <NavLink key={href} href={href} label={label} />
           ))}
@@ -109,7 +109,7 @@ export function Navbar() {
               href="/auth/login"
               className="inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
             >
-              Prijava
+              Sign In
             </Link>
           )}
         </div>
@@ -119,7 +119,7 @@ export function Navbar() {
           className="inline-flex rounded-xl p-2 text-gray-700 md:hidden"
           aria-expanded={mobileOpen}
           aria-controls="mobile-nav"
-          aria-label={mobileOpen ? "Zatvori izbornik" : "Otvori izbornik"}
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
           onClick={() => setMobileOpen((o) => !o)}
         >
           {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -131,7 +131,7 @@ export function Navbar() {
           id="mobile-nav"
           className="border-t border-gray-100 bg-white px-4 py-4 shadow-inner md:hidden"
         >
-          <nav className="flex flex-col gap-3" aria-label="Mobilna navigacija">
+          <nav className="flex flex-col gap-3" aria-label="Mobile navigation">
             {navLinks.map(({ href, label }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
@@ -155,7 +155,7 @@ export function Navbar() {
                   className="rounded-xl px-3 py-2 text-base font-medium text-red-500 hover:bg-red-50"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Moj profil
+                  My Profile
                 </Link>
                 <button
                   type="button"
@@ -165,7 +165,7 @@ export function Navbar() {
                   }}
                   className="rounded-xl px-3 py-2 text-left text-base font-medium text-gray-600 hover:bg-gray-50"
                 >
-                  Odjava
+                  Sign Out
                 </button>
               </>
             ) : (
@@ -174,7 +174,7 @@ export function Navbar() {
                 className="mt-2 inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2.5 text-sm font-semibold text-red-500"
                 onClick={() => setMobileOpen(false)}
               >
-                Prijava
+                Sign In
               </Link>
             )}
           </nav>

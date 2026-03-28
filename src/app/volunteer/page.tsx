@@ -25,11 +25,11 @@ export default function VolunteerPage() {
           events?: EventRow[];
           error?: string;
         };
-        if (!res.ok) throw new Error(json.error ?? "Neuspjelo učitavanje");
+        if (!res.ok) throw new Error(json.error ?? "Failed to load");
         if (!cancelled) setEvents(json.events ?? []);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Greška pri učitavanju");
+          setError(e instanceof Error ? e.message : "Error loading data");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -44,10 +44,10 @@ export default function VolunteerPage() {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
-          Volonterski događaji
+          Volunteer Events
         </h1>
         <p className="mt-2 text-lg text-gray-600">
-          Pridružite se i napravite razliku
+          Join an event and make a difference
         </p>
       </header>
 
@@ -70,8 +70,7 @@ export default function VolunteerPage() {
             aria-hidden
           />
           <p className="max-w-md text-base">
-            Trenutno nema nadolazećih volonterskih događaja. Provjerite ponovno
-            uskoro!
+            No upcoming volunteer events. Check back soon!
           </p>
         </div>
       ) : (

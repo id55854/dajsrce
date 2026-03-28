@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { hr } from "date-fns/locale/hr";
 import {
   Clock,
   Heart,
@@ -25,10 +24,10 @@ type PledgeRow = Pledge & {
 };
 
 const statusLabel: Record<string, string> = {
-  pledged: "Obećano",
-  delivered: "Dostavljeno",
-  confirmed: "Potvrđeno",
-  cancelled: "Otkazano",
+  pledged: "Pledged",
+  delivered: "Delivered",
+  confirmed: "Confirmed",
+  cancelled: "Cancelled",
 };
 
 export default function CitizenDashboardPage() {
@@ -58,10 +57,10 @@ export default function CitizenDashboardPage() {
       <div className="mx-auto max-w-3xl space-y-10">
         <header>
           <h1 className="text-2xl font-bold text-gray-900">
-            Dobrodošli!
+            Welcome!
           </h1>
           <p className="mt-1 text-sm text-gray-600">
-            Pregled vašeg doprinosa zajednici.
+            Your community contribution overview.
           </p>
         </header>
 
@@ -70,7 +69,7 @@ export default function CitizenDashboardPage() {
             <div className="mb-3 flex items-center gap-2 text-red-500">
               <Heart className="h-5 w-5" strokeWidth={2} />
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Ukupna obećanja
+                Total Pledges
               </span>
             </div>
             <p className="text-3xl font-bold text-gray-900">
@@ -81,7 +80,7 @@ export default function CitizenDashboardPage() {
             <div className="mb-3 flex items-center gap-2 text-emerald-600">
               <PackageCheck className="h-5 w-5" strokeWidth={2} />
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Potvrđene dostave
+                Confirmed Deliveries
               </span>
             </div>
             <p className="text-3xl font-bold text-gray-900">0</p>
@@ -90,7 +89,7 @@ export default function CitizenDashboardPage() {
             <div className="mb-3 flex items-center gap-2 text-amber-600">
               <Clock className="h-5 w-5" strokeWidth={2} />
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Sati volontiranja
+                Volunteer Hours
               </span>
             </div>
             <p className="text-3xl font-bold text-gray-900">0</p>
@@ -100,14 +99,14 @@ export default function CitizenDashboardPage() {
         <section>
           <div className="mb-4 flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-red-500" />
-            <h2 className="text-lg font-semibold text-gray-900">Značke</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Badges</h2>
           </div>
           <BadgeDisplay badges={[]} />
         </section>
 
         <section>
           <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            Nedavna obećanja
+            Recent Pledges
           </h2>
           {loading ? (
             <div className="space-y-3">
@@ -120,7 +119,7 @@ export default function CitizenDashboardPage() {
             </div>
           ) : recent.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-gray-200 bg-white/80 px-6 py-10 text-center text-sm text-gray-600">
-              Još nemate obećanja. Pronađite potrebe na karti!
+              No pledges yet. Find needs on the map!
             </p>
           ) : (
             <ul className="space-y-3">
@@ -130,11 +129,10 @@ export default function CitizenDashboardPage() {
                 const typeLabel = need
                   ? DONATION_TYPES[
                       need.donation_type as keyof typeof DONATION_TYPES
-                    ]?.labelHr ?? need.donation_type
+                    ]?.label ?? need.donation_type
                   : "";
                 const when = formatDistanceToNow(new Date(pl.created_at), {
                   addSuffix: true,
-                  locale: hr,
                 });
                 return (
                   <li
@@ -144,7 +142,7 @@ export default function CitizenDashboardPage() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {need?.title ?? "Potreba"}
+                          {need?.title ?? "Need"}
                         </p>
                         {inst ? (
                           <p className="text-sm text-gray-600">
@@ -161,7 +159,7 @@ export default function CitizenDashboardPage() {
                         </span>
                         <p className="mt-1 text-xs text-gray-500">{when}</p>
                         <p className="text-xs text-gray-500">
-                          Količina: {pl.quantity}
+                          Quantity: {pl.quantity}
                         </p>
                       </div>
                     </div>
@@ -178,7 +176,7 @@ export default function CitizenDashboardPage() {
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 py-4 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-colors hover:bg-red-600 sm:w-auto sm:px-10"
           >
             <MapPin className="h-5 w-5" />
-            Pronađi gdje pomoći
+            Find where to help
           </Link>
         </div>
       </div>

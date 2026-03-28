@@ -27,7 +27,7 @@ export default function RegisterPage() {
 
   function goToForm() {
     if (!role) {
-      setError("Odaberite ulogu.");
+      setError("Please select a role.");
       return;
     }
     setError(null);
@@ -40,15 +40,15 @@ export default function RegisterPage() {
     setSuccess(null);
 
     if (password.length < 6) {
-      setError("Lozinka mora imati najmanje 6 znakova.");
+      setError("Password must be at least 6 characters.");
       return;
     }
     if (!role) {
-      setError("Nedostaje uloga.");
+      setError("Role is missing.");
       return;
     }
     if (role === "institution" && !institutionName.trim()) {
-      setError("Unesite naziv ustanove.");
+      setError("Enter institution name.");
       return;
     }
 
@@ -81,7 +81,7 @@ export default function RegisterPage() {
     }
 
     setSuccess(
-      "Račun je kreiran! Provjerite e-poštu za potvrdu pa se prijavite."
+      "Account created! Check your email for confirmation."
     );
   }
 
@@ -99,10 +99,10 @@ export default function RegisterPage() {
           {step === 1 ? (
             <>
               <h1 className="mb-2 text-center text-xl font-semibold text-gray-800">
-                Tko ste vi?
+                Who are you?
               </h1>
               <p className="mb-6 text-center text-sm text-gray-600">
-                Odaberite ulogu za nastavak registracije.
+                Select your role to continue.
               </p>
 
               {error ? (
@@ -126,9 +126,9 @@ export default function RegisterPage() {
                     strokeWidth={1.75}
                   />
                   <span className="font-semibold text-gray-900">
-                    Želim pomoći
+                    I want to help
                   </span>
-                  <span className="text-xs text-gray-500">Građanin</span>
+                  <span className="text-xs text-gray-500">Citizen</span>
                 </button>
 
                 <button
@@ -145,9 +145,9 @@ export default function RegisterPage() {
                     strokeWidth={1.75}
                   />
                   <span className="font-semibold text-gray-900">
-                    Predstavljam ustanovu
+                    I represent an institution
                   </span>
-                  <span className="text-xs text-gray-500">Ustanova</span>
+                  <span className="text-xs text-gray-500">Institution</span>
                 </button>
               </div>
 
@@ -156,14 +156,14 @@ export default function RegisterPage() {
                 onClick={goToForm}
                 className="mt-6 w-full rounded-xl bg-red-500 py-3.5 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-colors hover:bg-red-600"
               >
-                Nastavi
+                Continue
               </button>
             </>
           ) : (
             <>
               <div className="mb-6 flex items-center justify-between gap-2">
                 <h1 className="text-xl font-semibold text-gray-800">
-                  Registracija
+                  Registration
                 </h1>
                 <button
                   type="button"
@@ -174,7 +174,7 @@ export default function RegisterPage() {
                   }}
                   className="text-sm font-medium text-red-500 hover:underline"
                 >
-                  Natrag
+                  Back
                 </button>
               </div>
 
@@ -195,7 +195,7 @@ export default function RegisterPage() {
                     htmlFor="name"
                     className="mb-1.5 block text-sm font-medium text-gray-700"
                   >
-                    Ime i prezime
+                    Full name
                   </label>
                   <input
                     id="name"
@@ -213,7 +213,7 @@ export default function RegisterPage() {
                     htmlFor="email"
                     className="mb-1.5 block text-sm font-medium text-gray-700"
                   >
-                    E-pošta
+                    Email
                   </label>
                   <input
                     id="email"
@@ -232,7 +232,7 @@ export default function RegisterPage() {
                     htmlFor="password"
                     className="mb-1.5 block text-sm font-medium text-gray-700"
                   >
-                    Lozinka (min. 6 znakova)
+                    Password (min. 6 characters)
                   </label>
                   <input
                     id="password"
@@ -253,7 +253,7 @@ export default function RegisterPage() {
                       htmlFor="institution"
                       className="mb-1.5 block text-sm font-medium text-gray-700"
                     >
-                      Naziv ustanove
+                      Institution name
                     </label>
                     <input
                       id="institution"
@@ -272,19 +272,19 @@ export default function RegisterPage() {
                   disabled={loading}
                   className="w-full rounded-xl bg-red-500 py-3.5 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-colors hover:bg-red-600 disabled:opacity-60"
                 >
-                  {loading ? "Registracija…" : "Registriraj se"}
+                  {loading ? "Registering…" : "Sign Up"}
                 </button>
               </form>
             </>
           )}
 
           <p className="mt-8 text-center text-sm text-gray-600">
-            Već imate račun?{" "}
+            Already have an account?{" "}
             <Link
               href="/auth/login"
               className="font-semibold text-red-500 hover:text-red-600 hover:underline"
             >
-              Prijavite se
+              Sign In
             </Link>
           </p>
         </div>

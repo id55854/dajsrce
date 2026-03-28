@@ -1,19 +1,18 @@
 import { formatDistanceToNow } from "date-fns";
-import { hr } from "date-fns/locale";
 import { UrgencyLevel } from "./types";
 
 export function timeAgo(dateStr: string): string {
-  return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: hr });
+  return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
 }
 
 export function urgencyLabel(urgency: UrgencyLevel): string {
   switch (urgency) {
     case "urgent":
-      return "Hitno";
+      return "Urgent";
     case "needed_soon":
-      return "Potrebno uskoro";
+      return "Needed soon";
     case "routine":
-      return "Standardno";
+      return "Routine";
   }
 }
 

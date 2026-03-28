@@ -48,11 +48,11 @@ export function InstitutionCard({
           className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
           style={{ backgroundColor: cat.bgColor, color: cat.color }}
         >
-          {cat.labelHr}
+          {cat.label}
         </span>
         <div className="flex items-center gap-1">
           {institution.is_verified ? (
-            <span className="inline-flex items-center gap-0.5 text-emerald-600" title="Provjereno">
+            <span className="inline-flex items-center gap-0.5 text-emerald-600" title="Verified">
               <BadgeCheck className="h-5 w-5 shrink-0" strokeWidth={2} />
             </span>
           ) : null}
@@ -67,7 +67,7 @@ export function InstitutionCard({
 
       {institution.is_location_hidden ? (
         <span className="mt-2 inline-block rounded-full bg-pink-100 px-2 py-0.5 text-xs font-medium text-pink-700">
-          Lokacija skrivena
+          Hidden location
         </span>
       ) : null}
 
@@ -82,7 +82,7 @@ export function InstitutionCard({
                 name={DONATION_TYPES[dt].icon}
                 className="h-3.5 w-3.5 text-gray-500"
               />
-              {DONATION_TYPES[dt].labelHr}
+              {DONATION_TYPES[dt].label}
             </span>
           ))}
         </div>

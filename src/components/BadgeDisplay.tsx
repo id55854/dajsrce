@@ -13,25 +13,25 @@ const BADGE_MAP: Record<
   { label: string; Icon: LucideIcon; bg: string; iconClass: string }
 > = {
   first_pledge: {
-    label: "Prvo obećanje",
+    label: "First Pledge",
     Icon: Heart,
     bg: "bg-rose-100",
     iconClass: "text-rose-600",
   },
   five_pledges: {
-    label: "5 obećanja",
+    label: "5 Pledges",
     Icon: Medal,
     bg: "bg-amber-100",
     iconClass: "text-amber-700",
   },
   first_volunteer: {
-    label: "Prvi volontiranje",
+    label: "First Volunteer",
     Icon: HandHeart,
     bg: "bg-sky-100",
     iconClass: "text-sky-600",
   },
   helper: {
-    label: "Pomagač",
+    label: "Helper",
     Icon: Award,
     bg: "bg-violet-100",
     iconClass: "text-violet-600",
@@ -50,7 +50,7 @@ export function BadgeDisplay({ badges }: BadgeDisplayProps) {
       <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 px-6 py-10 text-center">
         <Sparkles className="h-8 w-8 text-red-400" strokeWidth={1.5} />
         <p className="max-w-sm text-sm font-medium text-gray-600">
-          Počni pomagati da zaradiš značke!
+          Start helping to earn badges!
         </p>
       </div>
     );

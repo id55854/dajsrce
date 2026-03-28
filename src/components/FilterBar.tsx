@@ -42,7 +42,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
       >
         <div className="flex shrink-0 items-center gap-1.5 pr-2">
           <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Kategorija
+            Category
           </span>
         </div>
         {CATEGORY_KEYS.map((cat) => {
@@ -68,7 +68,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
                   : undefined
               }
             >
-              {cfg.labelHr}
+              {cfg.label}
             </button>
           );
         })}
@@ -77,7 +77,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
 
         <div className="flex shrink-0 items-center gap-1.5 pr-2">
           <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Donacija
+            Donation
           </span>
         </div>
         <button
@@ -90,7 +90,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
           )}
         >
-          Sve
+          All
         </button>
         {DONATION_TYPE_KEYS.map((key) => {
           const on = filters.donationType === key;
@@ -106,7 +106,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
                   : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
               )}
             >
-              {DONATION_TYPES[key].labelHr}
+              {DONATION_TYPES[key].label}
             </button>
           );
         })}
@@ -123,7 +123,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
           )}
         >
-          {filters.onlyZagreb ? "Samo Zagreb" : "Cijela Hrvatska"}
+          {filters.onlyZagreb ? "Zagreb only" : "All Croatia"}
         </button>
 
         <button
@@ -136,7 +136,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
           )}
         >
-          Samo hitne potrebe
+          Urgent only
         </button>
       </div>
     </div>

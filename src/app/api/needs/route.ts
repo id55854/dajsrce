@@ -5,16 +5,12 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
   try {
-    const { createServerSupabaseClient } = await import(
-      "@/lib/supabase/server"
-    );
+    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = await createServerSupabaseClient();
 
     let query = supabase
       .from("needs")
-      .select(
-        "*, institution:institutions(id, name, category, address, city, lat, lng)"
-      )
+      .select("*, institution:institutions(id, name, category, address, city, lat, lng)")
       .eq("is_fulfilled", false)
       .order("urgency", { ascending: false })
       .order("created_at", { ascending: false });
@@ -37,28 +33,62 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ needs: data });
     }
   } catch {
-    // Fall back to local data
+    // Fall back
   }
 
   let needs = getLocalNeeds();
-
   const donationType = searchParams.get("donation_type");
-  if (donationType) {
-    needs = needs.filter((n) => n.donation_type === donationType);
-  }
-
+  if (donationType) needs = needs.filter((n) => n.donation_type === donationType);
   const urgency = searchParams.get("urgency");
-  if (urgency) {
-    needs = needs.filter((n) => n.urgency === urgency);
-  }
-
+  if (urgency) needs = needs.filter((n) => n.urgency === urgency);
   const institutionId = searchParams.get("institution_id");
-  if (institutionId) {
-    needs = needs.filter((n) => n.institution_id === institutionId);
-  }
-
+  if (institutionId) needs = needs.filter((n) => n.institution_id === institutionId);
   const limit = parseInt(searchParams.get("limit") || "50");
   needs = needs.slice(0, limit);
 
   return NextResponse.json({ needs });
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("institution_id, role")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.role !== "institution" || !profile.institution_id) {
+      return NextResponse.json({ error: "Only institutions can post needs" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { title, description, donation_type, urgency, quantity_needed } = body;
+
+    const { data, error } = await supabase
+      .from("needs")
+      .insert({
+        institution_id: profile.institution_id,
+        title,
+        description,
+        donation_type,
+        urgency: urgency || "routine",
+        quantity_needed: quantity_needed || null,
+      })
+      .select("*, institution:institutions(id, name, category, address, city, lat, lng)")
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json({ need: data });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to create need";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

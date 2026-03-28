@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { hr } from "date-fns/locale/hr";
+import { Loader2 } from "lucide-react";
 import type { InstitutionCategory, VolunteerEvent } from "@/lib/types";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 
@@ -15,29 +16,56 @@ export type VolunteerEventCardProps = {
       city: string;
     };
   };
+  onSignUp?: () => void;
 };
 
-export function VolunteerEventCard({ event }: VolunteerEventCardProps) {
+export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps) {
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<"idle" | "success" | "error" | "duplicate">("idle");
+
   const institution = event.institution;
   const categoryKey = institution?.category as InstitutionCategory | undefined;
   const cat = categoryKey && categoryKey in CATEGORY_CONFIG
     ? CATEGORY_CONFIG[categoryKey]
     : null;
 
-  const dateLabel = format(parseISO(event.event_date), "EEEE, d. MMMM yyyy.", {
-    locale: hr,
-  });
+  const dateLabel = format(parseISO(event.event_date), "EEEE, MMMM d, yyyy");
 
   const needed = event.volunteers_needed;
   const signed = event.volunteers_signed_up;
-  const pct =
-    needed > 0 ? Math.min(100, Math.round((signed / needed) * 100)) : 0;
+  const pct = needed > 0 ? Math.min(100, Math.round((signed / needed) * 100)) : 0;
+
+  async function handleSignUp() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/volunteer-signups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_id: event.id }),
+      });
+      if (res.status === 409) {
+        setStatus("duplicate");
+        return;
+      }
+      if (res.status === 401) {
+        window.location.href = "/auth/login";
+        return;
+      }
+      if (!res.ok) throw new Error();
+      setStatus("success");
+      onSignUp?.();
+    } catch {
+      setStatus("error");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <article className="flex flex-col rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
       {institution ? (
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900">
+          <span className="text-sm font-semibold text-gray-900">
             {institution.name}
           </span>
           {cat ? (
@@ -45,7 +73,7 @@ export function VolunteerEventCard({ event }: VolunteerEventCardProps) {
               className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
               style={{ color: cat.color, backgroundColor: cat.bgColor }}
             >
-              {cat.labelHr}
+              {cat.label}
             </span>
           ) : (
             <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
@@ -55,7 +83,7 @@ export function VolunteerEventCard({ event }: VolunteerEventCardProps) {
         </div>
       ) : null}
 
-      <h3 className="font-[family-name:var(--font-dm-sans)] text-lg font-semibold text-gray-900">
+      <h3 className="text-lg font-semibold text-gray-900">
         {event.title}
       </h3>
 
@@ -66,10 +94,8 @@ export function VolunteerEventCard({ event }: VolunteerEventCardProps) {
 
       <div className="mt-4">
         <div className="flex justify-between text-xs text-gray-500">
-          <span>Volonteri</span>
-          <span>
-            {event.volunteers_signed_up} / {event.volunteers_needed}
-          </span>
+          <span>Volunteers</span>
+          <span>{signed} / {needed}</span>
         </div>
         <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
           <div
@@ -83,12 +109,24 @@ export function VolunteerEventCard({ event }: VolunteerEventCardProps) {
         <p className="mt-3 text-sm text-gray-500">{event.requirements}</p>
       ) : null}
 
-      <button
-        type="button"
-        className="mt-5 w-full rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600"
-      >
-        Prijavi se
-      </button>
+      {status === "success" ? (
+        <p className="mt-5 rounded-full bg-emerald-50 px-5 py-2.5 text-center text-sm font-semibold text-emerald-700">
+          Signed up!
+        </p>
+      ) : status === "duplicate" ? (
+        <p className="mt-5 rounded-full bg-amber-50 px-5 py-2.5 text-center text-sm font-semibold text-amber-700">
+          Already signed up
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={handleSignUp}
+          disabled={loading}
+          className="mt-5 w-full rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-60"
+        >
+          {loading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Sign Up"}
+        </button>
+      )}
     </article>
   );
 }

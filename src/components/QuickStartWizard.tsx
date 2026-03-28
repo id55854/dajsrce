@@ -86,7 +86,7 @@ export function QuickStartWizard() {
   const requestLocation = useCallback(() => {
     setGeoError(null);
     if (!navigator.geolocation) {
-      setGeoError("Geolokacija nije podržana u ovom pregledniku.");
+      setGeoError("Geolocation is not supported in this browser.");
       return;
     }
     setGeoLoading(true);
@@ -99,7 +99,7 @@ export function QuickStartWizard() {
       },
       () => {
         setGeoLoading(false);
-        setGeoError("Nismo uspjeli dohvatiti lokaciju. Provjerite dozvole ili unesite kvart.");
+        setGeoError("Unable to get location. Check permissions or enter a neighborhood.");
       },
       { enableHighAccuracy: true, timeout: 12_000 }
     );
@@ -145,7 +145,7 @@ export function QuickStartWizard() {
       ranked.sort((a, b) => a.distanceKm - b.distanceKm);
       setResults(ranked.slice(0, 5));
     } catch {
-      setFetchError("Učitavanje ustanova nije uspjelo. Pokušajte ponovno.");
+      setFetchError("Failed to load institutions. Please try again.");
       setResults([]);
     } finally {
       setFetchLoading(false);
@@ -170,7 +170,7 @@ export function QuickStartWizard() {
   return (
     <div className="mx-auto max-w-lg rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
       <h2 className="font-[family-name:var(--font-dm-sans)] text-xl font-bold text-gray-900">
-        Što mogu dati?
+        What can I give?
       </h2>
       <div className="mt-4 flex justify-center gap-2" aria-hidden>
         {stepDots}
@@ -212,7 +212,7 @@ export function QuickStartWizard() {
           disabled={step === 1}
           className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-40"
         >
-          Natrag
+          Back
         </button>
         {step < 3 ? (
           <button
@@ -233,7 +233,7 @@ export function QuickStartWizard() {
             }
             className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 disabled:pointer-events-none disabled:opacity-40"
           >
-            Dalje
+            Next
           </button>
         ) : (
           <button
@@ -250,7 +250,7 @@ export function QuickStartWizard() {
             }}
             className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600"
           >
-            Počni ispočetka
+            Start over
           </button>
         )}
       </div>
@@ -267,9 +267,9 @@ function StepOne({
 }) {
   return (
     <div>
-      <p className="text-sm font-medium text-gray-800">Što imate?</p>
+      <p className="text-sm font-medium text-gray-800">What do you have?</p>
       <p className="mt-1 text-xs text-gray-500">
-        Odaberite jednu ili više kategorija.
+        Select one or more categories.
       </p>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {DONATION_TYPE_ORDER.map((type) => {
@@ -297,7 +297,7 @@ function StepOne({
                 <Icon className="h-5 w-5" />
               </span>
               <span className="pr-8 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900">
-                {cfg.labelHr}
+                {cfg.label}
               </span>
             </button>
           );
@@ -324,9 +324,9 @@ function StepTwo({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm font-medium text-gray-800">Gdje ste?</p>
+      <p className="text-sm font-medium text-gray-800">Where are you?</p>
       <p className="text-xs text-gray-500">
-        Koristimo lokaciju samo za izračun udaljenosti.
+        We only use your location to calculate distances.
       </p>
       <button
         type="button"
@@ -335,7 +335,7 @@ function StepTwo({
         className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-red-100 bg-red-50/80 px-4 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60"
       >
         <MapPin className="h-4 w-4" />
-        {geoLoading ? "Dohvaćam lokaciju…" : "Koristi moju lokaciju"}
+        {geoLoading ? "Getting location…" : "Use my location"}
       </button>
       {geoError ? (
         <p className="text-sm text-amber-700" role="alert">
@@ -343,25 +343,25 @@ function StepTwo({
         </p>
       ) : null}
       {hasCoords ? (
-        <p className="text-sm text-emerald-700">Lokacija je spremljena.</p>
+        <p className="text-sm text-emerald-700">Location saved.</p>
       ) : null}
       <div>
         <label
           htmlFor="wizard-neighborhood"
           className="text-xs font-medium uppercase tracking-wide text-gray-500"
         >
-          Ili unesite kvart / adresu
+          Or enter a neighborhood / address
         </label>
         <input
           id="wizard-neighborhood"
           type="text"
           value={manualLocation}
           onChange={(e) => onManualChange(e.target.value)}
-          placeholder="npr. Trešnjevka, Ilica 12…"
+          placeholder="e.g. Trešnjevka, Ilica 12…"
           className="mt-1.5 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none ring-red-500/30 transition-shadow focus:border-red-400 focus:ring-2"
         />
         <p className="mt-1 text-xs text-gray-500">
-          Bez GPS-a udaljenost se računa od središta Zagreba.
+          Without GPS, distances are measured from Zagreb city center.
         </p>
       </div>
     </div>
@@ -383,7 +383,7 @@ function StepThree({
     return (
       <div className="flex flex-col items-center justify-center py-12 text-gray-500">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-        <p className="mt-3 text-sm">Tražim najbliže ustanove…</p>
+        <p className="mt-3 text-sm">Searching for nearby institutions…</p>
       </div>
     );
   }
@@ -398,15 +398,15 @@ function StepThree({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm font-medium text-gray-800">Najbliže ustanove</p>
+      <p className="text-sm font-medium text-gray-800">Nearest institutions</p>
       {usedZagrebFallback ? (
         <p className="text-xs text-gray-500">
-          Udaljenosti su približne (središte Zagreba).
+          Distances are approximate (Zagreb city center).
         </p>
       ) : null}
       {results.length === 0 ? (
         <p className="text-sm text-gray-600">
-          Nema ustanova koje odgovaraju odabiru. Pokušajte druge kategorije.
+          No institutions match your selection. Try other categories.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -418,7 +418,7 @@ function StepThree({
                 ? `tel:${inst.phone.replace(/\s/g, "")}`
                 : null;
             const addressLine = inst.is_location_hidden
-              ? inst.approximate_area ?? "Lokacija skrivena"
+              ? inst.approximate_area ?? "Hidden location"
               : `${inst.address}, ${inst.city}`;
             return (
               <li
@@ -438,7 +438,7 @@ function StepThree({
                     className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold"
                     style={{ color: cat.color, backgroundColor: cat.bgColor }}
                   >
-                    {cat.labelHr}
+                    {cat.label}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-gray-600">{addressLine}</p>
@@ -450,7 +450,7 @@ function StepThree({
                     className="inline-flex flex-1 min-w-[6rem] items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
-                    Upute
+                    Directions
                   </a>
                   {tel ? (
                     <a
@@ -458,7 +458,7 @@ function StepThree({
                       className="inline-flex flex-1 min-w-[6rem] items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                     >
                       <Phone className="h-3.5 w-3.5" />
-                      Nazovi
+                      Call
                     </a>
                   ) : null}
                 </div>

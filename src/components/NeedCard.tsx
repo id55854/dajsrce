@@ -5,7 +5,6 @@ import { Need } from "@/lib/types";
 import type { InstitutionCategory } from "@/lib/types";
 import { CATEGORY_CONFIG, DONATION_TYPES } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
-import { hr } from "date-fns/locale/hr";
 import * as Icons from "lucide-react";
 import { PledgeButton } from "./PledgeButton";
 
@@ -32,12 +31,12 @@ type NeedCardProps = {
 };
 
 const urgencyStyles = {
-  urgent: { label: "Hitno", className: "bg-red-500 text-white" },
+  urgent: { label: "Urgent", className: "bg-red-500 text-white" },
   needed_soon: {
-    label: "Potrebno uskoro",
+    label: "Needed soon",
     className: "bg-orange-500 text-white",
   },
-  routine: { label: "Standardno", className: "bg-gray-200 text-gray-700" },
+  routine: { label: "Routine", className: "bg-gray-200 text-gray-700" },
 } as const;
 
 export function NeedCard({ need }: NeedCardProps) {
@@ -55,7 +54,6 @@ export function NeedCard({ need }: NeedCardProps) {
 
   const posted = formatDistanceToNow(new Date(need.created_at), {
     addSuffix: true,
-    locale: hr,
   });
 
   return (
@@ -67,7 +65,7 @@ export function NeedCard({ need }: NeedCardProps) {
             className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
             style={{ backgroundColor: cat.bgColor, color: cat.color }}
           >
-            {cat.labelHr}
+            {cat.label}
           </span>
         </div>
       ) : null}
@@ -83,7 +81,7 @@ export function NeedCard({ need }: NeedCardProps) {
             name={DONATION_TYPES[need.donation_type].icon}
             className="h-3.5 w-3.5"
           />
-          {DONATION_TYPES[need.donation_type].labelHr}
+          {DONATION_TYPES[need.donation_type].label}
         </span>
       </div>
 
@@ -93,7 +91,7 @@ export function NeedCard({ need }: NeedCardProps) {
       <div className="mt-4">
         <div className="mb-1 flex justify-between text-xs text-gray-500">
           <span>
-            {pledged} / {needed > 0 ? needed : "—"} zbrinuto
+            {pledged} / {needed > 0 ? needed : "—"} pledged
           </span>
           <span>{needed > 0 ? `${pct}%` : ""}</span>
         </div>

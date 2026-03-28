@@ -1,6 +1,7 @@
 import { Heart } from "lucide-react";
 
 export function Footer() {
+  const year = new Date().getFullYear();
   return (
     <footer className="bg-gray-50 py-8 text-gray-500">
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 px-4 text-center sm:px-6 lg:px-8">
@@ -11,9 +12,11 @@ export function Footer() {
             strokeWidth={2}
             aria-hidden
           />
-          <span>Povežimo one koji daju s onima kojima treba</span>
+          <span>Connecting donors with those in need</span>
         </p>
-        <p className="text-sm">Projekt za društveno dobro</p>
+        <p className="text-sm">
+          A project for the public good · {year}
+        </p>
       </div>
     </footer>
   );

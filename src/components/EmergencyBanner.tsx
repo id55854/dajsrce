@@ -35,7 +35,7 @@ export function EmergencyBanner({ alerts }: EmergencyBannerProps) {
           type="button"
           onClick={() => setDismissed(true)}
           className="absolute right-3 top-3 rounded-lg p-1 text-red-100 transition-colors hover:bg-red-700 hover:text-white"
-          aria-label="Zatvori upozorenje"
+          aria-label="Dismiss alert"
         >
           <X className="h-5 w-5" />
         </button>

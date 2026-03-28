@@ -59,17 +59,17 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
         const msg =
           typeof err?.error === "string"
             ? err.error
-            : `Greška (${res.status})`;
+            : `Error (${res.status})`;
         setToast({ type: "error", message: msg });
         return;
       }
-      setToast({ type: "success", message: "Hvala! Tvoje obećanje je zabilježeno." });
+      setToast({ type: "success", message: "Thank you! Your pledge has been recorded." });
       onPledge?.();
       closeModal();
     } catch {
       setToast({
         type: "error",
-        message: "Mrežna greška. Pokušaj ponovno.",
+        message: "Network error. Please try again.",
       });
     } finally {
       setLoading(false);
@@ -84,7 +84,7 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
         className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
       >
         <HeartHandshake className="h-4 w-4" strokeWidth={2} />
-        Mogu pomoći
+        I can help
       </button>
 
       {open ? (
@@ -105,13 +105,13 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <h2 id={titleId} className="text-lg font-semibold text-gray-900">
-                Obećaj pomoć
+                Pledge help
               </h2>
               <button
                 type="button"
                 onClick={closeModal}
                 className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                aria-label="Zatvori"
+                aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -121,7 +121,7 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
             </p>
 
             <label className="block text-sm font-medium text-gray-700">
-              Količina
+              Quantity
               <input
                 type="number"
                 min={1}
@@ -134,7 +134,7 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
             </label>
 
             <label className="mt-4 block text-sm font-medium text-gray-700">
-              Poruka (opcionalno)
+              Message (optional)
               <textarea
                 rows={3}
                 value={message}
@@ -150,7 +150,7 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
                 disabled={loading}
                 className="rounded-full border-2 border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                Odustani
+                Cancel
               </button>
               <button
                 type="button"
@@ -161,7 +161,7 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : null}
-                Potvrdi
+                Confirm
               </button>
             </div>
           </div>

@@ -14,13 +14,13 @@ import type { DonationType, UrgencyLevel } from "@/lib/types";
 
 const donationEntries = Object.entries(DONATION_TYPES) as [
   DonationType,
-  { labelHr: string },
+  { label: string },
 ][];
 
 const urgencyOptions: { value: UrgencyLevel; label: string }[] = [
-  { value: "routine", label: "Standardno" },
-  { value: "needed_soon", label: "Potrebno uskoro" },
-  { value: "urgent", label: "Hitno" },
+  { value: "routine", label: "Routine" },
+  { value: "needed_soon", label: "Needed soon" },
+  { value: "urgent", label: "Urgent" },
 ];
 
 export default function InstitutionDashboardPage() {
@@ -33,6 +33,8 @@ export default function InstitutionDashboardPage() {
   const [needUrgency, setNeedUrgency] = useState<UrgencyLevel>("routine");
   const [needQuantity, setNeedQuantity] = useState("1");
   const [needSuccess, setNeedSuccess] = useState(false);
+  const [needSubmitting, setNeedSubmitting] = useState(false);
+  const [needError, setNeedError] = useState<string | null>(null);
 
   const [evTitle, setEvTitle] = useState("");
   const [evDescription, setEvDescription] = useState("");
@@ -41,30 +43,81 @@ export default function InstitutionDashboardPage() {
   const [evEnd, setEvEnd] = useState("12:00");
   const [evVolunteers, setEvVolunteers] = useState("5");
   const [evSuccess, setEvSuccess] = useState(false);
+  const [evSubmitting, setEvSubmitting] = useState(false);
+  const [evError, setEvError] = useState<string | null>(null);
 
-  function submitNeed(e: React.FormEvent) {
+  async function submitNeed(e: React.FormEvent) {
     e.preventDefault();
-    setNeedSuccess(true);
-    setNeedTitle("");
-    setNeedDescription("");
-    setNeedQuantity("1");
-    setTimeout(() => {
-      setNeedSuccess(false);
-      setPanel(null);
-    }, 2000);
+    setNeedError(null);
+    setNeedSubmitting(true);
+    try {
+      const res = await fetch("/api/needs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: needTitle,
+          description: needDescription,
+          donation_type: needDonationType,
+          urgency: needUrgency,
+          quantity_needed: Number(needQuantity),
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as { error?: string }).error ?? "Failed to post need");
+      }
+      setNeedSuccess(true);
+      setNeedTitle("");
+      setNeedDescription("");
+      setNeedQuantity("1");
+      setTimeout(() => {
+        setNeedSuccess(false);
+        setPanel(null);
+      }, 2000);
+    } catch (err) {
+      setNeedError(err instanceof Error ? err.message : "Failed to post need");
+    } finally {
+      setNeedSubmitting(false);
+    }
   }
 
-  function submitEvent(e: React.FormEvent) {
+  async function submitEvent(e: React.FormEvent) {
     e.preventDefault();
-    setEvSuccess(true);
-    setEvTitle("");
-    setEvDescription("");
-    setEvDate("");
-    setEvVolunteers("5");
-    setTimeout(() => {
-      setEvSuccess(false);
-      setPanel(null);
-    }, 2000);
+    setEvError(null);
+    setEvSubmitting(true);
+    try {
+      const res = await fetch("/api/volunteer-events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: evTitle,
+          description: evDescription,
+          date: evDate,
+          start_time: evStart,
+          end_time: evEnd,
+          volunteers_needed: Number(evVolunteers),
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as { error?: string }).error ?? "Failed to post event");
+      }
+      setEvSuccess(true);
+      setEvTitle("");
+      setEvDescription("");
+      setEvDate("");
+      setEvVolunteers("5");
+      setTimeout(() => {
+        setEvSuccess(false);
+        setPanel(null);
+      }, 2000);
+    } catch (err) {
+      setEvError(err instanceof Error ? err.message : "Failed to post event");
+    } finally {
+      setEvSubmitting(false);
+    }
   }
 
   return (
@@ -72,10 +125,10 @@ export default function InstitutionDashboardPage() {
       <div className="mx-auto max-w-3xl space-y-8">
         <header>
           <h1 className="text-2xl font-bold text-gray-900">
-            Upravljanje ustanovom
+            Institution Management
           </h1>
           <p className="mt-1 text-sm text-gray-600">
-            Potrebe, događaji i pregled aktivnosti.
+            Manage needs, events, and activities.
           </p>
         </header>
 
@@ -85,18 +138,14 @@ export default function InstitutionDashboardPage() {
               <Building2 className="h-6 w-6" />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold text-gray-900">Profil ustanove</h2>
-              <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                Povežite Supabase za potpuno upravljanje ustanovom.
-                U demo načinu možete pregledati obrasce.
-              </p>
+              <h2 className="text-lg font-semibold text-gray-900">Institution Profile</h2>
             </div>
           </div>
         </section>
 
         <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <h3 className="mb-1 text-sm font-semibold text-gray-500">
-            Obećanja ovaj mjesec
+            Pledges this month
           </h3>
           <p className="text-3xl font-bold text-red-500">0</p>
         </div>
@@ -106,23 +155,25 @@ export default function InstitutionDashboardPage() {
             type="button"
             onClick={() => {
               setNeedSuccess(false);
+              setNeedError(null);
               setPanel("need");
             }}
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3.5 text-sm font-semibold text-white shadow-md shadow-red-500/20 transition-colors hover:bg-red-600"
           >
             <Plus className="h-5 w-5" />
-            Nova potreba
+            New Need
           </button>
           <button
             type="button"
             onClick={() => {
               setEvSuccess(false);
+              setEvError(null);
               setPanel("event");
             }}
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-white px-4 py-3.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
           >
             <CalendarPlus className="h-5 w-5" />
-            Novi volonterski događaj
+            New Volunteer Event
           </button>
         </div>
 
@@ -131,25 +182,30 @@ export default function InstitutionDashboardPage() {
             <div className="mb-4 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
                 <ClipboardList className="h-5 w-5 text-red-500" />
-                Nova potreba
+                New Need
               </h3>
               <button
                 type="button"
                 onClick={() => setPanel(null)}
                 className="text-sm font-medium text-gray-500 hover:text-gray-800"
               >
-                Zatvori
+                Close
               </button>
             </div>
             {needSuccess ? (
               <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                Potreba objavljena! (demo)
+                Need posted!
               </p>
             ) : (
               <form onSubmit={submitNeed} className="space-y-4">
+                {needError ? (
+                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+                    {needError}
+                  </p>
+                ) : null}
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Naslov
+                    Title
                   </label>
                   <input
                     required
@@ -160,7 +216,7 @@ export default function InstitutionDashboardPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Opis
+                    Description
                   </label>
                   <textarea
                     required
@@ -172,7 +228,7 @@ export default function InstitutionDashboardPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Vrsta donacije
+                    Donation type
                   </label>
                   <select
                     value={needDonationType}
@@ -181,16 +237,16 @@ export default function InstitutionDashboardPage() {
                     }
                     className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20"
                   >
-                    {donationEntries.map(([key, { labelHr }]) => (
+                    {donationEntries.map(([key, { label }]) => (
                       <option key={key} value={key}>
-                        {labelHr}
+                        {label}
                       </option>
                     ))}
                   </select>
                 </div>
                 <fieldset>
                   <legend className="mb-2 text-sm font-medium text-gray-700">
-                    Hitnost
+                    Urgency
                   </legend>
                   <div className="flex flex-wrap gap-3">
                     {urgencyOptions.map((o) => (
@@ -213,7 +269,7 @@ export default function InstitutionDashboardPage() {
                 </fieldset>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Potrebna količina
+                    Quantity needed
                   </label>
                   <input
                     type="number"
@@ -226,9 +282,10 @@ export default function InstitutionDashboardPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-red-500 py-3 text-sm font-semibold text-white hover:bg-red-600"
+                  disabled={needSubmitting}
+                  className="w-full rounded-xl bg-red-500 py-3 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
                 >
-                  Objavi potrebu
+                  {needSubmitting ? "Posting…" : "Post Need"}
                 </button>
               </form>
             )}
@@ -240,25 +297,30 @@ export default function InstitutionDashboardPage() {
             <div className="mb-4 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
                 <CalendarPlus className="h-5 w-5 text-red-500" />
-                Novi volonterski događaj
+                New Volunteer Event
               </h3>
               <button
                 type="button"
                 onClick={() => setPanel(null)}
                 className="text-sm font-medium text-gray-500 hover:text-gray-800"
               >
-                Zatvori
+                Close
               </button>
             </div>
             {evSuccess ? (
               <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                Događaj objavljen! (demo)
+                Event posted!
               </p>
             ) : (
               <form onSubmit={submitEvent} className="space-y-4">
+                {evError ? (
+                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+                    {evError}
+                  </p>
+                ) : null}
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Naslov
+                    Title
                   </label>
                   <input
                     required
@@ -269,7 +331,7 @@ export default function InstitutionDashboardPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Opis
+                    Description
                   </label>
                   <textarea
                     required
@@ -281,7 +343,7 @@ export default function InstitutionDashboardPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Datum
+                    Date
                   </label>
                   <input
                     type="date"
@@ -294,7 +356,7 @@ export default function InstitutionDashboardPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Početak
+                      Start
                     </label>
                     <input
                       type="time"
@@ -305,7 +367,7 @@ export default function InstitutionDashboardPage() {
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Kraj
+                      End
                     </label>
                     <input
                       type="time"
@@ -317,7 +379,7 @@ export default function InstitutionDashboardPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Potreban broj volontera
+                    Volunteers needed
                   </label>
                   <input
                     type="number"
@@ -330,9 +392,10 @@ export default function InstitutionDashboardPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-red-500 py-3 text-sm font-semibold text-white hover:bg-red-600"
+                  disabled={evSubmitting}
+                  className="w-full rounded-xl bg-red-500 py-3 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
                 >
-                  Objavi događaj
+                  {evSubmitting ? "Posting…" : "Post Event"}
                 </button>
               </form>
             )}
@@ -345,7 +408,7 @@ export default function InstitutionDashboardPage() {
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 py-4 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-colors hover:bg-red-600 sm:w-auto sm:px-10"
           >
             <MapPin className="h-5 w-5" />
-            Pregled karte
+            View Map
           </Link>
         </div>
       </div>

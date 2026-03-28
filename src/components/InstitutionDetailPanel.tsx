@@ -36,7 +36,7 @@ export function InstitutionDetailPanel({
 }: InstitutionDetailPanelProps) {
   const cat = CATEGORY_CONFIG[institution.category];
   const addressDisplay = institution.is_location_hidden
-    ? `Lokacija skrivena radi sigurnosti — ${institution.approximate_area ?? "—"}`
+    ? `Location hidden for safety — ${institution.approximate_area ?? "—"}`
     : `${institution.address}, ${institution.city}`;
 
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${institution.lat},${institution.lng}`;
@@ -51,7 +51,7 @@ export function InstitutionDetailPanel({
           type="button"
           onClick={() => onClose?.()}
           className="absolute right-3 top-3 z-10 rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
-          aria-label="Zatvori"
+          aria-label="Close"
         >
           <X className="h-5 w-5" />
         </button>
@@ -60,8 +60,8 @@ export function InstitutionDetailPanel({
       <div className="flex-1 overflow-y-auto overscroll-contain">
         {institution.is_location_hidden ? (
           <div className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-            Točna lokacija ove ustanove je skrivena radi sigurnosti korisnica.
-            Kontaktirajte ustanovu telefonom.
+            The exact location of this institution is hidden for the safety of
+            residents. Please contact them by phone.
           </div>
         ) : null}
 
@@ -80,7 +80,7 @@ export function InstitutionDetailPanel({
                 backgroundColor: cat.bgColor,
               }}
             >
-              {cat.labelHr}
+              {cat.label}
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-[family-name:var(--font-dm-sans)] text-2xl font-bold text-gray-900">
@@ -89,7 +89,7 @@ export function InstitutionDetailPanel({
               {institution.is_verified ? (
                 <CheckCircle2
                   className="h-6 w-6 shrink-0 text-emerald-500"
-                  aria-label="Provjerena ustanova"
+                  aria-label="Verified institution"
                 />
               ) : null}
             </div>
@@ -100,12 +100,12 @@ export function InstitutionDetailPanel({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <InfoItem
               icon={MapPin}
-              label="Adresa"
+              label="Address"
               value={addressDisplay}
             />
             <InfoItem
               icon={Phone}
-              label="Telefon"
+              label="Phone"
               value={
                 institution.phone ? (
                   <a
@@ -121,7 +121,7 @@ export function InstitutionDetailPanel({
             />
             <InfoItem
               icon={Mail}
-              label="E-pošta"
+              label="Email"
               value={
                 institution.email ? (
                   <a
@@ -137,7 +137,7 @@ export function InstitutionDetailPanel({
             />
             <InfoItem
               icon={Globe}
-              label="Web"
+              label="Website"
               value={
                 institution.website ? (
                   <a
@@ -155,19 +155,19 @@ export function InstitutionDetailPanel({
             />
             <InfoItem
               icon={Clock}
-              label="Radno vrijeme"
+              label="Working hours"
               value={institution.working_hours ?? "—"}
             />
             <InfoItem
               icon={Package}
-              label="Predaja donacija"
+              label="Drop-off hours"
               value={institution.drop_off_hours ?? "—"}
             />
           </div>
 
           <section>
             <h3 className="mb-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900">
-              Što primaju
+              Accepts
             </h3>
             <DonationBadges accepts={institution.accepts_donations} />
           </section>
@@ -177,7 +177,7 @@ export function InstitutionDetailPanel({
               <Users className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" />
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Kapacitet
+                  Capacity
                 </p>
                 <p className="text-sm text-gray-800">{institution.capacity}</p>
               </div>
@@ -188,14 +188,14 @@ export function InstitutionDetailPanel({
             <section className="rounded-xl border border-gray-100 bg-gray-50/80 p-4">
               <h3 className="mb-2 flex items-center gap-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900">
                 <Train className="h-4 w-4 text-gray-600" />
-                ZET u blizini
+                Nearby ZET stop
               </h3>
               <p className="text-sm text-gray-800">
                 {institution.nearest_zet_stop}
               </p>
               {institution.zet_lines ? (
                 <p className="mt-1 text-sm text-gray-600">
-                  Linije: {institution.zet_lines}
+                  Lines: {institution.zet_lines}
                 </p>
               ) : null}
             </section>
@@ -209,7 +209,7 @@ export function InstitutionDetailPanel({
               className="inline-flex flex-1 min-w-[10rem] items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
             >
               <ExternalLink className="h-4 w-4" />
-              Otvori u Google Maps
+              Open in Google Maps
             </a>
             {institution.phone ? (
               <a
@@ -217,7 +217,7 @@ export function InstitutionDetailPanel({
                 className="inline-flex flex-1 min-w-[10rem] items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
               >
                 <Phone className="h-4 w-4" />
-                Nazovi
+                Call
               </a>
             ) : null}
           </div>
@@ -261,7 +261,7 @@ function DonationBadges({
           key={type}
           className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700"
         >
-          {DONATION_TYPES[type].labelHr}
+          {DONATION_TYPES[type].label}
         </span>
       ))}
     </div>

@@ -5,14 +5,14 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "DajSrce — Povežimo one koji daju s onima kojima treba",
+  title: "DajSrce — Connecting donors with those in need",
   description:
-    "Interaktivna karta socijalnih ustanova u Zagrebu. Pronađite gdje donirati, volontirati i pomoći.",
+    "Interactive map of social institutions in Zagreb. Find where to donate, volunteer, and help.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="hr">
+    <html lang="en">
       <head>
         <link
           rel="stylesheet"

@@ -20,7 +20,7 @@ function LoginForm() {
 
   useEffect(() => {
     if (searchParams.get("error") === "auth_failed") {
-      setError("Prijava nije uspjela. Pokušajte ponovo.");
+      setError("Sign in failed. Please try again.");
     }
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
@@ -69,7 +69,7 @@ function LoginForm() {
             DajSrce
           </span>
         </div>
-        <h1 className="text-xl font-semibold text-gray-800">Prijava</h1>
+        <h1 className="text-xl font-semibold text-gray-800">Sign In</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,7 +84,7 @@ function LoginForm() {
             htmlFor="email"
             className="mb-1.5 block text-sm font-medium text-gray-700"
           >
-            E-pošta
+            Email
           </label>
           <input
             id="email"
@@ -103,7 +103,7 @@ function LoginForm() {
             htmlFor="password"
             className="mb-1.5 block text-sm font-medium text-gray-700"
           >
-            Lozinka
+            Password
           </label>
           <input
             id="password"
@@ -122,7 +122,7 @@ function LoginForm() {
           disabled={loading}
           className="w-full rounded-xl bg-red-500 py-3.5 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Prijava…" : "Prijavi se"}
+          {loading ? "Signing in…" : "Sign In"}
         </button>
       </form>
 
@@ -131,7 +131,7 @@ function LoginForm() {
           <div className="w-full border-t border-gray-200" />
         </div>
         <div className="relative flex justify-center text-xs uppercase tracking-wide">
-          <span className="bg-white px-3 text-gray-500">ili</span>
+          <span className="bg-white px-3 text-gray-500">or</span>
         </div>
       </div>
 
@@ -142,16 +142,16 @@ function LoginForm() {
         className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3.5 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Chrome className="h-5 w-5 text-red-500" strokeWidth={2} />
-        {googleLoading ? "Učitavanje…" : "Nastavi s Googleom"}
+        {googleLoading ? "Loading…" : "Continue with Google"}
       </button>
 
       <p className="mt-8 text-center text-sm text-gray-600">
-        Nemate račun?{" "}
+        Don&apos;t have an account?{" "}
         <Link
           href="/auth/register"
           className="font-semibold text-red-500 hover:text-red-600 hover:underline"
         >
-          Registrirajte se
+          Sign Up
         </Link>
       </p>
     </div>

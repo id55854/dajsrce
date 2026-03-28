@@ -9,10 +9,10 @@ import { NeedCard, type NeedCardNeed } from "@/components/NeedCard";
 const DONATION_KEYS = Object.keys(DONATION_TYPES) as DonationType[];
 
 const URGENCY_OPTIONS: { value: UrgencyLevel | "all"; label: string }[] = [
-  { value: "all", label: "Sve" },
-  { value: "urgent", label: "Hitno" },
-  { value: "needed_soon", label: "Uskoro" },
-  { value: "routine", label: "Standardno" },
+  { value: "all", label: "All" },
+  { value: "urgent", label: "Urgent" },
+  { value: "needed_soon", label: "Soon" },
+  { value: "routine", label: "Routine" },
 ];
 
 export default function NeedsPage() {
@@ -36,11 +36,11 @@ export default function NeedsPage() {
           needs?: NeedCardNeed[];
           error?: string;
         };
-        if (!res.ok) throw new Error(json.error ?? "Neuspjelo učitavanje");
+        if (!res.ok) throw new Error(json.error ?? "Failed to load");
         if (!cancelled) setNeeds(json.needs ?? []);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Greška pri učitavanju");
+          setError(e instanceof Error ? e.message : "Error loading data");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -54,16 +54,16 @@ export default function NeedsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Potrebe ustanova</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Institution Needs</h1>
         <p className="mt-2 text-lg text-gray-600">
-          Ustanove trebaju vašu pomoć — pronađite gdje možete pomoći
+          Institutions need your help — find where you can contribute
         </p>
       </header>
 
       <div className="mb-8 space-y-4">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Vrsta donacije
+            Donation type
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -76,7 +76,7 @@ export default function NeedsPage() {
                   : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
               )}
             >
-              Sve
+              All
             </button>
             {DONATION_KEYS.map((key) => {
               const on = donationType === key;
@@ -92,7 +92,7 @@ export default function NeedsPage() {
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                   )}
                 >
-                  {DONATION_TYPES[key].labelHr}
+                  {DONATION_TYPES[key].label}
                 </button>
               );
             })}
@@ -101,7 +101,7 @@ export default function NeedsPage() {
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Hitnost
+            Urgency
           </p>
           <div className="flex flex-wrap gap-2">
             {URGENCY_OPTIONS.map((opt) => {
@@ -139,7 +139,7 @@ export default function NeedsPage() {
         <p className="text-center text-red-600">{error}</p>
       ) : needs.length === 0 ? (
         <p className="py-16 text-center text-gray-500">
-          Trenutno nema aktivnih potreba
+          No active needs at this time
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

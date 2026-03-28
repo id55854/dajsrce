@@ -93,7 +93,7 @@ export default function MapPage() {
           error?: string;
         };
         if (!instRes.ok) {
-          throw new Error(instJson.error ?? "Neuspjelo učitavanje ustanova");
+          throw new Error(instJson.error ?? "Failed to load institutions");
         }
         if (cancelled) return;
         setInstitutions(instJson.institutions ?? []);
@@ -104,7 +104,7 @@ export default function MapPage() {
         setUrgentInstitutionIds(ids);
       } catch (e) {
         if (!cancelled) {
-          setLoadError(e instanceof Error ? e.message : "Greška pri učitavanju");
+          setLoadError(e instanceof Error ? e.message : "Error loading data");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -185,7 +185,7 @@ export default function MapPage() {
           className="absolute bottom-4 left-1/2 z-[400] flex -translate-x-1/2 items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg md:hidden"
         >
           <List className="h-4 w-4" aria-hidden />
-          Popis ustanova
+          Institution list
         </button>
       </div>
 
@@ -201,7 +201,7 @@ export default function MapPage() {
           className="flex items-center justify-center gap-2 border-b border-gray-200 bg-white py-3 text-sm font-semibold text-red-600 md:hidden"
         >
           <MapIcon className="h-4 w-4" aria-hidden />
-          Prikaži kartu
+          Show map
         </button>
 
         <div className="hide-scrollbar shrink-0 border-b border-gray-200 bg-white px-3 py-3">
@@ -216,7 +216,7 @@ export default function MapPage() {
             />
           ) : filteredInstitutions.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-500">
-              Nema ustanova koje odgovaraju filterima.
+              No institutions match your filters.
             </p>
           ) : (
             <ul className="flex flex-col gap-3">
