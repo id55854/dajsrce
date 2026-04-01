@@ -11,9 +11,12 @@ import {
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Institution, InstitutionCategory, DonationType } from "@/lib/types";
 import { CATEGORY_CONFIG, ZAGREB_CENTER, DEFAULT_ZOOM } from "@/lib/constants";
+
+const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 
 export interface MapFilters {
   categories: InstitutionCategory[];
@@ -22,16 +25,17 @@ export interface MapFilters {
   onlyUrgent: boolean;
 }
 
-export function createCategoryIcon(color: string, size: number = 32): L.DivIcon {
+export function createCategoryIcon(color: string, size: number = 32, dark = false): L.DivIcon {
+  const border = dark ? "#1f2937" : "white";
   return L.divIcon({
     className: "",
     html: `<div style="
       width: ${size}px; height: ${size}px;
       background: ${color};
-      border: 3px solid white;
+      border: 3px solid ${border};
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 6px rgba(0,0,0,${dark ? "0.6" : "0.3"});
     "></div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size],
@@ -39,12 +43,12 @@ export function createCategoryIcon(color: string, size: number = 32): L.DivIcon 
   });
 }
 
-const CATEGORY_ICONS: Record<InstitutionCategory, L.DivIcon> = {} as Record<
-  InstitutionCategory,
-  L.DivIcon
->;
-for (const key of Object.keys(CATEGORY_CONFIG) as InstitutionCategory[]) {
-  CATEGORY_ICONS[key] = createCategoryIcon(CATEGORY_CONFIG[key].color);
+function buildIcons(dark: boolean) {
+  const icons = {} as Record<InstitutionCategory, L.DivIcon>;
+  for (const key of Object.keys(CATEGORY_CONFIG) as InstitutionCategory[]) {
+    icons[key] = createCategoryIcon(CATEGORY_CONFIG[key].color, 32, dark);
+  }
+  return icons;
 }
 
 const HIDDEN_CIRCLE_RADIUS_M = 650;
@@ -97,12 +101,31 @@ export type MapProps = {
   filters: MapFilters;
 };
 
+function useDarkMode() {
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    setDark(root.classList.contains("dark"));
+    const observer = new MutationObserver(() => {
+      setDark(root.classList.contains("dark"));
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  return dark;
+}
+
 export default function Map({
   institutions,
   selectedId,
   onSelect,
   filters,
 }: MapProps) {
+  const dark = useDarkMode();
+  const icons = useMemo(() => buildIcons(dark), [dark]);
+
   const visible = useMemo(
     () => institutions.filter((i) => passesFilters(i, filters)),
     [institutions, filters],
@@ -116,14 +139,15 @@ export default function Map({
       scrollWheelZoom
     >
       <TileLayer
+        key={dark ? "dark" : "light"}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        url={dark ? DARK_TILES : LIGHT_TILES}
         subdomains="abcd"
       />
       <MapFlyToSelection selectedId={selectedId} institutions={institutions} />
       {visible.map((inst) => {
         const cat = CATEGORY_CONFIG[inst.category];
-        const icon = CATEGORY_ICONS[inst.category];
+        const icon = icons[inst.category];
 
         if (inst.is_location_hidden) {
           const fill = cat.color;

@@ -18,6 +18,29 @@ body {
   color-scheme: dark;
 }
 
+.dark .leaflet-popup-content-wrapper {
+  background: #111827;
+  color: #e5e7eb;
+}
+.dark .leaflet-popup-tip {
+  background: #111827;
+}
+.dark .leaflet-control-zoom a {
+  background: #1f2937;
+  color: #d1d5db;
+  border-color: #374151;
+}
+.dark .leaflet-control-zoom a:hover {
+  background: #374151;
+}
+.dark .leaflet-control-attribution {
+  background: rgba(17, 24, 39, 0.8) !important;
+  color: #6b7280;
+}
+.dark .leaflet-control-attribution a {
+  color: #9ca3af;
+}
+
 /* Hide scrollbar for filter bar */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
