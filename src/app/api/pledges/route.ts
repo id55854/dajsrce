@@ -33,6 +33,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      await supabase.from("profiles").insert({
+        id: user.id,
+        email: user.email!,
+        name: user.user_metadata?.name || user.email!.split("@")[0],
+        role: user.user_metadata?.role || "citizen",
+      });
+    }
+
     const body = await req.json();
     const { need_id, quantity, message } = body;
     const qty = quantity || 1;

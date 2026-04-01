@@ -75,7 +75,41 @@ export default function RegisterPage() {
       return;
     }
 
-    if (data.session) {
+    if (data.session && data.user) {
+      await supabase
+        .from("profiles")
+        .upsert({
+          id: data.user.id,
+          email,
+          name,
+          role: role!,
+        }, { onConflict: "id" });
+
+      if (role === "institution") {
+        const { data: inst } = await supabase
+          .from("institutions")
+          .insert({
+            name: institutionName.trim(),
+            category: "social_welfare",
+            description: `${institutionName.trim()} - registered via DajSrce`,
+            address: "Address pending",
+            city: "Zagreb",
+            lat: 45.8131,
+            lng: 15.9775,
+            served_population: "General",
+            is_verified: false,
+          })
+          .select("id")
+          .single();
+
+        if (inst) {
+          await supabase
+            .from("profiles")
+            .update({ institution_id: inst.id })
+            .eq("id", data.user.id);
+        }
+      }
+
       window.location.href = "/dashboard";
       return;
     }
