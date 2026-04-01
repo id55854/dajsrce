@@ -27,10 +27,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
       </head>
-      <body className="min-h-screen flex flex-col bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
+      <body className="bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+        <div id="app-content" className="min-h-screen flex flex-col">
+          <Navbar />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </div>
         <AccessibilityMenu />
       </body>
     </html>
