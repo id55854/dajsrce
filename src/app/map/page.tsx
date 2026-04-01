@@ -14,12 +14,12 @@ import type { NeedCardNeed } from "@/components/NeedCard";
 const Map = dynamic(() => import("@/components/Map"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full w-full flex-col gap-2 bg-gray-100 p-3">
-      <div className="h-8 w-40 animate-pulse rounded-lg bg-gray-200" />
-      <div className="min-h-0 flex-1 animate-pulse rounded-xl bg-gray-200" />
+    <div className="flex h-full w-full flex-col gap-2 bg-gray-100 p-3 dark:bg-gray-900">
+      <div className="h-8 w-40 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800" />
+      <div className="min-h-0 flex-1 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />
       <div className="flex gap-2">
-        <div className="h-10 flex-1 animate-pulse rounded-lg bg-gray-200" />
-        <div className="h-10 flex-1 animate-pulse rounded-lg bg-gray-200" />
+        <div className="h-10 flex-1 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800" />
+        <div className="h-10 flex-1 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800" />
       </div>
     </div>
   ),
@@ -140,14 +140,14 @@ export default function MapPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-64px)] flex-col gap-3 bg-white p-4 md:flex-row">
-        <div className="h-[45vh] animate-pulse rounded-xl bg-gray-200 md:h-full md:w-[60%]" />
+      <div className="flex h-[calc(100vh-64px)] flex-col gap-3 bg-white p-4 dark:bg-gray-950 md:flex-row">
+        <div className="h-[45vh] animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800 md:h-full md:w-[60%]" />
         <div className="flex min-h-0 flex-1 flex-col gap-3 md:w-[40%]">
-          <div className="h-24 animate-pulse rounded-xl bg-gray-200" />
+          <div className="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />
           <div className="min-h-0 flex-1 space-y-3 overflow-hidden">
-            <div className="h-28 animate-pulse rounded-xl bg-gray-200" />
-            <div className="h-28 animate-pulse rounded-xl bg-gray-200" />
-            <div className="h-28 animate-pulse rounded-xl bg-gray-200" />
+            <div className="h-28 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />
+            <div className="h-28 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />
+            <div className="h-28 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />
           </div>
         </div>
       </div>
@@ -191,20 +191,20 @@ export default function MapPage() {
 
       <aside
         className={clsx(
-          "flex min-h-0 flex-col border-t border-gray-200 bg-gray-50 md:h-full md:w-[40%] md:border-l md:border-t-0",
+          "flex min-h-0 flex-col border-t border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:md:border-gray-800 md:h-full md:w-[40%] md:border-l md:border-t-0",
           mobileView === "map" ? "hidden md:flex" : "flex flex-1"
         )}
       >
         <button
           type="button"
           onClick={() => setMobileView("map")}
-          className="flex items-center justify-center gap-2 border-b border-gray-200 bg-white py-3 text-sm font-semibold text-red-600 md:hidden"
+          className="flex items-center justify-center gap-2 border-b border-gray-200 bg-white py-3 text-sm font-semibold text-red-600 dark:border-gray-800 dark:bg-gray-900 md:hidden"
         >
           <MapIcon className="h-4 w-4" aria-hidden />
           Show map
         </button>
 
-        <div className="hide-scrollbar shrink-0 border-b border-gray-200 bg-white px-3 py-3">
+        <div className="hide-scrollbar shrink-0 border-b border-gray-200 bg-white px-3 py-3 dark:border-gray-800 dark:bg-gray-900">
           <FilterBar filters={filters} onChange={setFilters} />
         </div>
 
@@ -215,7 +215,7 @@ export default function MapPage() {
               onClose={() => setSelectedId(null)}
             />
           ) : filteredInstitutions.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-500">
+            <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
               No institutions match your filters.
             </p>
           ) : (

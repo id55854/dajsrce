@@ -2,6 +2,8 @@
 
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --font-dm-sans: "DM Sans", system-ui, sans-serif;
 }
@@ -9,6 +11,11 @@
 body {
   font-family: var(--font-dm-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+.dark body,
+.dark {
+  color-scheme: dark;
 }
 
 /* Hide scrollbar for filter bar */

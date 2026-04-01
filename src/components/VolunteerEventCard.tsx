@@ -41,7 +41,6 @@ export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps)
       const res = await fetch("/api/volunteer-signups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ event_id: event.id }),
       });
       if (res.status === 409) {
@@ -63,10 +62,10 @@ export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps)
   }
 
   return (
-    <article className="flex flex-col rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+    <article className="flex flex-col rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
       {institution ? (
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-gray-900">
+          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             {institution.name}
           </span>
           {cat ? (
@@ -77,28 +76,28 @@ export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps)
               {cat.label}
             </span>
           ) : (
-            <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+            <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
               {institution.category}
             </span>
           )}
         </div>
       ) : null}
 
-      <h3 className="text-lg font-semibold text-gray-900">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
         {event.title}
       </h3>
 
-      <p className="mt-2 text-sm text-gray-600">{dateLabel}</p>
-      <p className="mt-1 text-sm text-gray-700">
+      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{dateLabel}</p>
+      <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
         {event.start_time} – {event.end_time}
       </p>
 
       <div className="mt-4">
-        <div className="flex justify-between text-xs text-gray-500">
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
           <span>Volunteers</span>
           <span>{signed} / {needed}</span>
         </div>
-        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
+        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
           <div
             className="h-full rounded-full bg-red-500 transition-[width] duration-300"
             style={{ width: `${pct}%` }}
@@ -107,15 +106,17 @@ export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps)
       </div>
 
       {event.requirements ? (
-        <p className="mt-3 text-sm text-gray-500">{event.requirements}</p>
+        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+          {event.requirements}
+        </p>
       ) : null}
 
       {status === "success" ? (
-        <p className="mt-5 rounded-full bg-emerald-50 px-5 py-2.5 text-center text-sm font-semibold text-emerald-700">
+        <p className="mt-5 rounded-full bg-emerald-50 px-5 py-2.5 text-center text-sm font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
           Signed up!
         </p>
       ) : status === "duplicate" ? (
-        <p className="mt-5 rounded-full bg-amber-50 px-5 py-2.5 text-center text-sm font-semibold text-amber-700">
+        <p className="mt-5 rounded-full bg-amber-50 px-5 py-2.5 text-center text-sm font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-400">
           Already signed up
         </p>
       ) : (

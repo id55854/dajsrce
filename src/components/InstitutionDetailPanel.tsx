@@ -45,12 +45,12 @@ export function InstitutionDetailPanel({
     : null;
 
   return (
-    <div className="relative rounded-xl border border-gray-100 bg-white shadow-lg">
+    <div className="relative rounded-xl border border-gray-100 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900">
       {showCloseButton ? (
         <button
           type="button"
           onClick={() => onClose?.()}
-          className="absolute right-3 top-3 z-10 rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+          className="absolute right-3 top-3 z-10 rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
           aria-label="Close"
         >
           <X className="h-5 w-5" />
@@ -59,7 +59,7 @@ export function InstitutionDetailPanel({
 
       <div>
         {institution.is_location_hidden ? (
-          <div className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          <div className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
             The exact location of this institution is hidden for the safety of
             residents. Please contact them by phone.
           </div>
@@ -83,7 +83,7 @@ export function InstitutionDetailPanel({
               {cat.label}
             </span>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-[family-name:var(--font-dm-sans)] text-2xl font-bold text-gray-900">
+              <h2 className="font-[family-name:var(--font-dm-sans)] text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {institution.name}
               </h2>
               {institution.is_verified ? (
@@ -95,7 +95,9 @@ export function InstitutionDetailPanel({
             </div>
           </header>
 
-          <p className="text-gray-700">{institution.description}</p>
+          <p className="text-gray-700 dark:text-gray-300">
+            {institution.description}
+          </p>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <InfoItem
@@ -166,35 +168,37 @@ export function InstitutionDetailPanel({
           </div>
 
           <section>
-            <h3 className="mb-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900">
+            <h3 className="mb-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900 dark:text-gray-100">
               Accepts
             </h3>
             <DonationBadges accepts={institution.accepts_donations} />
           </section>
 
           {institution.capacity ? (
-            <div className="flex items-start gap-3 rounded-xl bg-gray-50 p-3">
+            <div className="flex items-start gap-3 rounded-xl bg-gray-50 p-3 dark:bg-gray-800">
               <Users className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" />
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                   Capacity
                 </p>
-                <p className="text-sm text-gray-800">{institution.capacity}</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">
+                  {institution.capacity}
+                </p>
               </div>
             </div>
           ) : null}
 
           {institution.nearest_zet_stop ? (
-            <section className="rounded-xl border border-gray-100 bg-gray-50/80 p-4">
-              <h3 className="mb-2 flex items-center gap-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900">
+            <section className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 dark:border-gray-800 dark:bg-gray-800/80">
+              <h3 className="mb-2 flex items-center gap-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900 dark:text-gray-100">
                 <Train className="h-4 w-4 text-gray-600" />
                 Nearby ZET stop
               </h3>
-              <p className="text-sm text-gray-800">
+              <p className="text-sm text-gray-800 dark:text-gray-200">
                 {institution.nearest_zet_stop}
               </p>
               {institution.zet_lines ? (
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                   Lines: {institution.zet_lines}
                 </p>
               ) : null}
@@ -238,12 +242,14 @@ function InfoItem({
 }) {
   return (
     <div className="flex gap-3">
-      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
+      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500" />
       <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
           {label}
         </p>
-        <div className="break-words text-sm text-gray-800">{value}</div>
+        <div className="break-words text-sm text-gray-800 dark:text-gray-200">
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -259,7 +265,7 @@ function DonationBadges({
       {accepts.map((type) => (
         <span
           key={type}
-          className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700"
+          className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400"
         >
           {DONATION_TYPES[type].label}
         </span>

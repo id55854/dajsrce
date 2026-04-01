@@ -47,9 +47,9 @@ export function BadgeDisplay({ badges }: BadgeDisplayProps) {
 
   if (!known.length) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 px-6 py-10 text-center">
+      <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 px-6 py-10 text-center dark:border-gray-700 dark:bg-gray-800/80">
         <Sparkles className="h-8 w-8 text-red-400" strokeWidth={1.5} />
-        <p className="max-w-sm text-sm font-medium text-gray-600">
+        <p className="max-w-sm text-sm font-medium text-gray-600 dark:text-gray-400">
           Start helping to earn badges!
         </p>
       </div>
@@ -68,7 +68,9 @@ export function BadgeDisplay({ badges }: BadgeDisplayProps) {
             >
               <Icon className={`h-8 w-8 ${iconClass}`} strokeWidth={2} />
             </span>
-            <span className="text-xs font-medium text-gray-700">{label}</span>
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              {label}
+            </span>
           </li>
         );
       })}

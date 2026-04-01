@@ -39,7 +39,7 @@ export function InstitutionCard({
       type="button"
       onClick={onClick}
       className={clsx(
-        "w-full rounded-xl border border-gray-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md",
+        "w-full rounded-xl border border-gray-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:shadow-gray-900",
         isSelected && "ring-2 ring-red-500 ring-offset-2"
       )}
     >
@@ -59,8 +59,10 @@ export function InstitutionCard({
         </div>
       </div>
 
-      <h3 className="font-semibold text-gray-900">{institution.name}</h3>
-      <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+      <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+        {institution.name}
+      </h3>
+      <p className="mt-1 text-sm text-gray-500 line-clamp-2 dark:text-gray-400">
         {institution.address}
         {institution.city ? `, ${institution.city}` : ""}
       </p>
@@ -76,11 +78,11 @@ export function InstitutionCard({
           {institution.accepts_donations.map((dt) => (
             <span
               key={dt}
-              className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600"
+              className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400"
             >
               <LucideByName
                 name={DONATION_TYPES[dt].icon}
-                className="h-3.5 w-3.5 text-gray-500"
+                className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400"
               />
               {DONATION_TYPES[dt].label}
             </span>

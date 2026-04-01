@@ -55,7 +55,9 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               onClick={() => toggleCategory(cat)}
               className={clsx(
                 "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-shadow",
-                on ? "shadow-sm ring-2 ring-offset-1" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                on
+                  ? "shadow-sm ring-2 ring-offset-1"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
               )}
               style={
                 on
@@ -73,7 +75,10 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           );
         })}
 
-        <div className="mx-1 h-8 w-px shrink-0 self-center bg-gray-200" aria-hidden />
+        <div
+          className="mx-1 h-8 w-px shrink-0 self-center bg-gray-200 dark:bg-gray-700"
+          aria-hidden
+        />
 
         <div className="flex shrink-0 items-center gap-1.5 pr-2">
           <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -86,8 +91,8 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           className={clsx(
             "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
             filters.donationType === null
-              ? "border-red-500 bg-red-50 text-red-600"
-              : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+              ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
+              : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
           )}
         >
           All
@@ -102,8 +107,8 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               className={clsx(
                 "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
                 on
-                  ? "border-red-500 bg-red-50 text-red-600"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
               )}
             >
               {DONATION_TYPES[key].label}
@@ -111,7 +116,10 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           );
         })}
 
-        <div className="mx-1 h-8 w-px shrink-0 self-center bg-gray-200" aria-hidden />
+        <div
+          className="mx-1 h-8 w-px shrink-0 self-center bg-gray-200 dark:bg-gray-700"
+          aria-hidden
+        />
 
         <button
           type="button"
@@ -119,8 +127,8 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           className={clsx(
             "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-colors",
             filters.onlyZagreb
-              ? "border-red-500 bg-red-50 text-red-600"
-              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
+              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
           )}
         >
           {filters.onlyZagreb ? "Zagreb only" : "All Croatia"}
@@ -132,8 +140,8 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           className={clsx(
             "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-colors",
             filters.onlyUrgent
-              ? "border-red-500 bg-red-50 text-red-600"
-              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
+              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
           )}
         >
           Urgent only

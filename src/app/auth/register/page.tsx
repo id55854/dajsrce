@@ -75,41 +75,7 @@ export default function RegisterPage() {
       return;
     }
 
-    if (data.session && data.user) {
-      await supabase
-        .from("profiles")
-        .upsert({
-          id: data.user.id,
-          email,
-          name,
-          role: role!,
-        }, { onConflict: "id" });
-
-      if (role === "institution") {
-        const { data: inst } = await supabase
-          .from("institutions")
-          .insert({
-            name: institutionName.trim(),
-            category: "social_welfare",
-            description: `${institutionName.trim()} - registered via DajSrce`,
-            address: "Address pending",
-            city: "Zagreb",
-            lat: 45.8131,
-            lng: 15.9775,
-            served_population: "General",
-            is_verified: false,
-          })
-          .select("id")
-          .single();
-
-        if (inst) {
-          await supabase
-            .from("profiles")
-            .update({ institution_id: inst.id })
-            .eq("id", data.user.id);
-        }
-      }
-
+    if (data.session) {
       window.location.href = "/dashboard";
       return;
     }
@@ -121,26 +87,28 @@ export default function RegisterPage() {
 
   return (
     <div
-      className={`${dmSans.className} min-h-screen bg-gradient-to-b from-red-50/80 to-amber-50/40 px-4 py-12`}
+      className={`${dmSans.className} min-h-screen bg-gradient-to-b from-red-50/80 to-amber-50/40 px-4 py-12 dark:from-gray-950 dark:to-gray-950`}
     >
       <div className="mx-auto w-full max-w-lg space-y-8">
-        <div className="rounded-2xl border border-red-100/80 bg-white/95 p-8 shadow-lg shadow-red-500/5">
+        <div className="rounded-2xl border border-red-100/80 bg-white/95 p-8 shadow-lg shadow-red-500/5 dark:border-gray-800 dark:bg-gray-900/95">
           <div className="mb-6 flex items-center justify-center gap-2 text-red-500">
             <Heart className="h-8 w-8 fill-current" strokeWidth={1.5} />
-            <span className="text-xl font-bold text-gray-900">DajSrce</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+              DajSrce
+            </span>
           </div>
 
           {step === 1 ? (
             <>
-              <h1 className="mb-2 text-center text-xl font-semibold text-gray-800">
+              <h1 className="mb-2 text-center text-xl font-semibold text-gray-800 dark:text-gray-200">
                 Who are you?
               </h1>
-              <p className="mb-6 text-center text-sm text-gray-600">
+              <p className="mb-6 text-center text-sm text-gray-600 dark:text-gray-400">
                 Select your role to continue.
               </p>
 
               {error ? (
-                <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-center text-sm text-red-600">
+                <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
                   {error}
                 </p>
               ) : null}
@@ -151,18 +119,20 @@ export default function RegisterPage() {
                   onClick={() => selectRole("citizen")}
                   className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center transition-all ${
                     role === "citizen"
-                      ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10"
-                      : "border-gray-200 bg-white hover:border-red-200"
+                      ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10 dark:bg-red-950/30"
+                      : "border-gray-200 bg-white hover:border-red-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-red-800"
                   }`}
                 >
                   <Heart
                     className={`h-10 w-10 ${role === "citizen" ? "text-red-500" : "text-gray-400"}`}
                     strokeWidth={1.75}
                   />
-                  <span className="font-semibold text-gray-900">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
                     I want to help
                   </span>
-                  <span className="text-xs text-gray-500">Citizen</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Citizen
+                  </span>
                 </button>
 
                 <button
@@ -170,18 +140,20 @@ export default function RegisterPage() {
                   onClick={() => selectRole("institution")}
                   className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center transition-all ${
                     role === "institution"
-                      ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10"
-                      : "border-gray-200 bg-white hover:border-red-200"
+                      ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10 dark:bg-red-950/30"
+                      : "border-gray-200 bg-white hover:border-red-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-red-800"
                   }`}
                 >
                   <Building2
                     className={`h-10 w-10 ${role === "institution" ? "text-red-500" : "text-gray-400"}`}
                     strokeWidth={1.75}
                   />
-                  <span className="font-semibold text-gray-900">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
                     I represent an institution
                   </span>
-                  <span className="text-xs text-gray-500">Institution</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Institution
+                  </span>
                 </button>
               </div>
 
@@ -196,7 +168,7 @@ export default function RegisterPage() {
           ) : (
             <>
               <div className="mb-6 flex items-center justify-between gap-2">
-                <h1 className="text-xl font-semibold text-gray-800">
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
                   Registration
                 </h1>
                 <button
@@ -214,12 +186,12 @@ export default function RegisterPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 {error ? (
-                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
                     {error}
                   </p>
                 ) : null}
                 {success ? (
-                  <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
                     {success}
                   </p>
                 ) : null}
@@ -227,7 +199,7 @@ export default function RegisterPage() {
                 <div>
                   <label
                     htmlFor="name"
-                    className="mb-1.5 block text-sm font-medium text-gray-700"
+                    className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
                     Full name
                   </label>
@@ -238,14 +210,14 @@ export default function RegisterPage() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="email"
-                    className="mb-1.5 block text-sm font-medium text-gray-700"
+                    className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
                     Email
                   </label>
@@ -257,14 +229,14 @@ export default function RegisterPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="password"
-                    className="mb-1.5 block text-sm font-medium text-gray-700"
+                    className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
                     Password (min. 6 characters)
                   </label>
@@ -277,7 +249,7 @@ export default function RegisterPage() {
                     minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
 
@@ -285,7 +257,7 @@ export default function RegisterPage() {
                   <div>
                     <label
                       htmlFor="institution"
-                      className="mb-1.5 block text-sm font-medium text-gray-700"
+                      className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
                     >
                       Institution name
                     </label>
@@ -296,7 +268,7 @@ export default function RegisterPage() {
                       required
                       value={institutionName}
                       onChange={(e) => setInstitutionName(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                     />
                   </div>
                 ) : null}
@@ -312,7 +284,7 @@ export default function RegisterPage() {
             </>
           )}
 
-          <p className="mt-8 text-center text-sm text-gray-600">
+          <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
             Already have an account?{" "}
             <Link
               href="/auth/login"

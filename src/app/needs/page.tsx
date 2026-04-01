@@ -54,8 +54,10 @@ export default function NeedsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Institution Needs</h1>
-        <p className="mt-2 text-lg text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          Institution Needs
+        </h1>
+        <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
           Institutions need your help — find where you can contribute
         </p>
       </header>
@@ -72,8 +74,8 @@ export default function NeedsPage() {
               className={clsx(
                 "rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
                 donationType === "all"
-                  ? "border-red-500 bg-red-50 text-red-600"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
               )}
             >
               All
@@ -88,8 +90,8 @@ export default function NeedsPage() {
                   className={clsx(
                     "rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
                     on
-                      ? "border-red-500 bg-red-50 text-red-600"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                      ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
                   )}
                 >
                   {DONATION_TYPES[key].label}
@@ -114,8 +116,8 @@ export default function NeedsPage() {
                   className={clsx(
                     "rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-colors",
                     on
-                      ? "border-red-500 bg-red-50 text-red-600"
-                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                      ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
                   )}
                 >
                   {opt.label}
@@ -131,14 +133,14 @@ export default function NeedsPage() {
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="h-64 animate-pulse rounded-xl bg-gray-200"
+              className="h-64 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800"
             />
           ))}
         </div>
       ) : error ? (
         <p className="text-center text-red-600">{error}</p>
       ) : needs.length === 0 ? (
-        <p className="py-16 text-center text-gray-500">
+        <p className="py-16 text-center text-gray-500 dark:text-gray-400">
           No active needs at this time
         </p>
       ) : (

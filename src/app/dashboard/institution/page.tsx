@@ -94,7 +94,7 @@ export default function InstitutionDashboardPage() {
         body: JSON.stringify({
           title: evTitle,
           description: evDescription,
-          event_date: evDate,
+          date: evDate,
           start_time: evStart,
           end_time: evEnd,
           volunteers_needed: Number(evVolunteers),
@@ -121,29 +121,31 @@ export default function InstitutionDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/60 to-white px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/60 to-white px-4 py-10 dark:from-gray-950 dark:to-gray-950">
       <div className="mx-auto max-w-3xl space-y-8">
         <header>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             Institution Management
           </h1>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Manage needs, events, and activities.
           </p>
         </header>
 
-        <section className="rounded-2xl border border-red-100 bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-red-100 bg-white p-6 shadow-sm dark:border-red-900 dark:bg-gray-900">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-500">
               <Building2 className="h-6 w-6" />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold text-gray-900">Institution Profile</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Institution Profile
+              </h2>
             </div>
           </div>
         </section>
 
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <h3 className="mb-1 text-sm font-semibold text-gray-500">
             Pledges this month
           </h3>
@@ -170,7 +172,7 @@ export default function InstitutionDashboardPage() {
               setEvError(null);
               setPanel("event");
             }}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-white px-4 py-3.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-white px-4 py-3.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:bg-gray-900 dark:hover:bg-red-950"
           >
             <CalendarPlus className="h-5 w-5" />
             New Volunteer Event
@@ -178,44 +180,44 @@ export default function InstitutionDashboardPage() {
         </div>
 
         {panel === "need" ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-900">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 <ClipboardList className="h-5 w-5 text-red-500" />
                 New Need
               </h3>
               <button
                 type="button"
                 onClick={() => setPanel(null)}
-                className="text-sm font-medium text-gray-500 hover:text-gray-800"
+                className="text-sm font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 Close
               </button>
             </div>
             {needSuccess ? (
-              <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+              <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
                 Need posted!
               </p>
             ) : (
               <form onSubmit={submitNeed} className="space-y-4">
                 {needError ? (
-                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
                     {needError}
                   </p>
                 ) : null}
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Title
                   </label>
                   <input
                     required
                     value={needTitle}
                     onChange={(e) => setNeedTitle(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Description
                   </label>
                   <textarea
@@ -223,11 +225,11 @@ export default function InstitutionDashboardPage() {
                     rows={3}
                     value={needDescription}
                     onChange={(e) => setNeedDescription(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Donation type
                   </label>
                   <select
@@ -235,7 +237,7 @@ export default function InstitutionDashboardPage() {
                     onChange={(e) =>
                       setNeedDonationType(e.target.value as DonationType)
                     }
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   >
                     {donationEntries.map(([key, { label }]) => (
                       <option key={key} value={key}>
@@ -245,14 +247,14 @@ export default function InstitutionDashboardPage() {
                   </select>
                 </div>
                 <fieldset>
-                  <legend className="mb-2 text-sm font-medium text-gray-700">
+                  <legend className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     Urgency
                   </legend>
                   <div className="flex flex-wrap gap-3">
                     {urgencyOptions.map((o) => (
                       <label
                         key={o.value}
-                        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 has-[:checked]:border-red-400 has-[:checked]:bg-red-50"
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 has-[:checked]:border-red-400 has-[:checked]:bg-red-50 dark:border-gray-700 dark:has-[:checked]:bg-red-950"
                       >
                         <input
                           type="radio"
@@ -268,7 +270,7 @@ export default function InstitutionDashboardPage() {
                   </div>
                 </fieldset>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Quantity needed
                   </label>
                   <input
@@ -277,7 +279,7 @@ export default function InstitutionDashboardPage() {
                     required
                     value={needQuantity}
                     onChange={(e) => setNeedQuantity(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
                 <button
@@ -293,44 +295,44 @@ export default function InstitutionDashboardPage() {
         ) : null}
 
         {panel === "event" ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-900">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 <CalendarPlus className="h-5 w-5 text-red-500" />
                 New Volunteer Event
               </h3>
               <button
                 type="button"
                 onClick={() => setPanel(null)}
-                className="text-sm font-medium text-gray-500 hover:text-gray-800"
+                className="text-sm font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 Close
               </button>
             </div>
             {evSuccess ? (
-              <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+              <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
                 Event posted!
               </p>
             ) : (
               <form onSubmit={submitEvent} className="space-y-4">
                 {evError ? (
-                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
                     {evError}
                   </p>
                 ) : null}
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Title
                   </label>
                   <input
                     required
                     value={evTitle}
                     onChange={(e) => setEvTitle(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Description
                   </label>
                   <textarea
@@ -338,11 +340,11 @@ export default function InstitutionDashboardPage() {
                     rows={3}
                     value={evDescription}
                     onChange={(e) => setEvDescription(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Date
                   </label>
                   <input
@@ -350,35 +352,35 @@ export default function InstitutionDashboardPage() {
                     required
                     value={evDate}
                     onChange={(e) => setEvDate(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Start
                     </label>
                     <input
                       type="time"
                       value={evStart}
                       onChange={(e) => setEvStart(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       End
                     </label>
                     <input
                       type="time"
                       value={evEnd}
                       onChange={(e) => setEvEnd(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Volunteers needed
                   </label>
                   <input
@@ -387,7 +389,7 @@ export default function InstitutionDashboardPage() {
                     required
                     value={evVolunteers}
                     onChange={(e) => setEvVolunteers(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
                 <button
