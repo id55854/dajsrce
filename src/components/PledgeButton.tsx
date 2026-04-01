@@ -48,6 +48,7 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
       const res = await fetch("/api/pledges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           need_id: needId,
           quantity,
