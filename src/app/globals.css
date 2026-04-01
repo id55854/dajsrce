@@ -49,3 +49,126 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ===== ACCESSIBILITY OVERRIDES ===== */
+
+.high-contrast body {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+.high-contrast .bg-white,
+.high-contrast .bg-gray-50,
+.high-contrast .bg-red-50,
+.high-contrast .bg-red-50\/60,
+.high-contrast [class*="bg-white"],
+.high-contrast [class*="bg-gray"] {
+  background-color: #000 !important;
+  color: #fff !important;
+  border-color: #fff !important;
+}
+.high-contrast a {
+  color: #FFD700 !important;
+}
+.high-contrast button {
+  border: 2px solid #fff !important;
+}
+.high-contrast .text-gray-600,
+.high-contrast .text-gray-500,
+.high-contrast .text-gray-400,
+.high-contrast .text-gray-700,
+.high-contrast [class*="text-gray"] {
+  color: #e5e5e5 !important;
+}
+.high-contrast .text-red-500,
+.high-contrast .text-red-600,
+.high-contrast [class*="text-red"] {
+  color: #ff6b6b !important;
+}
+.high-contrast .border-gray-100,
+.high-contrast .border-gray-200,
+.high-contrast .border-red-100,
+.high-contrast [class*="border-gray"],
+.high-contrast [class*="border-red"] {
+  border-color: #555 !important;
+}
+.high-contrast input,
+.high-contrast textarea,
+.high-contrast select {
+  background-color: #111 !important;
+  color: #fff !important;
+  border-color: #666 !important;
+}
+.high-contrast .leaflet-container {
+  filter: contrast(1.3) brightness(0.9);
+}
+
+.dyslexia-font body,
+.dyslexia-font input,
+.dyslexia-font textarea,
+.dyslexia-font select,
+.dyslexia-font button {
+  font-family: "OpenDyslexic", "Comic Sans MS", sans-serif !important;
+}
+
+.highlight-links a {
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 3px !important;
+  background-color: rgba(255, 215, 0, 0.2) !important;
+  padding: 0 2px !important;
+  border-radius: 2px !important;
+}
+.highlight-links a:hover,
+.highlight-links a:focus {
+  outline: 3px solid #FFD700 !important;
+  outline-offset: 2px !important;
+  background-color: rgba(255, 215, 0, 0.35) !important;
+}
+
+.increase-spacing body {
+  letter-spacing: 0.12em !important;
+  word-spacing: 0.16em !important;
+  line-height: 1.8 !important;
+}
+.increase-spacing p,
+.increase-spacing li,
+.increase-spacing span,
+.increase-spacing div {
+  line-height: 1.8 !important;
+}
+
+.grayscale-mode body {
+  filter: grayscale(100%) !important;
+}
+.grayscale-mode .leaflet-container {
+  filter: grayscale(100%) !important;
+}
+
+.big-cursor,
+.big-cursor * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath d='M8 4l28 20H20l8 16-5 2-8-16-7 7z' fill='%23000' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E") 4 4, auto !important;
+}
+
+.stop-animations *,
+.stop-animations *::before,
+.stop-animations *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+@keyframes a11y-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.a11y-panel-enter {
+  animation: a11y-slide-up 0.2s ease-out;
+}

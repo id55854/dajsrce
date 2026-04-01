@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { AccessibilityMenu } from "@/components/AccessibilityMenu";
 
 export const metadata: Metadata = {
   title: "DajSrce — Connecting donors with those in need",
@@ -18,6 +19,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`,
@@ -28,6 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
+        <AccessibilityMenu />
       </body>
     </html>
   );
