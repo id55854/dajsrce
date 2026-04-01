@@ -1,8 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Accessibility,
   X,
   RotateCcw,
   Type,
@@ -14,6 +13,21 @@ import {
   Link as LinkIcon,
   Palette,
 } from "lucide-react";
+
+function A11yIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M256 48a208 208 0 1 1 0 416 208 208 0 0 1 0-416Zm0-48a256 256 0 1 0 0 512 256 256 0 0 0 0-512Z" />
+      <circle cx="256" cy="152" r="36" />
+      <path d="M164 212c-3 0-5 2-5 5v18c0 3 2 5 5 5h60v56l-36 104c-1 3 0 6 3 7l17 6c3 1 6 0 7-3l33-95h16l33 95c1 3 4 4 7 3l17-6c3-1 4-4 3-7l-36-104v-56h60c3 0 5-2 5-5v-18c0-3-2-5-5-5H164Z" />
+    </svg>
+  );
+}
 
 type A11ySettings = {
   fontSize: number;
@@ -228,7 +242,7 @@ export function AccessibilityMenu() {
         >
           <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
             <div className="flex items-center gap-2">
-              <Accessibility className="h-5 w-5 text-red-500" />
+              <A11yIcon className="h-5 w-5 text-red-500" />
               <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Accessibility
               </span>
@@ -323,7 +337,7 @@ export function AccessibilityMenu() {
         aria-label="Open accessibility menu"
         aria-expanded={isOpen}
       >
-        <Accessibility className="h-6 w-6" />
+        <A11yIcon className="h-7 w-7" />
       </button>
     </>
   );
