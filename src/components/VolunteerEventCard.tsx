@@ -52,6 +52,7 @@ export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps)
     try {
       const res = await fetch("/api/volunteer-signups", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ event_id: event.id }),
       });

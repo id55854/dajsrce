@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function GET(_req: NextRequest) {
   try {
@@ -49,8 +51,59 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { need_id, quantity, message } = body;
+    const {
+      need_id,
+      quantity,
+      message,
+      company_id,
+      campaign_id,
+      request_match,
+      tax_category,
+    } = body as {
+      need_id?: string;
+      quantity?: number;
+      message?: string;
+      company_id?: string | null;
+      campaign_id?: string | null;
+      request_match?: boolean;
+      tax_category?: string;
+    };
     const qty = quantity || 1;
+
+    if (!need_id) {
+      return NextResponse.json({ error: "need_id is required" }, { status: 400 });
+    }
+
+    // If the caller claims a company, enforce that they're a member of it.
+    let resolvedCompanyId: string | null = null;
+    let resolvedCampaignId: string | null = null;
+    let matchRatio = 0;
+    if (company_id) {
+      const { data: membership } = await supabase
+        .from("company_members")
+        .select("role, company:companies(id, default_match_ratio)")
+        .eq("company_id", company_id)
+        .eq("profile_id", user.id)
+        .maybeSingle();
+      if (!membership) {
+        return NextResponse.json({ error: "Not a member of this company" }, { status: 403 });
+      }
+      resolvedCompanyId = company_id;
+      const companyRow = membership.company as { default_match_ratio?: number } | null;
+      matchRatio = Number(companyRow?.default_match_ratio ?? 0);
+
+      if (campaign_id) {
+        const { data: camp } = await supabase
+          .from("campaigns")
+          .select("id, company_id")
+          .eq("id", campaign_id)
+          .maybeSingle();
+        if (!camp || camp.company_id !== company_id) {
+          return NextResponse.json({ error: "Campaign not found for this company" }, { status: 400 });
+        }
+        resolvedCampaignId = campaign_id;
+      }
+    }
 
     const { data, error } = await supabase
       .from("pledges")
@@ -60,11 +113,38 @@ export async function POST(req: NextRequest) {
         quantity: qty,
         message: message || null,
         status: "pledged",
+        company_id: resolvedCompanyId,
+        campaign_id: resolvedCampaignId,
+        tax_category: tax_category || "humanitarian",
       })
       .select()
       .single();
 
     if (error) throw error;
+
+    // Request a match: insert a mirrored pledge attributed to the company.
+    let matchPledgeId: string | null = null;
+    if (request_match && resolvedCompanyId && matchRatio > 0) {
+      const matchQty = Math.max(1, Math.round(qty * matchRatio));
+      const { data: matchPledge } = await supabaseAdmin
+        .from("pledges")
+        .insert({
+          user_id: user.id, // Attribution lives on company_id; donor column kept for FK.
+          need_id,
+          quantity: matchQty,
+          message: `Match of ${qty} by company`,
+          status: "pledged",
+          company_id: resolvedCompanyId,
+          campaign_id: resolvedCampaignId,
+          match_of_pledge_id: data.id,
+          tax_category: tax_category || "humanitarian",
+        })
+        .select()
+        .single();
+      matchPledgeId = matchPledge?.id ?? null;
+    }
+
+    const totalQty = qty + (matchPledgeId ? Math.max(1, Math.round(qty * matchRatio)) : 0);
 
     const { data: need } = await supabase
       .from("needs")
@@ -75,11 +155,10 @@ export async function POST(req: NextRequest) {
     if (need) {
       await supabase
         .from("needs")
-        .update({ quantity_pledged: (need.quantity_pledged || 0) + qty })
+        .update({ quantity_pledged: (need.quantity_pledged || 0) + totalQty })
         .eq("id", need_id);
     }
 
-    // Increment total_pledges on user profile
     const { data: profile } = await supabase
       .from("profiles")
       .select("total_pledges")
@@ -93,7 +172,26 @@ export async function POST(req: NextRequest) {
         .eq("id", user.id);
     }
 
-    return NextResponse.json({ pledge: data });
+    if (resolvedCompanyId) {
+      await writeAuditLog(supabaseAdmin, {
+        actor_profile_id: user.id,
+        company_id: resolvedCompanyId,
+        action: "pledge.create",
+        entity_type: "pledge",
+        entity_id: data.id,
+        payload: {
+          need_id,
+          quantity: qty,
+          campaign_id: resolvedCampaignId,
+          match_pledge_id: matchPledgeId,
+        },
+      });
+    }
+
+    return NextResponse.json({
+      pledge: data,
+      match_pledge_id: matchPledgeId,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to create pledge";
     return NextResponse.json({ error: msg }, { status: 500 });

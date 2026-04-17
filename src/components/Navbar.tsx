@@ -10,6 +10,8 @@ import type { User as SupaUser } from "@supabase/supabase-js";
 import type { Notification } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { CompanySwitcher, type CompanySwitcherItem } from "@/components/CompanySwitcher";
 
 const navLinks = [
   { href: "/map", label: "Map" },
@@ -152,6 +154,8 @@ export function Navbar() {
   const [user, setUser] = useState<SupaUser | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [companies, setCompanies] = useState<CompanySwitcherItem[]>([]);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -183,6 +187,8 @@ export function Navbar() {
   useEffect(() => {
     if (!user) {
       setNotifications([]);
+      setCompanies([]);
+      setActiveCompanyId(null);
       return;
     }
     function fetchNotifications() {
@@ -193,6 +199,30 @@ export function Navbar() {
     }
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30_000);
+
+    // Fetch company memberships once per session; the switcher only
+    // renders when the user belongs to at least two companies.
+    fetch("/api/companies", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data: { companies?: Array<{ id: string; slug: string; display_name: string | null; legal_name: string; logo_url: string | null; member_role: CompanySwitcherItem["role"] }> }) => {
+        const list = (data.companies ?? []).map((c) => ({
+          id: c.id,
+          slug: c.slug,
+          display_name: c.display_name,
+          legal_name: c.legal_name,
+          logo_url: c.logo_url,
+          role: c.member_role,
+        }));
+        setCompanies(list);
+        if (list.length > 0) {
+          const stored = document.cookie
+            .split("; ")
+            .find((c) => c.startsWith("active_company="))
+            ?.split("=")[1];
+          setActiveCompanyId(stored ?? list[0]!.id);
+        }
+      })
+      .catch(() => {});
     return () => clearInterval(interval);
   }, [user]);
 
@@ -261,7 +291,11 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <LocaleSwitcher />
           <ThemeToggle />
+          {user && companies.length > 1 ? (
+            <CompanySwitcher items={companies} activeId={activeCompanyId} />
+          ) : null}
           {user ? (
             <>
               <div className="relative">

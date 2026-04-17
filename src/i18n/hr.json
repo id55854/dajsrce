@@ -1,0 +1,113 @@
+{
+  "common": {
+    "back": "Natrag",
+    "cancel": "Odustani",
+    "save": "Spremi",
+    "continue": "Nastavi",
+    "submit": "Pošalji",
+    "loading": "Učitavanje…",
+    "saving": "Spremanje…",
+    "delete": "Obriši",
+    "edit": "Uredi",
+    "close": "Zatvori",
+    "confirm": "Potvrdi",
+    "required": "Obavezno",
+    "optional": "Nije obavezno",
+    "search": "Pretraži",
+    "copy": "Kopiraj",
+    "copied": "Kopirano!",
+    "yes": "Da",
+    "no": "Ne",
+    "error_generic": "Nešto je pošlo po zlu. Pokušajte ponovno."
+  },
+  "locale": {
+    "switch_to_hr": "Hrvatski",
+    "switch_to_en": "English",
+    "aria_switch": "Promijeni jezik"
+  },
+  "company": {
+    "role_tile_title": "Predstavljam tvrtku",
+    "role_tile_subtitle": "Tvrtka / CSR program",
+
+    "onboarding_title": "Prijava tvrtke",
+    "onboarding_intro": "Postavite DajSrce profil svoje tvrtke u nekoliko koraka. Uvijek možete preskočiti i dovršiti kasnije.",
+
+    "step_identity": "Identitet",
+    "step_address": "Adresa",
+    "step_brand": "Brend",
+    "step_invite": "Pozovi tim",
+
+    "legal_name_label": "Pravni naziv tvrtke",
+    "display_name_label": "Prikazni naziv (nije obavezan)",
+    "oib_label": "OIB",
+    "oib_hint": "11 znamenki. Bit će provjeren automatski preko sudskog registra.",
+    "oib_invalid": "Neispravan OIB. Provjerite kontrolnu znamenku.",
+    "oib_lookup_failed": "Nismo mogli dohvatiti podatke iz registra — provjerite ručno.",
+
+    "address_label": "Adresa",
+    "city_label": "Grad",
+    "country_label": "Država",
+
+    "logo_label": "Logotip",
+    "logo_hint": "Preporuka: PNG ili SVG, 512 × 512.",
+    "brand_primary_label": "Primarna boja",
+    "brand_secondary_label": "Sekundarna boja",
+    "size_class_label": "Veličina tvrtke",
+    "prior_year_revenue_label": "Prihod prethodne godine (EUR)",
+    "prior_year_revenue_hint": "Potrebno za izračun limita odbitnih darovanja.",
+
+    "invite_emails_label": "E-adrese kolega (odvojene zarezom)",
+    "invite_note": "Poslat ćemo im pozivnicu s jednokratnim linkom koji vrijedi 14 dana.",
+
+    "create_cta": "Otvori profil tvrtke",
+    "create_success": "Profil tvrtke je otvoren.",
+
+    "dashboard_title": "Nadzorna ploča tvrtke",
+    "dashboard_subtitle": "Vodite zajedničko davanje i pratite utjecaj — sve na jednom mjestu.",
+    "metric_members": "Članovi",
+    "metric_campaigns": "Aktivne kampanje",
+    "metric_pledges_ytd": "Pledge-ovi ove godine",
+    "metric_headroom": "Preostali limit",
+    "metric_headroom_hint": "Od prihoda prethodne godine",
+
+    "team_title": "Tim",
+    "team_invite_cta": "Pošalji pozivnicu",
+    "team_domain_verify_cta": "Potvrdi domenu",
+    "team_empty": "Još nema članova. Pozovite prvi tim.",
+    "team_invite_sent": "Pozivnica je spremna. Kopirajte link i pošaljite kolegi.",
+
+    "domain_title": "Verifikacija domene",
+    "domain_instructions": "Dodajte sljedeći TXT zapis na DNS domene i pritisnite 'Potvrdi'.",
+    "domain_record_host": "Host",
+    "domain_record_value": "Vrijednost",
+    "domain_verify_success": "Domena je potvrđena.",
+    "domain_verify_failed": "TXT zapis još nije vidljiv. Pokušajte za 5 minuta.",
+
+    "campaigns_title": "Kampanje",
+    "campaigns_new": "Nova kampanja",
+    "campaigns_empty": "Nema kampanja. Pokrenite prvu i okupite tim oko jednog cilja.",
+
+    "settings_title": "Postavke tvrtke",
+    "settings_brand_section": "Brending",
+    "settings_finance_section": "Financije i porezne potvrde",
+    "settings_billing_section": "Pretplata",
+    "settings_match_ratio_label": "Podudaranje doprinosa (npr. 1.0 = 1:1)",
+    "settings_match_ratio_hint": "Kad zaposlenik traži podudaranje, tvrtka automatski dodaje pledge u ovom omjeru.",
+
+    "switcher_label": "Izaberi tvrtku",
+    "switcher_multi": "Više tvrtki",
+
+    "pledge_on_behalf_label": "Pledge u ime tvrtke",
+    "pledge_match_label": "Zatraži podudaranje tvrtke",
+    "pledge_match_hint": "Tvrtka će dodati odgovarajući pledge ako je omjer podudaranja > 0."
+  },
+  "tax": {
+    "category_label": "Porezna kategorija",
+    "ceiling_hint": "Ograničenje odbitka: {pct}% prihoda prethodne godine."
+  },
+  "notifications": {
+    "title": "Obavijesti",
+    "empty": "Nema obavijesti.",
+    "mark_all_read": "Označi sve pročitanim"
+  }
+}

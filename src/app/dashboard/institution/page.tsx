@@ -94,7 +94,7 @@ export default function InstitutionDashboardPage() {
         body: JSON.stringify({
           title: evTitle,
           description: evDescription,
-          date: evDate,
+          event_date: evDate,
           start_time: evStart,
           end_time: evEnd,
           volunteers_needed: Number(evVolunteers),

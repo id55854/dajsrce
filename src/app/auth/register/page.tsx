@@ -96,7 +96,8 @@ function RegisterForm() {
     }
 
     if (data.session) {
-      window.location.href = searchParams.get("next") || "/dashboard";
+      const fallback = role === "company" ? "/dashboard/company/new" : "/dashboard";
+      window.location.href = searchParams.get("next") || fallback;
       return;
     }
 
