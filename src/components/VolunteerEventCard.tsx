@@ -5,6 +5,8 @@ import { format, parseISO } from "date-fns";
 import { Loader2 } from "lucide-react";
 import type { InstitutionCategory, VolunteerEvent } from "@/lib/types";
 import { CATEGORY_CONFIG } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/client";
+import { AuthActionDialog } from "@/components/AuthActionDialog";
 
 export type VolunteerEventCardProps = {
   event: VolunteerEvent & {
@@ -22,6 +24,7 @@ export type VolunteerEventCardProps = {
 export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error" | "duplicate">("idle");
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   const institution = event.institution;
   const categoryKey = institution?.category as InstitutionCategory | undefined;
@@ -36,6 +39,15 @@ export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps)
   const pct = needed > 0 ? Math.min(100, Math.round((signed / needed) * 100)) : 0;
 
   async function handleSignUp() {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setAuthDialogOpen(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/volunteer-signups", {
@@ -45,10 +57,6 @@ export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps)
       });
       if (res.status === 409) {
         setStatus("duplicate");
-        return;
-      }
-      if (res.status === 401) {
-        window.location.href = "/auth/login";
         return;
       }
       if (!res.ok) throw new Error();
@@ -129,6 +137,12 @@ export function VolunteerEventCard({ event, onSignUp }: VolunteerEventCardProps)
           {loading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Sign Up"}
         </button>
       )}
+      <AuthActionDialog
+        open={authDialogOpen}
+        onClose={() => setAuthDialogOpen(false)}
+        actionLabel="Volunteer"
+        nextPath="/volunteer"
+      />
     </article>
   );
 }

@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!profile || profile.role !== "institution" || !profile.institution_id) {
-      return NextResponse.json({ error: "Only institutions can create events" }, { status: 403 });
+    if (!profile || profile.role !== "ngo" || !profile.institution_id) {
+      return NextResponse.json({ error: "Only NGOs can create events" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
           inst.lat,
           inst.lng,
           `Volunteer event: ${title}`,
-          `${inst.name ?? "An institution"} near you needs volunteers for "${title}" on ${event_date}`,
+          `${inst.name ?? "An NGO"} near you needs volunteers for "${title}" on ${event_date}`,
           `/volunteer`,
           user.id
         );

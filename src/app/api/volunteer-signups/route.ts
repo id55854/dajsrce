@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
         id: user.id,
         email: user.email!,
         name: user.user_metadata?.name || user.email!.split("@")[0],
-        role: user.user_metadata?.role || "citizen",
+        role: user.user_metadata?.role || "individual",
       });
     }
 

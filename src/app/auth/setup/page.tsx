@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Heart, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { UserRole } from "@/lib/types";
 
 export default function SetupPage() {
@@ -15,6 +15,13 @@ export default function SetupPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setChecking(false);
+      setError(
+        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+      return;
+    }
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) {
@@ -37,12 +44,18 @@ export default function SetupPage() {
   }, [router]);
 
   async function handleSubmit() {
+    if (!isSupabaseConfigured) {
+      setError(
+        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+      return;
+    }
     if (!role) {
       setError("Please select a role.");
       return;
     }
-    if (role === "institution" && !institutionName.trim()) {
-      setError("Please enter your institution name.");
+    if (role === "ngo" && !institutionName.trim()) {
+      setError("Please enter your NGO name.");
       return;
     }
 
@@ -67,7 +80,7 @@ export default function SetupPage() {
         data: { role },
       });
 
-      if (role === "institution" && institutionName.trim()) {
+      if (role === "ngo" && institutionName.trim()) {
         const { data: inst } = await supabase
           .from("institutions")
           .insert({
@@ -132,50 +145,50 @@ export default function SetupPage() {
             <button
               type="button"
               onClick={() => {
-                setRole("citizen");
+                setRole("individual");
                 setError(null);
               }}
               className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center transition-all ${
-                role === "citizen"
+                role === "individual"
                   ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10"
                   : "border-gray-200 bg-white hover:border-red-200"
               }`}
             >
               <Heart
-                className={`h-10 w-10 ${role === "citizen" ? "text-red-500" : "text-gray-400"}`}
+                className={`h-10 w-10 ${role === "individual" ? "text-red-500" : "text-gray-400"}`}
                 strokeWidth={1.75}
               />
               <span className="font-semibold text-gray-900">I want to help</span>
-              <span className="text-xs text-gray-500">Citizen / Volunteer</span>
+              <span className="text-xs text-gray-500">Individual / Volunteer</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
-                setRole("institution");
+                setRole("ngo");
                 setError(null);
               }}
               className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center transition-all ${
-                role === "institution"
+                role === "ngo"
                   ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10"
                   : "border-gray-200 bg-white hover:border-red-200"
               }`}
             >
               <Building2
-                className={`h-10 w-10 ${role === "institution" ? "text-red-500" : "text-gray-400"}`}
+                className={`h-10 w-10 ${role === "ngo" ? "text-red-500" : "text-gray-400"}`}
                 strokeWidth={1.75}
               />
               <span className="font-semibold text-gray-900">
-                I represent an institution
+                I represent an NGO
               </span>
-              <span className="text-xs text-gray-500">Institution / Shelter</span>
+              <span className="text-xs text-gray-500">NGO / Association</span>
             </button>
           </div>
 
-          {role === "institution" ? (
+          {role === "ngo" ? (
             <div className="mt-4">
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Institution name
+                NGO name
               </label>
               <input
                 type="text"

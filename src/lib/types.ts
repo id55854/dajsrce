@@ -24,7 +24,24 @@ export type DonationType =
 
 export type UrgencyLevel = "routine" | "needed_soon" | "urgent";
 
-export type UserRole = "citizen" | "institution";
+export type UserRole = "individual" | "ngo" | "company" | "superadmin";
+
+export type ShipmentMethod =
+  | "self_dropoff"
+  | "courier_pickup"
+  | "parcel_locker"
+  | "ngo_pickup"
+  | "third_party_partner";
+
+export type ShipmentStatus =
+  | "pending"
+  | "label_created"
+  | "dropped_off"
+  | "in_transit"
+  | "delivered"
+  | "confirmed_by_ngo"
+  | "failed"
+  | "cancelled";
 
 export interface Institution {
   id: string;
@@ -97,6 +114,22 @@ export interface Pledge {
   message: string | null;
   status: "pledged" | "delivered" | "confirmed" | "cancelled";
   created_at: string;
+}
+
+export interface Shipment {
+  id: string;
+  pledge_id: string;
+  donor_profile_id: string;
+  ngo_institution_id: string;
+  method: ShipmentMethod;
+  status: ShipmentStatus;
+  carrier_name: string | null;
+  tracking_number: string | null;
+  dropoff_location: string | null;
+  donor_note: string | null;
+  expected_delivery_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface UserProfile {

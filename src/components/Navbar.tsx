@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, Heart, LogOut, MapPin, Menu, User, X } from "lucide-react";
 import clsx from "clsx";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 import type { Notification } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
@@ -158,6 +158,11 @@ export function Navbar() {
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setUser(null);
+      return;
+    }
+
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
@@ -212,6 +217,13 @@ export function Navbar() {
   }, []);
 
   async function handleLogout() {
+    if (!isSupabaseConfigured) {
+      setUser(null);
+      setNotifications([]);
+      router.push("/map");
+      return;
+    }
+
     const supabase = createClient();
     await supabase.auth.signOut();
     setUser(null);

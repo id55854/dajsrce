@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { HeartHandshake, Loader2, X } from "lucide-react";
 import clsx from "clsx";
+import { createClient } from "@/lib/supabase/client";
+import { AuthActionDialog } from "@/components/AuthActionDialog";
 
 type PledgeButtonProps = {
   needId: string;
@@ -18,6 +20,7 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const titleId = useId();
   const descId = useId();
 
@@ -80,7 +83,17 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={async () => {
+          const supabase = createClient();
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (!user) {
+            setAuthDialogOpen(true);
+            return;
+          }
+          setOpen(true);
+        }}
         className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
       >
         <HeartHandshake className="h-4 w-4" strokeWidth={2} />
@@ -184,6 +197,12 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
           {toast.message}
         </div>
       ) : null}
+      <AuthActionDialog
+        open={authDialogOpen}
+        onClose={() => setAuthDialogOpen(false)}
+        actionLabel="Donate / offer help"
+        nextPath={`/needs`}
+      />
     </>
   );
 }

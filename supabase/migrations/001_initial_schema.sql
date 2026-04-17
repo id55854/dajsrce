@@ -34,7 +34,7 @@ create table public.profiles (
   id uuid references auth.users on delete cascade primary key,
   email text not null,
   name text not null,
-  role text not null default 'citizen' check (role in ('citizen', 'institution')),
+  role text not null default 'individual' check (role in ('individual', 'ngo', 'company', 'superadmin')),
   neighborhood text,
   interests text[] default '{}',
   institution_id uuid references public.institutions(id),
