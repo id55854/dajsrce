@@ -200,6 +200,7 @@ dajsrce/
 ├── supabase/migrations/           # Raw SQL migrations (see section 5)
 ├── scripts/seed.mjs               # Node script to seed institutions via service role
 ├── scripts/demo-elevate-company.mjs  # CLI: set company subscription_tier (demo/QA)
+├── scripts/verify-demo-setup.mjs    # CLI: verify .env.local has demo keys (no secrets printed)
 ├── .env.example                   # Env template; copy to `.env.local`
 ├── next.config.ts                 # Image remote patterns only
 ├── postcss.config.mjs             # Tailwind v4 postcss plugin
@@ -510,6 +511,7 @@ npm run build           # production build
 npm run start           # run built app
 npm run lint            # next lint
 npm run demo:elevate -- --slug <slug> --tier enterprise   # CLI tier bump (service role)
+npm run demo:check            # verify .env.local keys for demo (no secrets printed)
 ```
 
 ### Database workflow
@@ -548,6 +550,25 @@ npm run demo:elevate -- --slug <slug> --tier enterprise   # CLI tier bump (servi
    and a CSR report; enable **Public impact profile** to show `/company/<slug>`.
 6. Before production: set `ALLOW_DEMO_BILLING` off (or unset) and use real
    Stripe checkout + webhooks.
+
+### What an AI agent (Cursor) can vs cannot configure
+
+- **Can (in your repo / local shell):** edit tracked files, append to `.env.local`
+  (you should not commit it), run `npm run demo:check`, run
+  `npm run demo:elevate` when `SUPABASE_SERVICE_ROLE_KEY` is already on your
+  machine.
+- **Cannot:** log into Supabase or Vercel in your browser, change Auth redirect
+  URLs, or run hosted DB migrations without credentials. To let the agent run
+  `supabase db push`, you must **link the project once** on your PC:
+  `npx supabase login` then
+  `npx supabase link --project-ref <ref>` (ref is the subdomain of your
+  `NEXT_PUBLIC_SUPABASE_URL`), and add a `supabase/config.toml` if not present
+  (`npx supabase init` in the repo). Then the agent can invoke
+  `npx supabase db push` in your terminal.
+- **Vercel env:** either paste vars in the Vercel dashboard or run
+  `npx vercel env pull .env.local` after `npx vercel login` (pulls to local;
+  review before committing).
+- **Never paste** `SUPABASE_SERVICE_ROLE_KEY` into chat; keep it in `.env.local` only.
 
 ### Git hygiene
 

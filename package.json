@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "demo:elevate": "node scripts/demo-elevate-company.mjs"
+    "demo:elevate": "node scripts/demo-elevate-company.mjs",
+    "demo:check": "node scripts/verify-demo-setup.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.0",
