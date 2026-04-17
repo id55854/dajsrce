@@ -5,7 +5,7 @@
 > changes. If you change anything meaningful, amend the matching section here
 > in the same commit.
 
-Last synced: 2026-04-17 (Phase 0: ESG foundations)
+Last synced: 2026-04-17 (Phase 1: tax receipts, billing, EUR pledges)
 
 ---
 
@@ -47,6 +47,11 @@ Last synced: 2026-04-17 (Phase 0: ESG foundations)
    Croatian (`hr`, default) and English (`en`). Locale persists in a
    `locale` cookie read by both server components and the
    `LocaleSwitcher` client component.
+9. **Phase 1:** Pledges can carry optional `amount_eur`. NGOs mark pledges
+   **delivered**, then **acknowledge** (manual or cron after
+   `AUTO_ACKNOWLEDGE_DAYS`). Companies on a paid Stripe tier with
+   `NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED` generate **donation receipts** (PDF +
+   XML) into Storage and email the owner via Resend.
 
 ---
 
@@ -65,6 +70,9 @@ requests an upgrade.
 | Dates          | `date-fns`                                | ^4.1.0   |
 | Icons          | `lucide-react`                            | ^0.474.0 |
 | Utilities      | `clsx`                                    | ^2.1.1   |
+| PDF receipts   | `pdf-lib`                                 | ^1.17.x  |
+| Payments       | `stripe`                                  | ^22.x    |
+| Email          | `resend`                                  | ^6.x     |
 | DB tooling     | `pg` (scripts only)                       | ^8.20.0  |
 
 Build tooling:
@@ -99,6 +107,7 @@ dajsrce/
 │   │   │   ├── individual/        # Individual dashboard (pledges, badges)
 │   │   │   ├── ngo/               # NGO dashboard wrapper (alias to /institution)
 │   │   │   ├── institution/       # Institution dashboard (create needs/events)
+│   │   │   │   └── pledges/     # Phase 1: list pledges, delivered + acknowledge
 │   │   │   ├── admin/             # Superadmin dashboard
 │   │   │   └── company/
 │   │   │       ├── layout.tsx         # Tenant chrome: switcher + nav (ESG Phase 0)
@@ -107,7 +116,7 @@ dajsrce/
 │   │   │       ├── new-action/        # Legacy per-action quick-log (v2)
 │   │   │       ├── team/              # Members + invites + domain verification
 │   │   │       ├── campaigns/         # Campaign list + create/edit
-│   │   │       └── settings/          # Company profile, brand, finance, billing stub
+│   │   │       └── settings/          # Company profile, brand, finance, Stripe billing panel
 │   │   ├── auth/
 │   │   │   ├── login/             # Email+password + Google OAuth login
 │   │   │   ├── register/          # Role-gated signup (individual | ngo | company)
@@ -117,7 +126,11 @@ dajsrce/
 │   │   └── api/
 │   │       ├── institutions/      # GET: list (Supabase -> local fallback)
 │   │       ├── needs/             # GET list, POST create (institution only)
-│   │       ├── pledges/           # GET my pledges, POST create pledge (accepts company_id/campaign_id/request_match)
+│   │       ├── pledges/           # GET my pledges, POST (+ amount_eur); [id] PATCH delivered; [id]/acknowledge POST
+│   │       ├── institution/pledges/  # GET pledges for signed-in NGO institution
+│   │       ├── cron/auto-acknowledge/  # GET: auto-ack old delivered pledges (Vercel cron or Bearer CRON_SECRET)
+│   │       ├── billing/           # checkout + Stripe customer portal
+│   │       ├── stripe/webhook/    # subscription lifecycle, idempotent stripe_events
 │   │       ├── volunteer-events/  # GET list, POST create (institution only)
 │   │       ├── volunteer-signups/ # POST sign up for event
 │   │       ├── notifications/     # GET list, PATCH mark read / all read
@@ -134,6 +147,8 @@ dajsrce/
 │   │       │   ├── [id]/domains/[domainId]/verify/route.ts  # POST DNS TXT verify
 │   │       │   ├── [id]/invites/route.ts                    # GET + POST invites
 │   │       │   ├── [id]/campaigns/route.ts                  # GET + POST campaigns
+│   │       │   ├── [id]/receipts/route.ts                   # GET list, POST generate (gated tier + flag)
+│   │       │   ├── [id]/receipts/[receiptId]/download/route.ts  # signed URL ?format=pdf|xml
 │   │       │   └── invite/accept/route.ts                   # POST accept invite by token
 │   │       └── campaigns/[id]/    # PATCH campaign (owner/admin only)
 │   ├── i18n/                      # In-repo i18n (hr default, en fallback)
@@ -156,6 +171,10 @@ dajsrce/
 │       ├── companies.ts           # Shared: requireMembership, slugify, generateToken
 │       ├── companies-server.ts    # Server-only: listMyCompanies, resolveActiveCompany
 │       ├── audit.ts               # Append-only hash-chained audit log writer
+│       ├── stripe/server.ts       # Stripe client + price/tier helpers (Phase 1)
+│       ├── billing/gate.ts        # Receipt feature: flag + subscription tier
+│       ├── receipts/render.ts     # pdf-lib PDF + XML manifest
+│       ├── email/receipt-ready.ts # Resend HTML for new receipt
 │       ├── auth/                  # Role helpers (v2)
 │       │   ├── roles.ts
 │       │   └── server.ts
@@ -167,6 +186,7 @@ dajsrce/
 ├── scripts/seed.mjs               # Node script to seed institutions via service role
 ├── next.config.ts                 # Image remote patterns only
 ├── postcss.config.mjs             # Tailwind v4 postcss plugin
+├── vercel.json                    # Cron: /api/cron/auto-acknowledge (daily 06:00 UTC)
 ├── tsconfig.json                  # Strict TS, @/* alias
 ├── TECHNICAL_IMPLEMENTATION.md    # Longer-form technical overview
 ├── CURSOR_PROMPT.md               # Legacy prompt listing 6 critical bugs (see §9)
@@ -192,6 +212,8 @@ Declared in `.env.local` (git-ignored). Keep this list in sync with code:
 | `OIB_LOOKUP_URL`                         | Server      | 0     | `src/lib/oib.ts` — defaults to format-only validation if missing        |
 | `DEDUCTION_CEILING_PCT`                  | Server      | 0     | `src/lib/tax.ts` — defaults to `"2.0"`, flip to `"4.0"` when law changes |
 | `AUTO_ACKNOWLEDGE_DAYS`                  | Server      | 1     | Cron auto-acknowledgement sweep. Default `"14"`.                         |
+| `CRON_SECRET`                            | Server      | 1     | Optional Bearer for `/api/cron/auto-acknowledge`; Vercel cron uses `x-vercel-cron: 1` |
+| `RESEND_FROM_EMAIL`                      | Server      | 1     | `receipt-ready.ts` — defaults to Resend onboarding domain if unset         |
 | `NEXT_PUBLIC_FLAG_COMPANIES_ENABLED`     | Public      | 0     | `src/lib/flags.ts` — default `true`                                      |
 | `NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED`      | Public      | 1     | `src/lib/flags.ts` — default `false`                                     |
 | `NEXT_PUBLIC_FLAG_EXPORTS_ENABLED`       | Public      | 2     | `src/lib/flags.ts` — default `false`                                     |
@@ -227,6 +249,11 @@ Authoritative schema lives in `supabase/migrations/`:
   extends `pledges` with company/campaign/match/tax_category/fulfilled_at,
   extends `volunteer_signups` with check-in/out + company_id, and adds the
   hash-chained `audit_log` table. Adds `profiles.locale` too.
+- `005_evidence_and_receipts.sql` — Phase 1: `pledges.amount_eur`,
+  `pledges.delivered_at`, `institutions.oib`, `pledge_acknowledgements`,
+  `donation_receipts`, RLS, Storage bucket `receipts`.
+- `006_billing.sql` — Phase 1: `subscriptions` (one row per `company_id`),
+  `stripe_events` idempotency log, `updated_at` trigger.
 - `003_roles_shipping_company_actions.sql` — expands `profiles.role` to
   `individual | ngo | company | superadmin` (migrating any legacy
   `citizen`/`institution` rows), adds `company_name`/`contact_person`/
@@ -239,11 +266,15 @@ Authoritative schema lives in `supabase/migrations/`:
 
 | Table                        | Migration | Purpose                                                                 |
 |------------------------------|-----------|-------------------------------------------------------------------------|
-| `institutions`               | 001       | Social institutions (name, category, address, lat/lng, accepts_donations[], etc.) |
+| `institutions`               | 001→005   | Social institutions; Phase 1 adds optional `oib` for receipts                |
 | `profiles`                   | 001→004   | 1:1 with `auth.users`; role ∈ `individual|ngo|company|superadmin`, stats, badges, optional `lat/lng`, optional `institution_id`, `company_name`, `locale` |
 | `needs`                      | 001       | Institution-posted material needs with urgency + progress counters       |
 | `volunteer_events`           | 001       | Institution-posted events with date/time window and needed volunteers    |
-| `pledges`                    | 001→004   | Pledge against a need; extended with `company_id`, `campaign_id`, `match_of_pledge_id`, `tax_category`, `fulfilled_at` |
+| `pledges`                    | 001→005   | Pledge against a need; Phase 0: `company_id`, `campaign_id`, `match_of_pledge_id`, `tax_category`, `fulfilled_at`. Phase 1: `amount_eur`, `delivered_at`, `status` includes `delivered` / `confirmed` |
+| `pledge_acknowledgements`    | 005       | Institution attestation (signature hash, notes) → confirms pledge for receipts |
+| `donation_receipts`          | 005       | Company-scoped receipt metadata + storage paths for PDF/XML                    |
+| `subscriptions`              | 006       | Stripe subscription mirror per company (`stripe_customer_id`, tier, period end) |
+| `stripe_events`              | 006       | Processed webhook event ids (idempotency)                                      |
 | `volunteer_signups`          | 001→004   | `(user_id, event_id)` + `checked_in_at`, `checked_out_at`, `company_id` |
 | `emergency_alerts`           | 001       | Optional banner messages                                                 |
 | `notifications`              | 004       | Per-user proximity notifications (created by `notify-nearby.ts`)         |
@@ -317,6 +348,7 @@ inside API routes and `src/lib/local-data.ts`.
 | `BadgeDisplay.tsx`            | Citizen dashboard badges                                             |
 | `LocaleSwitcher.tsx`          | HR/EN toggle — writes `locale` cookie and reloads (ESG Phase 0)      |
 | `CompanySwitcher.tsx`         | Dropdown for users with multiple company memberships (ESG Phase 0)   |
+| `CompanyReceiptsSection.tsx`| Phase 1: generate/list/download donation receipts (tier + flag gated)  |
 | `PrintConfirmationButton.tsx` | Trigger print dialog on the confirmation page (v2)                   |
 | `AuthActionDialog.tsx`        | Common "sign in to continue" modal for gated actions (v2)            |
 
@@ -420,12 +452,11 @@ Other areas that warrant attention:
   `need-0`, `local-000`. Do not try to pledge against these IDs — they
   only exist for read-only browsing without Supabase.
 - `audit.ts` best-effort hash chain: under concurrent writes two rows can
-  both reference the same `prev_hash`. Phase 1 tightens this with an
-  advisory lock when the receipt generator lands.
-- Pledges still track `quantity` only, not EUR amounts. The headroom
-  widget in `/dashboard/company` reports remaining headroom from
-  `companies.prior_year_revenue_eur` but cannot compute consumed % until
-  Phase 1 attaches a per-pledge EUR amount.
+  both reference the same `prev_hash`. Receipt generation may still race;
+  consider an advisory lock if duplicate receipts become an issue.
+- Pledges accept optional **`amount_eur`** (POST `/api/pledges`). Company
+  dashboard headroom hints use acknowledged EUR where implemented; local
+  demo pledges still have no EUR.
 
 ---
 
@@ -447,6 +478,9 @@ npm run lint            # next lint
 - Apply with the Supabase CLI (`supabase db push`) or paste into the
   Supabase SQL editor. The CLI workspace folder is `supabase/.temp/`.
 - Keep §5 of this file in sync with whatever lives on production.
+- **Vercel:** `vercel.json` schedules `GET /api/cron/auto-acknowledge` daily
+  (06:00 UTC). Set `CRON_SECRET` if you need non-Vercel callers; Vercel
+  injects `x-vercel-cron: 1`.
 
 ### Seeding
 
@@ -533,11 +567,19 @@ brief end-to-end.
 - Domain verification: TXT-record check via `node:dns/promises.resolveTxt`
   in `/api/companies/[id]/domains/[domainId]/verify`.
 
-### Phase 1 — Tax receipts (not yet shipped)
+### Phase 1 — Tax receipts + billing (shipped in repo)
 
-See `CLAUDE_CODE_PROMPT_ESG.md` §7. Requires `pdf-lib`, Stripe, Resend
-env vars documented in §4 above. `src/lib/tax.ts` already provides
-`ceilingPct()`, `headroomEur()`, `consumedPct()`, `isWithinCeiling()`.
+- Migrations `005_evidence_and_receipts.sql`, `006_billing.sql` (see §5).
+- **Pledges:** optional `amount_eur`; `PATCH /api/pledges/[id]` sets
+  **delivered**; `POST .../acknowledge` or cron confirms for receipt eligibility.
+- **Receipts:** `POST /api/companies/[id]/receipts` builds PDF/XML via
+  `pdf-lib`, uploads to bucket `receipts`, writes `donation_receipts`,
+  emails via Resend (`RESEND_API_KEY`, optional `RESEND_FROM_EMAIL`).
+- **Gating:** `NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED` and paid tier via
+  `src/lib/billing/gate.ts` (Stripe `subscriptions` row).
+- **Stripe:** `POST /api/billing/checkout`, `POST /api/billing/portal`,
+  `POST /api/stripe/webhook` (`STRIPE_WEBHOOK_SECRET`, price envs in §4).
+- **Tax helpers:** `src/lib/tax.ts` — `ceilingPct()`, `headroomEur()`, etc.
 
 ### Phase 2 — ESG exports (not yet shipped)
 

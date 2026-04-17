@@ -35,6 +35,7 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string>("me");
   const [requestMatch, setRequestMatch] = useState(false);
+  const [amountEur, setAmountEur] = useState("");
   const titleId = useId();
   const descId = useId();
 
@@ -43,6 +44,7 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
     setQuantity(1);
     setMessage("");
     setRequestMatch(false);
+    setAmountEur("");
   }, []);
 
   useEffect(() => {
@@ -93,6 +95,10 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
       if (selectedCompany !== "me") {
         payload.company_id = selectedCompany;
         payload.request_match = requestMatch;
+      }
+      const eurParsed = Number.parseFloat(amountEur.replace(",", "."));
+      if (Number.isFinite(eurParsed) && eurParsed > 0) {
+        payload.amount_eur = Math.round(eurParsed * 100) / 100;
       }
       const res = await fetch("/api/pledges", {
         method: "POST",
@@ -233,6 +239,19 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
                 }
                 className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
+            </label>
+
+            <label className="mt-4 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              {t("pledge.amount_eur_label")}
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={amountEur}
+                onChange={(e) => setAmountEur(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+              <span className="mt-1 block text-xs font-normal text-gray-500">{t("pledge.amount_eur_hint")}</span>
             </label>
 
             <label className="mt-4 block text-sm font-medium text-gray-700 dark:text-gray-300">

@@ -114,6 +114,9 @@ export interface Pledge {
   message: string | null;
   status: "pledged" | "delivered" | "confirmed" | "cancelled";
   created_at: string;
+  /** Declared value in EUR (Phase 1 tax receipts). */
+  amount_eur?: number | null;
+  delivered_at?: string | null;
 }
 
 export interface Shipment {
@@ -287,3 +290,46 @@ export interface CompanyPledgeFields {
 }
 
 export type PledgeWithCompany = Pledge & Partial<CompanyPledgeFields>;
+
+export type PledgeAcknowledgementKind = "manual" | "auto";
+
+export interface PledgeAcknowledgement {
+  id: string;
+  pledge_id: string;
+  institution_user_id: string | null;
+  signed_at: string;
+  kind: PledgeAcknowledgementKind;
+  notes: string | null;
+  delivery_photo_url: string | null;
+  signature_hash: string;
+  created_at: string;
+}
+
+export interface DonationReceipt {
+  id: string;
+  company_id: string;
+  fiscal_year: number;
+  version: number;
+  generated_at: string;
+  pdf_url: string | null;
+  xml_url: string | null;
+  total_amount_eur: number | null;
+  ceiling_pct: number | null;
+  ceiling_consumed_pct: number | null;
+  manifest_jsonb: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface CompanySubscriptionRow {
+  id: string;
+  company_id: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  tier: string | null;
+  status: string | null;
+  current_period_end: string | null;
+  cancel_at: string | null;
+  raw: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}

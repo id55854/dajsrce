@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { useT, useLocale } from "@/i18n/client";
-import { SIZE_CLASSES, SUBSCRIPTION_TIERS } from "@/lib/constants";
+import { SIZE_CLASSES } from "@/lib/constants";
 import type { Company, CompanyRole, SizeClass } from "@/lib/types";
 import { ceilingPct, headroomEur } from "@/lib/tax";
 import { useRouter } from "next/navigation";
+import { BillingPanel } from "./billing-panel";
 
 type Props = {
   company: Company;
@@ -68,7 +69,6 @@ export function SettingsEditor({ company, myRole }: Props) {
     }
   }
 
-  const tier = SUBSCRIPTION_TIERS[company.subscription_tier];
   const headroom = headroomEur(priorRevenue ? Number(priorRevenue) : null);
 
   return (
@@ -200,28 +200,11 @@ export function SettingsEditor({ company, myRole }: Props) {
         </p>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          {t("company.settings_billing_section")}
-        </h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              {locale === "hr" ? tier.labelHr : tier.label}
-            </p>
-            <p className="text-xs text-gray-500">
-              {company.subscription_status} · {tier.teamSeats === "unlimited"
-                ? locale === "hr"
-                  ? "Neograničen tim"
-                  : "Unlimited seats"
-                : `${tier.teamSeats} ${locale === "hr" ? "mjesta" : "seats"}`}
-            </p>
-          </div>
-          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-            {locale === "hr" ? "Upravljanje u Fazi 1" : "Manage in Phase 1"}
-          </span>
-        </div>
-      </section>
+      <BillingPanel
+        companyId={company.id}
+        myRole={myRole}
+        subscriptionTier={company.subscription_tier}
+      />
 
       {canManage ? (
         <div className="flex items-center justify-end gap-3">

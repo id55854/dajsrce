@@ -99,7 +99,48 @@
 
     "pledge_on_behalf_label": "Pledge on behalf of company",
     "pledge_match_label": "Request company match",
-    "pledge_match_hint": "The company will add a matching pledge if its match ratio is greater than zero."
+    "pledge_match_hint": "The company will add a matching pledge if its match ratio is greater than zero.",
+
+    "receipts_section_title": "Tax receipts",
+    "receipts_section_hint": "Generate PDF and XML for a fiscal year (paid tier + feature flag required)."
+  },
+  "pledge": {
+    "amount_eur_label": "Estimated value (EUR)",
+    "amount_eur_hint": "Optional. Needed for annual receipts when pledging on behalf of a company."
+  },
+  "institution": {
+    "pledges_title": "Pledges for your institution",
+    "pledges_subtitle": "Mark goods as received and acknowledge delivery for donor tax records.",
+    "pledges_empty": "No pledges yet.",
+    "pledges_need": "Need",
+    "pledges_status": "Status",
+    "pledges_amount": "Amount (EUR)",
+    "mark_delivered": "Mark received",
+    "acknowledge": "Acknowledge delivery",
+    "acknowledged": "Acknowledged",
+    "notes_placeholder": "Notes (optional)",
+    "loading": "Loading…"
+  },
+  "receipt": {
+    "fiscal_year": "Fiscal year",
+    "generate": "Generate receipt",
+    "generating": "Generating…",
+    "list_title": "Receipt history",
+    "empty": "No receipts generated yet.",
+    "download_pdf": "Download PDF",
+    "download_xml": "Download XML",
+    "feature_off": "Receipts are disabled (NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED).",
+    "tier_required": "SME Tax tier or higher is required.",
+    "year_invalid": "Enter a valid year."
+  },
+  "billing": {
+    "checkout_sme_tax": "Upgrade to SME Tax",
+    "checkout_sme_plus": "Upgrade to SME Plus",
+    "checkout_enterprise": "Upgrade to Enterprise",
+    "open_portal": "Stripe customer portal",
+    "portal_hint": "Manage payment method and cancellation.",
+    "error_generic": "Billing request failed. Try again.",
+    "stripe_missing": "Stripe is not configured on the server."
   },
   "tax": {
     "category_label": "Tax category",

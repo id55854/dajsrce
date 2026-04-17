@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       campaign_id,
       request_match,
       tax_category,
+      amount_eur,
     } = body as {
       need_id?: string;
       quantity?: number;
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
       campaign_id?: string | null;
       request_match?: boolean;
       tax_category?: string;
+      amount_eur?: number | null;
     };
     const qty = quantity || 1;
 
@@ -105,6 +107,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const amt =
+      typeof amount_eur === "number" && Number.isFinite(amount_eur) && amount_eur >= 0
+        ? Math.round(amount_eur * 100) / 100
+        : null;
+
     const { data, error } = await supabase
       .from("pledges")
       .insert({
@@ -116,6 +123,7 @@ export async function POST(req: NextRequest) {
         company_id: resolvedCompanyId,
         campaign_id: resolvedCampaignId,
         tax_category: tax_category || "humanitarian",
+        amount_eur: amt,
       })
       .select()
       .single();
@@ -138,6 +146,7 @@ export async function POST(req: NextRequest) {
           campaign_id: resolvedCampaignId,
           match_of_pledge_id: data.id,
           tax_category: tax_category || "humanitarian",
+          amount_eur: amt != null ? Math.round(amt * Number(matchRatio) * 100) / 100 : null,
         })
         .select()
         .single();

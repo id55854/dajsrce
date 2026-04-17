@@ -99,7 +99,48 @@
 
     "pledge_on_behalf_label": "Pledge u ime tvrtke",
     "pledge_match_label": "Zatraži podudaranje tvrtke",
-    "pledge_match_hint": "Tvrtka će dodati odgovarajući pledge ako je omjer podudaranja > 0."
+    "pledge_match_hint": "Tvrtka će dodati odgovarajući pledge ako je omjer podudaranja > 0.",
+
+    "receipts_section_title": "Porezne potvrde",
+    "receipts_section_hint": "Generirajte PDF i XML za fiskalnu godinu (potrebna plaćena razina i uključena značajka)."
+  },
+  "pledge": {
+    "amount_eur_label": "Procijenjena vrijednost (EUR)",
+    "amount_eur_hint": "Nije obavezno. Potrebno za godišnje potvrde kada darujete u ime tvrtke."
+  },
+  "institution": {
+    "pledges_title": "Pledge-ovi za vašu ustanovu",
+    "pledges_subtitle": "Označite zaprimanje i potvrdite isporuku za porezne zapise donatora.",
+    "pledges_empty": "Još nema pledge-ova.",
+    "pledges_need": "Potreba",
+    "pledges_status": "Status",
+    "pledges_amount": "Iznos (EUR)",
+    "mark_delivered": "Označi zaprimljeno",
+    "acknowledge": "Potvrdi isporuku",
+    "acknowledged": "Potvrđeno",
+    "notes_placeholder": "Bilješka (nije obavezno)",
+    "loading": "Učitavanje…"
+  },
+  "receipt": {
+    "fiscal_year": "Fiskalna godina",
+    "generate": "Generiraj potvrdu",
+    "generating": "Generiranje…",
+    "list_title": "Povijest potvrda",
+    "empty": "Još nema generiranih potvrda.",
+    "download_pdf": "Preuzmi PDF",
+    "download_xml": "Preuzmi XML",
+    "feature_off": "Značajka potvrda je isključena (NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED).",
+    "tier_required": "Potrebna je plaćena razina SME Tax ili viša.",
+    "year_invalid": "Unesite ispravnu godinu."
+  },
+  "billing": {
+    "checkout_sme_tax": "Nadogradi na SME Tax",
+    "checkout_sme_plus": "Nadogradi na SME Plus",
+    "checkout_enterprise": "Nadogradi na Enterprise",
+    "open_portal": "Stripe kupac / pretplata",
+    "portal_hint": "Upravljajte načinom plaćanja i otkazivanjem.",
+    "error_generic": "Plaćanje nije uspjelo. Pokušajte ponovno.",
+    "stripe_missing": "Stripe nije konfiguriran na poslužitelju."
   },
   "tax": {
     "category_label": "Porezna kategorija",

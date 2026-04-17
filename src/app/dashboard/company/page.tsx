@@ -6,6 +6,7 @@ import { listMyCompanies, resolveActiveCompany } from "@/lib/companies-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { headroomEur, remainingHeadroomEur, consumedPct, ceilingPct } from "@/lib/tax";
 import { getTranslator } from "@/i18n/server";
+import { CompanyReceiptsSection } from "@/components/CompanyReceiptsSection";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
@@ -57,12 +58,22 @@ export default async function CompanyDashboardPage({
   const totalMembers = membersRes.data?.length ?? 0;
   const activeCampaigns = campaignsRes.data?.length ?? 0;
 
-  // Pledge quantity isn't amount-in-EUR; for now treat quantity as a unit
-  // count and cannot compute EUR totals until Phase 1 introduces per-line
-  // amount tracking. We still surface headroom from the configured prior
-  // year revenue so the finance team has an early calibration signal.
+  const { data: ackValueRows } = await supabase
+    .from("pledges")
+    .select("amount_eur, pledge_acknowledgements(id)")
+    .eq("company_id", active.company.id)
+    .not("amount_eur", "is", null);
+
+  let givenEur = 0;
+  for (const row of ackValueRows ?? []) {
+    const acks = row.pledge_acknowledgements as unknown;
+    if (row.amount_eur != null && Array.isArray(acks) && acks.length > 0) {
+      givenEur += Number(row.amount_eur);
+    }
+  }
+  givenEur = Math.round(givenEur * 100) / 100;
+
   const headroom = headroomEur(active.company.prior_year_revenue_eur);
-  const givenEur = 0; // Phase 1 attaches an EUR amount per pledge.
   const consumed = consumedPct(givenEur, active.company.prior_year_revenue_eur);
   const remaining = remainingHeadroomEur(givenEur, active.company.prior_year_revenue_eur);
 
@@ -110,10 +121,16 @@ export default async function CompanyDashboardPage({
           icon={<FileDown className="h-4 w-4" />}
           label={t("company.metric_headroom")}
           value={formatEur(remaining)}
-          hint={`${t("tax.ceiling_hint", { pct: ceilingPct().toFixed(1) })} · ${consumed.toFixed(1)}%`}
+          hint={`${t("tax.ceiling_hint", { pct: ceilingPct().toFixed(1) })} · ${consumed.toFixed(1)}% · ${formatEur(givenEur)} ack.`}
           accent={headroom > 0 ? "ok" : "muted"}
         />
       </section>
+
+      <CompanyReceiptsSection
+        companyId={active.company.id}
+        memberRole={active.role}
+        subscriptionTier={active.company.subscription_tier}
+      />
 
       <section className="grid gap-6 md:grid-cols-2">
         <Card title={t("company.campaigns_title")}>
