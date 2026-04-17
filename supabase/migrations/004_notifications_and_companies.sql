@@ -217,16 +217,65 @@ ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 -- 11. updated_at triggers on the new tables.
 -- ---------------------------------------------------------------------------
 
--- Reuse the update_updated_at_column() function from 001_initial_schema.sql.
+-- Same helper as 001_initial_schema.sql (`update_updated_at()`). Defined here too
+-- so projects that could not re-run 001 (tables already exist) still get it.
+CREATE OR REPLACE FUNCTION public.update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 DROP TRIGGER IF EXISTS set_companies_updated_at ON public.companies;
 CREATE TRIGGER set_companies_updated_at
   BEFORE UPDATE ON public.companies
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 DROP TRIGGER IF EXISTS set_campaigns_updated_at ON public.campaigns;
 CREATE TRIGGER set_campaigns_updated_at
   BEFORE UPDATE ON public.campaigns
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- 11b. RLS helpers (SECURITY DEFINER): policies must not subquery
+--      company_members directly when evaluating company_members RLS — that
+--      causes infinite recursion. These functions read the table as definer.
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.current_user_company_member(p_company_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.company_members m
+    WHERE m.company_id = p_company_id AND m.profile_id = auth.uid()
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.current_user_company_staff(p_company_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.company_members m
+    WHERE m.company_id = p_company_id
+      AND m.profile_id = auth.uid()
+      AND m.role IN ('owner', 'admin')
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.current_user_company_member(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.current_user_company_member(uuid) TO authenticated;
+
+REVOKE ALL ON FUNCTION public.current_user_company_staff(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.current_user_company_staff(uuid) TO authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 12. Row-level security policies.
@@ -246,10 +295,7 @@ CREATE POLICY "Members read their company"
   ON public.companies FOR SELECT
   USING (
     owner_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = companies.id AND m.profile_id = auth.uid()
-    )
+    OR public.current_user_company_member(id)
     OR public_profile_enabled = true
   );
 
@@ -263,12 +309,7 @@ CREATE POLICY "Owner or admin updates company"
   ON public.companies FOR UPDATE
   USING (
     owner_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = companies.id
-        AND m.profile_id = auth.uid()
-        AND m.role IN ('owner', 'admin')
-    )
+    OR public.current_user_company_staff(id)
   );
 
 -- company_members
@@ -278,38 +319,22 @@ CREATE POLICY "Members see each other"
   ON public.company_members FOR SELECT
   USING (
     profile_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM public.company_members self
-      WHERE self.company_id = company_members.company_id
-        AND self.profile_id = auth.uid()
-    )
+    OR public.current_user_company_member(company_id)
   );
 
 DROP POLICY IF EXISTS "Owner creates initial member" ON public.company_members;
 CREATE POLICY "Owner creates initial member"
   ON public.company_members FOR INSERT
   WITH CHECK (
-    -- Either the caller is becoming a member via invite acceptance...
     profile_id = auth.uid()
-    -- ...or an existing owner/admin is adding them.
-    OR EXISTS (
-      SELECT 1 FROM public.company_members self
-      WHERE self.company_id = company_members.company_id
-        AND self.profile_id = auth.uid()
-        AND self.role IN ('owner', 'admin')
-    )
+    OR public.current_user_company_staff(company_id)
   );
 
 DROP POLICY IF EXISTS "Owner or admin removes members" ON public.company_members;
 CREATE POLICY "Owner or admin removes members"
   ON public.company_members FOR DELETE
   USING (
-    EXISTS (
-      SELECT 1 FROM public.company_members self
-      WHERE self.company_id = company_members.company_id
-        AND self.profile_id = auth.uid()
-        AND self.role IN ('owner', 'admin')
-    )
+    public.current_user_company_staff(company_id)
     AND profile_id <> auth.uid()
   );
 
@@ -319,36 +344,21 @@ DROP POLICY IF EXISTS "Company staff manages domains" ON public.company_domains;
 CREATE POLICY "Company staff manages domains"
   ON public.company_domains FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = company_domains.company_id
-        AND m.profile_id = auth.uid()
-        AND m.role IN ('owner', 'admin')
-    )
+    public.current_user_company_staff(company_id)
   );
 
 DROP POLICY IF EXISTS "Company staff inserts domains" ON public.company_domains;
 CREATE POLICY "Company staff inserts domains"
   ON public.company_domains FOR INSERT
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = company_domains.company_id
-        AND m.profile_id = auth.uid()
-        AND m.role IN ('owner', 'admin')
-    )
+    public.current_user_company_staff(company_id)
   );
 
 DROP POLICY IF EXISTS "Company staff updates domains" ON public.company_domains;
 CREATE POLICY "Company staff updates domains"
   ON public.company_domains FOR UPDATE
   USING (
-    EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = company_domains.company_id
-        AND m.profile_id = auth.uid()
-        AND m.role IN ('owner', 'admin')
-    )
+    public.current_user_company_staff(company_id)
   );
 
 -- company_invites: owner/admin scoped read/write; invitees look up by token
@@ -358,24 +368,14 @@ DROP POLICY IF EXISTS "Company staff reads invites" ON public.company_invites;
 CREATE POLICY "Company staff reads invites"
   ON public.company_invites FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = company_invites.company_id
-        AND m.profile_id = auth.uid()
-        AND m.role IN ('owner', 'admin')
-    )
+    public.current_user_company_staff(company_id)
   );
 
 DROP POLICY IF EXISTS "Company staff creates invites" ON public.company_invites;
 CREATE POLICY "Company staff creates invites"
   ON public.company_invites FOR INSERT
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = company_invites.company_id
-        AND m.profile_id = auth.uid()
-        AND m.role IN ('owner', 'admin')
-    )
+    public.current_user_company_staff(company_id)
   );
 
 -- campaigns: public read of active rows; member write.
@@ -385,35 +385,21 @@ CREATE POLICY "Public reads active campaigns"
   ON public.campaigns FOR SELECT
   USING (
     is_active = true
-    OR EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = campaigns.company_id
-        AND m.profile_id = auth.uid()
-    )
+    OR public.current_user_company_member(company_id)
   );
 
 DROP POLICY IF EXISTS "Company staff manages campaigns" ON public.campaigns;
 CREATE POLICY "Company staff manages campaigns"
   ON public.campaigns FOR INSERT
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = campaigns.company_id
-        AND m.profile_id = auth.uid()
-        AND m.role IN ('owner', 'admin')
-    )
+    public.current_user_company_staff(company_id)
   );
 
 DROP POLICY IF EXISTS "Company staff updates campaigns" ON public.campaigns;
 CREATE POLICY "Company staff updates campaigns"
   ON public.campaigns FOR UPDATE
   USING (
-    EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = campaigns.company_id
-        AND m.profile_id = auth.uid()
-        AND m.role IN ('owner', 'admin')
-    )
+    public.current_user_company_staff(company_id)
   );
 
 -- pledges: preserve existing policies; extend so company members can read
@@ -424,9 +410,5 @@ CREATE POLICY "Company members view company pledges"
   ON public.pledges FOR SELECT
   USING (
     company_id IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM public.company_members m
-      WHERE m.company_id = pledges.company_id
-        AND m.profile_id = auth.uid()
-    )
+    AND public.current_user_company_member(company_id)
   );

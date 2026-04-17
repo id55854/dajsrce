@@ -46,9 +46,11 @@ export default function NewCompanyPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorHint, setErrorHint] = useState<string | null>(null);
 
   async function checkOib() {
     setError(null);
+    setErrorHint(null);
     const trimmed = oib.trim();
     if (!/^\d{11}$/.test(trimmed)) {
       setOibState("invalid");
@@ -80,6 +82,7 @@ export default function NewCompanyPage() {
 
   async function submit() {
     setError(null);
+    setErrorHint(null);
     setLoading(true);
     try {
       const res = await fetch("/api/companies", {
@@ -101,6 +104,7 @@ export default function NewCompanyPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? t("common.error_generic"));
+        setErrorHint(typeof data.hint === "string" ? data.hint : null);
         return;
       }
       const companyId = data.company.id as string;
@@ -123,6 +127,7 @@ export default function NewCompanyPage() {
       router.refresh();
     } catch {
       setError(t("common.error_generic"));
+      setErrorHint(null);
     } finally {
       setLoading(false);
     }
@@ -158,9 +163,12 @@ export default function NewCompanyPage() {
       />
 
       {error ? (
-        <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
-          {error}
-        </p>
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
+          <p>{error}</p>
+          {errorHint ? (
+            <p className="mt-2 text-xs leading-relaxed opacity-90 dark:opacity-95">{errorHint}</p>
+          ) : null}
+        </div>
       ) : null}
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">

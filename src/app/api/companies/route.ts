@@ -4,6 +4,19 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { writeAuditLog } from "@/lib/audit";
 import { isValidOib, lookupOib } from "@/lib/oib";
 import { slugify } from "@/lib/companies";
+import { loadCompanyMembershipsForUser } from "@/lib/companies-server";
+
+/** PostgREST error when tables from repo migrations were never applied. */
+function supabaseMissingTableHint(message: string | undefined): string | undefined {
+  if (!message) return undefined;
+  if (/schema cache|could not find the table/i.test(message)) {
+    return (
+      "Apply database migrations: in Supabase Dashboard → SQL, run `supabase/migrations` in numeric order " +
+      "(company tenants need at least 001–004), or locally: `supabase link` then `supabase db push`."
+    );
+  }
+  return undefined;
+}
 
 type CreateCompanyBody = {
   legal_name?: string;
@@ -32,22 +45,22 @@ export async function GET() {
     return NextResponse.json({ companies: [] });
   }
 
-  const { data: memberships, error } = await supabase
-    .from("company_members")
-    .select("role, company:companies(*)")
-    .eq("profile_id", user.id)
-    .order("joined_at", { ascending: true });
+  const { memberships, error } = await loadCompanyMembershipsForUser(supabase, user.id);
 
   if (error) {
-    return NextResponse.json({ companies: [], error: error.message }, { status: 500 });
+    return NextResponse.json(
+      {
+        companies: [],
+        error: error.message,
+        hint: supabaseMissingTableHint(error.message),
+      },
+      { status: 500 }
+    );
   }
-  const companies = (memberships ?? []).map((m) => {
-    const company = m.company as unknown as Record<string, unknown>;
-    return {
-      ...company,
-      member_role: m.role,
-    };
-  });
+  const companies = memberships.map((m) => ({
+    ...(m.company as unknown as Record<string, unknown>),
+    member_role: m.role,
+  }));
   return NextResponse.json({ companies });
 }
 
@@ -127,8 +140,9 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insertError || !company) {
+    const msg = insertError?.message ?? "Failed to create company";
     return NextResponse.json(
-      { error: insertError?.message ?? "Failed to create company" },
+      { error: msg, hint: supabaseMissingTableHint(insertError?.message) },
       { status: 500 }
     );
   }
@@ -143,7 +157,10 @@ export async function POST(req: NextRequest) {
     // Roll back on member insert failure so we don't leak an ownerless
     // company into the tenant list.
     await supabase.from("companies").delete().eq("id", company.id);
-    return NextResponse.json({ error: memberError.message }, { status: 500 });
+    return NextResponse.json(
+      { error: memberError.message, hint: supabaseMissingTableHint(memberError.message) },
+      { status: 500 }
+    );
   }
 
   await writeAuditLog(supabaseAdmin, {

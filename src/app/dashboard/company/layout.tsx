@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Building2, LayoutDashboard, Megaphone, Settings, Users } from "lucide-react";
 import { getCurrentUserProfile } from "@/lib/auth/server";
 import { resolveActiveCompany } from "@/lib/companies-server";
-import { CompanySwitcher, toSwitcherItems } from "@/components/CompanySwitcher";
+import { CompanySwitcher } from "@/components/CompanySwitcher";
+import { toSwitcherItems } from "@/lib/company-switcher-items";
 import { getTranslator } from "@/i18n/server";
 
 // NOTE: App Router layouts do not receive `searchParams`. The active

@@ -254,6 +254,9 @@ Authoritative schema lives in `supabase/migrations/`:
   `donation_receipts`, RLS, Storage bucket `receipts`.
 - `006_billing.sql` — Phase 1: `subscriptions` (one row per `company_id`),
   `stripe_events` idempotency log, `updated_at` trigger.
+- `007_company_members_rls_no_recursion.sql` — replaces self-referential
+  `company_members` RLS with `SECURITY DEFINER` helpers (also folded into
+  current `004` for fresh installs). Run if an older `004` caused recursion errors.
 - `003_roles_shipping_company_actions.sql` — expands `profiles.role` to
   `individual | ngo | company | superadmin` (migrating any legacy
   `citizen`/`institution` rows), adds `company_name`/`contact_person`/

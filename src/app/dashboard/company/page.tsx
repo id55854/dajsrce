@@ -58,14 +58,15 @@ export default async function CompanyDashboardPage({
   const totalMembers = membersRes.data?.length ?? 0;
   const activeCampaigns = campaignsRes.data?.length ?? 0;
 
-  const { data: ackValueRows } = await supabase
+  const ackRes = await supabase
     .from("pledges")
     .select("amount_eur, pledge_acknowledgements(id)")
     .eq("company_id", active.company.id)
     .not("amount_eur", "is", null);
+  const ackValueRows = ackRes.error ? [] : (ackRes.data ?? []);
 
   let givenEur = 0;
-  for (const row of ackValueRows ?? []) {
+  for (const row of ackValueRows) {
     const acks = row.pledge_acknowledgements as unknown;
     if (row.amount_eur != null && Array.isArray(acks) && acks.length > 0) {
       givenEur += Number(row.amount_eur);

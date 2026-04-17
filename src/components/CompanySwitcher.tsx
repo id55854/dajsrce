@@ -4,18 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Building2, Check, ChevronsUpDown } from "lucide-react";
 import clsx from "clsx";
 import { useRouter } from "next/navigation";
-import type { Company, CompanyRole } from "@/lib/types";
 import { COMPANY_ROLE_LABELS } from "@/lib/constants";
+import type { CompanySwitcherItem } from "@/lib/company-switcher-items";
 import { useLocale } from "@/i18n/client";
 
-export type CompanySwitcherItem = {
-  id: string;
-  slug: string;
-  display_name: string | null;
-  legal_name: string;
-  logo_url: string | null;
-  role: CompanyRole;
-};
+export type { CompanySwitcherItem } from "@/lib/company-switcher-items";
 
 export function CompanySwitcher({
   items,
@@ -104,17 +97,4 @@ export function CompanySwitcher({
       ) : null}
     </div>
   );
-}
-
-export function toSwitcherItems(
-  memberships: Array<{ company: Company; role: CompanyRole }>
-): CompanySwitcherItem[] {
-  return memberships.map(({ company, role }) => ({
-    id: company.id,
-    slug: company.slug,
-    display_name: company.display_name,
-    legal_name: company.legal_name,
-    logo_url: company.logo_url,
-    role,
-  }));
 }
