@@ -1,0 +1,233 @@
+{
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "continue": "Continue",
+    "submit": "Submit",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "required": "Required",
+    "optional": "Optional",
+    "search": "Search",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "yes": "Yes",
+    "no": "No",
+    "error_generic": "Something went wrong. Please try again."
+  },
+  "locale": {
+    "switch_to_hr": "Hrvatski",
+    "switch_to_en": "English",
+    "aria_switch": "Change language"
+  },
+  "company": {
+    "role_tile_title": "I represent a company",
+    "role_tile_subtitle": "Company / CSR programme",
+
+    "onboarding_title": "Company onboarding",
+    "onboarding_intro": "Set up your DajSrce company profile in a few steps. You can always skip and finish later.",
+
+    "step_identity": "Identity",
+    "step_address": "Address",
+    "step_brand": "Brand",
+    "step_invite": "Invite team",
+
+    "legal_name_label": "Legal company name",
+    "display_name_label": "Display name (optional)",
+    "oib_label": "OIB (Croatian tax ID)",
+    "oib_hint": "11 digits. Will be checked against the public company registry.",
+    "oib_invalid": "Invalid OIB — checksum does not match.",
+    "oib_lookup_failed": "Could not reach the company registry — please fill in manually.",
+
+    "address_label": "Address",
+    "city_label": "City",
+    "country_label": "Country",
+
+    "logo_label": "Logo",
+    "logo_hint": "Recommended: PNG or SVG, 512 × 512.",
+    "brand_primary_label": "Primary colour",
+    "brand_secondary_label": "Secondary colour",
+    "size_class_label": "Company size",
+    "prior_year_revenue_label": "Prior-year revenue (EUR)",
+    "prior_year_revenue_hint": "Used to compute your deduction ceiling.",
+
+    "invite_emails_label": "Colleague email addresses (comma-separated)",
+    "invite_note": "We'll send each a one-time invite link valid for 14 days.",
+
+    "create_cta": "Create company profile",
+    "create_success": "Company profile created.",
+
+    "dashboard_title": "Company dashboard",
+    "dashboard_subtitle": "Coordinate giving, track impact — all in one place.",
+    "metric_members": "Members",
+    "metric_campaigns": "Active campaigns",
+    "metric_pledges_ytd": "Pledges this year",
+    "metric_headroom": "Remaining headroom",
+    "metric_headroom_hint": "Of prior-year revenue",
+
+    "team_title": "Team",
+    "team_invite_cta": "Send invite",
+    "team_domain_verify_cta": "Verify domain",
+    "team_empty": "No members yet. Invite your first teammate.",
+    "team_invite_sent": "Invite ready. Copy the link and share it with your colleague.",
+
+    "domain_title": "Domain verification",
+    "domain_instructions": "Add this TXT record to your domain's DNS, then hit 'Verify'.",
+    "domain_record_host": "Host",
+    "domain_record_value": "Value",
+    "domain_verify_success": "Domain verified.",
+    "domain_verify_failed": "TXT record not yet visible. Try again in 5 minutes.",
+
+    "campaigns_title": "Campaigns",
+    "campaigns_new": "New campaign",
+    "campaigns_empty": "No campaigns yet. Launch one to rally your team around a cause.",
+
+    "settings_title": "Company settings",
+    "settings_brand_section": "Branding",
+    "settings_finance_section": "Finance & tax receipts",
+    "settings_billing_section": "Subscription",
+    "settings_match_ratio_label": "Match ratio (e.g. 1.0 = 1:1)",
+    "settings_match_ratio_hint": "When an employee requests a match, the company auto-adds a matching pledge at this ratio.",
+
+    "switcher_label": "Pick company",
+    "switcher_multi": "Multiple companies",
+
+    "pledge_on_behalf_label": "Pledge on behalf of company",
+    "pledge_match_label": "Request company match",
+    "pledge_match_hint": "The company will add a matching pledge if its match ratio is greater than zero.",
+
+    "receipts_section_title": "Tax receipts",
+    "receipts_section_hint": "Generate PDF and XML for a fiscal year (paid tier + feature flag required).",
+
+    "exports_section_title": "ESG exports",
+    "exports_section_hint": "ZIP bundle (CSV, JSON, narrative PDF, evidence) by framework and period. SME Plus: VSME Basic only; Enterprise: all frameworks.",
+
+    "csr_section_title": "CSR reports",
+    "csr_section_hint": "Branded PDF and DOCX summary for a date range. Uses delivered/confirmed pledges with EUR in the window and company-linked volunteer hours.",
+    "csr_generate": "Generate report",
+    "csr_empty": "No CSR reports yet.",
+    "csr_feature_off": "CSR reports and the public company page require NEXT_PUBLIC_FLAG_PUBLIC_PROFILE_ENABLED.",
+    "public_profile_section_title": "Public impact profile",
+    "public_profile_toggle": "Publish public impact profile",
+    "public_profile_hint": "When enabled, anyone can view /company/your-slug (SME Plus or Enterprise). Sensitive company data stays private.",
+    "public_profile_embed_title": "Embed",
+    "public_profile_embed_hint": "Add this script to your site to show a small card:",
+    "public_company_sdg": "SDG focus",
+    "public_company_campaigns": "Campaigns",
+    "public_company_stories": "Beneficiary highlights",
+    "public_company_report": "Latest CSR report",
+    "public_company_download": "Download PDF",
+    "public_company_hours": "Volunteer hours",
+    "public_company_institutions": "Institutions supported",
+    "public_company_metrics_given": "Acknowledged giving"
+  },
+  "export": {
+    "framework": "Framework",
+    "framework_required": "Choose a framework.",
+    "period_start": "From",
+    "period_end": "To",
+    "generate": "Generate export",
+    "generating": "Generating…",
+    "list_title": "Export history",
+    "empty": "No exports yet.",
+    "download_zip": "Download ZIP",
+    "feature_off": "Exports are disabled (NEXT_PUBLIC_FLAG_EXPORTS_ENABLED).",
+    "tier_required": "SME Plus (VSME Basic) or Enterprise (all frameworks) is required."
+  },
+  "pledge": {
+    "amount_eur_label": "Estimated value (EUR)",
+    "amount_eur_hint": "Optional. Needed for annual receipts when pledging on behalf of a company."
+  },
+  "institution": {
+    "volunteers_title": "Volunteer roster",
+    "volunteers_subtitle": "Check volunteers in or out. Hours are logged on check-out. Share the QR code for self check-in.",
+    "volunteers_back": "Back",
+    "volunteers_loading": "Loading…",
+    "volunteers_empty": "No sign-ups yet. Post a volunteer event first.",
+    "volunteers_qr_caption": "Self check-in QR",
+    "volunteers_check_in": "Check in",
+    "volunteers_check_out": "Check out",
+    "volunteers_in": "In",
+    "volunteers_out": "Out",
+
+    "pledges_title": "Pledges for your institution",
+    "pledges_subtitle": "Mark goods as received and acknowledge delivery for donor tax records.",
+    "pledges_empty": "No pledges yet.",
+    "pledges_need": "Need",
+    "pledges_status": "Status",
+    "pledges_amount": "Amount (EUR)",
+    "mark_delivered": "Mark received",
+    "acknowledge": "Acknowledge delivery",
+    "acknowledged": "Acknowledged",
+    "notes_placeholder": "Notes (optional)",
+    "loading": "Loading…"
+  },
+  "receipt": {
+    "fiscal_year": "Fiscal year",
+    "generate": "Generate receipt",
+    "generating": "Generating…",
+    "list_title": "Receipt history",
+    "empty": "No receipts generated yet.",
+    "download_pdf": "Download PDF",
+    "download_xml": "Download XML",
+    "feature_off": "Receipts are disabled (NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED).",
+    "tier_required": "SME Tax tier or higher is required.",
+    "year_invalid": "Enter a valid year."
+  },
+  "billing": {
+    "checkout_sme_tax": "Upgrade to SME Tax",
+    "checkout_sme_plus": "Upgrade to SME Plus",
+    "checkout_enterprise": "Upgrade to Enterprise",
+    "open_portal": "Stripe customer portal",
+    "portal_hint": "Manage payment method and cancellation.",
+    "error_generic": "Billing request failed. Try again.",
+    "stripe_missing": "Stripe is not configured on the server.",
+    "demo_title": "Demo billing",
+    "demo_hint": "No Stripe: set plan tier for recordings only. Remove ALLOW_DEMO_BILLING in production.",
+    "demo_applied": "Tier updated. Reloading…",
+    "demo_tier_free": "Set Free"
+  },
+  "tax": {
+    "category_label": "Tax category",
+    "ceiling_hint": "Deduction ceiling: {pct}% of prior-year revenue."
+  },
+  "volunteer_self": {
+    "title": "Volunteer check-in",
+    "missing_event": "Missing event link. Open the QR code from your organisation again.",
+    "intro": "Confirm you have arrived for the volunteer event. You must be signed in and registered for this event.",
+    "button": "I am here (check in)",
+    "done": "Done",
+    "sign_in": "Sign in",
+    "already": "Already checked in.",
+    "thank_you": "Checked in. Thank you!",
+    "error_generic": "Could not check in."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet.",
+    "mark_all_read": "Mark all read"
+  },
+  "dashboard_individual": {
+    "title": "Individual Dashboard",
+    "subtitle": "Donation history, volunteer actions, and shipment tracking in one place.",
+    "your_account": "Your account",
+    "email_label": "Email",
+    "role_label": "Role",
+    "role_individual": "Individual",
+    "role_ngo": "NGO",
+    "role_company": "Company",
+    "role_superadmin": "Superadmin",
+    "stat_donations": "Donations",
+    "stat_shipping": "With shipping",
+    "stat_volunteer_hours": "Volunteer hours",
+    "donation_history": "Donation history",
+    "no_actions": "No actions yet. Browse needs and start helping.",
+    "shipment_prefix": "Shipment:",
+    "find_places": "Find places to help"
+  }
+}

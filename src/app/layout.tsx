@@ -4,6 +4,8 @@ import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AccessibilityMenu } from "@/components/AccessibilityMenu";
+import { LocaleProvider } from "@/i18n/client";
+import { getLocale } from "@/i18n/server";
 
 export const metadata: Metadata = {
   title: "DajSrce — Connecting donors with those in need",
@@ -11,9 +13,10 @@ export const metadata: Metadata = {
     "Interactive map of social institutions in Zagreb. Find where to donate, volunteer, and help.",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = await getLocale();
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <link
           rel="stylesheet"
@@ -28,12 +31,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body className="bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-        <div id="app-content" className="min-h-screen flex flex-col">
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </div>
-        <AccessibilityMenu />
+        <LocaleProvider initialLocale={locale}>
+          <div id="app-content" className="min-h-screen flex flex-col">
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+          <AccessibilityMenu />
+        </LocaleProvider>
       </body>
     </html>
   );

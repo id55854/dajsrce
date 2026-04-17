@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { DM_Sans } from "next/font/google";
-import { Building2, Heart } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { Building2, BriefcaseBusiness, Heart } from "lucide-react";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { UserRole } from "@/lib/types";
 
 const dmSans = DM_Sans({ subsets: ["latin"] });
 
-export default function RegisterPage() {
+function RegisterForm() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<1 | 2>(1);
   const [role, setRole] = useState<UserRole | null>(null);
   const [name, setName] = useState("");
@@ -39,6 +41,13 @@ export default function RegisterPage() {
     setError(null);
     setSuccess(null);
 
+    if (!isSupabaseConfigured) {
+      setError(
+        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+      return;
+    }
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
@@ -47,36 +56,48 @@ export default function RegisterPage() {
       setError("Role is missing.");
       return;
     }
-    if (role === "institution" && !institutionName.trim()) {
-      setError("Enter institution name.");
+    if ((role === "ngo" || role === "company") && !institutionName.trim()) {
+      setError(role === "company" ? "Enter company name." : "Enter NGO name.");
       return;
     }
 
     setLoading(true);
     const supabase = createClient();
-    const { data, error: signError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-        data: {
-          name,
-          role,
-          ...(role === "institution"
-            ? { institution_name: institutionName.trim() }
-            : {}),
+    let data: Awaited<ReturnType<typeof supabase.auth.signUp>>["data"] | null =
+      null;
+    let signError: Error | null = null;
+    try {
+      const response = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(searchParams.get("next") || "/dashboard")}`,
+          data: {
+            name,
+            role,
+            ...(role === "ngo" || role === "company"
+              ? { institution_name: institutionName.trim() }
+              : {}),
+          },
         },
-      },
-    });
+      });
+      data = response.data;
+      signError = response.error;
+    } catch {
+      signError = new Error(
+        "Unable to reach authentication service. Check Supabase URL/keys and network."
+      );
+    }
     setLoading(false);
 
-    if (signError) {
-      setError(signError.message);
+    if (signError || !data) {
+      setError(signError?.message ?? "Sign up failed. Please try again.");
       return;
     }
 
     if (data.session) {
-      window.location.href = "/dashboard";
+      const fallback = role === "company" ? "/dashboard/company/new" : "/dashboard";
+      window.location.href = searchParams.get("next") || fallback;
       return;
     }
 
@@ -116,43 +137,63 @@ export default function RegisterPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => selectRole("citizen")}
+                  onClick={() => selectRole("individual")}
                   className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center transition-all ${
-                    role === "citizen"
+                    role === "individual"
                       ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10 dark:bg-red-950/30"
                       : "border-gray-200 bg-white hover:border-red-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-red-800"
                   }`}
                 >
                   <Heart
-                    className={`h-10 w-10 ${role === "citizen" ? "text-red-500" : "text-gray-400"}`}
+                    className={`h-10 w-10 ${role === "individual" ? "text-red-500" : "text-gray-400"}`}
                     strokeWidth={1.75}
                   />
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
                     I want to help
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Citizen
+                    Individual
                   </span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => selectRole("institution")}
+                  onClick={() => selectRole("ngo")}
                   className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center transition-all ${
-                    role === "institution"
+                    role === "ngo"
                       ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10 dark:bg-red-950/30"
                       : "border-gray-200 bg-white hover:border-red-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-red-800"
                   }`}
                 >
                   <Building2
-                    className={`h-10 w-10 ${role === "institution" ? "text-red-500" : "text-gray-400"}`}
+                    className={`h-10 w-10 ${role === "ngo" ? "text-red-500" : "text-gray-400"}`}
                     strokeWidth={1.75}
                   />
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    I represent an institution
+                    I represent an NGO
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Institution
+                    NGO / Association
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectRole("company")}
+                  className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center transition-all sm:col-span-2 ${
+                    role === "company"
+                      ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10 dark:bg-red-950/30"
+                      : "border-gray-200 bg-white hover:border-red-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-red-800"
+                  }`}
+                >
+                  <BriefcaseBusiness
+                    className={`h-10 w-10 ${role === "company" ? "text-red-500" : "text-gray-400"}`}
+                    strokeWidth={1.75}
+                  />
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                    I represent a company
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Company / CSR
                   </span>
                 </button>
               </div>
@@ -253,13 +294,13 @@ export default function RegisterPage() {
                   />
                 </div>
 
-                {role === "institution" ? (
+                {role === "ngo" || role === "company" ? (
                   <div>
                     <label
                       htmlFor="institution"
                       className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
                     >
-                      Institution name
+                      {role === "company" ? "Company name" : "NGO name"}
                     </label>
                     <input
                       id="institution"
@@ -287,7 +328,7 @@ export default function RegisterPage() {
           <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
             Already have an account?{" "}
             <Link
-              href="/auth/login"
+              href={`/auth/login${searchParams.get("next") ? `?next=${encodeURIComponent(searchParams.get("next") as string)}` : ""}`}
               className="font-semibold text-red-500 hover:text-red-600 hover:underline"
             >
               Sign In
@@ -296,5 +337,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }

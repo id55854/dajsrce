@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Heart, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { normalizeRole } from "@/lib/auth/roles";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { UserRole } from "@/lib/types";
 
 export default function SetupPage() {
@@ -15,34 +16,67 @@ export default function SetupPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setChecking(false);
+      setError(
+        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+      return;
+    }
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) {
         router.replace("/auth/login");
         return;
       }
-      supabase
+      const user = data.user;
+      const isOAuth =
+        user.app_metadata?.provider !== "email" &&
+        user.app_metadata?.provider !== undefined;
+
+      const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
-        .eq("id", data.user.id)
-        .maybeSingle()
-        .then(({ data: profile }) => {
-          if (profile && profile.role) {
-            router.replace("/dashboard");
-          } else {
-            setChecking(false);
-          }
-        });
+        .select("role, institution_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const r = normalizeRole(profile?.role);
+      const setupDone = user.user_metadata?.setup_completed === true;
+
+      if (r === "ngo" && profile?.institution_id) {
+        router.replace("/dashboard");
+        return;
+      }
+      if (r === "ngo" && !profile?.institution_id) {
+        setChecking(false);
+        return;
+      }
+      if (r === "individual" && !isOAuth) {
+        router.replace("/dashboard");
+        return;
+      }
+      if (r === "individual" && isOAuth && setupDone) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setChecking(false);
     });
   }, [router]);
 
   async function handleSubmit() {
+    if (!isSupabaseConfigured) {
+      setError(
+        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+      return;
+    }
     if (!role) {
       setError("Please select a role.");
       return;
     }
-    if (role === "institution" && !institutionName.trim()) {
-      setError("Please enter your institution name.");
+    if (role === "ngo" && !institutionName.trim()) {
+      setError("Please enter your NGO name.");
       return;
     }
 
@@ -63,12 +97,17 @@ export default function SetupPage() {
 
       if (updateErr) throw updateErr;
 
+      const meta: Record<string, string | boolean> = { role };
+      if (role === "individual") {
+        meta.setup_completed = true;
+      }
+
       await supabase.auth.updateUser({
-        data: { role },
+        data: meta,
       });
 
-      if (role === "institution" && institutionName.trim()) {
-        const { data: inst } = await supabase
+      if (role === "ngo" && institutionName.trim()) {
+        const { data: inst, error: instErr } = await supabase
           .from("institutions")
           .insert({
             name: institutionName.trim(),
@@ -83,12 +122,15 @@ export default function SetupPage() {
           .select("id")
           .single();
 
-        if (inst) {
-          await supabase
-            .from("profiles")
-            .update({ institution_id: inst.id })
-            .eq("id", user.id);
-        }
+        if (instErr) throw instErr;
+        if (!inst?.id) throw new Error("Could not create institution.");
+
+        const { error: linkErr } = await supabase
+          .from("profiles")
+          .update({ institution_id: inst.id })
+          .eq("id", user.id);
+
+        if (linkErr) throw linkErr;
       }
 
       router.replace("/dashboard");
@@ -132,50 +174,50 @@ export default function SetupPage() {
             <button
               type="button"
               onClick={() => {
-                setRole("citizen");
+                setRole("individual");
                 setError(null);
               }}
               className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center transition-all ${
-                role === "citizen"
+                role === "individual"
                   ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10"
                   : "border-gray-200 bg-white hover:border-red-200"
               }`}
             >
               <Heart
-                className={`h-10 w-10 ${role === "citizen" ? "text-red-500" : "text-gray-400"}`}
+                className={`h-10 w-10 ${role === "individual" ? "text-red-500" : "text-gray-400"}`}
                 strokeWidth={1.75}
               />
               <span className="font-semibold text-gray-900">I want to help</span>
-              <span className="text-xs text-gray-500">Citizen / Volunteer</span>
+              <span className="text-xs text-gray-500">Individual / Volunteer</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
-                setRole("institution");
+                setRole("ngo");
                 setError(null);
               }}
               className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 text-center transition-all ${
-                role === "institution"
+                role === "ngo"
                   ? "border-red-500 bg-red-50/50 shadow-md shadow-red-500/10"
                   : "border-gray-200 bg-white hover:border-red-200"
               }`}
             >
               <Building2
-                className={`h-10 w-10 ${role === "institution" ? "text-red-500" : "text-gray-400"}`}
+                className={`h-10 w-10 ${role === "ngo" ? "text-red-500" : "text-gray-400"}`}
                 strokeWidth={1.75}
               />
               <span className="font-semibold text-gray-900">
-                I represent an institution
+                I represent an NGO
               </span>
-              <span className="text-xs text-gray-500">Institution / Shelter</span>
+              <span className="text-xs text-gray-500">NGO / Association</span>
             </button>
           </div>
 
-          {role === "institution" ? (
+          {role === "ngo" ? (
             <div className="mt-4">
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Institution name
+                NGO name
               </label>
               <input
                 type="text"

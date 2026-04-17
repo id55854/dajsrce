@@ -5,11 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, Heart, LogOut, MapPin, Menu, User, X } from "lucide-react";
 import clsx from "clsx";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 import type { Notification } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { CompanySwitcher, type CompanySwitcherItem } from "@/components/CompanySwitcher";
 
 const navLinks = [
   { href: "/map", label: "Map" },
@@ -152,12 +154,20 @@ export function Navbar() {
   const [user, setUser] = useState<SupaUser | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [companies, setCompanies] = useState<CompanySwitcherItem[]>([]);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+  const [meProfile, setMeProfile] = useState<{ name: string; email: string } | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setUser(null);
+      return;
+    }
+
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
@@ -177,7 +187,27 @@ export function Navbar() {
 
   useEffect(() => {
     if (!user) {
+      setMeProfile(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/me", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { profile?: { name: string; email: string } } | null) => {
+        if (cancelled || !data?.profile) return;
+        setMeProfile({ name: data.profile.name, email: data.profile.email });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
       setNotifications([]);
+      setCompanies([]);
+      setActiveCompanyId(null);
       return;
     }
     function fetchNotifications() {
@@ -188,6 +218,30 @@ export function Navbar() {
     }
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30_000);
+
+    // Fetch company memberships once per session; the switcher only
+    // renders when the user belongs to at least two companies.
+    fetch("/api/companies", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data: { companies?: Array<{ id: string; slug: string; display_name: string | null; legal_name: string; logo_url: string | null; member_role: CompanySwitcherItem["role"] }> }) => {
+        const list = (data.companies ?? []).map((c) => ({
+          id: c.id,
+          slug: c.slug,
+          display_name: c.display_name,
+          legal_name: c.legal_name,
+          logo_url: c.logo_url,
+          role: c.member_role,
+        }));
+        setCompanies(list);
+        if (list.length > 0) {
+          const stored = document.cookie
+            .split("; ")
+            .find((c) => c.startsWith("active_company="))
+            ?.split("=")[1];
+          setActiveCompanyId(stored ?? list[0]!.id);
+        }
+      })
+      .catch(() => {});
     return () => clearInterval(interval);
   }, [user]);
 
@@ -212,6 +266,13 @@ export function Navbar() {
   }, []);
 
   async function handleLogout() {
+    if (!isSupabaseConfigured) {
+      setUser(null);
+      setNotifications([]);
+      router.push("/map");
+      return;
+    }
+
     const supabase = createClient();
     await supabase.auth.signOut();
     setUser(null);
@@ -221,9 +282,12 @@ export function Navbar() {
   }
 
   const displayName =
+    meProfile?.name ||
     user?.user_metadata?.name ||
     user?.email?.split("@")[0] ||
     "User";
+
+  const profileEmail = meProfile?.email || user?.email || undefined;
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm dark:bg-gray-950 dark:shadow-gray-900/50">
@@ -249,7 +313,11 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <LocaleSwitcher />
           <ThemeToggle />
+          {user && companies.length > 1 ? (
+            <CompanySwitcher items={companies} activeId={activeCompanyId} />
+          ) : null}
           {user ? (
             <>
               <div className="relative">
@@ -277,6 +345,7 @@ export function Navbar() {
               </div>
               <Link
                 href="/dashboard"
+                title={profileEmail}
                 className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 dark:bg-red-950 dark:text-red-300"
               >
                 <User className="h-4 w-4" />
@@ -365,10 +434,11 @@ export function Navbar() {
               <>
                 <Link
                   href="/dashboard"
-                  className="rounded-xl px-3 py-2 text-base font-medium text-red-500 hover:bg-red-50"
+                  title={profileEmail}
+                  className="rounded-xl px-3 py-2 text-base font-medium text-red-500 hover:bg-red-50 dark:hover:bg-gray-800"
                   onClick={() => setMobileOpen(false)}
                 >
-                  My Profile
+                  {displayName}
                 </Link>
                 <button
                   type="button"

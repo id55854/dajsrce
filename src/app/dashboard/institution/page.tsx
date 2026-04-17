@@ -8,6 +8,8 @@ import {
   ClipboardList,
   MapPin,
   Plus,
+  Inbox,
+  Users,
 } from "lucide-react";
 import { DONATION_TYPES } from "@/lib/constants";
 import type { DonationType, UrgencyLevel } from "@/lib/types";
@@ -94,7 +96,7 @@ export default function InstitutionDashboardPage() {
         body: JSON.stringify({
           title: evTitle,
           description: evDescription,
-          date: evDate,
+          event_date: evDate,
           start_time: evStart,
           end_time: evEnd,
           volunteers_needed: Number(evVolunteers),
@@ -123,13 +125,31 @@ export default function InstitutionDashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50/60 to-white px-4 py-10 dark:from-gray-950 dark:to-gray-950">
       <div className="mx-auto max-w-3xl space-y-8">
-        <header>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Institution Management
-          </h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Manage needs, events, and activities.
-          </p>
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Institution Management
+            </h1>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Manage needs, events, and activities.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/institution/pledges"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:hover:bg-red-950/40"
+            >
+              <Inbox className="h-4 w-4" aria-hidden />
+              Pledges
+            </Link>
+            <Link
+              href="/dashboard/institution/volunteers"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:hover:bg-red-950/40"
+            >
+              <Users className="h-4 w-4" aria-hidden />
+              Volunteers
+            </Link>
+          </div>
         </header>
 
         <section className="rounded-2xl border border-red-100 bg-white p-6 shadow-sm dark:border-red-900 dark:bg-gray-900">

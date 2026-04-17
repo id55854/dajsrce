@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { normalizeRole, roleToDashboardPath } from "@/lib/auth/roles";
 
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
@@ -22,7 +23,9 @@ export async function GET(req: NextRequest) {
           .maybeSingle();
 
         const isOAuth = user.app_metadata?.provider !== "email";
-        const needsSetup = isOAuth && profile && !profile.institution_id && profile.role === "citizen";
+        const role = normalizeRole(profile?.role);
+        const needsSetup =
+          isOAuth && profile && !profile.institution_id && role === "individual";
         const isNewOAuth =
           isOAuth &&
           user.created_at &&
@@ -30,6 +33,10 @@ export async function GET(req: NextRequest) {
 
         if (isNewOAuth || (needsSetup && isNewOAuth)) {
           return NextResponse.redirect(`${origin}/auth/setup`);
+        }
+
+        if (next === "/dashboard") {
+          return NextResponse.redirect(`${origin}${roleToDashboardPath(role)}`);
         }
       }
 

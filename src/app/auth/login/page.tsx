@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DM_Sans } from "next/font/google";
 import { Chrome, Heart } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 const dmSans = DM_Sans({ subsets: ["latin"] });
 
@@ -22,40 +22,75 @@ function LoginForm() {
     if (searchParams.get("error") === "auth_failed") {
       setError("Sign in failed. Please try again.");
     }
+    if (!isSupabaseConfigured) {
+      setError(
+        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+      return;
+    }
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) router.replace("/dashboard");
+      const next = searchParams.get("next") || "/dashboard";
+      if (data.user) router.replace(next);
     });
   }, [searchParams, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!isSupabaseConfigured) {
+      setError(
+        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+      return;
+    }
     setLoading(true);
     const supabase = createClient();
-    const { error: signError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    let signError: Error | null = null;
+    try {
+      const response = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      signError = response.error;
+    } catch {
+      signError = new Error(
+        "Unable to reach authentication service. Check Supabase URL/keys and network."
+      );
+    }
     setLoading(false);
     if (signError) {
       setError(signError.message);
       return;
     }
-    router.push("/dashboard");
+    router.push(searchParams.get("next") || "/dashboard");
     router.refresh();
   }
 
   async function handleGoogle() {
     setError(null);
+    if (!isSupabaseConfigured) {
+      setError(
+        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+      return;
+    }
     setGoogleLoading(true);
     const supabase = createClient();
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-      },
-    });
+    let oauthError: Error | null = null;
+    try {
+      const response = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(searchParams.get("next") || "/dashboard")}`,
+        },
+      });
+      oauthError = response.error;
+    } catch {
+      oauthError = new Error(
+        "Unable to reach authentication service. Check Supabase URL/keys and network."
+      );
+    }
     setGoogleLoading(false);
     if (oauthError) setError(oauthError.message);
   }
@@ -152,7 +187,7 @@ function LoginForm() {
       <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
         Don&apos;t have an account?{" "}
         <Link
-          href="/auth/register"
+          href={`/auth/register${searchParams.get("next") ? `?next=${encodeURIComponent(searchParams.get("next") as string)}` : ""}`}
           className="font-semibold text-red-500 hover:text-red-600 hover:underline"
         >
           Sign Up

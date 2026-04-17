@@ -1,0 +1,233 @@
+{
+  "common": {
+    "back": "Natrag",
+    "cancel": "Odustani",
+    "save": "Spremi",
+    "continue": "Nastavi",
+    "submit": "Pošalji",
+    "loading": "Učitavanje…",
+    "saving": "Spremanje…",
+    "delete": "Obriši",
+    "edit": "Uredi",
+    "close": "Zatvori",
+    "confirm": "Potvrdi",
+    "required": "Obavezno",
+    "optional": "Nije obavezno",
+    "search": "Pretraži",
+    "copy": "Kopiraj",
+    "copied": "Kopirano!",
+    "yes": "Da",
+    "no": "Ne",
+    "error_generic": "Nešto je pošlo po zlu. Pokušajte ponovno."
+  },
+  "locale": {
+    "switch_to_hr": "Hrvatski",
+    "switch_to_en": "English",
+    "aria_switch": "Promijeni jezik"
+  },
+  "company": {
+    "role_tile_title": "Predstavljam tvrtku",
+    "role_tile_subtitle": "Tvrtka / CSR program",
+
+    "onboarding_title": "Prijava tvrtke",
+    "onboarding_intro": "Postavite DajSrce profil svoje tvrtke u nekoliko koraka. Uvijek možete preskočiti i dovršiti kasnije.",
+
+    "step_identity": "Identitet",
+    "step_address": "Adresa",
+    "step_brand": "Brend",
+    "step_invite": "Pozovi tim",
+
+    "legal_name_label": "Pravni naziv tvrtke",
+    "display_name_label": "Prikazni naziv (nije obavezan)",
+    "oib_label": "OIB",
+    "oib_hint": "11 znamenki. Bit će provjeren automatski preko sudskog registra.",
+    "oib_invalid": "Neispravan OIB. Provjerite kontrolnu znamenku.",
+    "oib_lookup_failed": "Nismo mogli dohvatiti podatke iz registra — provjerite ručno.",
+
+    "address_label": "Adresa",
+    "city_label": "Grad",
+    "country_label": "Država",
+
+    "logo_label": "Logotip",
+    "logo_hint": "Preporuka: PNG ili SVG, 512 × 512.",
+    "brand_primary_label": "Primarna boja",
+    "brand_secondary_label": "Sekundarna boja",
+    "size_class_label": "Veličina tvrtke",
+    "prior_year_revenue_label": "Prihod prethodne godine (EUR)",
+    "prior_year_revenue_hint": "Potrebno za izračun limita odbitnih darovanja.",
+
+    "invite_emails_label": "E-adrese kolega (odvojene zarezom)",
+    "invite_note": "Poslat ćemo im pozivnicu s jednokratnim linkom koji vrijedi 14 dana.",
+
+    "create_cta": "Otvori profil tvrtke",
+    "create_success": "Profil tvrtke je otvoren.",
+
+    "dashboard_title": "Nadzorna ploča tvrtke",
+    "dashboard_subtitle": "Vodite zajedničko davanje i pratite utjecaj — sve na jednom mjestu.",
+    "metric_members": "Članovi",
+    "metric_campaigns": "Aktivne kampanje",
+    "metric_pledges_ytd": "Pledge-ovi ove godine",
+    "metric_headroom": "Preostali limit",
+    "metric_headroom_hint": "Od prihoda prethodne godine",
+
+    "team_title": "Tim",
+    "team_invite_cta": "Pošalji pozivnicu",
+    "team_domain_verify_cta": "Potvrdi domenu",
+    "team_empty": "Još nema članova. Pozovite prvi tim.",
+    "team_invite_sent": "Pozivnica je spremna. Kopirajte link i pošaljite kolegi.",
+
+    "domain_title": "Verifikacija domene",
+    "domain_instructions": "Dodajte sljedeći TXT zapis na DNS domene i pritisnite 'Potvrdi'.",
+    "domain_record_host": "Host",
+    "domain_record_value": "Vrijednost",
+    "domain_verify_success": "Domena je potvrđena.",
+    "domain_verify_failed": "TXT zapis još nije vidljiv. Pokušajte za 5 minuta.",
+
+    "campaigns_title": "Kampanje",
+    "campaigns_new": "Nova kampanja",
+    "campaigns_empty": "Nema kampanja. Pokrenite prvu i okupite tim oko jednog cilja.",
+
+    "settings_title": "Postavke tvrtke",
+    "settings_brand_section": "Brending",
+    "settings_finance_section": "Financije i porezne potvrde",
+    "settings_billing_section": "Pretplata",
+    "settings_match_ratio_label": "Podudaranje doprinosa (npr. 1.0 = 1:1)",
+    "settings_match_ratio_hint": "Kad zaposlenik traži podudaranje, tvrtka automatski dodaje pledge u ovom omjeru.",
+
+    "switcher_label": "Izaberi tvrtku",
+    "switcher_multi": "Više tvrtki",
+
+    "pledge_on_behalf_label": "Pledge u ime tvrtke",
+    "pledge_match_label": "Zatraži podudaranje tvrtke",
+    "pledge_match_hint": "Tvrtka će dodati odgovarajući pledge ako je omjer podudaranja > 0.",
+
+    "receipts_section_title": "Porezne potvrde",
+    "receipts_section_hint": "Generirajte PDF i XML za fiskalnu godinu (potrebna plaćena razina i uključena značajka).",
+
+    "exports_section_title": "ESG izvozi",
+    "exports_section_hint": "ZIP paket (CSV, JSON, PDF sažetak, dokazi) po okviru i razdoblju. SME Plus: VSME Basic; Enterprise: svi okviri.",
+
+    "csr_section_title": "CSR izvještaji",
+    "csr_section_hint": "PDF i DOCX sažetak za razdoblje. Uključuje isporučene/potvrđene pledge-ove s EUR u razdoblju i volonterske sate povezane s tvrtkom.",
+    "csr_generate": "Generiraj izvještaj",
+    "csr_empty": "Još nema CSR izvještaja.",
+    "csr_feature_off": "CSR izvještaji i javni profil zahtijevaju NEXT_PUBLIC_FLAG_PUBLIC_PROFILE_ENABLED.",
+    "public_profile_section_title": "Javni profil utjecaja",
+    "public_profile_toggle": "Objavi javni profil utjecaja",
+    "public_profile_hint": "Kad je uključeno, svi mogu vidjeti /company/vaš-slug (SME Plus ili Enterprise). Osjetljivi podaci tvrtke ostaju skriveni.",
+    "public_profile_embed_title": "Ugradnja",
+    "public_profile_embed_hint": "Dodajte ovu skriptu na web za malu karticu:",
+    "public_company_sdg": "Ciljevi održivog razvoja",
+    "public_company_campaigns": "Kampanje",
+    "public_company_stories": "Istaknute ustanove",
+    "public_company_report": "Najnoviji CSR izvještaj",
+    "public_company_download": "Preuzmi PDF",
+    "public_company_hours": "Volonterski sati",
+    "public_company_institutions": "Podržane ustanove",
+    "public_company_metrics_given": "Potvrđeno darovanje"
+  },
+  "export": {
+    "framework": "Okvir",
+    "framework_required": "Odaberite okvir.",
+    "period_start": "Od",
+    "period_end": "Do",
+    "generate": "Generiraj izvoz",
+    "generating": "Generiranje…",
+    "list_title": "Povijest izvoza",
+    "empty": "Još nema izvoza.",
+    "download_zip": "Preuzmi ZIP",
+    "feature_off": "Izvozi su isključeni (NEXT_PUBLIC_FLAG_EXPORTS_ENABLED).",
+    "tier_required": "Potrebna je razina SME Plus (VSME Basic) ili Enterprise (svi okviri)."
+  },
+  "pledge": {
+    "amount_eur_label": "Procijenjena vrijednost (EUR)",
+    "amount_eur_hint": "Nije obavezno. Potrebno za godišnje potvrde kada darujete u ime tvrtke."
+  },
+  "institution": {
+    "volunteers_title": "Volonterski popis",
+    "volunteers_subtitle": "Prijava i odjava volontera. Sati se bilježe pri odjavi. Dijelite QR za samoprijavu.",
+    "volunteers_back": "Natrag",
+    "volunteers_loading": "Učitavanje…",
+    "volunteers_empty": "Još nema prijava. Prvo objavite volonterski događaj.",
+    "volunteers_qr_caption": "QR za samoprijavu",
+    "volunteers_check_in": "Prijava",
+    "volunteers_check_out": "Odjava",
+    "volunteers_in": "Prijava",
+    "volunteers_out": "Odjava",
+
+    "pledges_title": "Pledge-ovi za vašu ustanovu",
+    "pledges_subtitle": "Označite zaprimanje i potvrdite isporuku za porezne zapise donatora.",
+    "pledges_empty": "Još nema pledge-ova.",
+    "pledges_need": "Potreba",
+    "pledges_status": "Status",
+    "pledges_amount": "Iznos (EUR)",
+    "mark_delivered": "Označi zaprimljeno",
+    "acknowledge": "Potvrdi isporuku",
+    "acknowledged": "Potvrđeno",
+    "notes_placeholder": "Bilješka (nije obavezno)",
+    "loading": "Učitavanje…"
+  },
+  "receipt": {
+    "fiscal_year": "Fiskalna godina",
+    "generate": "Generiraj potvrdu",
+    "generating": "Generiranje…",
+    "list_title": "Povijest potvrda",
+    "empty": "Još nema generiranih potvrda.",
+    "download_pdf": "Preuzmi PDF",
+    "download_xml": "Preuzmi XML",
+    "feature_off": "Značajka potvrda je isključena (NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED).",
+    "tier_required": "Potrebna je plaćena razina SME Tax ili viša.",
+    "year_invalid": "Unesite ispravnu godinu."
+  },
+  "billing": {
+    "checkout_sme_tax": "Nadogradi na SME Tax",
+    "checkout_sme_plus": "Nadogradi na SME Plus",
+    "checkout_enterprise": "Nadogradi na Enterprise",
+    "open_portal": "Stripe kupac / pretplata",
+    "portal_hint": "Upravljajte načinom plaćanja i otkazivanjem.",
+    "error_generic": "Plaćanje nije uspjelo. Pokušajte ponovno.",
+    "stripe_missing": "Stripe nije konfiguriran na poslužitelju.",
+    "demo_title": "Demo plaćanje",
+    "demo_hint": "Bez Stripea: postavite razinu za snimanje. U produkciji isključite ALLOW_DEMO_BILLING.",
+    "demo_applied": "Razina ažurirana. Osvježavanje…",
+    "demo_tier_free": "Postavi Free"
+  },
+  "tax": {
+    "category_label": "Porezna kategorija",
+    "ceiling_hint": "Ograničenje odbitka: {pct}% prihoda prethodne godine."
+  },
+  "volunteer_self": {
+    "title": "Prijava volontera",
+    "missing_event": "Nedostaje poveznica događaja. Ponovno otvorite QR od organizacije.",
+    "intro": "Potvrdite dolazak na volonterski događaj. Morate biti prijavljeni i prijavljeni na ovaj događaj.",
+    "button": "Tu sam (prijava)",
+    "done": "Gotovo",
+    "sign_in": "Prijava",
+    "already": "Već ste prijavljeni.",
+    "thank_you": "Prijava zabilježena. Hvala!",
+    "error_generic": "Prijava nije uspjela."
+  },
+  "notifications": {
+    "title": "Obavijesti",
+    "empty": "Nema obavijesti.",
+    "mark_all_read": "Označi sve pročitanim"
+  },
+  "dashboard_individual": {
+    "title": "Osobna nadzorna ploča",
+    "subtitle": "Povijest darovanja, volontiranja i pošiljki na jednom mjestu.",
+    "your_account": "Vaš račun",
+    "email_label": "E-pošta",
+    "role_label": "Uloga",
+    "role_individual": "Pojedinac",
+    "role_ngo": "Udruga / ustanova",
+    "role_company": "Tvrtka",
+    "role_superadmin": "Superadmin",
+    "stat_donations": "Darovanja",
+    "stat_shipping": "S dostavom",
+    "stat_volunteer_hours": "Volonterski sati",
+    "donation_history": "Povijest darovanja",
+    "no_actions": "Još nema aktivnosti. Pregledajte potrebe i počnite pomoći.",
+    "shipment_prefix": "Pošiljka:",
+    "find_places": "Pronađite gdje pomoći"
+  }
+}

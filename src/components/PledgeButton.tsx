@@ -1,8 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useId, useState } from "react";
-import { HeartHandshake, Loader2, X } from "lucide-react";
+import { Building2, HeartHandshake, Loader2, X } from "lucide-react";
 import clsx from "clsx";
+import { createClient } from "@/lib/supabase/client";
+import { AuthActionDialog } from "@/components/AuthActionDialog";
+import { useT } from "@/i18n/client";
+import type { CompanyRole } from "@/lib/types";
 
 type PledgeButtonProps = {
   needId: string;
@@ -12,12 +16,26 @@ type PledgeButtonProps = {
 
 type ToastState = { type: "success" | "error"; message: string } | null;
 
+type CompanyOption = {
+  id: string;
+  legal_name: string;
+  display_name: string | null;
+  default_match_ratio: number;
+  member_role: CompanyRole;
+};
+
 export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<string>("me");
+  const [requestMatch, setRequestMatch] = useState(false);
+  const [amountEur, setAmountEur] = useState("");
   const titleId = useId();
   const descId = useId();
 
@@ -25,12 +43,14 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
     setOpen(false);
     setQuantity(1);
     setMessage("");
+    setRequestMatch(false);
+    setAmountEur("");
   }, []);
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
   }, [toast]);
 
   useEffect(() => {
@@ -42,17 +62,49 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
     return () => window.removeEventListener("keydown", onKey);
   }, [open, closeModal]);
 
+  // Load company memberships once the modal first opens.
+  useEffect(() => {
+    if (!open || companies.length > 0) return;
+    fetch("/api/companies", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data: { companies?: Array<{ id: string; legal_name: string; display_name: string | null; default_match_ratio: number; member_role: CompanyRole }> }) => {
+        setCompanies(
+          (data.companies ?? []).map((c) => ({
+            id: c.id,
+            legal_name: c.legal_name,
+            display_name: c.display_name,
+            default_match_ratio: Number(c.default_match_ratio ?? 0),
+            member_role: c.member_role,
+          }))
+        );
+      })
+      .catch(() => {});
+  }, [open, companies.length]);
+
+  const activeCompany = companies.find((c) => c.id === selectedCompany) ?? null;
+  const showMatchOption = activeCompany ? activeCompany.default_match_ratio > 0 : false;
+
   const submit = async () => {
     setLoading(true);
     try {
+      const payload: Record<string, unknown> = {
+        need_id: needId,
+        quantity,
+        message: message.trim() || undefined,
+      };
+      if (selectedCompany !== "me") {
+        payload.company_id = selectedCompany;
+        payload.request_match = requestMatch;
+      }
+      const eurParsed = Number.parseFloat(amountEur.replace(",", "."));
+      if (Number.isFinite(eurParsed) && eurParsed > 0) {
+        payload.amount_eur = Math.round(eurParsed * 100) / 100;
+      }
       const res = await fetch("/api/pledges", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          need_id: needId,
-          quantity,
-          message: message.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -80,7 +132,17 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={async () => {
+          const supabase = createClient();
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (!user) {
+            setAuthDialogOpen(true);
+            return;
+          }
+          setOpen(true);
+        }}
         className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
       >
         <HeartHandshake className="h-4 w-4" strokeWidth={2} />
@@ -123,6 +185,49 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
               {needTitle}
             </p>
 
+            {companies.length > 0 ? (
+              <label className="mb-4 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="mb-1 inline-flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
+                  {t("company.pledge_on_behalf_label")}
+                </span>
+                <select
+                  value={selectedCompany}
+                  onChange={(e) => {
+                    setSelectedCompany(e.target.value);
+                    setRequestMatch(false);
+                  }}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value="me">— (personal)</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.display_name || c.legal_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            {showMatchOption ? (
+              <label className="mb-4 flex items-start gap-2 rounded-xl bg-red-50 p-3 text-sm dark:bg-red-950/30">
+                <input
+                  type="checkbox"
+                  checked={requestMatch}
+                  onChange={(e) => setRequestMatch(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-red-500"
+                />
+                <span>
+                  <span className="block font-semibold text-red-800 dark:text-red-200">
+                    {t("company.pledge_match_label")}
+                  </span>
+                  <span className="block text-xs text-red-700/90 dark:text-red-300/80">
+                    {t("company.pledge_match_hint")}
+                  </span>
+                </span>
+              </label>
+            ) : null}
+
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Quantity
               <input
@@ -134,6 +239,19 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
                 }
                 className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
+            </label>
+
+            <label className="mt-4 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              {t("pledge.amount_eur_label")}
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={amountEur}
+                onChange={(e) => setAmountEur(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+              <span className="mt-1 block text-xs font-normal text-gray-500">{t("pledge.amount_eur_hint")}</span>
             </label>
 
             <label className="mt-4 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -184,6 +302,12 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
           {toast.message}
         </div>
       ) : null}
+      <AuthActionDialog
+        open={authDialogOpen}
+        onClose={() => setAuthDialogOpen(false)}
+        actionLabel="Donate / offer help"
+        nextPath={`/needs`}
+      />
     </>
   );
 }

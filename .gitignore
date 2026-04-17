@@ -36,3 +36,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 node_modules
+
+# editor / local tooling
+.claude/
+.vscode/
+
+# office lock + temp files
+.~lock.*#
+~$*.doc*
+~$*.xls*
+~$*.ppt*
+*.tmp

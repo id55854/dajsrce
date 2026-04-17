@@ -39,7 +39,7 @@ export async function notifyNearbyUsers(
     .lte("lat", institutionLat + degBuffer)
     .gte("lng", institutionLng - degBuffer)
     .lte("lng", institutionLng + degBuffer)
-    .eq("role", "citizen");
+    .eq("role", "individual");
 
   if (!nearbyUsers || nearbyUsers.length === 0) return 0;
 
