@@ -156,6 +156,7 @@ export function Navbar() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [companies, setCompanies] = useState<CompanySwitcherItem[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+  const [meProfile, setMeProfile] = useState<{ name: string; email: string } | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -183,6 +184,24 @@ export function Navbar() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setMeProfile(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/me", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { profile?: { name: string; email: string } } | null) => {
+        if (cancelled || !data?.profile) return;
+        setMeProfile({ name: data.profile.name, email: data.profile.email });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -263,9 +282,12 @@ export function Navbar() {
   }
 
   const displayName =
+    meProfile?.name ||
     user?.user_metadata?.name ||
     user?.email?.split("@")[0] ||
     "User";
+
+  const profileEmail = meProfile?.email || user?.email || undefined;
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm dark:bg-gray-950 dark:shadow-gray-900/50">
@@ -323,6 +345,7 @@ export function Navbar() {
               </div>
               <Link
                 href="/dashboard"
+                title={profileEmail}
                 className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 dark:bg-red-950 dark:text-red-300"
               >
                 <User className="h-4 w-4" />
@@ -411,10 +434,11 @@ export function Navbar() {
               <>
                 <Link
                   href="/dashboard"
-                  className="rounded-xl px-3 py-2 text-base font-medium text-red-500 hover:bg-red-50"
+                  title={profileEmail}
+                  className="rounded-xl px-3 py-2 text-base font-medium text-red-500 hover:bg-red-50 dark:hover:bg-gray-800"
                   onClick={() => setMobileOpen(false)}
                 >
-                  My Profile
+                  {displayName}
                 </Link>
                 <button
                   type="button"

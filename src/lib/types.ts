@@ -320,6 +320,70 @@ export interface DonationReceipt {
   created_at: string;
 }
 
+export interface EsgExport {
+  id: string;
+  company_id: string;
+  framework: Framework;
+  period_start: string;
+  period_end: string;
+  file_url: string | null;
+  manifest_jsonb: Record<string, unknown> | null;
+  generated_at: string;
+  version: number;
+}
+
+/** Phase 3: branded CSR report row (PDF + DOCX in private `reports` bucket). */
+export interface CompanyCsrReport {
+  id: string;
+  company_id: string;
+  period_start: string;
+  period_end: string;
+  pdf_storage_path: string | null;
+  docx_storage_path: string | null;
+  generated_at: string;
+  generated_by: string | null;
+  manifest_jsonb: Record<string, unknown>;
+}
+
+/** RPC `get_public_company_bundle` shape (safe fields + aggregates). */
+export type PublicCompanyBundle = {
+  company: {
+    id: string;
+    slug: string;
+    display_name: string | null;
+    legal_name: string;
+    tagline: string | null;
+    logo_url: string | null;
+    brand_primary_hex: string | null;
+    brand_secondary_hex: string | null;
+    social: Record<string, string>;
+  };
+  metrics: {
+    total_given_eur: number;
+    volunteer_hours: number;
+    institutions_supported: number;
+  };
+  campaigns: Array<{ name: string; slug: string; sdg_tags: number[] }>;
+  latest_report: {
+    id: string;
+    period_start: string;
+    period_end: string;
+    generated_at: string;
+  } | null;
+  stories: Array<{ institution_name: string; description: string }>;
+};
+
+export interface VolunteerHours {
+  id: string;
+  volunteer_signup_id: string;
+  user_id: string;
+  institution_id: string;
+  company_id: string | null;
+  hours: number;
+  recorded_by: string | null;
+  recorded_at: string;
+}
+
 export interface CompanySubscriptionRow {
   id: string;
   company_id: string;

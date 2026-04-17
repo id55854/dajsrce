@@ -7,6 +7,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { headroomEur, remainingHeadroomEur, consumedPct, ceilingPct } from "@/lib/tax";
 import { getTranslator } from "@/i18n/server";
 import { CompanyReceiptsSection } from "@/components/CompanyReceiptsSection";
+import { CompanyExportsSection } from "@/components/CompanyExportsSection";
+import { CompanyCsrReportsSection } from "@/components/CompanyCsrReportsSection";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
@@ -128,6 +130,18 @@ export default async function CompanyDashboardPage({
       </section>
 
       <CompanyReceiptsSection
+        companyId={active.company.id}
+        memberRole={active.role}
+        subscriptionTier={active.company.subscription_tier}
+      />
+
+      <CompanyExportsSection
+        companyId={active.company.id}
+        memberRole={active.role}
+        subscriptionTier={active.company.subscription_tier}
+      />
+
+      <CompanyCsrReportsSection
         companyId={active.company.id}
         memberRole={active.role}
         subscriptionTier={active.company.subscription_tier}

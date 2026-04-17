@@ -102,13 +102,59 @@
     "pledge_match_hint": "The company will add a matching pledge if its match ratio is greater than zero.",
 
     "receipts_section_title": "Tax receipts",
-    "receipts_section_hint": "Generate PDF and XML for a fiscal year (paid tier + feature flag required)."
+    "receipts_section_hint": "Generate PDF and XML for a fiscal year (paid tier + feature flag required).",
+
+    "exports_section_title": "ESG exports",
+    "exports_section_hint": "ZIP bundle (CSV, JSON, narrative PDF, evidence) by framework and period. SME Plus: VSME Basic only; Enterprise: all frameworks.",
+
+    "csr_section_title": "CSR reports",
+    "csr_section_hint": "Branded PDF and DOCX summary for a date range. Uses delivered/confirmed pledges with EUR in the window and company-linked volunteer hours.",
+    "csr_generate": "Generate report",
+    "csr_empty": "No CSR reports yet.",
+    "csr_feature_off": "CSR reports and the public company page require NEXT_PUBLIC_FLAG_PUBLIC_PROFILE_ENABLED.",
+    "public_profile_section_title": "Public impact profile",
+    "public_profile_toggle": "Publish public impact profile",
+    "public_profile_hint": "When enabled, anyone can view /company/your-slug (SME Plus or Enterprise). Sensitive company data stays private.",
+    "public_profile_embed_title": "Embed",
+    "public_profile_embed_hint": "Add this script to your site to show a small card:",
+    "public_company_sdg": "SDG focus",
+    "public_company_campaigns": "Campaigns",
+    "public_company_stories": "Beneficiary highlights",
+    "public_company_report": "Latest CSR report",
+    "public_company_download": "Download PDF",
+    "public_company_hours": "Volunteer hours",
+    "public_company_institutions": "Institutions supported",
+    "public_company_metrics_given": "Acknowledged giving"
+  },
+  "export": {
+    "framework": "Framework",
+    "framework_required": "Choose a framework.",
+    "period_start": "From",
+    "period_end": "To",
+    "generate": "Generate export",
+    "generating": "Generating…",
+    "list_title": "Export history",
+    "empty": "No exports yet.",
+    "download_zip": "Download ZIP",
+    "feature_off": "Exports are disabled (NEXT_PUBLIC_FLAG_EXPORTS_ENABLED).",
+    "tier_required": "SME Plus (VSME Basic) or Enterprise (all frameworks) is required."
   },
   "pledge": {
     "amount_eur_label": "Estimated value (EUR)",
     "amount_eur_hint": "Optional. Needed for annual receipts when pledging on behalf of a company."
   },
   "institution": {
+    "volunteers_title": "Volunteer roster",
+    "volunteers_subtitle": "Check volunteers in or out. Hours are logged on check-out. Share the QR code for self check-in.",
+    "volunteers_back": "Back",
+    "volunteers_loading": "Loading…",
+    "volunteers_empty": "No sign-ups yet. Post a volunteer event first.",
+    "volunteers_qr_caption": "Self check-in QR",
+    "volunteers_check_in": "Check in",
+    "volunteers_check_out": "Check out",
+    "volunteers_in": "In",
+    "volunteers_out": "Out",
+
     "pledges_title": "Pledges for your institution",
     "pledges_subtitle": "Mark goods as received and acknowledge delivery for donor tax records.",
     "pledges_empty": "No pledges yet.",
@@ -146,9 +192,38 @@
     "category_label": "Tax category",
     "ceiling_hint": "Deduction ceiling: {pct}% of prior-year revenue."
   },
+  "volunteer_self": {
+    "title": "Volunteer check-in",
+    "missing_event": "Missing event link. Open the QR code from your organisation again.",
+    "intro": "Confirm you have arrived for the volunteer event. You must be signed in and registered for this event.",
+    "button": "I am here (check in)",
+    "done": "Done",
+    "sign_in": "Sign in",
+    "already": "Already checked in.",
+    "thank_you": "Checked in. Thank you!",
+    "error_generic": "Could not check in."
+  },
   "notifications": {
     "title": "Notifications",
     "empty": "No notifications yet.",
     "mark_all_read": "Mark all read"
+  },
+  "dashboard_individual": {
+    "title": "Individual Dashboard",
+    "subtitle": "Donation history, volunteer actions, and shipment tracking in one place.",
+    "your_account": "Your account",
+    "email_label": "Email",
+    "role_label": "Role",
+    "role_individual": "Individual",
+    "role_ngo": "NGO",
+    "role_company": "Company",
+    "role_superadmin": "Superadmin",
+    "stat_donations": "Donations",
+    "stat_shipping": "With shipping",
+    "stat_volunteer_hours": "Volunteer hours",
+    "donation_history": "Donation history",
+    "no_actions": "No actions yet. Browse needs and start helping.",
+    "shipment_prefix": "Shipment:",
+    "find_places": "Find places to help"
   }
 }

@@ -1,13 +1,8 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { normalizeRole, type AppRole } from "@/lib/auth/roles";
+import { normalizeRole } from "@/lib/auth/roles";
+import type { AuthProfile } from "@/lib/auth/profile";
 
-export type AuthProfile = {
-  id: string;
-  email: string;
-  name: string;
-  role: AppRole;
-  institution_id: string | null;
-};
+export type { AuthProfile };
 
 export async function getCurrentUserProfile(): Promise<AuthProfile | null> {
   const supabase = await createServerSupabaseClient();

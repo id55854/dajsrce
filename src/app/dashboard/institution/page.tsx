@@ -9,6 +9,7 @@ import {
   MapPin,
   Plus,
   Inbox,
+  Users,
 } from "lucide-react";
 import { DONATION_TYPES } from "@/lib/constants";
 import type { DonationType, UrgencyLevel } from "@/lib/types";
@@ -133,13 +134,22 @@ export default function InstitutionDashboardPage() {
               Manage needs, events, and activities.
             </p>
           </div>
-          <Link
-            href="/dashboard/institution/pledges"
-            className="inline-flex items-center gap-2 rounded-full border-2 border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:hover:bg-red-950/40"
-          >
-            <Inbox className="h-4 w-4" aria-hidden />
-            Pledges
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/institution/pledges"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:hover:bg-red-950/40"
+            >
+              <Inbox className="h-4 w-4" aria-hidden />
+              Pledges
+            </Link>
+            <Link
+              href="/dashboard/institution/volunteers"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:hover:bg-red-950/40"
+            >
+              <Users className="h-4 w-4" aria-hidden />
+              Volunteers
+            </Link>
+          </div>
         </header>
 
         <section className="rounded-2xl border border-red-100 bg-white p-6 shadow-sm dark:border-red-900 dark:bg-gray-900">

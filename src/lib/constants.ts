@@ -5,6 +5,7 @@ import type {
   SubscriptionTier,
   SizeClass,
   CsrdWave,
+  Framework,
 } from "./types";
 
 export const CATEGORY_CONFIG: Record<
@@ -189,6 +190,15 @@ export const SIZE_CLASSES: Record<SizeClass, { label: string; labelHr: string; h
   small: { label: "Small", labelHr: "Mali", headcount: "10 – 49" },
   medium: { label: "Medium", labelHr: "Srednji", headcount: "50 – 249" },
   large: { label: "Large", labelHr: "Veliki", headcount: "≥ 250" },
+};
+
+export const FRAMEWORK_LABELS: Record<Framework, { label: string; labelHr: string }> = {
+  vsme_basic: { label: "VSME Basic", labelHr: "VSME Basic" },
+  vsme_comp: { label: "VSME Comprehensive", labelHr: "VSME Sveobuhvatno" },
+  esrs_s1: { label: "ESRS S1 (Own workforce)", labelHr: "ESRS S1" },
+  esrs_s3: { label: "ESRS S3 (Affected communities)", labelHr: "ESRS S3" },
+  gri_413: { label: "GRI 413 — Local communities", labelHr: "GRI 413" },
+  b4si: { label: "B4SI / Impact", labelHr: "B4SI" },
 };
 
 export const CSRD_WAVES: Record<CsrdWave, { label: string; labelHr: string }> = {

@@ -102,13 +102,59 @@
     "pledge_match_hint": "Tvrtka će dodati odgovarajući pledge ako je omjer podudaranja > 0.",
 
     "receipts_section_title": "Porezne potvrde",
-    "receipts_section_hint": "Generirajte PDF i XML za fiskalnu godinu (potrebna plaćena razina i uključena značajka)."
+    "receipts_section_hint": "Generirajte PDF i XML za fiskalnu godinu (potrebna plaćena razina i uključena značajka).",
+
+    "exports_section_title": "ESG izvozi",
+    "exports_section_hint": "ZIP paket (CSV, JSON, PDF sažetak, dokazi) po okviru i razdoblju. SME Plus: VSME Basic; Enterprise: svi okviri.",
+
+    "csr_section_title": "CSR izvještaji",
+    "csr_section_hint": "PDF i DOCX sažetak za razdoblje. Uključuje isporučene/potvrđene pledge-ove s EUR u razdoblju i volonterske sate povezane s tvrtkom.",
+    "csr_generate": "Generiraj izvještaj",
+    "csr_empty": "Još nema CSR izvještaja.",
+    "csr_feature_off": "CSR izvještaji i javni profil zahtijevaju NEXT_PUBLIC_FLAG_PUBLIC_PROFILE_ENABLED.",
+    "public_profile_section_title": "Javni profil utjecaja",
+    "public_profile_toggle": "Objavi javni profil utjecaja",
+    "public_profile_hint": "Kad je uključeno, svi mogu vidjeti /company/vaš-slug (SME Plus ili Enterprise). Osjetljivi podaci tvrtke ostaju skriveni.",
+    "public_profile_embed_title": "Ugradnja",
+    "public_profile_embed_hint": "Dodajte ovu skriptu na web za malu karticu:",
+    "public_company_sdg": "Ciljevi održivog razvoja",
+    "public_company_campaigns": "Kampanje",
+    "public_company_stories": "Istaknute ustanove",
+    "public_company_report": "Najnoviji CSR izvještaj",
+    "public_company_download": "Preuzmi PDF",
+    "public_company_hours": "Volonterski sati",
+    "public_company_institutions": "Podržane ustanove",
+    "public_company_metrics_given": "Potvrđeno darovanje"
+  },
+  "export": {
+    "framework": "Okvir",
+    "framework_required": "Odaberite okvir.",
+    "period_start": "Od",
+    "period_end": "Do",
+    "generate": "Generiraj izvoz",
+    "generating": "Generiranje…",
+    "list_title": "Povijest izvoza",
+    "empty": "Još nema izvoza.",
+    "download_zip": "Preuzmi ZIP",
+    "feature_off": "Izvozi su isključeni (NEXT_PUBLIC_FLAG_EXPORTS_ENABLED).",
+    "tier_required": "Potrebna je razina SME Plus (VSME Basic) ili Enterprise (svi okviri)."
   },
   "pledge": {
     "amount_eur_label": "Procijenjena vrijednost (EUR)",
     "amount_eur_hint": "Nije obavezno. Potrebno za godišnje potvrde kada darujete u ime tvrtke."
   },
   "institution": {
+    "volunteers_title": "Volonterski popis",
+    "volunteers_subtitle": "Prijava i odjava volontera. Sati se bilježe pri odjavi. Dijelite QR za samoprijavu.",
+    "volunteers_back": "Natrag",
+    "volunteers_loading": "Učitavanje…",
+    "volunteers_empty": "Još nema prijava. Prvo objavite volonterski događaj.",
+    "volunteers_qr_caption": "QR za samoprijavu",
+    "volunteers_check_in": "Prijava",
+    "volunteers_check_out": "Odjava",
+    "volunteers_in": "Prijava",
+    "volunteers_out": "Odjava",
+
     "pledges_title": "Pledge-ovi za vašu ustanovu",
     "pledges_subtitle": "Označite zaprimanje i potvrdite isporuku za porezne zapise donatora.",
     "pledges_empty": "Još nema pledge-ova.",
@@ -146,9 +192,38 @@
     "category_label": "Porezna kategorija",
     "ceiling_hint": "Ograničenje odbitka: {pct}% prihoda prethodne godine."
   },
+  "volunteer_self": {
+    "title": "Prijava volontera",
+    "missing_event": "Nedostaje poveznica događaja. Ponovno otvorite QR od organizacije.",
+    "intro": "Potvrdite dolazak na volonterski događaj. Morate biti prijavljeni i prijavljeni na ovaj događaj.",
+    "button": "Tu sam (prijava)",
+    "done": "Gotovo",
+    "sign_in": "Prijava",
+    "already": "Već ste prijavljeni.",
+    "thank_you": "Prijava zabilježena. Hvala!",
+    "error_generic": "Prijava nije uspjela."
+  },
   "notifications": {
     "title": "Obavijesti",
     "empty": "Nema obavijesti.",
     "mark_all_read": "Označi sve pročitanim"
+  },
+  "dashboard_individual": {
+    "title": "Osobna nadzorna ploča",
+    "subtitle": "Povijest darovanja, volontiranja i pošiljki na jednom mjestu.",
+    "your_account": "Vaš račun",
+    "email_label": "E-pošta",
+    "role_label": "Uloga",
+    "role_individual": "Pojedinac",
+    "role_ngo": "Udruga / ustanova",
+    "role_company": "Tvrtka",
+    "role_superadmin": "Superadmin",
+    "stat_donations": "Darovanja",
+    "stat_shipping": "S dostavom",
+    "stat_volunteer_hours": "Volonterski sati",
+    "donation_history": "Povijest darovanja",
+    "no_actions": "Još nema aktivnosti. Pregledajte potrebe i počnite pomoći.",
+    "shipment_prefix": "Pošiljka:",
+    "find_places": "Pronađite gdje pomoći"
   }
 }

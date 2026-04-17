@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { useT, useLocale } from "@/i18n/client";
-import { SIZE_CLASSES } from "@/lib/constants";
+import { SIZE_CLASSES, SUBSCRIPTION_TIERS } from "@/lib/constants";
+import { flags } from "@/lib/flags";
 import type { Company, CompanyRole, SizeClass } from "@/lib/types";
 import { ceilingPct, headroomEur } from "@/lib/tax";
 import { useRouter } from "next/navigation";
@@ -32,6 +33,11 @@ export function SettingsEditor({ company, myRole }: Props) {
   const [priorRevenue, setPriorRevenue] = useState(
     company.prior_year_revenue_eur !== null ? String(company.prior_year_revenue_eur) : ""
   );
+  const [publicProfileEnabled, setPublicProfileEnabled] = useState(company.public_profile_enabled);
+
+  const canPublicProfile =
+    flags.publicProfileEnabled &&
+    (SUBSCRIPTION_TIERS[company.subscription_tier]?.publicProfile ?? false);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -55,6 +61,7 @@ export function SettingsEditor({ company, myRole }: Props) {
           size_class: sizeClass || null,
           default_match_ratio: Number(matchRatio || 0),
           prior_year_revenue_eur: priorRevenue ? Number(priorRevenue) : null,
+          public_profile_enabled: publicProfileEnabled,
         }),
       });
       if (!res.ok) {
@@ -158,6 +165,41 @@ export function SettingsEditor({ company, myRole }: Props) {
           </Field>
         </div>
       </section>
+
+      {canPublicProfile && canManage ? (
+        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
+            {t("company.public_profile_section_title")}
+          </h3>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-red-500 focus:ring-red-500"
+              checked={publicProfileEnabled}
+              onChange={(e) => setPublicProfileEnabled(e.target.checked)}
+            />
+            <span>
+              <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">
+                {t("company.public_profile_toggle")}
+              </span>
+              <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                {t("company.public_profile_hint")}
+              </span>
+            </span>
+          </label>
+          <div className="mt-6">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {t("company.public_profile_embed_title")}
+            </h4>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {t("company.public_profile_embed_hint")}
+            </p>
+            <pre className="mt-2 overflow-x-auto rounded-xl bg-gray-900 p-3 text-xs text-gray-100">
+              {`<script src="${(process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "") || "https://YOUR_APP_URL"}/company/${company.slug}/embed" async></script>`}
+            </pre>
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">

@@ -5,7 +5,7 @@
 > changes. If you change anything meaningful, amend the matching section here
 > in the same commit.
 
-Last synced: 2026-04-17 (Phase 1: tax receipts, billing, EUR pledges)
+Last synced: 2026-04-17 (Phase 3: CSR reports, public company profile)
 
 ---
 
@@ -52,6 +52,16 @@ Last synced: 2026-04-17 (Phase 1: tax receipts, billing, EUR pledges)
    `AUTO_ACKNOWLEDGE_DAYS`). Companies on a paid Stripe tier with
    `NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED` generate **donation receipts** (PDF +
    XML) into Storage and email the owner via Resend.
+10. **Phase 2:** Finance users generate **ESG export ZIPs** (framework +
+    period) when `NEXT_PUBLIC_FLAG_EXPORTS_ENABLED` and tier allows
+    (`SUBSCRIPTION_TIERS.exports`). NGOs **check in/out** volunteers;
+    check-out writes **`volunteer_hours`** for company-attributed sessions.
+    **Self check-in** QR links to `/volunteer/self-checkin?event=…`.
+11. **Phase 3:** SME Plus / Enterprise companies with
+    `NEXT_PUBLIC_FLAG_PUBLIC_PROFILE_ENABLED` may **publish** `/company/[slug]`
+    (RPC `get_public_company_bundle` — no leaked OIB/revenue on anonymous reads).
+    Finance users generate **CSR reports** (PDF + DOCX → bucket `reports`).
+    **Embed:** `/company/[slug]/embed` · **OG:** `/api/og/company/[slug]`.
 
 ---
 
@@ -73,6 +83,9 @@ requests an upgrade.
 | PDF receipts   | `pdf-lib`                                 | ^1.17.x  |
 | Payments       | `stripe`                                  | ^22.x    |
 | Email          | `resend`                                  | ^6.x     |
+| ZIP exports    | `jszip`                                   | ^3.x     |
+| CSR DOCX       | `docx`                                    | ^9.x     |
+| QR (volunteer) | `qrcode`                                  | ^1.x     |
 | DB tooling     | `pg` (scripts only)                       | ^8.20.0  |
 
 Build tooling:
@@ -101,6 +114,8 @@ dajsrce/
 │   │   ├── quick-start/           # Onboarding wizard
 │   │   ├── institution/[id]/      # Public institution detail page
 │   │   ├── company/
+│   │   │   ├── [slug]/                # Phase 3: public impact profile (flag + tier + publish)
+│   │   │   │   └── embed/route.ts     # Embeddable metrics card script
 │   │   │   └── confirmations/[slug]/  # Printable corporate support confirmation (v2)
 │   │   ├── dashboard/
 │   │   │   ├── page.tsx           # Role-gated router to per-role dashboards
@@ -257,6 +272,15 @@ Authoritative schema lives in `supabase/migrations/`:
 - `007_company_members_rls_no_recursion.sql` — replaces self-referential
   `company_members` RLS with `SECURITY DEFINER` helpers (also folded into
   current `004` for fresh installs). Run if an older `004` caused recursion errors.
+- `008_esg_exports_volunteer_hours.sql` — Phase 2: `esg_exports`, `volunteer_hours`,
+  `current_user_company_finance_access()`, Storage bucket `exports`, NGO policies
+  on `volunteer_signups` + `profiles` for roster names.
+- `009_volunteer_self_checkin.sql` — volunteers may `UPDATE` own `volunteer_signups`
+  row (self-service check-in).
+- `010_csr_reports_public_profile.sql` — Phase 3: `company_csr_reports`, Storage
+  bucket `reports`, `get_public_company_bundle(slug)` (safe public JSON), and
+  **tightened** `companies` SELECT (removes anonymous full-row read via
+  `public_profile_enabled` alone).
 - `003_roles_shipping_company_actions.sql` — expands `profiles.role` to
   `individual | ngo | company | superadmin` (migrating any legacy
   `citizen`/`institution` rows), adds `company_name`/`contact_person`/
@@ -289,6 +313,9 @@ Authoritative schema lives in `supabase/migrations/`:
 | `company_invites`            | 004       | One-time email invite tokens (14-day TTL)                                |
 | `campaigns`                  | 004       | Company-scoped giving campaigns with SDG tags and optional target        |
 | `audit_log`                  | 004       | Append-only hash-chained audit trail for company-scoped mutations        |
+| `esg_exports`                | 008       | Company ESG ZIP exports (framework, period, storage path, manifest)       |
+| `volunteer_hours`            | 008       | Hours per check-out; links signup, user, institution, optional `company_id` |
+| `company_csr_reports`        | 010       | CSR PDF/DOCX paths + manifest; finance-tier read; admin insert + storage     |
 
 ### Types / constants (must stay aligned with SQL)
 
@@ -299,11 +326,15 @@ Authoritative schema lives in `supabase/migrations/`:
   `CompanyRole`, `CompanyDomain`, `CompanyInvite`, `Campaign`,
   `SubscriptionTier`, `SubscriptionStatus`, `SizeClass`, `CsrdWave`,
   `TaxCategory`, `Framework`, `Locale`, `CompanyPledgeFields`,
-  `PledgeWithCompany`.
+  `PledgeWithCompany`, `EsgExport`, `VolunteerHours`, `CompanyCsrReport`,
+  `PublicCompanyBundle`.
 - UI/display config: `src/lib/constants.ts` (`CATEGORY_CONFIG`,
   `DONATION_TYPES`, `SHIPMENT_METHOD_LABELS`, `COMPANY_ROLE_LABELS`,
   `TAX_CATEGORIES`, `SDG_GOALS`, `SIZE_CLASSES`, `CSRD_WAVES`,
-  `SUBSCRIPTION_TIERS`).
+  `SUBSCRIPTION_TIERS`, `FRAMEWORK_LABELS`).
+- Framework compile: `src/lib/frameworks/` (`manifests.ts`, `compile.ts`,
+  `datapoints.ts`, `types.ts`); ZIP build: `src/lib/exports/pack.ts`.
+- CSR reports: `src/lib/csr-report/` (`gather.ts`, `render-pdf.ts`, `render-docx.ts`).
 - Feature flags: `src/lib/flags.ts`.
 - Map defaults: `ZAGREB_CENTER = [45.8131, 15.9775]`, `DEFAULT_ZOOM = 13`.
 
@@ -352,6 +383,8 @@ inside API routes and `src/lib/local-data.ts`.
 | `LocaleSwitcher.tsx`          | HR/EN toggle — writes `locale` cookie and reloads (ESG Phase 0)      |
 | `CompanySwitcher.tsx`         | Dropdown for users with multiple company memberships (ESG Phase 0)   |
 | `CompanyReceiptsSection.tsx`| Phase 1: generate/list/download donation receipts (tier + flag gated)  |
+| `CompanyExportsSection.tsx` | Phase 2: ESG export ZIPs (tier + `exports` flag)                       |
+| `CompanyCsrReportsSection.tsx` | Phase 3: CSR PDF/DOCX (tier + `publicProfile` flag)                |
 | `PrintConfirmationButton.tsx` | Trigger print dialog on the confirmation page (v2)                   |
 | `AuthActionDialog.tsx`        | Common "sign in to continue" modal for gated actions (v2)            |
 
@@ -584,18 +617,35 @@ brief end-to-end.
   `POST /api/stripe/webhook` (`STRIPE_WEBHOOK_SECRET`, price envs in §4).
 - **Tax helpers:** `src/lib/tax.ts` — `ceilingPct()`, `headroomEur()`, etc.
 
-### Phase 2 — ESG exports (not yet shipped)
+### Phase 2 — ESG exports (shipped in repo)
 
-See `CLAUDE_CODE_PROMPT_ESG.md` §8. Framework manifests will live in
-`src/lib/frameworks/`. Volunteer check-in/out columns on
-`volunteer_signups` were added in migration 004 to avoid churn later.
+- Migrations `008_esg_exports_volunteer_hours.sql`, `009_volunteer_self_checkin.sql`.
+- **Exports:** `GET`/`POST /api/companies/[id]/exports`, signed download
+  `/api/companies/[id]/exports/[exportId]/download`. Gated by
+  `NEXT_PUBLIC_FLAG_EXPORTS_ENABLED` and `SUBSCRIPTION_TIERS[ tier ].exports`
+  (`sme_plus` → VSME Basic only; `enterprise` → all six frameworks).
+- **Compile:** bounded `datapoints.ts` queries via `supabaseAdmin` (no arbitrary SQL
+  from JSON). **Pack:** `data.csv`, `data.json`, `manifest.json`, `narrative.pdf`,
+  `evidence/.../summary.pdf` in a ZIP → bucket `exports`.
+- **Volunteers:** `GET /api/institution/volunteer-signups`; NGO
+  `POST /api/volunteer-signups/[id]/check-in|check-out`; self
+  `POST /api/volunteer-signups/self-check-in`. UI: `/dashboard/institution/volunteers`,
+  `/volunteer/self-checkin`.
 
-### Phase 3 — CSR report + public profile (not yet shipped)
+### Phase 3 — CSR report + public profile (shipped in repo)
 
-See `CLAUDE_CODE_PROMPT_ESG.md` §9. `companies.public_profile_enabled`,
-`tagline`, `social` columns were added in migration 004 as part of the
-additive design; the public `/company/[slug]` route and gated RLS will
-land in Phase 3.
+- Migration `010_csr_reports_public_profile.sql` (bucket `reports`, RPC, RLS).
+- **Dashboard:** `CompanyCsrReportsSection` · `GET`/`POST
+  /api/companies/[id]/csr-reports`, signed download
+  `/api/companies/[id]/csr-reports/[reportId]/download?format=pdf|docx`.
+  Gated by `NEXT_PUBLIC_FLAG_PUBLIC_PROFILE_ENABLED` and
+  `SUBSCRIPTION_TIERS[ tier ].csrReport`.
+- **Public:** `/company/[slug]` (404 if flag off or RPC returns null),
+  `/api/public/company/[slug]/card`, latest PDF
+  `/api/public/company/[slug]/latest-report` (JSON or `?redirect=1`),
+  `/api/og/company/[slug]` (Open Graph), embed script `/company/[slug]/embed`.
+- **Settings:** owners/admins can toggle `public_profile_enabled` when tier +
+  flag allow; embed snippet uses `NEXT_PUBLIC_APP_URL`.
 
 ### Conventions for all phases
 

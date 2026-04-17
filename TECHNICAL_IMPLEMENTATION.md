@@ -27,3 +27,6 @@ Core features:
   company **donation receipts** (PDF/XML to Supabase Storage, Resend email);
   Stripe Checkout + Customer Portal + webhook for paid tiers (`subscriptions`,
   `stripe_events`). See `CLAUDE.md` §4–§5 and migrations `005_*`, `006_*`.
+- **ESG Phase 2:** framework **ESG export ZIPs** (`esg_exports`, bucket `exports`);
+  **`volunteer_hours`** from NGO check-out; self check-in QR → `/volunteer/self-checkin`;
+  migrations `008_*`, `009_*`.
