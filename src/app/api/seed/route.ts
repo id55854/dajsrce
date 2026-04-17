@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { INSTITUTIONS } from "@/lib/institutions-seed";
+import {
+  buildSampleNeeds,
+  buildSampleVolunteerEvents,
+} from "@/lib/seed-sample-content";
+import type { InstitutionCategory } from "@/lib/types";
 
 export async function POST() {
   const { supabaseAdmin } = await import("@/lib/supabase/admin");
@@ -42,69 +47,41 @@ export async function POST() {
     .from("institutions")
     .select("id, name, category");
 
-  if (institutions.data) {
-    const sampleNeeds = [];
-    for (const inst of institutions.data) {
-      if (inst.category === "homeless_shelter") {
-        sampleNeeds.push({
-          institution_id: inst.id,
-          title: "Zimske jakne i topla odjeća",
-          description:
-            "Hitno trebamo zimske jakne (muške, veličine M-XXL), tople čarape, kape i rukavice za nadolazeće hladne dane.",
-          donation_type: "clothes",
-          urgency: "urgent",
-          quantity_needed: 30,
-        });
-        sampleNeeds.push({
-          institution_id: inst.id,
-          title: "Deke i vreće za spavanje",
-          description:
-            "Tople deke i vreće za spavanje za korisnike prenoćišta.",
-          donation_type: "blankets_bedding",
-          urgency: "needed_soon",
-          quantity_needed: 20,
-        });
-      }
-      if (inst.category === "children_home") {
-        sampleNeeds.push({
-          institution_id: inst.id,
-          title: "Školski pribor za novu godinu",
-          description:
-            "Bilježnice, olovke, boje, torbe i ostali školski pribor za djecu svih uzrasta.",
-          donation_type: "school_supplies",
-          urgency: "needed_soon",
-          quantity_needed: 50,
-        });
-        sampleNeeds.push({
-          institution_id: inst.id,
-          title: "Igračke i društvene igre",
-          description:
-            "Tražimo igračke, puzzle, društvene igre i slikovnice za djecu od 3 do 14 godina.",
-          donation_type: "toys_books",
-          urgency: "routine",
-          quantity_needed: 25,
-        });
-      }
-      if (inst.category === "soup_kitchen") {
-        sampleNeeds.push({
-          institution_id: inst.id,
-          title: "Trajna hrana — konzerve i tjestenina",
-          description:
-            "Konzerve (grah, tune, mesne), tjestenina, riža, ulje, brašno, šećer za pripremu dnevnih obroka.",
-          donation_type: "food",
-          urgency: "urgent",
-          quantity_needed: 100,
-        });
-      }
-    }
+  let needsCount = 0;
+  let eventsCount = 0;
+
+  if (institutions.data?.length) {
+    const refs = institutions.data.map((row) => ({
+      id: row.id,
+      category: row.category as InstitutionCategory,
+    }));
+
+    const sampleNeeds = buildSampleNeeds(refs);
     if (sampleNeeds.length > 0) {
-      await supabaseAdmin.from("needs").insert(sampleNeeds);
+      const { error: needsErr } = await supabaseAdmin.from("needs").insert(sampleNeeds);
+      if (needsErr) {
+        return NextResponse.json({ error: needsErr.message }, { status: 500 });
+      }
+      needsCount = sampleNeeds.length;
+    }
+
+    const sampleEvents = buildSampleVolunteerEvents(refs, new Date());
+    if (sampleEvents.length > 0) {
+      const { error: eventsErr } = await supabaseAdmin
+        .from("volunteer_events")
+        .insert(sampleEvents);
+      if (eventsErr) {
+        return NextResponse.json({ error: eventsErr.message }, { status: 500 });
+      }
+      eventsCount = sampleEvents.length;
     }
   }
 
   return NextResponse.json({
     success: true,
     institutionsCount: INSTITUTIONS.length,
+    needsCount,
+    volunteerEventsCount: eventsCount,
     message: "Database seeded successfully",
   });
 }

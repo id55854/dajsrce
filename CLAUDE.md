@@ -5,7 +5,7 @@
 > changes. If you change anything meaningful, amend the matching section here
 > in the same commit.
 
-Last synced: 2026-04-17 (NGO setup, institution INSERT RLS, /dashboard/institution gate, profiles RLS recursion fix)
+Last synced: 2026-04-17 (NGO setup, institution INSERT RLS, /dashboard/institution gate, profiles RLS recursion fix, volunteer_signups RLS recursion fix)
 
 ---
 
@@ -293,6 +293,15 @@ Authoritative schema lives in `supabase/migrations/`:
   the self-referential `profiles` JOIN inside the "Institution reads signup
   volunteer profiles" policy (from migration 008) with a `SECURITY DEFINER`
   helper `current_user_institution_id()`. Idempotent.
+- `013_volunteer_signups_rls_no_recursion.sql` — completes the fix for
+  `"infinite recursion detected in policy for relation profiles"`. Migration
+  012 fixed the profiles policy, but the two `volunteer_signups` policies
+  from migration 008 ("Institution reads signups for own events",
+  "Institution updates check-in on own event signups") still joined
+  `public.profiles` in their `USING` clause. When the profiles policy
+  `EXISTS`-queried `volunteer_signups`, RLS on `volunteer_signups` re-entered
+  the profiles policy → recursion. Replaces the joins with
+  `current_user_institution_id()`. Idempotent.
 - `003_roles_shipping_company_actions.sql` — expands `profiles.role` to
   `individual | ngo | company | superadmin` (migrating any legacy
   `citizen`/`institution` rows), adds `company_name`/`contact_person`/

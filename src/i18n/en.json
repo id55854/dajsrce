@@ -102,10 +102,10 @@
     "pledge_match_hint": "The company will add a matching pledge if its match ratio is greater than zero.",
 
     "receipts_section_title": "Tax receipts",
-    "receipts_section_hint": "Generate PDF and XML for a fiscal year (paid tier + feature flag required).",
+    "receipts_section_hint": "Generate PDF and XML summaries for a fiscal year.",
 
     "exports_section_title": "ESG exports",
-    "exports_section_hint": "ZIP bundle (CSV, JSON, narrative PDF, evidence) by framework and period. SME Plus: VSME Basic only; Enterprise: all frameworks.",
+    "exports_section_hint": "Download a reporting ZIP with CSV, JSON, narrative PDF, and evidence, filtered by framework and period.",
 
     "csr_section_title": "CSR reports",
     "csr_section_hint": "Branded PDF and DOCX summary for a date range. Uses delivered/confirmed pledges with EUR in the window and company-linked volunteer hours.",
@@ -131,13 +131,11 @@
     "framework_required": "Choose a framework.",
     "period_start": "From",
     "period_end": "To",
-    "generate": "Generate export",
+    "generate": "Generate",
     "generating": "Generating…",
     "list_title": "Export history",
     "empty": "No exports yet.",
-    "download_zip": "Download ZIP",
-    "feature_off": "Exports are disabled (NEXT_PUBLIC_FLAG_EXPORTS_ENABLED).",
-    "tier_required": "SME Plus (VSME Basic) or Enterprise (all frameworks) is required."
+    "download_zip": "Download ZIP"
   },
   "pledge": {
     "amount_eur_label": "Estimated value (EUR)",
@@ -169,14 +167,12 @@
   },
   "receipt": {
     "fiscal_year": "Fiscal year",
-    "generate": "Generate receipt",
+    "generate": "Generate",
     "generating": "Generating…",
     "list_title": "Receipt history",
     "empty": "No receipts generated yet.",
     "download_pdf": "Download PDF",
     "download_xml": "Download XML",
-    "feature_off": "Receipts are disabled (NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED).",
-    "tier_required": "SME Tax tier or higher is required.",
     "year_invalid": "Enter a valid year."
   },
   "billing": {
@@ -229,5 +225,31 @@
     "no_actions": "No actions yet. Browse needs and start helping.",
     "shipment_prefix": "Shipment:",
     "find_places": "Find places to help"
+  },
+  "demo": {
+    "ngo_plans_title": "Plans for organisations",
+    "ngo_plans_subtitle": "Choose how many volunteer events and need postings you want to publish each month.",
+    "tier_standard_name": "NGO Plus",
+    "tier_standard_price": "€100",
+    "tier_standard_period": "per year",
+    "tier_standard_f1": "Up to 5 events per month",
+    "tier_standard_f2": "Up to 5 needs per month",
+    "tier_standard_f3": "Better calendar placement than Free",
+    "tier_verified_name": "Verified organisation",
+    "tier_verified_price": "€500",
+    "tier_verified_period": "per month",
+    "tier_verified_f1": "Unlimited events and needs",
+    "tier_verified_f2": "“Good choice” badge — identity & legitimacy checked",
+    "tier_verified_f3": "Featured placements and brand support",
+    "tier_cta": "Choose plan",
+    "tier_badge_verified": "Verified partner",
+    "volunteer_showcase_title": "Volunteer events",
+    "volunteer_showcase_subtitle": "Events are hosted by institutions and NGOs in the community. The featured event receives extra visibility for partners who support highlighted placement.",
+    "volunteer_showcase_more": "More events",
+    "featured_placement": "Featured",
+    "featured_placement_detail": "Featured visibility",
+    "volunteer_sign_in_cta": "Sign in to join",
+    "link_ngo_plans": "Organisation plans",
+    "link_volunteer_showcase": "Volunteer events"
   }
 }

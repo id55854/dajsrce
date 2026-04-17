@@ -102,10 +102,10 @@
     "pledge_match_hint": "Tvrtka će dodati odgovarajući pledge ako je omjer podudaranja > 0.",
 
     "receipts_section_title": "Porezne potvrde",
-    "receipts_section_hint": "Generirajte PDF i XML za fiskalnu godinu (potrebna plaćena razina i uključena značajka).",
+    "receipts_section_hint": "Generirajte PDF i XML sažetke za fiskalnu godinu.",
 
     "exports_section_title": "ESG izvozi",
-    "exports_section_hint": "ZIP paket (CSV, JSON, PDF sažetak, dokazi) po okviru i razdoblju. SME Plus: VSME Basic; Enterprise: svi okviri.",
+    "exports_section_hint": "Preuzmite ZIP izvještaja s CSV, JSON, narativnim PDF-om i dokazima, po okviru i razdoblju.",
 
     "csr_section_title": "CSR izvještaji",
     "csr_section_hint": "PDF i DOCX sažetak za razdoblje. Uključuje isporučene/potvrđene pledge-ove s EUR u razdoblju i volonterske sate povezane s tvrtkom.",
@@ -131,13 +131,11 @@
     "framework_required": "Odaberite okvir.",
     "period_start": "Od",
     "period_end": "Do",
-    "generate": "Generiraj izvoz",
+    "generate": "Generiraj",
     "generating": "Generiranje…",
     "list_title": "Povijest izvoza",
     "empty": "Još nema izvoza.",
-    "download_zip": "Preuzmi ZIP",
-    "feature_off": "Izvozi su isključeni (NEXT_PUBLIC_FLAG_EXPORTS_ENABLED).",
-    "tier_required": "Potrebna je razina SME Plus (VSME Basic) ili Enterprise (svi okviri)."
+    "download_zip": "Preuzmi ZIP"
   },
   "pledge": {
     "amount_eur_label": "Procijenjena vrijednost (EUR)",
@@ -169,14 +167,12 @@
   },
   "receipt": {
     "fiscal_year": "Fiskalna godina",
-    "generate": "Generiraj potvrdu",
+    "generate": "Generiraj",
     "generating": "Generiranje…",
     "list_title": "Povijest potvrda",
     "empty": "Još nema generiranih potvrda.",
     "download_pdf": "Preuzmi PDF",
     "download_xml": "Preuzmi XML",
-    "feature_off": "Značajka potvrda je isključena (NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED).",
-    "tier_required": "Potrebna je plaćena razina SME Tax ili viša.",
     "year_invalid": "Unesite ispravnu godinu."
   },
   "billing": {
@@ -229,5 +225,31 @@
     "no_actions": "Još nema aktivnosti. Pregledajte potrebe i počnite pomoći.",
     "shipment_prefix": "Pošiljka:",
     "find_places": "Pronađite gdje pomoći"
+  },
+  "demo": {
+    "ngo_plans_title": "Planovi za ustanove",
+    "ngo_plans_subtitle": "Odaberite koliko volonterskih događaja i objava potreba želite objavljivati svaki mjesec.",
+    "tier_standard_name": "Udruga Plus",
+    "tier_standard_price": "100 €",
+    "tier_standard_period": "godišnje",
+    "tier_standard_f1": "Do 5 događaja mjesečno",
+    "tier_standard_f2": "Do 5 potreba mjesečno",
+    "tier_standard_f3": "Prioritet u kalendaru u odnosu na besplatni plan",
+    "tier_verified_name": "Provjerena ustanova",
+    "tier_verified_price": "500 €",
+    "tier_verified_period": "mjesečno",
+    "tier_verified_f1": "Neograničeno događaja i potreba",
+    "tier_verified_f2": "Bedž „Dobar izbor” — potvrđena legitimnost",
+    "tier_verified_f3": "Istaknute pozicije i podrška za brend ustanove",
+    "tier_cta": "Odaberi plan",
+    "tier_badge_verified": "Provjereni partner",
+    "volunteer_showcase_title": "Volonterski događaji",
+    "volunteer_showcase_subtitle": "Događaje organiziraju ustanove i udruge iz zajednice. Istaknuti događaj prikazuje se uz dodatnu vidljivost za partnere koji je podrže.",
+    "volunteer_showcase_more": "Još događaja",
+    "featured_placement": "Istaknuto mjesto",
+    "featured_placement_detail": "Istaknuta vidljivost",
+    "volunteer_sign_in_cta": "Prijavite se za sudjelovanje",
+    "link_ngo_plans": "Planovi za ustanove",
+    "link_volunteer_showcase": "Volonterski događaji"
   }
 }
