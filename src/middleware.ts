@@ -80,6 +80,9 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/dashboard/ngo") && role !== "ngo") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
+    if (pathname.startsWith("/dashboard/institution") && role !== "ngo") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
     if (
       pathname.startsWith("/dashboard/individual") &&
       role !== "individual"

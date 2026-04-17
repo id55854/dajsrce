@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Heart, Loader2 } from "lucide-react";
+import { normalizeRole } from "@/lib/auth/roles";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { UserRole } from "@/lib/types";
 
@@ -23,23 +24,43 @@ export default function SetupPage() {
       return;
     }
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) {
         router.replace("/auth/login");
         return;
       }
-      supabase
+      const user = data.user;
+      const isOAuth =
+        user.app_metadata?.provider !== "email" &&
+        user.app_metadata?.provider !== undefined;
+
+      const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
-        .eq("id", data.user.id)
-        .maybeSingle()
-        .then(({ data: profile }) => {
-          if (profile && profile.role) {
-            router.replace("/dashboard");
-          } else {
-            setChecking(false);
-          }
-        });
+        .select("role, institution_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const r = normalizeRole(profile?.role);
+      const setupDone = user.user_metadata?.setup_completed === true;
+
+      if (r === "ngo" && profile?.institution_id) {
+        router.replace("/dashboard");
+        return;
+      }
+      if (r === "ngo" && !profile?.institution_id) {
+        setChecking(false);
+        return;
+      }
+      if (r === "individual" && !isOAuth) {
+        router.replace("/dashboard");
+        return;
+      }
+      if (r === "individual" && isOAuth && setupDone) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setChecking(false);
     });
   }, [router]);
 
@@ -76,12 +97,17 @@ export default function SetupPage() {
 
       if (updateErr) throw updateErr;
 
+      const meta: Record<string, string | boolean> = { role };
+      if (role === "individual") {
+        meta.setup_completed = true;
+      }
+
       await supabase.auth.updateUser({
-        data: { role },
+        data: meta,
       });
 
       if (role === "ngo" && institutionName.trim()) {
-        const { data: inst } = await supabase
+        const { data: inst, error: instErr } = await supabase
           .from("institutions")
           .insert({
             name: institutionName.trim(),
@@ -96,12 +122,15 @@ export default function SetupPage() {
           .select("id")
           .single();
 
-        if (inst) {
-          await supabase
-            .from("profiles")
-            .update({ institution_id: inst.id })
-            .eq("id", user.id);
-        }
+        if (instErr) throw instErr;
+        if (!inst?.id) throw new Error("Could not create institution.");
+
+        const { error: linkErr } = await supabase
+          .from("profiles")
+          .update({ institution_id: inst.id })
+          .eq("id", user.id);
+
+        if (linkErr) throw linkErr;
       }
 
       router.replace("/dashboard");

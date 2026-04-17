@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { normalizeRole } from "@/lib/auth/roles";
 import { getLocalNeeds } from "@/lib/local-data";
 
 export async function GET(req: NextRequest) {
@@ -59,14 +60,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileErr } = await supabase
       .from("profiles")
       .select("institution_id, role")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (!profile || profile.role !== "ngo" || !profile.institution_id) {
+    if (profileErr) {
+      return NextResponse.json({ error: profileErr.message }, { status: 500 });
+    }
+    if (!profile) {
+      return NextResponse.json(
+        { error: "Profile not found. Try signing out and back in." },
+        { status: 403 }
+      );
+    }
+    if (normalizeRole(profile.role) !== "ngo") {
       return NextResponse.json({ error: "Only NGOs can post needs" }, { status: 403 });
+    }
+    if (!profile.institution_id) {
+      return NextResponse.json(
+        {
+          error:
+            "Your NGO account is not linked to an institution yet. Finish signup at /auth/setup or contact support.",
+        },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();

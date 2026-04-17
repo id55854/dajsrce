@@ -5,7 +5,7 @@
 > changes. If you change anything meaningful, amend the matching section here
 > in the same commit.
 
-Last synced: 2026-04-17 (Phase 3: CSR reports, public company profile)
+Last synced: 2026-04-17 (NGO setup, institution INSERT RLS, /dashboard/institution gate)
 
 ---
 
@@ -285,6 +285,9 @@ Authoritative schema lives in `supabase/migrations/`:
   bucket `reports`, `get_public_company_bundle(slug)` (safe public JSON), and
   **tightened** `companies` SELECT (removes anonymous full-row read via
   `public_profile_enabled` alone).
+- `011_institutions_insert_ngo_setup.sql` — RLS `INSERT` on `institutions` for
+  authenticated users with `profiles.role = 'ngo'` and `institution_id IS NULL`
+  (OAuth `/auth/setup` institution row; email signup still uses the trigger).
 - `003_roles_shipping_company_actions.sql` — expands `profiles.role` to
   `individual | ngo | company | superadmin` (migrating any legacy
   `citizen`/`institution` rows), adds `company_name`/`contact_person`/
@@ -348,7 +351,10 @@ inside API routes and `src/lib/local-data.ts`.
 
 ### Row-level security summary
 
-- Institutions, needs, events, alerts: public `select`, institution-scoped
+- Institutions: public `select`; `insert` for NGO setup (migration 011) when
+  the user has no `institution_id` yet; institution-scoped `update` on the
+  institution row itself (`profiles.institution_id = institutions.id`).
+- Needs, events, alerts: public `select`, institution-scoped
   `insert`/`update` (`profiles.institution_id = <row>.institution_id`).
 - Profiles: self-scoped `select`/`update`/`insert`
   (`auth.uid() = profiles.id`).
@@ -409,7 +415,9 @@ Conventions:
 ## 7. Authentication and session handling
 
 - Middleware (`src/middleware.ts`) calls `supabase.auth.getUser()` on every
-  non-static request to refresh cookies via `@supabase/ssr`.
+  non-static request to refresh cookies via `@supabase/ssr`. It gates
+  `/dashboard/ngo` **and** `/dashboard/institution` to `role === 'ngo'` (same
+  UI; the latter path is no longer reachable as a non-NGO).
 - Browser code uses `createClient()` from `src/lib/supabase/client.ts`.
 - Server code uses `createServerSupabaseClient()` from
   `src/lib/supabase/server.ts`. Use this in route handlers and Server
@@ -534,7 +542,7 @@ npm run demo:check            # verify .env.local keys for demo (no secrets prin
 ### Demo / product video (full company features without production Stripe)
 
 1. Copy `.env.example` → `.env.local` (or set the same keys on Vercel Preview).
-2. **Supabase:** run all migrations (`001`–`010`). In **Authentication → URL
+2. **Supabase:** run all migrations (`001`–`011`). In **Authentication → URL
    configuration**, set **Site URL** and **Redirect URLs** to your demo origin
    (e.g. `http://localhost:3000` and your `*.vercel.app` URL).
 3. **Flags (client):** set `NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED=true`,
