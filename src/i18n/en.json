@@ -186,7 +186,11 @@
     "open_portal": "Stripe customer portal",
     "portal_hint": "Manage payment method and cancellation.",
     "error_generic": "Billing request failed. Try again.",
-    "stripe_missing": "Stripe is not configured on the server."
+    "stripe_missing": "Stripe is not configured on the server.",
+    "demo_title": "Demo billing",
+    "demo_hint": "No Stripe: set plan tier for recordings only. Remove ALLOW_DEMO_BILLING in production.",
+    "demo_applied": "Tier updated. Reloading…",
+    "demo_tier_free": "Set Free"
   },
   "tax": {
     "category_label": "Tax category",

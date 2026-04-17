@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "demo:elevate": "node scripts/demo-elevate-company.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.0",

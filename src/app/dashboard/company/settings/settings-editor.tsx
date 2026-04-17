@@ -13,9 +13,10 @@ import { BillingPanel } from "./billing-panel";
 type Props = {
   company: Company;
   myRole: CompanyRole;
+  allowDemoBilling?: boolean;
 };
 
-export function SettingsEditor({ company, myRole }: Props) {
+export function SettingsEditor({ company, myRole, allowDemoBilling = false }: Props) {
   const t = useT();
   const { locale } = useLocale();
   const router = useRouter();
@@ -246,6 +247,7 @@ export function SettingsEditor({ company, myRole }: Props) {
         companyId={company.id}
         myRole={myRole}
         subscriptionTier={company.subscription_tier}
+        allowDemoBilling={allowDemoBilling}
       />
 
       {canManage ? (

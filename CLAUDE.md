@@ -199,6 +199,8 @@ dajsrce/
 │           └── admin.ts           # Service-role client (server only)
 ├── supabase/migrations/           # Raw SQL migrations (see section 5)
 ├── scripts/seed.mjs               # Node script to seed institutions via service role
+├── scripts/demo-elevate-company.mjs  # CLI: set company subscription_tier (demo/QA)
+├── .env.example                   # Env template; copy to `.env.local`
 ├── next.config.ts                 # Image remote patterns only
 ├── postcss.config.mjs             # Tailwind v4 postcss plugin
 ├── vercel.json                    # Cron: /api/cron/auto-acknowledge (daily 06:00 UTC)
@@ -240,6 +242,7 @@ Declared in `.env.local` (git-ignored). Keep this list in sync with code:
 | `STRIPE_PRICE_SME_PLUS`                  | Server      | 1     | Plan lookup (Phase 1+)                                                   |
 | `STRIPE_PRICE_ENTERPRISE`                | Server      | 1     | Plan lookup (Phase 1+)                                                   |
 | `RESEND_API_KEY`                         | Server      | 1     | Transactional email (Phase 1+)                                           |
+| `ALLOW_DEMO_BILLING`                     | Server      | demo  | When `true`, owners/admins can set `subscription_tier` from **Settings → Billing** without Stripe (`POST /api/demo/apply-tier`). **Never enable in production.** |
 
 Do **not** expose the service role key to the client. `supabaseAdmin` is
 imported dynamically inside server route handlers only
@@ -506,6 +509,7 @@ npm run dev             # next dev --turbopack (http://localhost:3000)
 npm run build           # production build
 npm run start           # run built app
 npm run lint            # next lint
+npm run demo:elevate -- --slug <slug> --tier enterprise   # CLI tier bump (service role)
 ```
 
 ### Database workflow
@@ -524,6 +528,26 @@ npm run lint            # next lint
   `supabaseAdmin`; requires the service role key to be set and the route
   to remain reachable — consider gating it before production).
 - CLI-style seed: `SUPABASE_SERVICE_ROLE_KEY=… node scripts/seed.mjs`.
+
+### Demo / product video (full company features without production Stripe)
+
+1. Copy `.env.example` → `.env.local` (or set the same keys on Vercel Preview).
+2. **Supabase:** run all migrations (`001`–`010`). In **Authentication → URL
+   configuration**, set **Site URL** and **Redirect URLs** to your demo origin
+   (e.g. `http://localhost:3000` and your `*.vercel.app` URL).
+3. **Flags (client):** set `NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED=true`,
+   `NEXT_PUBLIC_FLAG_EXPORTS_ENABLED=true`,
+   `NEXT_PUBLIC_FLAG_PUBLIC_PROFILE_ENABLED=true` so receipts, ESG ZIPs, and
+   CSR / public profile UIs appear.
+4. **Paid tiers without Stripe:** set `ALLOW_DEMO_BILLING=true`, redeploy, open
+   **Dashboard → Company → Settings → Billing**, use **Demo billing** to set
+   **Enterprise** (or run `npm run demo:elevate -- --slug <slug> --tier enterprise`).
+5. **Data for the recording:** create a company tenant, add a campaign, use
+   **Map/Needs** to place pledges with `amount_eur` on behalf of the company
+   where flows require acknowledged amounts; generate a receipt, an ESG export,
+   and a CSR report; enable **Public impact profile** to show `/company/<slug>`.
+6. Before production: set `ALLOW_DEMO_BILLING` off (or unset) and use real
+   Stripe checkout + webhooks.
 
 ### Git hygiene
 

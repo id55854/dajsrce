@@ -19,5 +19,13 @@ export default async function CompanySettingsPage({
   const { active } = await resolveActiveCompany(cid);
   if (!active) redirect("/dashboard/company/new");
 
-  return <SettingsEditor company={active.company} myRole={active.role} />;
+  const allowDemoBilling = process.env.ALLOW_DEMO_BILLING === "true";
+
+  return (
+    <SettingsEditor
+      company={active.company}
+      myRole={active.role}
+      allowDemoBilling={allowDemoBilling}
+    />
+  );
 }

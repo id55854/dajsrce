@@ -186,7 +186,11 @@
     "open_portal": "Stripe kupac / pretplata",
     "portal_hint": "Upravljajte načinom plaćanja i otkazivanjem.",
     "error_generic": "Plaćanje nije uspjelo. Pokušajte ponovno.",
-    "stripe_missing": "Stripe nije konfiguriran na poslužitelju."
+    "stripe_missing": "Stripe nije konfiguriran na poslužitelju.",
+    "demo_title": "Demo plaćanje",
+    "demo_hint": "Bez Stripea: postavite razinu za snimanje. U produkciji isključite ALLOW_DEMO_BILLING.",
+    "demo_applied": "Razina ažurirana. Osvježavanje…",
+    "demo_tier_free": "Postavi Free"
   },
   "tax": {
     "category_label": "Porezna kategorija",

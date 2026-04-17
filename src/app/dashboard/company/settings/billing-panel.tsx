@@ -10,9 +10,16 @@ type Props = {
   companyId: string;
   myRole: CompanyRole;
   subscriptionTier: SubscriptionTier;
+  /** When true (ALLOW_DEMO_BILLING on server), show tier buttons without Stripe. */
+  allowDemoBilling?: boolean;
 };
 
-export function BillingPanel({ companyId, myRole, subscriptionTier }: Props) {
+export function BillingPanel({
+  companyId,
+  myRole,
+  subscriptionTier,
+  allowDemoBilling = false,
+}: Props) {
   const t = useT();
   const { locale } = useLocale();
   const canManage = myRole === "owner" || myRole === "admin";
@@ -20,6 +27,28 @@ export function BillingPanel({ companyId, myRole, subscriptionTier }: Props) {
   const [message, setMessage] = useState<string | null>(null);
 
   if (!canManage) return null;
+
+  async function applyDemoTier(tier: SubscriptionTier) {
+    setMessage(null);
+    setLoading(`demo-${tier}`);
+    try {
+      const res = await fetch("/api/demo/apply-tier", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company_id: companyId, tier }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(typeof data.error === "string" ? data.error : t("common.error_generic"));
+        return;
+      }
+      setMessage(t("billing.demo_applied"));
+      window.location.reload();
+    } finally {
+      setLoading(null);
+    }
+  }
 
   async function checkout(tier: "sme_tax" | "sme_plus" | "enterprise") {
     setMessage(null);
@@ -120,6 +149,35 @@ export function BillingPanel({ companyId, myRole, subscriptionTier }: Props) {
           {t("billing.open_portal")}
         </button>
       </div>
+
+      {allowDemoBilling ? (
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-200">
+            {t("billing.demo_title")}
+          </p>
+          <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-100/80">{t("billing.demo_hint")}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(["sme_tax", "sme_plus", "enterprise", "free"] as const).map((tier) => (
+              <button
+                key={tier}
+                type="button"
+                disabled={loading !== null}
+                onClick={() => void applyDemoTier(tier)}
+                className="rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-900/40"
+              >
+                {loading === `demo-${tier}` ? <Loader2 className="h-3 w-3 animate-spin inline" /> : null}{" "}
+                {tier === "free"
+                  ? t("billing.demo_tier_free")
+                  : tier === "sme_tax"
+                    ? t("billing.checkout_sme_tax")
+                    : tier === "sme_plus"
+                      ? t("billing.checkout_sme_plus")
+                      : t("billing.checkout_enterprise")}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
