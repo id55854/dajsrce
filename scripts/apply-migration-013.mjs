@@ -43,18 +43,36 @@ if (!password) {
   process.exit(1);
 }
 
-// Prefer the Supabase pooler (works from anywhere); fall back to direct.
+// Try pooler hosts (Supabase Shared Pooler, multiple regions).
 const candidates = [
-  `postgresql://postgres.${projectRef}:${encodeURIComponent(password)}@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require`,
-  `postgresql://postgres.${projectRef}:${encodeURIComponent(password)}@aws-0-eu-central-2.pooler.supabase.com:6543/postgres?sslmode=require`,
-  `postgresql://postgres:${encodeURIComponent(password)}@db.${projectRef}.supabase.co:5432/postgres?sslmode=require`,
+  { host: `aws-0-eu-central-1.pooler.supabase.com`, port: 6543, user: `postgres.${projectRef}` },
+  { host: `aws-1-eu-central-1.pooler.supabase.com`, port: 6543, user: `postgres.${projectRef}` },
+  { host: `aws-0-eu-central-2.pooler.supabase.com`, port: 6543, user: `postgres.${projectRef}` },
+  { host: `aws-0-eu-west-1.pooler.supabase.com`,    port: 6543, user: `postgres.${projectRef}` },
+  { host: `aws-0-eu-west-2.pooler.supabase.com`,    port: 6543, user: `postgres.${projectRef}` },
+  { host: `aws-0-eu-west-3.pooler.supabase.com`,    port: 6543, user: `postgres.${projectRef}` },
+  { host: `aws-0-us-east-1.pooler.supabase.com`,    port: 6543, user: `postgres.${projectRef}` },
+  { host: `aws-0-us-east-2.pooler.supabase.com`,    port: 6543, user: `postgres.${projectRef}` },
+  { host: `aws-0-us-west-1.pooler.supabase.com`,    port: 6543, user: `postgres.${projectRef}` },
+  { host: `aws-0-ap-southeast-1.pooler.supabase.com`, port: 6543, user: `postgres.${projectRef}` },
+  // Direct connection — only works on IPv6-capable networks.
+  { host: `db.${projectRef}.supabase.co`, port: 5432, user: `postgres` },
 ];
 
 let lastErr;
-for (const cs of candidates) {
-  const safe = cs.replace(/:([^:@]+)@/, ":***@");
-  console.log(`Trying: ${safe}`);
-  const client = new pg.Client({ connectionString: cs });
+for (const c of candidates) {
+  console.log(`Trying: ${c.user}@${c.host}:${c.port}`);
+  const client = new pg.Client({
+    host: c.host,
+    port: c.port,
+    user: c.user,
+    password,
+    database: "postgres",
+    // Supabase pooler presents a cert that Node's default CA bundle doesn't
+    // recognise; we still encrypt the connection but skip CA verification.
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 8000,
+  });
   try {
     await client.connect();
     console.log("Connected. Applying migration:", FILE);
