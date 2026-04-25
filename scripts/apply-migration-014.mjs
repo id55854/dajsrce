@@ -1,4 +1,4 @@
-// Apply supabase/migrations/013_ngo_registry.sql via direct Postgres connection.
+// Apply supabase/migrations/014_ngo_registry.sql via direct Postgres connection.
 // Requires SUPABASE_DB_PASSWORD in env (or .env.local) — Supabase project DB
 // password from Settings → Database → Connection string.
 //
@@ -6,8 +6,8 @@
 // this script — but having a runner makes re-applies idempotent and scriptable.
 //
 // Usage:
-//   SUPABASE_DB_PASSWORD=... node scripts/apply-migration-013.mjs
-//   node scripts/apply-migration-013.mjs --file 013_ngo_registry.sql
+//   SUPABASE_DB_PASSWORD=... node scripts/apply-migration-014.mjs
+//   node scripts/apply-migration-014.mjs --file 014_ngo_registry.sql
 
 import fs from "node:fs";
 import path from "node:path";
@@ -22,7 +22,7 @@ const argVal = (n, d = null) => {
   return i >= 0 && i + 1 < args.length ? args[i + 1] : d;
 };
 
-const FILE = argVal("--file", "013_ngo_registry.sql");
+const FILE = argVal("--file", "014_ngo_registry.sql");
 const sqlPath = path.resolve(__dirname, "..", "supabase", "migrations", FILE);
 if (!fs.existsSync(sqlPath)) {
   console.error("Migration file not found:", sqlPath);

@@ -5,7 +5,7 @@
 > changes. If you change anything meaningful, amend the matching section here
 > in the same commit.
 
-Last synced: 2026-04-25 (profiles RLS recursion fix, ngo_registry import pipeline, +3 categories)
+Last synced: 2026-04-25 (profiles + volunteer_signups RLS recursion fix, ngo_registry import pipeline, +3 categories, defensive CATEGORY_CONFIG)
 
 ---
 
@@ -205,7 +205,7 @@ dajsrce/
 ├── scripts/remap-categories.mjs   # Re-apply category-rules to ngo_registry in place
 ├── scripts/geocode-registry.mjs   # Fill lat/lng on ngo_registry (Nominatim or HERE)
 ├── scripts/promote-registry.mjs   # ngo_registry → institutions on quality bar
-├── scripts/apply-migration-013.mjs # Apply migration via direct pg connection (needs SUPABASE_DB_PASSWORD)
+├── scripts/apply-migration-014.mjs # Apply migration via direct pg connection (needs SUPABASE_DB_PASSWORD)
 ├── scripts/lib/csv-stream.mjs     # Streaming RFC-4180 CSV parser (no deps)
 ├── scripts/lib/category-rules.mjs # Shared mapping rules (CILJANE_SKUPINE/OPIS → category)
 ├── scripts/lib/supabase-admin.mjs # Service-role client + cursor helpers
@@ -301,7 +301,16 @@ Authoritative schema lives in `supabase/migrations/`:
   the self-referential `profiles` JOIN inside the "Institution reads signup
   volunteer profiles" policy (from migration 008) with a `SECURITY DEFINER`
   helper `current_user_institution_id()`. Idempotent.
-- `013_ngo_registry.sql` — adds the national NGO directory imported from
+- `013_volunteer_signups_rls_no_recursion.sql` — completes the fix for
+  `"infinite recursion detected in policy for relation profiles"`. Migration
+  012 fixed the profiles policy, but the two `volunteer_signups` policies
+  from migration 008 ("Institution reads signups for own events",
+  "Institution updates check-in on own event signups") still joined
+  `public.profiles` in their `USING` clause. When the profiles policy
+  `EXISTS`-queried `volunteer_signups`, RLS on `volunteer_signups` re-entered
+  the profiles policy → recursion. Replaces the joins with
+  `current_user_institution_id()`. Idempotent.
+- `014_ngo_registry.sql` — adds the national NGO directory imported from
   RegistarUdruga.csv. New table `ngo_registry` (raw CSV mirror keyed on OIB
   + geocoded coords + category mapping); `import_state` resumable cursor;
   `institutions.source ∈ {curated,registry,user_claimed}` plus
