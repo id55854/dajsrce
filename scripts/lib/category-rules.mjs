@@ -20,8 +20,12 @@ export const RULES = [
   { category: "homeless_shelter", source: "text",   weight: 3, pattern: /prihvatiliste za beskucnike|nocni smjestaj|prenociste/i, label: "opis: prihvatilište" },
 
   // -------------------- soup_kitchen --------------------
-  { category: "soup_kitchen", source: "text", weight: 5, pattern: /pucka kuhinja|banka hrane|podjela hrane|topli obrok/i, label: "opis: pučka kuhinja" },
-  { category: "soup_kitchen", source: "text", weight: 4, pattern: /socijalna samoposluga/i, label: "opis: socijalna samoposluga" },
+  // Only match when the entity IS a soup kitchen, not when it merely
+  // mentions one. The naziv test is the strong signal; the opis test
+  // requires the phrase to be very early (first 200 chars) to filter out
+  // tangential mentions.
+  { category: "soup_kitchen", source: "name", weight: 6, pattern: /\b(pucka kuhinja|banka hrane|socijalna samoposluga)\b/i, label: "naziv: pučka kuhinja / banka hrane" },
+  { category: "soup_kitchen", source: "text", weight: 3, pattern: /^.{0,200}(pucka kuhinja|banka hrane|socijalna samoposluga)/is, label: "opis (rano): pučka kuhinja / banka hrane" },
 
   // -------------------- children_home --------------------
   { category: "children_home", source: "groups", weight: 5, pattern: /DJECA BEZ ODGOVARAJUCE RODITELJSKE SKRBI/i, label: "ciljana skupina: djeca bez roditeljske skrbi" },
@@ -29,8 +33,10 @@ export const RULES = [
   { category: "children_home", source: "text",   weight: 4, pattern: /dom za djecu|udomiteljstvo|napustena djeca|napusteni mladi/i, label: "opis: dom za djecu / udomiteljstvo" },
 
   // -------------------- caritas --------------------
-  // Caritas is operator-shaped; matches on name only.
-  { category: "caritas", source: "name", weight: 6, pattern: /\bCaritas\b|\bzup[ae]\b|pastoralna/i, label: "naziv: Caritas / župa" },
+  // Caritas is operator-shaped; only match the literal word "Caritas" in
+  // the name. "Župa" is a place name in Croatia (Župa dubrovačka, etc.) and
+  // also appears in unrelated NGOs ("Lovačko društvo Župa") — too noisy.
+  { category: "caritas", source: "name", weight: 6, pattern: /\bcaritas\b/i, label: "naziv: Caritas" },
 
   // -------------------- disability_support --------------------
   { category: "disability_support", source: "groups", weight: 5, pattern: /OSOBE S INVALIDITETOM|TJELESNIM INVALIDITETOM|INTELEKTUALNIM TESKOCAMA|MENTALNIM OSTECENJEM/i, label: "ciljana skupina: invaliditet" },
@@ -51,19 +57,25 @@ export const RULES = [
   { category: "social_welfare", source: "text",   weight: 2, pattern: /humanitarn|socijalna pomoc|materijaln[ao] pomoc/i, label: "opis: humanitarno / socijalna pomoć" },
 
   // -------------------- student_housing --------------------
-  { category: "student_housing", source: "text", weight: 5, pattern: /studentski dom|studentski smjestaj|stipendiranj/i, label: "opis: studentski dom / stipendiranje" },
+  // Tight: "studentski dom" / "studentski smjestaj" only. "Stipendiranj"
+  // also fires for sports / academic scholarships.
+  { category: "student_housing", source: "name", weight: 6, pattern: /\bstudentski dom\b|\bstudentski smjestaj\b/i, label: "naziv: studentski dom" },
+  { category: "student_housing", source: "text", weight: 3, pattern: /\bstudentski dom\b|\bstudentski smjestaj\b/i, label: "opis: studentski dom" },
 
   // -------------------- mental_health --------------------
-  { category: "mental_health", source: "groups", weight: 5, pattern: /OVISNIC O DROGAMA|OVISNIC O ALKOHOLU|MENTALNI POREMEC|PSIHIJATR/i, label: "ciljana skupina: ovisnici / mentalno zdravlje" },
-  { category: "mental_health", source: "text",   weight: 4, pattern: /terapijska zajednica|apstinent|mentalno zdravlje|prevencija ovisnosti/i, label: "opis: terapijska zajednica" },
+  // Actual data uses "OVISNICI I LIJEČENI OVISNICI" and "OSOBE S MENTALNOM
+  // RETARDACIJOM" — broader patterns required.
+  { category: "mental_health", source: "groups", weight: 5, pattern: /\bOVISNIC[IA]?\b|LIJECENI OVISNIC|OSOBE S MENTALNOM|MENTALNI POREMEC|PSIHIJATR/i, label: "ciljana skupina: ovisnici / mentalno zdravlje" },
+  { category: "mental_health", source: "text",   weight: 4, pattern: /terapijska zajednica|apstinent|mentalno zdravlje|prevencija ovisnosti|liječeni ovisnici/i, label: "opis: terapijska zajednica" },
 
   // -------------------- refugee_migrant_support --------------------
   { category: "refugee_migrant_support", source: "groups", weight: 5, pattern: /IZBJEGLIC|TRAZITELJI AZILA|MIGRANT/i, label: "ciljana skupina: izbjeglice/migranti" },
   { category: "refugee_migrant_support", source: "text",   weight: 4, pattern: /pravna pomoc trazitelj|integracija migrant|prihvat izbjeglica/i, label: "opis: pravna pomoć tražiteljima azila" },
 
   // -------------------- medical_patient_support --------------------
-  { category: "medical_patient_support", source: "text",   weight: 5, pattern: /udruga oboljeli[hh]?|udruga pacijenat|udruga bolesnik|dijabetic|multipla skleroza|cisticna fibroza|epilepsi|onkolog|bolesnici od/i, label: "opis: udruga oboljelih / pacijenata" },
-  { category: "medical_patient_support", source: "groups", weight: 4, pattern: /\bOBOLJEL|\bPACIJENT|\bBOLESNIC/i, label: "ciljana skupina: oboljeli/pacijenti" },
+  { category: "medical_patient_support", source: "text",   weight: 5, pattern: /udruga oboljeli[hh]?|udruga pacijenat|udruga bolesnik|dijabetic|multipla skleroza|cisticna fibroza|epilepsi|onkolog|liga protiv raka|bolesnici od/i, label: "opis: udruga oboljelih / pacijenata" },
+  { category: "medical_patient_support", source: "groups", weight: 5, pattern: /\bOBOLJEL|\bPACIJENT|\bBOLESNIC|POPULACIJA PACIJENATA/i, label: "ciljana skupina: oboljeli/pacijenti" },
+  { category: "medical_patient_support", source: "name",   weight: 4, pattern: /\b(udruga|liga|drustvo) (oboljelih?|pacijenata|dijabetica|onkolosk)/i, label: "naziv: udruga oboljelih" },
 
   // -------------------- negative signals --------------------
   // These don't pick a category; they DOWN-weight social-impact matches
@@ -115,12 +127,29 @@ export function scoreRow(row) {
     if (n.pattern.test(hay)) penalty += n.penalty;
   }
 
-  // Pick best category.
-  const entries = Object.entries(scores);
+  // Pick best category. When a more-specific category has a strong signal,
+  // prefer it over a generic one with the same score. (Examples: cancer
+  // patient association whose members happen to be elderly.)
+  const SPECIFICITY = {
+    medical_patient_support: 4,
+    mental_health: 4,
+    refugee_migrant_support: 4,
+    homeless_shelter: 4,
+    domestic_violence: 4,
+    children_home: 3,
+    disability_support: 3,
+    soup_kitchen: 3,
+    student_housing: 3,
+    caritas: 2,
+    elderly_care: 2,
+    social_welfare: 1,
+  };
+  const entries = Object.entries(scores).map(([k, v]) => [k, v, SPECIFICITY[k] ?? 0]);
   if (entries.length === 0) {
     return { category: null, confidence: 0, rule: null, scores: {} };
   }
-  entries.sort((a, b) => b[1] - a[1]);
+  // Sort by score desc, then specificity desc.
+  entries.sort((a, b) => (b[1] - a[1]) || (b[2] - a[2]));
   const [bestCat, bestScore] = entries[0];
   const adjScore = Math.max(0, bestScore - penalty);
   if (adjScore <= 0) {
@@ -134,10 +163,13 @@ export function scoreRow(row) {
   else if (adjScore >= 3) confidence = 0.45;
   else confidence = 0.25;
 
-  // Margin: if the second-best is close, drop confidence one tier.
+  // Margin: if the second-best is close AND not on a less-specific category,
+  // drop confidence one tier. (When specificity already disambiguated, the
+  // tie isn't meaningful.)
   if (entries.length > 1) {
-    const [, secondScore] = entries[1];
-    if (bestScore - secondScore <= 1) {
+    const [, secondScore, secondSpec] = entries[1];
+    const bestSpec = entries[0][2];
+    if (bestScore - secondScore <= 1 && bestSpec === secondSpec) {
       confidence = Math.max(0.25, confidence - 0.2);
     }
   }
