@@ -5,7 +5,7 @@
 > changes. If you change anything meaningful, amend the matching section here
 > in the same commit.
 
-Last synced: 2026-04-17 (NGO setup, institution INSERT RLS, /dashboard/institution gate, profiles RLS recursion fix)
+Last synced: 2026-04-25 (profiles RLS recursion fix, ngo_registry import pipeline, +3 categories)
 
 ---
 
@@ -201,6 +201,14 @@ dajsrce/
 ├── scripts/seed.mjs               # Node script to seed institutions via service role
 ├── scripts/demo-elevate-company.mjs  # CLI: set company subscription_tier (demo/QA)
 ├── scripts/verify-demo-setup.mjs    # CLI: verify .env.local has demo keys (no secrets printed)
+├── scripts/import-registry.mjs    # Stream RegistarUdruga.csv → ngo_registry (idempotent)
+├── scripts/remap-categories.mjs   # Re-apply category-rules to ngo_registry in place
+├── scripts/geocode-registry.mjs   # Fill lat/lng on ngo_registry (Nominatim or HERE)
+├── scripts/promote-registry.mjs   # ngo_registry → institutions on quality bar
+├── scripts/apply-migration-013.mjs # Apply migration via direct pg connection (needs SUPABASE_DB_PASSWORD)
+├── scripts/lib/csv-stream.mjs     # Streaming RFC-4180 CSV parser (no deps)
+├── scripts/lib/category-rules.mjs # Shared mapping rules (CILJANE_SKUPINE/OPIS → category)
+├── scripts/lib/supabase-admin.mjs # Service-role client + cursor helpers
 ├── .env.example                   # Env template; copy to `.env.local`
 ├── next.config.ts                 # Image remote patterns only
 ├── postcss.config.mjs             # Tailwind v4 postcss plugin
@@ -293,6 +301,13 @@ Authoritative schema lives in `supabase/migrations/`:
   the self-referential `profiles` JOIN inside the "Institution reads signup
   volunteer profiles" policy (from migration 008) with a `SECURITY DEFINER`
   helper `current_user_institution_id()`. Idempotent.
+- `013_ngo_registry.sql` — adds the national NGO directory imported from
+  RegistarUdruga.csv. New table `ngo_registry` (raw CSV mirror keyed on OIB
+  + geocoded coords + category mapping); `import_state` resumable cursor;
+  `institutions.source ∈ {curated,registry,user_claimed}` plus
+  `institutions.registry_oib`; `served_population` relaxed to nullable.
+  pg_trgm indexes on naziv/sjediste for FT search. Curated rows are never
+  touched by the registry promoter.
 - `003_roles_shipping_company_actions.sql` — expands `profiles.role` to
   `individual | ngo | company | superadmin` (migrating any legacy
   `citizen`/`institution` rows), adds `company_name`/`contact_person`/
@@ -344,6 +359,11 @@ Authoritative schema lives in `supabase/migrations/`:
   `DONATION_TYPES`, `SHIPMENT_METHOD_LABELS`, `COMPANY_ROLE_LABELS`,
   `TAX_CATEGORIES`, `SDG_GOALS`, `SIZE_CLASSES`, `CSRD_WAVES`,
   `SUBSCRIPTION_TIERS`, `FRAMEWORK_LABELS`).
+- Institution categories (12 as of 2026-04-25): `homeless_shelter`,
+  `soup_kitchen`, `children_home`, `caritas`, `disability_support`,
+  `domestic_violence`, `elderly_care`, `social_welfare`,
+  `student_housing`, **`mental_health`**, **`refugee_migrant_support`**,
+  **`medical_patient_support`** (last three added for the registry import).
 - Framework compile: `src/lib/frameworks/` (`manifests.ts`, `compile.ts`,
   `datapoints.ts`, `types.ts`); ZIP build: `src/lib/exports/pack.ts`.
 - CSR reports: `src/lib/csr-report/` (`gather.ts`, `render-pdf.ts`, `render-docx.ts`).

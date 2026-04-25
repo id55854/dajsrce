@@ -8,7 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "demo:elevate": "node scripts/demo-elevate-company.mjs",
-    "demo:check": "node scripts/verify-demo-setup.mjs"
+    "demo:check": "node scripts/verify-demo-setup.mjs",
+    "registry:import": "node scripts/import-registry.mjs",
+    "registry:remap": "node scripts/remap-categories.mjs",
+    "registry:geocode": "node scripts/geocode-registry.mjs",
+    "registry:promote": "node scripts/promote-registry.mjs",
+    "registry:apply-migration": "node scripts/apply-migration-013.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.0",

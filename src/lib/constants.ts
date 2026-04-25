@@ -81,6 +81,27 @@ export const CATEGORY_CONFIG: Record<
     bgColor: "#eef2ff",
     icon: "GraduationCap",
   },
+  mental_health: {
+    label: "Mental health & addiction",
+    labelHr: "Mentalno zdravlje i ovisnosti",
+    color: "#0ea5e9",
+    bgColor: "#f0f9ff",
+    icon: "Brain",
+  },
+  refugee_migrant_support: {
+    label: "Refugee & migrant support",
+    labelHr: "Podrška izbjeglicama i migrantima",
+    color: "#a855f7",
+    bgColor: "#faf5ff",
+    icon: "Globe2",
+  },
+  medical_patient_support: {
+    label: "Patient & medical support",
+    labelHr: "Udruge pacijenata i bolesnika",
+    color: "#0d9488",
+    bgColor: "#f0fdfa",
+    icon: "HeartPulse",
+  },
 };
 
 export const DONATION_TYPES: Record<

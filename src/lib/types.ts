@@ -7,7 +7,10 @@ export type InstitutionCategory =
   | "domestic_violence"
   | "elderly_care"
   | "social_welfare"
-  | "student_housing";
+  | "student_housing"
+  | "mental_health"
+  | "refugee_migrant_support"
+  | "medical_patient_support";
 
 export type DonationType =
   | "clothes"
