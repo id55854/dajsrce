@@ -62,7 +62,7 @@ export interface Institution {
   drop_off_hours: string | null;
   accepts_donations: DonationType[];
   capacity: string | null;
-  served_population: string;
+  served_population: string | null;
   photo_url: string | null;
   is_verified: boolean;
   is_location_hidden: boolean;

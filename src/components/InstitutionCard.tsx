@@ -2,7 +2,7 @@
 
 import type { ComponentType } from "react";
 import { Institution } from "@/lib/types";
-import { CATEGORY_CONFIG, DONATION_TYPES } from "@/lib/constants";
+import { getCategoryConfig, DONATION_TYPES } from "@/lib/constants";
 import { BadgeCheck } from "lucide-react";
 import * as Icons from "lucide-react";
 import clsx from "clsx";
@@ -32,7 +32,7 @@ export function InstitutionCard({
   isSelected,
   onClick,
 }: InstitutionCardProps) {
-  const cat = CATEGORY_CONFIG[institution.category];
+  const cat = getCategoryConfig(institution.category);
 
   return (
     <button
@@ -73,20 +73,24 @@ export function InstitutionCard({
         </span>
       ) : null}
 
-      {institution.accepts_donations.length > 0 ? (
+      {institution.accepts_donations && institution.accepts_donations.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {institution.accepts_donations.map((dt) => (
-            <span
-              key={dt}
-              className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-            >
-              <LucideByName
-                name={DONATION_TYPES[dt].icon}
-                className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400"
-              />
-              {DONATION_TYPES[dt].label}
-            </span>
-          ))}
+          {institution.accepts_donations.map((dt) => {
+            const dtCfg = DONATION_TYPES[dt];
+            if (!dtCfg) return null;
+            return (
+              <span
+                key={dt}
+                className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+              >
+                <LucideByName
+                  name={dtCfg.icon}
+                  className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400"
+                />
+                {dtCfg.label}
+              </span>
+            );
+          })}
         </div>
       ) : null}
     </button>

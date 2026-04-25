@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import type { DonationType, Institution } from "@/lib/types";
-import { CATEGORY_CONFIG, DONATION_TYPES, ZAGREB_CENTER } from "@/lib/constants";
+import { CATEGORY_CONFIG, DONATION_TYPES, ZAGREB_CENTER, getCategoryConfig } from "@/lib/constants";
 
 const DONATION_TYPE_ORDER = Object.keys(DONATION_TYPES) as DonationType[];
 
@@ -411,7 +411,7 @@ function StepThree({
       ) : (
         <ul className="space-y-3">
           {results.map((inst) => {
-            const cat = CATEGORY_CONFIG[inst.category];
+            const cat = getCategoryConfig(inst.category);
             const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${inst.lat},${inst.lng}`;
             const tel =
               inst.phone != null

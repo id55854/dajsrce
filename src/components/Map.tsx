@@ -13,7 +13,7 @@ import {
 import L from "leaflet";
 import { useEffect, useMemo, useState } from "react";
 import type { Institution, InstitutionCategory, DonationType } from "@/lib/types";
-import { CATEGORY_CONFIG, ZAGREB_CENTER, DEFAULT_ZOOM } from "@/lib/constants";
+import { CATEGORY_CONFIG, ZAGREB_CENTER, DEFAULT_ZOOM, getCategoryConfig, FALLBACK_CATEGORY_CONFIG } from "@/lib/constants";
 
 const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
@@ -44,10 +44,12 @@ export function createCategoryIcon(color: string, size: number = 32, dark = fals
 }
 
 function buildIcons(dark: boolean) {
-  const icons = {} as Record<InstitutionCategory, L.DivIcon>;
+  const icons = {} as Record<string, L.DivIcon>;
   for (const key of Object.keys(CATEGORY_CONFIG) as InstitutionCategory[]) {
     icons[key] = createCategoryIcon(CATEGORY_CONFIG[key].color, 32, dark);
   }
+  // Fallback icon for any unknown category that may arrive from the DB.
+  icons["__fallback__"] = createCategoryIcon(FALLBACK_CATEGORY_CONFIG.color, 32, dark);
   return icons;
 }
 
@@ -146,8 +148,8 @@ export default function Map({
       />
       <MapFlyToSelection selectedId={selectedId} institutions={institutions} />
       {visible.map((inst) => {
-        const cat = CATEGORY_CONFIG[inst.category];
-        const icon = icons[inst.category];
+        const cat = getCategoryConfig(inst.category);
+        const icon = icons[inst.category] ?? icons["__fallback__"];
 
         if (inst.is_location_hidden) {
           const fill = cat.color;

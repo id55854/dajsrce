@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { Institution } from "@/lib/types";
-import { CATEGORY_CONFIG, DONATION_TYPES } from "@/lib/constants";
+import { getCategoryConfig, DONATION_TYPES } from "@/lib/constants";
 import {
   CheckCircle2,
   Clock,
@@ -34,7 +34,7 @@ export function InstitutionDetailPanel({
   onClose,
   showCloseButton = true,
 }: InstitutionDetailPanelProps) {
-  const cat = CATEGORY_CONFIG[institution.category];
+  const cat = getCategoryConfig(institution.category);
   const addressDisplay = institution.is_location_hidden
     ? `Location hidden for safety — ${institution.approximate_area ?? "—"}`
     : `${institution.address}, ${institution.city}`;
@@ -260,16 +260,27 @@ function DonationBadges({
 }: {
   accepts: Institution["accepts_donations"];
 }) {
+  if (!accepts || accepts.length === 0) {
+    return (
+      <p className="text-sm italic text-gray-500 dark:text-gray-400">
+        Contact this institution to ask what they accept.
+      </p>
+    );
+  }
   return (
     <div className="flex flex-wrap gap-2">
-      {accepts.map((type) => (
-        <span
-          key={type}
-          className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400"
-        >
-          {DONATION_TYPES[type].label}
-        </span>
-      ))}
+      {accepts.map((type) => {
+        const dt = DONATION_TYPES[type];
+        if (!dt) return null;
+        return (
+          <span
+            key={type}
+            className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400"
+          >
+            {dt.label}
+          </span>
+        );
+      })}
     </div>
   );
 }

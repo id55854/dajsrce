@@ -3,7 +3,7 @@
 import type { ComponentType } from "react";
 import { Need } from "@/lib/types";
 import type { InstitutionCategory } from "@/lib/types";
-import { CATEGORY_CONFIG, DONATION_TYPES } from "@/lib/constants";
+import { DONATION_TYPES, getCategoryConfig } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
 import * as Icons from "lucide-react";
 import { PledgeButton } from "./PledgeButton";
@@ -44,7 +44,7 @@ const urgencyStyles = {
 
 export function NeedCard({ need }: NeedCardProps) {
   const inst = need.institution;
-  const cat = inst ? CATEGORY_CONFIG[inst.category] : null;
+  const cat = inst ? getCategoryConfig(inst.category) : null;
   const urgency = urgencyStyles[need.urgency];
   const needed = need.quantity_needed ?? 0;
   const pledged = need.quantity_pledged;

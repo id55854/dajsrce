@@ -153,6 +153,22 @@ export const DONATION_TYPES: Record<
   time: { label: "Volunteering", labelHr: "Volontiranje", icon: "Clock" },
 };
 
+// Fallback config used when an institution has a category we don't recognise
+// (e.g. a row imported with a category newer than the deployed front-end).
+// Prevents undefined-property crashes when reading CATEGORY_CONFIG[cat].
+export const FALLBACK_CATEGORY_CONFIG = {
+  label: "Other",
+  labelHr: "Ostalo",
+  color: "#6b7280",
+  bgColor: "#f9fafb",
+  icon: "Building2",
+};
+
+export function getCategoryConfig(cat: string | null | undefined) {
+  if (!cat) return FALLBACK_CATEGORY_CONFIG;
+  return (CATEGORY_CONFIG as Record<string, typeof FALLBACK_CATEGORY_CONFIG>)[cat] ?? FALLBACK_CATEGORY_CONFIG;
+}
+
 export const ZAGREB_CENTER: [number, number] = [45.8131, 15.9775];
 export const DEFAULT_ZOOM = 13;
 
