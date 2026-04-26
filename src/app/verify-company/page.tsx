@@ -66,14 +66,30 @@ export default async function VerifyCompanyPage({
 
   // Confirm: stamp the verification row + company.verified_at, write audit, redirect.
   const now = new Date().toISOString();
-  await supabaseAdmin
+  const { error: vErr } = await supabaseAdmin
     .from("company_verifications")
     .update({ confirmed_at: now })
     .eq("id", row.id);
-  await supabaseAdmin
+  if (vErr) {
+    console.error("[/verify-company] failed to update verification row", vErr);
+    return (
+      <Status
+        icon="warn"
+        title={t("company.verification.error_generic")}
+        body={vErr.message}
+      />
+    );
+  }
+  const { error: cErr } = await supabaseAdmin
     .from("companies")
     .update({ verified_at: now, updated_at: now })
     .eq("id", row.company_id);
+  if (cErr) {
+    console.error("[/verify-company] failed to stamp companies.verified_at", cErr);
+    // Don't block — the verification row is already confirmed, we just couldn't
+    // stamp the visible flag. Surface a friendly success page anyway since the
+    // audit trail is intact and the next page load will refetch.
+  }
   await writeAuditLog(supabaseAdmin, {
     actor_profile_id: null,
     company_id: row.company_id,
@@ -83,28 +99,10 @@ export default async function VerifyCompanyPage({
     payload: { contact_email: row.contact_email },
   });
 
-  const { data: company } = await supabaseAdmin
-    .from("companies")
-    .select("slug")
-    .eq("id", row.company_id)
-    .maybeSingle();
-  const slug = (company?.slug as string | null) ?? null;
-  if (slug) {
-    redirect(`/dashboard/company/${slug}/settings?verified=1`);
-  }
-  // Fallback: render a success card if we somehow can't find the slug.
-  return (
-    <Status
-      icon="ok"
-      title={t("company.verification.confirmed_title")}
-      body={t("company.verification.confirmed_body").replace(
-        "{name}",
-        row.sudreg_legal_name
-      )}
-      href="/dashboard"
-      cta={t("company.verification.go_to_dashboard")}
-    />
-  );
+  // The settings route is /dashboard/company/settings (not slug-segmented);
+  // pass the company id via cid so the dashboard's resolveActiveCompany picks
+  // the right tenant on landing.
+  redirect(`/dashboard/company/settings?cid=${row.company_id}&verified=1`);
 }
 
 function Status({
