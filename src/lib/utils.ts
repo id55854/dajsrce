@@ -61,3 +61,15 @@ export function formatDistance(km: number): string {
   if (km < 10) return `${km.toFixed(1)} km`;
   return `${Math.round(km)} km`;
 }
+
+/**
+ * Diacritic-insensitive lowercase. Strips Croatian-specific marks so users can
+ * type "kriz" / "Križ" / "KRIŽ" interchangeably.
+ */
+export function normalizeText(s: string): string {
+  if (!s) return "";
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
