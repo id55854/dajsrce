@@ -25,6 +25,16 @@
     "switch_to_en": "English",
     "aria_switch": "Change language"
   },
+  "nav": {
+    "map": "Map",
+    "needs": "Needs",
+    "volunteer": "Volunteer",
+    "find_help": "Find NGOs"
+  },
+  "quick_start": {
+    "page_title": "Find NGOs to help",
+    "page_subtitle": "Pick what you can donate and we'll show institutions nearby that need it."
+  },
   "company": {
     "role_tile_title": "I represent a company",
     "role_tile_subtitle": "Company / CSR programme",
@@ -143,7 +153,10 @@
   },
   "institution": {
     "volunteers_title": "Volunteer roster",
-    "volunteers_subtitle": "Check volunteers in or out. Hours are logged on check-out. Share the QR code for self check-in.",
+    "volunteers_subtitle": "For NGO staff running a volunteer event: check people in when they arrive and out when they leave — hours are recorded automatically. Share the QR code under each event so volunteers can self check-in.",
+    "volunteers_no_access_title": "NGO accounts only",
+    "volunteers_no_access_body": "This page is for institution staff running volunteer events. Your account is not linked to an NGO.",
+    "volunteers_no_access_back": "Back to dashboard",
     "volunteers_back": "Back",
     "volunteers_loading": "Loading…",
     "volunteers_empty": "No sign-ups yet. Post a volunteer event first.",

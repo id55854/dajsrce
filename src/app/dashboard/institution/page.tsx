@@ -238,10 +238,9 @@ export default function InstitutionDashboardPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Description
+                    Description <span className="text-xs font-normal text-gray-400">(optional)</span>
                   </label>
                   <textarea
-                    required
                     rows={3}
                     value={needDescription}
                     onChange={(e) => setNeedDescription(e.target.value)}
@@ -353,10 +352,9 @@ export default function InstitutionDashboardPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Description
+                    Description <span className="text-xs font-normal text-gray-400">(optional)</span>
                   </label>
                   <textarea
-                    required
                     rows={3}
                     value={evDescription}
                     onChange={(e) => setEvDescription(e.target.value)}

@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       .insert({
         institution_id: profile.institution_id,
         title,
-        description,
+        description: typeof description === "string" && description.trim() ? description.trim() : null,
         donation_type,
         urgency: urgency || "routine",
         quantity_needed: quantity_needed || null,

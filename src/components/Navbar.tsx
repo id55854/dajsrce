@@ -12,12 +12,13 @@ import { formatDistanceToNow } from "date-fns";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { CompanySwitcher, type CompanySwitcherItem } from "@/components/CompanySwitcher";
+import { useT } from "@/i18n/client";
 
 const navLinks = [
-  { href: "/map", label: "Map" },
-  { href: "/needs", label: "Needs" },
-  { href: "/volunteer", label: "Volunteer" },
-  { href: "/quick-start", label: "Quick Start" },
+  { href: "/map", labelKey: "nav.map" },
+  { href: "/needs", labelKey: "nav.needs" },
+  { href: "/volunteer", labelKey: "nav.volunteer" },
+  { href: "/quick-start", labelKey: "nav.find_help" },
 ] as const;
 
 function NavLink({ href, label }: { href: string; label: string }) {
@@ -159,6 +160,7 @@ export function Navbar() {
   const [meProfile, setMeProfile] = useState<{ name: string; email: string } | null>(null);
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
@@ -307,8 +309,8 @@ export function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex" aria-label="Main navigation">
-          {navLinks.map(({ href, label }) => (
-            <NavLink key={href} href={href} label={label} />
+          {navLinks.map(({ href, labelKey }) => (
+            <NavLink key={href} href={href} label={t(labelKey)} />
           ))}
         </nav>
 
@@ -414,7 +416,7 @@ export function Navbar() {
           className="border-t border-gray-100 bg-white px-4 py-4 shadow-inner dark:border-gray-800 dark:bg-gray-950 md:hidden"
         >
           <nav className="flex flex-col gap-3" aria-label="Mobile navigation">
-            {navLinks.map(({ href, label }) => {
+            {navLinks.map(({ href, labelKey }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <Link
@@ -426,7 +428,7 @@ export function Navbar() {
                   )}
                   onClick={() => setMobileOpen(false)}
                 >
-                  {label}
+                  {t(labelKey)}
                 </Link>
               );
             })}

@@ -202,7 +202,12 @@ export async function POST(req: NextRequest) {
       match_pledge_id: matchPledgeId,
     });
   } catch (e) {
+    // Surface the underlying DB error so failures don't get masked behind a
+    // generic 500. The actual message (e.g. "infinite recursion detected in
+    // policy for relation profiles") is the user's only signal that a
+    // migration is missing or RLS is misconfigured.
     const msg = e instanceof Error ? e.message : "Failed to create pledge";
+    console.error("[/api/pledges POST] failed:", msg, e);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

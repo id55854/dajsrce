@@ -22,14 +22,20 @@ export default function InstitutionVolunteersPage() {
   const [signups, setSignups] = useState<SignupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [qrByEvent, setQrByEvent] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setAccessDenied(false);
     try {
       const res = await fetch("/api/institution/volunteer-signups", { credentials: "include" });
+      if (res.status === 401 || res.status === 403) {
+        setAccessDenied(true);
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load");
       const list = (data.signups ?? []) as SignupRow[];
@@ -119,6 +125,22 @@ export default function InstitutionVolunteersPage() {
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             {t("institution.volunteers_loading")}
           </p>
+        ) : accessDenied ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm dark:border-amber-900 dark:bg-amber-950/30">
+            <h2 className="mb-2 text-base font-semibold text-amber-900 dark:text-amber-200">
+              {t("institution.volunteers_no_access_title")}
+            </h2>
+            <p className="mb-4 text-amber-800 dark:text-amber-300">
+              {t("institution.volunteers_no_access_body")}
+            </p>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              {t("institution.volunteers_no_access_back")}
+            </Link>
+          </div>
         ) : error ? (
           <p className="text-sm text-red-600">{error}</p>
         ) : signups.length === 0 ? (

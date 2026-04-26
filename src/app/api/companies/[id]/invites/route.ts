@@ -3,6 +3,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { addDays, generateToken, requireMembership } from "@/lib/companies";
 import { writeAuditLog } from "@/lib/audit";
+import { sendCompanyInviteEmail } from "@/lib/email/invite";
+import { getLocale } from "@/i18n/server";
+import type { Locale } from "@/lib/types";
 
 export async function GET(
   _req: NextRequest,
@@ -101,7 +104,49 @@ export async function POST(
     accept_url: buildAcceptUrl(row.token),
   }));
 
-  return NextResponse.json({ invites }, { status: 201 });
+  // Look up company display name + inviter display name once for the emails.
+  const [{ data: company }, { data: inviterProfile }] = await Promise.all([
+    supabaseAdmin
+      .from("companies")
+      .select("legal_name, display_name")
+      .eq("id", id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("profiles")
+      .select("name, email")
+      .eq("id", user!.id)
+      .maybeSingle(),
+  ]);
+  const companyName =
+    (company?.display_name as string | null) ?? (company?.legal_name as string | null) ?? "DajSrce";
+  const inviterName =
+    (inviterProfile?.name as string | null) ?? (inviterProfile?.email as string | null) ?? "A teammate";
+  const locale: Locale = await getLocale();
+
+  // Fire-and-forget the emails. Capture per-invite outcome so the dashboard
+  // can show a "delivered" state, but don't fail the whole request if one
+  // address bounces — the row + accept_url are still created.
+  const emailResults = await Promise.all(
+    invites.map(async (inv) => {
+      const result = await sendCompanyInviteEmail({
+        to: inv.email,
+        locale,
+        companyName,
+        inviterName,
+        role: inv.role,
+        acceptUrl: inv.accept_url,
+        expiresAt: inv.expires_at,
+      });
+      if (!result.sent) {
+        console.warn(
+          `Invite email not sent for ${inv.email}: ${result.error ?? "unknown error"}`
+        );
+      }
+      return { id: inv.id, email: inv.email, ...result };
+    })
+  );
+
+  return NextResponse.json({ invites, email_results: emailResults }, { status: 201 });
 }
 
 function buildAcceptUrl(token: string): string {

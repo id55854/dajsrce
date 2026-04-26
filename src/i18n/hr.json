@@ -25,6 +25,16 @@
     "switch_to_en": "English",
     "aria_switch": "Promijeni jezik"
   },
+  "nav": {
+    "map": "Karta",
+    "needs": "Potrebe",
+    "volunteer": "Volontiraj",
+    "find_help": "Pronađi NGO"
+  },
+  "quick_start": {
+    "page_title": "Pronađi NGO za pomoć",
+    "page_subtitle": "Odaberi što možeš donirati i pronađi institucije u svojoj blizini koje to trebaju."
+  },
   "company": {
     "role_tile_title": "Predstavljam tvrtku",
     "role_tile_subtitle": "Tvrtka / CSR program",
@@ -143,7 +153,10 @@
   },
   "institution": {
     "volunteers_title": "Volonterski popis",
-    "volunteers_subtitle": "Prijava i odjava volontera. Sati se bilježe pri odjavi. Dijelite QR za samoprijavu.",
+    "volunteers_subtitle": "Stranica za NGO osoblje: prijavite volontere kad dođu i odjavite ih kad završe — sati rada se automatski bilježe. QR kod ispod svakog događaja dijelite s volonterima da se sami prijave.",
+    "volunteers_no_access_title": "Samo za NGO račune",
+    "volunteers_no_access_body": "Ova stranica je za osoblje udruga koje vode volonterske događaje. Vi nemate povezan NGO račun.",
+    "volunteers_no_access_back": "Natrag na nadzornu ploču",
     "volunteers_back": "Natrag",
     "volunteers_loading": "Učitavanje…",
     "volunteers_empty": "Još nema prijava. Prvo objavite volonterski događaj.",

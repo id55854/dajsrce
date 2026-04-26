@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       .insert({
         institution_id: profile.institution_id,
         title,
-        description,
+        description: typeof description === "string" && description.trim() ? description.trim() : null,
         event_date,
         start_time,
         end_time,
