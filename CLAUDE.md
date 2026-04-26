@@ -5,7 +5,7 @@
 > changes. If you change anything meaningful, amend the matching section here
 > in the same commit.
 
-Last synced: 2026-04-25 (profiles + volunteer_signups RLS recursion fix, ngo_registry import pipeline, +3 categories, defensive CATEGORY_CONFIG)
+Last synced: 2026-04-26 (company verification via SudReg + email; volunteer signup live counter + calendar; Find NGOs reverse-geocode; locale switch via server action; consolidated RLS fix migration 016)
 
 ---
 
@@ -164,6 +164,9 @@ dajsrce/
 │   │       │   ├── [id]/campaigns/route.ts                  # GET + POST campaigns
 │   │       │   ├── [id]/receipts/route.ts                   # GET list, POST generate (gated tier + flag)
 │   │       │   ├── [id]/receipts/[receiptId]/download/route.ts  # signed URL ?format=pdf|xml
+│   │       │   ├── [id]/verification/route.ts                  # GET status, DELETE cancel pending
+│   │       │   ├── [id]/verification/lookup/route.ts            # POST OIB → SudReg snapshot (no persist)
+│   │       │   ├── [id]/verification/start/route.ts             # POST start verification + email
 │   │       │   └── invite/accept/route.ts                   # POST accept invite by token
 │   │       └── campaigns/[id]/    # PATCH campaign (owner/admin only)
 │   ├── i18n/                      # In-repo i18n (hr default, en fallback)
@@ -252,6 +255,9 @@ Declared in `.env.local` (git-ignored). Keep this list in sync with code:
 | `STRIPE_PRICE_ENTERPRISE`                | Server      | 1     | Plan lookup (Phase 1+)                                                   |
 | `RESEND_API_KEY`                         | Server      | 1     | Transactional email (Phase 1+)                                           |
 | `ALLOW_DEMO_BILLING`                     | Server      | demo  | When `true`, owners/admins can set `subscription_tier` from **Settings → Billing** without Stripe (`POST /api/demo/apply-tier`). **Never enable in production.** |
+| `SUDREG_CLIENT_ID`                       | Server      | 0     | OAuth2 client_id for Croatian court registry. Trailing `..` is part of the value. From https://sudreg-data.gov.hr |
+| `SUDREG_CLIENT_SECRET`                   | Server      | 0     | OAuth2 client_secret for the same. Used by `src/lib/sudreg/client.ts`. |
+| `SUDREG_API_URL`                         | Server      | 0     | Defaults to `https://sudreg-data.gov.hr`. Override for the test endpoint. |
 
 Do **not** expose the service role key to the client. `supabaseAdmin` is
 imported dynamically inside server route handlers only
@@ -317,6 +323,21 @@ Authoritative schema lives in `supabase/migrations/`:
   `institutions.registry_oib`; `served_population` relaxed to nullable.
   pg_trgm indexes on naziv/sjediste for FT search. Curated rows are never
   touched by the registry promoter.
+- `015_optional_descriptions.sql` — drops NOT NULL on `needs.description`
+  and `volunteer_events.description` so NGOs can post without a description.
+  Also folded into 016. Idempotent.
+- `016_rls_recursion_consolidated_fix.sql` — self-contained re-apply of the
+  SECURITY DEFINER helpers and rewritten policies from migrations 012/013
+  (which were only partially applied to the live DB) plus the description
+  nullability change from 015. Resolves "infinite recursion detected in
+  policy for relation profiles" on NGO need / event creation and on any
+  pledge insert. Idempotent.
+- `017_company_verification.sql` — Phase 0 verification: new
+  `company_verifications` table (snapshot from SudReg + email-confirm
+  token, partial unique index for one in-flight per company). Successful
+  confirmation stamps `companies.verified_at` (column already existed
+  since migration 004). RLS allows members to read their company's row;
+  inserts and confirmations go through service-role API.
 - `003_roles_shipping_company_actions.sql` — expands `profiles.role` to
   `individual | ngo | company | superadmin` (migrating any legacy
   `citizen`/`institution` rows), adds `company_name`/`contact_person`/

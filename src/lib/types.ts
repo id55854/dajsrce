@@ -266,6 +266,27 @@ export interface CompanyInvite {
   created_at: string;
 }
 
+export interface CompanyVerification {
+  id: string;
+  company_id: string;
+  sudreg_legal_name: string;
+  sudreg_short_name: string | null;
+  sudreg_address: string | null;
+  sudreg_city: string | null;
+  sudreg_legal_form: string | null;
+  sudreg_status: number | null;
+  sudreg_mb: string | null;
+  sudreg_mbs: string | null;
+  sudreg_oib: string;
+  sudreg_fetched_at: string;
+  contact_email: string;
+  expires_at: string;
+  confirmed_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  // token + confirmed_ip are server-only and never returned to clients.
+}
+
 export interface Campaign {
   id: string;
   company_id: string;

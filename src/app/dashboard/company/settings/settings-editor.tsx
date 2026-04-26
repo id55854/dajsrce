@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import clsx from "clsx";
+import { BadgeCheck, Loader2, Save, Settings as SettingsIcon } from "lucide-react";
 import { useT, useLocale } from "@/i18n/client";
 import { SIZE_CLASSES, SUBSCRIPTION_TIERS } from "@/lib/constants";
 import { flags } from "@/lib/flags";
 import type { Company, CompanyRole, SizeClass } from "@/lib/types";
 import { ceilingPct, headroomEur } from "@/lib/tax";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BillingPanel } from "./billing-panel";
+import { CompanyVerificationSection } from "@/components/CompanyVerificationSection";
 
 type Props = {
   company: Company;
@@ -16,11 +18,25 @@ type Props = {
   allowDemoBilling?: boolean;
 };
 
+type Tab = "general" | "verification";
+
 export function SettingsEditor({ company, myRole, allowDemoBilling = false }: Props) {
   const t = useT();
   const { locale } = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const canManage = myRole === "owner" || myRole === "admin";
+
+  const [tab, setTab] = useState<Tab>(
+    searchParams.get("verified") === "1" ? "verification" : "general"
+  );
+
+  // If the verify-company landing redirected here with ?verified=1, jump to
+  // the verification tab so the user sees their freshly-stamped state.
+  useEffect(() => {
+    if (searchParams.get("verified") === "1") setTab("verification");
+  }, [searchParams]);
+
 
   const [displayName, setDisplayName] = useState(company.display_name ?? "");
   const [tagline, setTagline] = useState(company.tagline ?? "");
@@ -80,11 +96,51 @@ export function SettingsEditor({ company, myRole, allowDemoBilling = false }: Pr
   const headroom = headroomEur(priorRevenue ? Number(priorRevenue) : null);
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-        {t("company.settings_title")}
-      </h2>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          {t("company.settings_title")}
+        </h2>
+        {company.verified_at ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+            <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+            {t("company.verification.verified_badge")}
+          </span>
+        ) : null}
+      </div>
 
+      <nav
+        className="flex gap-1 rounded-full border border-gray-200 bg-white p-1 text-sm shadow-sm dark:border-gray-800 dark:bg-gray-900"
+        role="tablist"
+        aria-label="Settings tabs"
+      >
+        <TabButton active={tab === "general"} onClick={() => setTab("general")}>
+          <SettingsIcon className="h-4 w-4" aria-hidden />
+          {locale === "hr" ? "Postavke" : "Settings"}
+        </TabButton>
+        <TabButton active={tab === "verification"} onClick={() => setTab("verification")}>
+          <BadgeCheck className="h-4 w-4" aria-hidden />
+          {t("company.verification.tab_label")}
+        </TabButton>
+      </nav>
+
+      {tab === "verification" ? (
+        <CompanyVerificationSection
+          companyId={company.id}
+          companySlug={company.slug}
+          companyDomain={null}
+        />
+      ) : (
+        <GeneralTab />
+      )}
+    </div>
+  );
+
+  // Existing settings tree, kept as an inner function so we can show / hide
+  // it via the tab without changing surrounding state.
+  function GeneralTab() {
+    return (
+      <div className="space-y-8">
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
           {t("company.settings_brand_section")}
@@ -266,7 +322,35 @@ export function SettingsEditor({ company, myRole, allowDemoBilling = false }: Pr
           </button>
         </div>
       ) : null}
-    </div>
+      </div>
+    );
+  }
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={clsx(
+        "inline-flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+        active
+          ? "bg-red-500 text-white shadow-sm"
+          : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
