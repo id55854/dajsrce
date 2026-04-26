@@ -3,7 +3,7 @@
 > Shared context for every AI agent on this repo. If you change anything
 > meaningful, amend the matching section here in the same commit.
 
-Last synced: 2026-04-26 (company verification via SudReg + email; volunteer signup live counter + calendar; Find NGOs reverse-geocode; locale switch via server action; consolidated RLS fix migration 016)
+Last synced: 2026-04-27 (restore "/" → "/map" redirect; company verification via SudReg + email; volunteer signup live counter + calendar; Find NGOs reverse-geocode; locale switch via server action; consolidated RLS fix migration 016)
 
 ---
 
@@ -94,7 +94,8 @@ dajsrce/
 │   ├── middleware.ts              # Supabase SSR session refresh on every request
 │   ├── app/
 │   │   ├── layout.tsx             # Root HTML, theme bootstrap, AccessibilityMenu, LocaleProvider
-│   │   ├── page.tsx               # "/" -> "/map"
+│   │   ├── page.tsx               # "/" -> "/map" (server redirect)
+│   │   ├── hub/page.tsx           # Legacy 4-card hub UI (Map/Needs/Volunteer/Dashboard); not in navbar
 │   │   ├── globals.css            # Tailwind entry + dark mode + a11y overrides
 │   │   ├── actions/locale.ts      # Server action: setLocaleAction (cookies + revalidatePath)
 │   │   ├── map/                   # Interactive Leaflet map + list view
