@@ -12,6 +12,8 @@ import {
   Clock,
   Droplets,
   ExternalLink,
+  Loader2,
+  LocateFixed,
   MapPin,
   Pencil,
   Phone,
@@ -21,7 +23,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import type { DonationType, Institution } from "@/lib/types";
-import { CATEGORY_CONFIG, DONATION_TYPES, ZAGREB_CENTER, getCategoryConfig } from "@/lib/constants";
+import { DONATION_TYPES, ZAGREB_CENTER, getCategoryConfig } from "@/lib/constants";
 
 const DONATION_TYPE_ORDER = Object.keys(DONATION_TYPES) as DonationType[];
 
@@ -54,6 +56,29 @@ function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): num
 
 type RankedInstitution = Institution & { distanceKm: number };
 
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  // Browser-side reverse geocode via Nominatim (no key needed). Best-effort —
+  // failures don't block the search; we just skip the address feedback.
+  try {
+    const url =
+      "https://nominatim.openstreetmap.org/reverse?" +
+      new URLSearchParams({
+        lat: String(lat),
+        lon: String(lng),
+        format: "json",
+        zoom: "16",
+      }).toString();
+    const res = await fetch(url, {
+      headers: { "Accept-Language": "hr,en" },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { display_name?: string };
+    return typeof data.display_name === "string" ? data.display_name : null;
+  } catch {
+    return null;
+  }
+}
+
 export function QuickStartWizard() {
   const [step, setStep] = useState(1);
   const [selected, setSelected] = useState<Set<DonationType>>(new Set());
@@ -61,6 +86,8 @@ export function QuickStartWizard() {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLng, setUserLng] = useState<number | null>(null);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [resolvingAddress, setResolvingAddress] = useState(false);
   const [usedZagrebFallback, setUsedZagrebFallback] = useState(false);
   const [manualLocation, setManualLocation] = useState("");
   const [results, setResults] = useState<RankedInstitution[]>([]);
@@ -85,23 +112,40 @@ export function QuickStartWizard() {
 
   const requestLocation = useCallback(() => {
     setGeoError(null);
-    if (!navigator.geolocation) {
+    setUserAddress(null);
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
       setGeoError("Geolocation is not supported in this browser.");
       return;
     }
     setGeoLoading(true);
+    // Same options as the Map page (src/app/map/page.tsx) so both surfaces
+    // resolve to the same coordinates — most importantly maximumAge: 60000
+    // which lets the browser reuse a recent fix rather than forcing a fresh
+    // (and often less accurate) acquisition.
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLat(pos.coords.latitude);
-        setUserLng(pos.coords.longitude);
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setUserLat(lat);
+        setUserLng(lng);
         setUsedZagrebFallback(false);
         setGeoLoading(false);
+        setResolvingAddress(true);
+        const addr = await reverseGeocode(lat, lng);
+        setUserAddress(addr);
+        setResolvingAddress(false);
       },
-      () => {
+      (err) => {
         setGeoLoading(false);
-        setGeoError("Unable to get location. Check permissions or enter a neighborhood.");
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied. Enable it in your browser settings or enter a neighborhood below."
+            : err.code === err.TIMEOUT
+            ? "Locating took too long. Try again or enter a neighborhood below."
+            : "Unable to get location. Check permissions or enter a neighborhood."
+        );
       },
-      { enableHighAccuracy: true, timeout: 12_000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   }, []);
 
@@ -122,23 +166,20 @@ export function QuickStartWizard() {
     setFetchLoading(true);
     setFetchError(null);
     try {
-      const responses = await Promise.all(
-        types.map((donation_type) =>
-          fetch(
-            `/api/institutions?donation_type=${encodeURIComponent(donation_type)}`
-          ).then(async (r) => {
-            if (!r.ok) throw new Error(await r.text());
-            return r.json() as Promise<{ institutions: Institution[] }>;
-          })
-        )
+      // One fetch for the full institution catalogue, filter client-side.
+      // Cheaper than N round-trips and lets us match orgs that accept ANY
+      // of the selected types (the previous approach already deduped via a
+      // Map but did N HTTP calls; the union of accepted_types is the same).
+      const res = await fetch("/api/institutions");
+      if (!res.ok) throw new Error(await res.text());
+      const { institutions } = (await res.json()) as { institutions: Institution[] };
+
+      const wanted = new Set(types);
+      const matching = institutions.filter((inst) =>
+        (inst.accepts_donations ?? []).some((t) => wanted.has(t as DonationType))
       );
-      const byId = new Map<string, Institution>();
-      for (const { institutions } of responses) {
-        for (const inst of institutions) {
-          byId.set(inst.id, inst);
-        }
-      }
-      const ranked: RankedInstitution[] = [...byId.values()].map((inst) => ({
+
+      const ranked: RankedInstitution[] = matching.map((inst) => ({
         ...inst,
         distanceKm: distanceKm(lat!, lng!, inst.lat, inst.lng),
       }));
@@ -193,6 +234,8 @@ export function QuickStartWizard() {
             manualLocation={manualLocation}
             onManualChange={setManualLocation}
             hasCoords={userLat !== null && userLng !== null}
+            address={userAddress}
+            resolvingAddress={resolvingAddress}
           />
         ) : null}
         {step === 3 ? (
@@ -243,6 +286,8 @@ export function QuickStartWizard() {
               setSelected(new Set());
               setUserLat(null);
               setUserLng(null);
+              setUserAddress(null);
+              setResolvingAddress(false);
               setManualLocation("");
               setResults([]);
               setFetchError(null);
@@ -314,6 +359,8 @@ function StepTwo({
   manualLocation,
   onManualChange,
   hasCoords,
+  address,
+  resolvingAddress,
 }: {
   geoLoading: boolean;
   geoError: string | null;
@@ -321,6 +368,8 @@ function StepTwo({
   manualLocation: string;
   onManualChange: (v: string) => void;
   hasCoords: boolean;
+  address: string | null;
+  resolvingAddress: boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -334,8 +383,18 @@ function StepTwo({
         disabled={geoLoading}
         className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-red-100 bg-red-50/80 px-4 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60"
       >
-        <MapPin className="h-4 w-4" />
-        {geoLoading ? "Getting location…" : "Use my location"}
+        {geoLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : hasCoords ? (
+          <LocateFixed className="h-4 w-4" />
+        ) : (
+          <MapPin className="h-4 w-4" />
+        )}
+        {geoLoading
+          ? "Getting location…"
+          : hasCoords
+          ? "Re-locate me"
+          : "Use my location"}
       </button>
       {geoError ? (
         <p className="text-sm text-amber-700" role="alert">
@@ -343,7 +402,30 @@ function StepTwo({
         </p>
       ) : null}
       {hasCoords ? (
-        <p className="text-sm text-emerald-700">Location saved.</p>
+        <div
+          className="flex items-start gap-2 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
+          role="status"
+        >
+          <LocateFixed className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">We found you here:</p>
+            {resolvingAddress ? (
+              <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-emerald-800 dark:text-emerald-300">
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                Resolving address…
+              </p>
+            ) : address ? (
+              <p className="mt-0.5 break-words text-xs">{address}</p>
+            ) : (
+              <p className="mt-0.5 text-xs italic text-emerald-800/80 dark:text-emerald-300/80">
+                Address could not be resolved, but coordinates are saved.
+              </p>
+            )}
+            <p className="mt-1 text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
+              Wrong location? Click <span className="font-semibold">Re-locate me</span> above or type a neighborhood below.
+            </p>
+          </div>
+        </div>
       ) : null}
       <div>
         <label
