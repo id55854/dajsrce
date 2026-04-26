@@ -1,5 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export async function GET() {
+  try {
+    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ signups: [] });
+    }
+
+    const { data, error } = await supabase
+      .from("volunteer_signups")
+      .select("event_id, checked_in_at, checked_out_at")
+      .eq("user_id", user.id);
+
+    if (error) throw error;
+    return NextResponse.json({ signups: data ?? [] });
+  } catch {
+    return NextResponse.json({ signups: [] });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");

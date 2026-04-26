@@ -3,11 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import type { InstitutionCategory, VolunteerEvent } from "@/lib/types";
+import clsx from "clsx";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { AuthActionDialog } from "@/components/AuthActionDialog";
+
+function clsxRing(isRegistered: boolean): string {
+  return clsx(
+    "flex h-full min-h-0 flex-col rounded-xl border bg-white p-5 shadow-sm transition-shadow dark:bg-gray-900",
+    isRegistered
+      ? "border-emerald-300 ring-2 ring-emerald-200/70 dark:border-emerald-800 dark:ring-emerald-900/40"
+      : "border-gray-100 dark:border-gray-800"
+  );
+}
 
 export type VolunteerEventCardProps = {
   event: Omit<VolunteerEvent, "institution"> & {
@@ -19,24 +29,38 @@ export type VolunteerEventCardProps = {
       city: string;
     };
   };
-  onSignUp?: () => void;
+  /**
+   * Source-of-truth flag from the page: caller has already confirmed this
+   * user is signed up. Renders the "Already registered" banner unconditionally.
+   */
+  isRegistered?: boolean;
+  /**
+   * Called after a successful sign-up (or after the API reports 409 duplicate).
+   * The parent should bump volunteers_signed_up locally and add the event id
+   * to its registered set so the UI updates without a page refresh.
+   */
+  onSignUp?: (eventId: string) => void;
   /** When true, hides API sign-up; use `readOnlyHref` for a CTA link (e.g. pitch pages). */
   readOnly?: boolean;
   /** Label when `readOnly` is true (plain text or link label). */
   readOnlyLabel?: string;
   /** When set with `readOnly`, renders a primary red link instead of a muted note. */
   readOnlyHref?: string;
+  /** Optional id passed through to the article element so the calendar can scroll to it. */
+  htmlId?: string;
 };
 
 export function VolunteerEventCard({
   event,
+  isRegistered = false,
   onSignUp,
   readOnly,
   readOnlyLabel,
   readOnlyHref,
+  htmlId,
 }: VolunteerEventCardProps) {
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<"idle" | "success" | "error" | "duplicate">("idle");
+  const [errorState, setErrorState] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   const institution = event.institution;
@@ -63,6 +87,7 @@ export function VolunteerEventCard({
     }
 
     setLoading(true);
+    setErrorState(false);
     try {
       const res = await fetch("/api/volunteer-signups", {
         method: "POST",
@@ -71,21 +96,24 @@ export function VolunteerEventCard({
         body: JSON.stringify({ event_id: event.id }),
       });
       if (res.status === 409) {
-        setStatus("duplicate");
+        // Already registered (state had drifted out of sync). Reflect reality.
+        onSignUp?.(event.id);
         return;
       }
       if (!res.ok) throw new Error();
-      setStatus("success");
-      onSignUp?.();
+      onSignUp?.(event.id);
     } catch {
-      setStatus("error");
+      setErrorState(true);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <article className="flex h-full min-h-0 flex-col rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <article
+      id={htmlId}
+      className={clsxRing(isRegistered)}
+    >
       <div className="flex min-h-0 flex-1 flex-col">
         {institution ? (
           <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -151,23 +179,27 @@ export function VolunteerEventCard({
                 {readOnlyLabel ?? "Sign in to continue"}
               </p>
             )
-          ) : status === "success" ? (
-            <p className="rounded-full bg-emerald-50 px-5 py-2.5 text-center text-sm font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-              Signed up!
-            </p>
-          ) : status === "duplicate" ? (
-            <p className="rounded-full bg-amber-50 px-5 py-2.5 text-center text-sm font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-              Already signed up
+          ) : isRegistered ? (
+            <p className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-50 px-5 py-2.5 text-center text-sm font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+              <CheckCircle2 className="h-4 w-4" aria-hidden />
+              You&rsquo;re registered
             </p>
           ) : (
-            <button
-              type="button"
-              onClick={handleSignUp}
-              disabled={loading}
-              className="w-full rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-60"
-            >
-              {loading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Sign Up"}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleSignUp}
+                disabled={loading}
+                className="w-full rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-60"
+              >
+                {loading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Sign Up"}
+              </button>
+              {errorState ? (
+                <p className="mt-2 text-center text-xs text-red-600">
+                  Sign-up failed. Please try again.
+                </p>
+              ) : null}
+            </>
           )}
         </div>
       </div>
