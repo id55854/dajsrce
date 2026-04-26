@@ -349,7 +349,7 @@ export default function MapPage() {
 
         <div
           ref={searchContainerRef}
-          className="absolute left-4 right-4 top-4 z-[400] md:right-auto md:w-[28rem]"
+          className="absolute left-1/2 top-4 z-[400] w-[calc(100%-7rem)] max-w-[28rem] -translate-x-1/2"
         >
           <div className="relative flex items-center">
             <Search
@@ -437,7 +437,7 @@ export default function MapPage() {
           disabled={locating}
           aria-label="Locate me"
           title="Locate me"
-          className="absolute bottom-4 right-4 z-[400] flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50 disabled:opacity-60 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-700 dark:hover:bg-gray-800"
+          className="absolute bottom-10 right-4 z-[400] flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50 disabled:opacity-60 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-700 dark:hover:bg-gray-800"
         >
           {locating ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -458,7 +458,7 @@ export default function MapPage() {
         {geoError ? (
           <div
             role="alert"
-            className="absolute bottom-20 right-4 z-[400] max-w-[80%] rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white shadow-lg"
+            className="absolute bottom-24 right-4 z-[400] max-w-[80%] rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white shadow-lg"
           >
             {geoError}
           </div>
