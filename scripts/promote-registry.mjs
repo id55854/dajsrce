@@ -5,7 +5,10 @@
 //   * oblik_udruzivanja in (UDRUGA, SAVEZ UDRUGA)
 //   * mapped_category not null AND mapped_confidence >= 0.6
 //   * lat/lng present AND geocode_confidence in (exact, street)
-//   * has at least one contact channel: mail OR web_stranica
+//
+// Note: contact info (mail / web_stranica) is no longer required — orgs are
+// still searchable by name, address, and category even without a public
+// channel; users can claim them later to add contact details.
 //
 // Idempotent: if a registry row already has institution_id set, we update the
 // linked row in place (when source != 'curated'). Curated rows are NEVER
@@ -63,7 +66,6 @@ while (scanned < LIMIT) {
     if ((r.mapped_confidence ?? 0) < MIN_CONF) { bump("low_confidence"); skipped++; continue; }
     if (r.lat == null || r.lng == null) { bump("no_geocode"); skipped++; continue; }
     if (!ALLOWED_GEOCODE.has(r.geocode_confidence)) { bump("geocode_too_loose"); skipped++; continue; }
-    if (!r.mail && !r.web_stranica) { bump("no_contact"); skipped++; continue; }
 
     const description = (r.opis_djelatnosti || "").slice(0, 4000) || (r.naziv || "");
     const served = derivedServedPopulation(r.ciljane_skupine);
