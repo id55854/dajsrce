@@ -3,7 +3,7 @@
 > Shared context for every AI agent on this repo. If you change anything
 > meaningful, amend the matching section here in the same commit.
 
-Last synced: 2026-04-27 (restore "/" → "/map" redirect; company verification via SudReg + email; volunteer signup live counter + calendar; Find NGOs reverse-geocode; locale switch via server action; consolidated RLS fix migration 016)
+Last synced: 2026-04-27 (live pledge counter on /needs + "Your pledges" summary; restore "/" → "/map" redirect; company verification via SudReg + email; volunteer signup live counter + calendar; Find NGOs reverse-geocode; locale switch via server action; consolidated RLS fix migration 016)
 
 ---
 
@@ -389,7 +389,8 @@ routes and `local-data.ts`.
 | `FilterBar.tsx`               | Filters for `/map` and `/needs`                                        |
 | `InstitutionCard.tsx`         | List item; optional distance pill                                      |
 | `InstitutionDetailPanel.tsx`  | Side panel for selected institution                                    |
-| `NeedCard.tsx` + `PledgeButton.tsx` | Needs board card + pledge modal (sends `credentials: include`)   |
+| `NeedCard.tsx` + `PledgeButton.tsx` | Needs board card + pledge modal (sends `credentials: include`); `onPledgeSuccess(payload)` bubbles updated need + new pledge to parent for live counter; emerald "you've pledged" pill when `myPledgedQty > 0` |
+| `YourPledgesSection.tsx`      | Top-of-`/needs` summary cards for the signed-in user's pledges (status badge, qty, EUR, timeAgo, ≤6 visible + "View all in dashboard"); empty / signed-out states; live-updates from `onPledgeSuccess` |
 | `VolunteerEventCard.tsx`      | Event card; `isRegistered` prop, sign-up bubbles to parent             |
 | `VolunteerCalendar.tsx`       | Month-grid header on `/volunteer`                                      |
 | `QuickStartWizard.tsx`        | `/quick-start` (now "Find NGOs"); reverse-geocoded address feedback    |

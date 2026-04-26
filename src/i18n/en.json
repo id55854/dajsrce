@@ -31,6 +31,20 @@
     "volunteer": "Volunteer",
     "find_help": "Find NGOs"
   },
+  "your_pledges": {
+    "section_title": "Your pledges",
+    "section_subtitle": "Track your contributions and their status.",
+    "empty": "You haven't pledged yet — pick something below.",
+    "signed_out": "Sign in to see your pledges.",
+    "view_all": "View all in dashboard",
+    "you_pledged": "You've pledged {qty}",
+    "qty_label": "Quantity",
+    "amount_label": "Amount",
+    "status_pledged": "Pledged",
+    "status_delivered": "Delivered",
+    "status_confirmed": "Confirmed",
+    "status_cancelled": "Cancelled"
+  },
   "quick_start": {
     "page_title": "Find NGOs to help",
     "page_subtitle": "Pick what you can donate and we'll show institutions nearby that need it."

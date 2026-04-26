@@ -31,6 +31,20 @@
     "volunteer": "Volontiraj",
     "find_help": "Pronađi NGO"
   },
+  "your_pledges": {
+    "section_title": "Vaša obećanja",
+    "section_subtitle": "Pratite svoje doprinose i njihov status.",
+    "empty": "Još niste poslali nijedno obećanje — odaberite nešto ispod.",
+    "signed_out": "Prijavite se da vidite svoja obećanja.",
+    "view_all": "Otvori cijeli popis u nadzornoj ploči",
+    "you_pledged": "Već ste obećali {qty}",
+    "qty_label": "Količina",
+    "amount_label": "Iznos",
+    "status_pledged": "Obećano",
+    "status_delivered": "Dostavljeno",
+    "status_confirmed": "Potvrđeno",
+    "status_cancelled": "Otkazano"
+  },
   "quick_start": {
     "page_title": "Pronađi NGO za pomoć",
     "page_subtitle": "Odaberi što možeš donirati i pronađi institucije u svojoj blizini koje to trebaju."

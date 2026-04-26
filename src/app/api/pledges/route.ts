@@ -161,10 +161,14 @@ export async function POST(req: NextRequest) {
       .eq("id", need_id)
       .single();
 
+    const newQuantityPledged = need
+      ? (need.quantity_pledged || 0) + totalQty
+      : null;
+
     if (need) {
       await supabase
         .from("needs")
-        .update({ quantity_pledged: (need.quantity_pledged || 0) + totalQty })
+        .update({ quantity_pledged: newQuantityPledged })
         .eq("id", need_id);
     }
 
@@ -200,6 +204,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       pledge: data,
       match_pledge_id: matchPledgeId,
+      // Lets clients patch their local needs[] state without a refetch.
+      need:
+        newQuantityPledged !== null
+          ? { id: need_id, quantity_pledged: newQuantityPledged }
+          : null,
     });
   } catch (e) {
     // Surface the underlying DB error so failures don't get masked behind a

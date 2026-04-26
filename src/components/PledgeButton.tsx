@@ -8,10 +8,36 @@ import { AuthActionDialog } from "@/components/AuthActionDialog";
 import { useT } from "@/i18n/client";
 import type { CompanyRole } from "@/lib/types";
 
+/**
+ * Subset of `/api/pledges` POST response that the parent uses to patch its
+ * needs[] state and append to "Your pledges" without a page refresh. Mirrors
+ * the volunteer-card pattern in src/components/VolunteerEventCard.tsx.
+ */
+export type PledgeSuccessPayload = {
+  pledge: {
+    id: string;
+    user_id: string;
+    need_id: string;
+    quantity: number;
+    message: string | null;
+    status: "pledged" | "delivered" | "confirmed" | "cancelled";
+    amount_eur: number | null;
+    created_at: string;
+  };
+  match_pledge_id: string | null;
+  need: { id: string; quantity_pledged: number } | null;
+};
+
 type PledgeButtonProps = {
   needId: string;
   needTitle: string;
   onPledge?: () => void;
+  /**
+   * Called after a successful POST /api/pledges, with the parsed response
+   * body. Parent patches its local needs[] state from `payload.need` and
+   * appends `payload.pledge` to its userPledges list.
+   */
+  onPledgeSuccess?: (payload: PledgeSuccessPayload) => void;
 };
 
 type ToastState = { type: "success" | "error"; message: string } | null;
@@ -24,7 +50,7 @@ type CompanyOption = {
   member_role: CompanyRole;
 };
 
-export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps) {
+export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: PledgeButtonProps) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -115,8 +141,10 @@ export function PledgeButton({ needId, needTitle, onPledge }: PledgeButtonProps)
         setToast({ type: "error", message: msg });
         return;
       }
+      const responseBody = (await res.json().catch(() => null)) as PledgeSuccessPayload | null;
       setToast({ type: "success", message: "Thank you! Your pledge has been recorded." });
       onPledge?.();
+      if (responseBody) onPledgeSuccess?.(responseBody);
       closeModal();
     } catch {
       setToast({
