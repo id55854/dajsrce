@@ -43,6 +43,23 @@ export function createCategoryIcon(color: string, size: number = 32, dark = fals
   });
 }
 
+function createUserLocationIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    html: `<div style="position: relative; width: 18px; height: 18px;">
+      <div style="
+        position: absolute; inset: 0;
+        background: #3b82f6;
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 0 8px rgba(59,130,246,0.20), 0 2px 6px rgba(0,0,0,0.4);
+      "></div>
+    </div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
+
 function buildIcons(dark: boolean) {
   const icons = {} as Record<string, L.DivIcon>;
   for (const key of Object.keys(CATEGORY_CONFIG) as InstitutionCategory[]) {
@@ -96,11 +113,32 @@ function MapFlyToSelection({
   return null;
 }
 
+function MapFlyToUser({
+  userPosition,
+  flyTrigger,
+}: {
+  userPosition: { lat: number; lng: number } | null;
+  flyTrigger: number;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!userPosition || flyTrigger === 0) return;
+    map.flyTo([userPosition.lat, userPosition.lng], 14, { duration: 0.85 });
+    // flyTrigger increments on each Locate click so repeat clicks re-center
+    // even if userPosition coordinates haven't changed.
+  }, [userPosition, flyTrigger, map]);
+
+  return null;
+}
+
 export type MapProps = {
   institutions: Institution[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   filters: MapFilters;
+  userPosition?: { lat: number; lng: number } | null;
+  flyToUserTrigger?: number;
 };
 
 function useDarkMode() {
@@ -124,9 +162,12 @@ export default function Map({
   selectedId,
   onSelect,
   filters,
+  userPosition = null,
+  flyToUserTrigger = 0,
 }: MapProps) {
   const dark = useDarkMode();
   const icons = useMemo(() => buildIcons(dark), [dark]);
+  const userIcon = useMemo(() => createUserLocationIcon(), []);
 
   const visible = useMemo(
     () => institutions.filter((i) => passesFilters(i, filters)),
@@ -147,6 +188,14 @@ export default function Map({
         subdomains="abcd"
       />
       <MapFlyToSelection selectedId={selectedId} institutions={institutions} />
+      <MapFlyToUser userPosition={userPosition} flyTrigger={flyToUserTrigger} />
+      {userPosition ? (
+        <Marker position={[userPosition.lat, userPosition.lng]} icon={userIcon}>
+          <Popup>
+            <div className="text-sm font-semibold">Your location</div>
+          </Popup>
+        </Marker>
+      ) : null}
       {visible.map((inst) => {
         const cat = getCategoryConfig(inst.category);
         const icon = icons[inst.category] ?? icons["__fallback__"];

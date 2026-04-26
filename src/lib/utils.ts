@@ -54,3 +54,10 @@ export function distanceKm(
 export function googleMapsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
+
+export function formatDistance(km: number): string {
+  if (!Number.isFinite(km) || km < 0) return "";
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}

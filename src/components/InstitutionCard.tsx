@@ -3,7 +3,8 @@
 import type { ComponentType } from "react";
 import { Institution } from "@/lib/types";
 import { getCategoryConfig, DONATION_TYPES } from "@/lib/constants";
-import { BadgeCheck } from "lucide-react";
+import { formatDistance } from "@/lib/utils";
+import { BadgeCheck, Navigation } from "lucide-react";
 import * as Icons from "lucide-react";
 import clsx from "clsx";
 
@@ -25,12 +26,14 @@ type InstitutionCardProps = {
   institution: Institution;
   isSelected: boolean;
   onClick: () => void;
+  distanceKm?: number | null;
 };
 
 export function InstitutionCard({
   institution,
   isSelected,
   onClick,
+  distanceKm = null,
 }: InstitutionCardProps) {
   const cat = getCategoryConfig(institution.category);
 
@@ -50,7 +53,16 @@ export function InstitutionCard({
         >
           {cat.label}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {distanceKm != null ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+              title="Distance from you"
+            >
+              <Navigation className="h-3 w-3" strokeWidth={2.5} />
+              {formatDistance(distanceKm)}
+            </span>
+          ) : null}
           {institution.is_verified ? (
             <span className="inline-flex items-center gap-0.5 text-emerald-600" title="Verified">
               <BadgeCheck className="h-5 w-5 shrink-0" strokeWidth={2} />

@@ -3,13 +3,14 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
-import { List, Map as MapIcon } from "lucide-react";
+import { List, Loader2, LocateFixed, Map as MapIcon } from "lucide-react";
 import type { Institution } from "@/lib/types";
 import type { MapFilters } from "@/components/Map";
 import { FilterBar } from "@/components/FilterBar";
 import { InstitutionCard } from "@/components/InstitutionCard";
 import { InstitutionDetailPanel } from "@/components/InstitutionDetailPanel";
 import type { NeedCardNeed } from "@/components/NeedCard";
+import { distanceKm } from "@/lib/utils";
 
 const Map = dynamic(() => import("@/components/Map"), {
   ssr: false,
@@ -73,6 +74,39 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"map" | "list">("map");
+  const [userPosition, setUserPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [flyToUserTrigger, setFlyToUserTrigger] = useState(0);
+
+  const handleLocate = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoError("Geolocation is not supported by this browser.");
+      return;
+    }
+    setLocating(true);
+    setGeoError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setFlyToUserTrigger((n) => n + 1);
+        setLocating(false);
+        setMobileView("list");
+      },
+      (err) => {
+        setLocating(false);
+        const msg =
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied. Enable it in your browser settings."
+            : err.code === err.TIMEOUT
+            ? "Locating took too long. Try again."
+            : "Could not determine your location.";
+        setGeoError(msg);
+        window.setTimeout(() => setGeoError(null), 5000);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,13 +149,17 @@ export default function MapPage() {
     };
   }, []);
 
-  const filteredInstitutions = useMemo(
-    () =>
-      institutions.filter((i) =>
-        passesListFilters(i, filters, urgentInstitutionIds)
-      ),
-    [institutions, filters, urgentInstitutionIds]
-  );
+  const filteredInstitutions = useMemo(() => {
+    const list = institutions.filter((i) =>
+      passesListFilters(i, filters, urgentInstitutionIds)
+    );
+    if (!userPosition) return list;
+    return [...list].sort(
+      (a, b) =>
+        distanceKm(userPosition.lat, userPosition.lng, a.lat, a.lng) -
+        distanceKm(userPosition.lat, userPosition.lng, b.lat, b.lng)
+    );
+  }, [institutions, filters, urgentInstitutionIds, userPosition]);
 
   const institutionsForMap = useMemo(() => {
     if (!filters.onlyUrgent) return institutions;
@@ -176,8 +214,43 @@ export default function MapPage() {
             selectedId={selectedId}
             onSelect={onSelect}
             filters={filters}
+            userPosition={userPosition}
+            flyToUserTrigger={flyToUserTrigger}
           />
         </div>
+
+        <button
+          type="button"
+          onClick={handleLocate}
+          disabled={locating}
+          aria-label="Locate me"
+          title="Locate me"
+          className="absolute bottom-4 right-4 z-[400] flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50 disabled:opacity-60 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-700 dark:hover:bg-gray-800"
+        >
+          {locating ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <LocateFixed
+              className={clsx(
+                "h-4 w-4",
+                userPosition ? "text-blue-600" : "text-gray-700 dark:text-gray-200"
+              )}
+              aria-hidden
+            />
+          )}
+          <span className="hidden sm:inline">
+            {userPosition ? "Recenter on me" : "Locate me"}
+          </span>
+        </button>
+
+        {geoError ? (
+          <div
+            role="alert"
+            className="absolute bottom-20 right-4 z-[400] max-w-[80%] rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white shadow-lg"
+          >
+            {geoError}
+          </div>
+        ) : null}
 
         <button
           type="button"
@@ -226,6 +299,16 @@ export default function MapPage() {
                     institution={inst}
                     isSelected={inst.id === selectedId}
                     onClick={() => setSelectedId(inst.id)}
+                    distanceKm={
+                      userPosition
+                        ? distanceKm(
+                            userPosition.lat,
+                            userPosition.lng,
+                            inst.lat,
+                            inst.lng
+                          )
+                        : null
+                    }
                   />
                 </li>
               ))}
