@@ -8,6 +8,7 @@ import { compileFramework } from "@/lib/frameworks/compile";
 import { buildEsgExportZip } from "@/lib/exports/pack";
 import { writeAuditLog } from "@/lib/audit";
 import type { Framework, SubscriptionTier } from "@/lib/types";
+import { parseISODate } from "@/lib/dates";
 
 const FRAMEWORKS: Framework[] = [
   "vsme_basic",
@@ -21,13 +22,6 @@ const FRAMEWORKS: Framework[] = [
 function parseFramework(raw: unknown): Framework | null {
   if (typeof raw !== "string") return null;
   return FRAMEWORKS.includes(raw as Framework) ? (raw as Framework) : null;
-}
-
-function parseISODate(raw: unknown): string | null {
-  if (typeof raw !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
-  const d = new Date(`${raw}T12:00:00.000Z`);
-  if (Number.isNaN(d.getTime())) return null;
-  return raw;
 }
 
 export async function GET(
@@ -125,20 +119,30 @@ export async function POST(
     results,
   });
 
-  const { data: versionRow } = await supabaseAdmin
-    .from("esg_exports")
-    .select("version")
-    .eq("company_id", companyId)
-    .eq("framework", framework)
-    .eq("period_start", periodStart)
-    .eq("period_end", periodEnd)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const version = (versionRow?.version ?? 0) + 1;
+  const scopeKey = `${framework}:${periodStart}:${periodEnd}`;
+  const { data: version, error: versionError } = await supabaseAdmin.rpc(
+    "reserve_artifact_version",
+    { p_company_id: companyId, p_artifact_kind: "esg_export", p_scope_key: scopeKey }
+  );
+  if (versionError || typeof version !== "number") {
+    return NextResponse.json({ error: "Could not reserve export version" }, { status: 500 });
+  }
   const exportId = randomUUID();
   const storagePath = `${companyId}/${exportId}.zip`;
+
+  const { error: reservationError } = await supabaseAdmin.from("esg_exports").insert({
+    id: exportId,
+    company_id: companyId,
+    framework,
+    period_start: periodStart,
+    period_end: periodEnd,
+    manifest_jsonb: manifest as Record<string, unknown>,
+    version,
+    generation_status: "generating",
+  });
+  if (reservationError) {
+    return NextResponse.json({ error: "Could not create export generation record" }, { status: 500 });
+  }
 
   const { error: upErr } = await supabaseAdmin.storage
     .from("exports")
@@ -148,36 +152,50 @@ export async function POST(
     });
 
   if (upErr) {
+    await supabaseAdmin
+      .from("esg_exports")
+      .update({ generation_status: "failed", generation_error: upErr.message })
+      .eq("id", exportId);
     return NextResponse.json({ error: upErr.message }, { status: 500 });
   }
 
   const { data: row, error: insErr } = await supabaseAdmin
     .from("esg_exports")
-    .insert({
-      id: exportId,
-      company_id: companyId,
-      framework,
-      period_start: periodStart,
-      period_end: periodEnd,
+    .update({
       file_url: storagePath,
-      manifest_jsonb: manifest as Record<string, unknown>,
-      version,
+      generation_status: "ready",
+      generation_error: null,
     })
+    .eq("id", exportId)
     .select()
     .single();
 
   if (insErr || !row) {
-    return NextResponse.json({ error: insErr?.message ?? "Insert failed" }, { status: 500 });
+    await supabaseAdmin.storage.from("exports").remove([storagePath]);
+    await supabaseAdmin
+      .from("esg_exports")
+      .update({ generation_status: "failed", generation_error: insErr?.message ?? "Publish failed" })
+      .eq("id", exportId);
+    return NextResponse.json({ error: "Export publication failed" }, { status: 500 });
   }
 
-  await writeAuditLog(supabaseAdmin, {
-    actor_profile_id: user.id,
-    company_id: companyId,
-    action: "esg_export.generate",
-    entity_type: "esg_export",
-    entity_id: exportId,
-    payload: { framework, period_start: periodStart, period_end: periodEnd, version },
-  });
+  try {
+    await writeAuditLog(supabaseAdmin, {
+      actor_profile_id: user.id,
+      company_id: companyId,
+      action: "esg_export.generate",
+      entity_type: "esg_export",
+      entity_id: exportId,
+      payload: { framework, period_start: periodStart, period_end: periodEnd, version },
+    });
+  } catch {
+    await supabaseAdmin.storage.from("exports").remove([storagePath]);
+    await supabaseAdmin
+      .from("esg_exports")
+      .update({ generation_status: "failed", generation_error: "Audit append failed" })
+      .eq("id", exportId);
+    return NextResponse.json({ error: "Export evidence could not be finalized" }, { status: 500 });
+  }
 
   return NextResponse.json({ export: row }, { status: 201 });
 }

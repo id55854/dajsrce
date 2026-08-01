@@ -13,6 +13,7 @@ import {
   Link as LinkIcon,
   Palette,
 } from "lucide-react";
+import { useT } from "@/i18n/client";
 
 function A11yIcon({ className }: { className?: string }) {
   return (
@@ -71,14 +72,6 @@ function applySettings(s: A11ySettings) {
     root.classList.toggle(cls, s[key as keyof A11ySettings] as boolean);
   }
 
-  if (s.dyslexiaFont && !document.getElementById("dyslexia-font-link")) {
-    const link = document.createElement("link");
-    link.id = "dyslexia-font-link";
-    link.rel = "stylesheet";
-    link.href =
-      "https://fonts.googleapis.com/css2?family=OpenDyslexic&display=swap";
-    document.head.appendChild(link);
-  }
 }
 
 function clearSettings() {
@@ -119,6 +112,7 @@ function Toggle({
 }
 
 export function AccessibilityMenu() {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [settings, setSettings] = useState<A11ySettings>(DEFAULTS);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -143,7 +137,10 @@ export function AccessibilityMenu() {
     } catch {}
   }, []);
 
-  const close = useCallback(() => setIsOpen(false), []);
+  const close = useCallback(() => {
+    setIsOpen(false);
+    requestAnimationFrame(() => toggleRef.current?.focus());
+  }, []);
 
   const resetAll = useCallback(() => {
     clearSettings();
@@ -217,13 +214,13 @@ export function AccessibilityMenu() {
     label: string;
     icon: React.ReactNode;
   }[] = [
-    { key: "highContrast", label: "High Contrast", icon: <Contrast className="h-5 w-5" /> },
-    { key: "dyslexiaFont", label: "Dyslexia Font", icon: <Type className="h-5 w-5" /> },
-    { key: "highlightLinks", label: "Highlight Links", icon: <LinkIcon className="h-5 w-5" /> },
-    { key: "increaseSpacing", label: "Increase Spacing", icon: <Space className="h-5 w-5" /> },
-    { key: "grayscale", label: "Grayscale", icon: <Palette className="h-5 w-5" /> },
-    { key: "bigCursor", label: "Big Cursor", icon: <MousePointer2 className="h-5 w-5" /> },
-    { key: "stopAnimations", label: "Stop Animations", icon: <Pause className="h-5 w-5" /> },
+    { key: "highContrast", label: t("a11y.high_contrast"), icon: <Contrast className="h-5 w-5" /> },
+    { key: "dyslexiaFont", label: t("a11y.dyslexia_font"), icon: <Type className="h-5 w-5" /> },
+    { key: "highlightLinks", label: t("a11y.highlight_links"), icon: <LinkIcon className="h-5 w-5" /> },
+    { key: "increaseSpacing", label: t("a11y.increase_spacing"), icon: <Space className="h-5 w-5" /> },
+    { key: "grayscale", label: t("a11y.grayscale"), icon: <Palette className="h-5 w-5" /> },
+    { key: "bigCursor", label: t("a11y.big_cursor"), icon: <MousePointer2 className="h-5 w-5" /> },
+    { key: "stopAnimations", label: t("a11y.stop_animations"), icon: <Pause className="h-5 w-5" /> },
   ];
 
   return (
@@ -236,7 +233,7 @@ export function AccessibilityMenu() {
         <div
           ref={panelRef}
           role="dialog"
-          aria-label="Accessibility settings"
+          aria-label={t("a11y.dialog_label")}
           aria-modal="true"
           className="a11y-panel-enter fixed bottom-20 left-4 z-50 w-80 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900"
         >
@@ -244,14 +241,14 @@ export function AccessibilityMenu() {
             <div className="flex items-center gap-2">
               <A11yIcon className="h-5 w-5 text-red-500" />
               <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Accessibility
+                {t("a11y.title")}
               </span>
             </div>
             <button
               type="button"
               onClick={close}
               className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-              aria-label="Close accessibility menu"
+              aria-label={t("a11y.close")}
             >
               <X className="h-5 w-5" />
             </button>
@@ -262,7 +259,7 @@ export function AccessibilityMenu() {
               <div className="flex items-center gap-3">
                 <Eye className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Text Size
+                  {t("a11y.text_size")}
                 </span>
               </div>
               <div className="flex items-center gap-1">
@@ -270,7 +267,7 @@ export function AccessibilityMenu() {
                   type="button"
                   onClick={() => adjustFontSize(-10)}
                   disabled={settings.fontSize <= 90}
-                  aria-label="Decrease font size"
+                  aria-label={t("a11y.decrease_text")}
                   className="rounded-lg px-2 py-1 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   A-
@@ -278,7 +275,7 @@ export function AccessibilityMenu() {
                 <button
                   type="button"
                   onClick={resetFontSize}
-                  aria-label="Reset font size"
+                  aria-label={t("a11y.reset_text")}
                   className="rounded-lg px-2 py-1 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
                 >
                   {settings.fontSize}%
@@ -287,7 +284,7 @@ export function AccessibilityMenu() {
                   type="button"
                   onClick={() => adjustFontSize(10)}
                   disabled={settings.fontSize >= 150}
-                  aria-label="Increase font size"
+                  aria-label={t("a11y.increase_text")}
                   className="rounded-lg px-2 py-1 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   A+
@@ -319,11 +316,11 @@ export function AccessibilityMenu() {
             <button
               type="button"
               onClick={resetAll}
-              aria-label="Reset all accessibility settings"
+              aria-label={t("a11y.reset_all")}
               className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-red-500 hover:text-red-500 dark:border-gray-700 dark:text-gray-300 dark:hover:border-red-500 dark:hover:text-red-500"
             >
               <RotateCcw className="h-4 w-4" />
-              Reset All Settings
+              {t("a11y.reset_all")}
             </button>
           </div>
         </div>
@@ -334,7 +331,7 @@ export function AccessibilityMenu() {
         type="button"
         onClick={() => setIsOpen((o) => !o)}
         className="fixed bottom-4 left-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-        aria-label="Open accessibility menu"
+        aria-label={t("a11y.open")}
         aria-expanded={isOpen}
       >
         <A11yIcon className="h-7 w-7" />

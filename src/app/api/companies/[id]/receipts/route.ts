@@ -17,11 +17,11 @@ type PledgeRow = {
   id: string;
   amount_eur: number | null;
   tax_category: string;
-  need: {
-    title: string;
-    institution: { name: string; oib: string | null } | null;
-  } | null;
-  pledge_acknowledgements: Array<{ kind: "manual" | "auto"; signed_at: string }> | null;
+  need_title: string;
+  institution_name: string;
+  institution_oib: string | null;
+  ack_kind: "manual" | "auto";
+  ack_signed_at: string;
 };
 
 function fiscalYearBounds(year: number): { start: string; end: string } {
@@ -103,44 +103,25 @@ export async function POST(
 
   const { start, end } = fiscalYearBounds(fiscalYear);
 
-  const { data: pledgeRows, error: pErr } = await supabaseAdmin
-    .from("pledges")
-    .select(
-      `
-      id,
-      amount_eur,
-      tax_category,
-      need:needs(
-        title,
-        institution:institutions(name, oib)
-      ),
-      pledge_acknowledgements(kind, signed_at)
-    `
-    )
-    .eq("company_id", companyId)
-    .not("amount_eur", "is", null)
-    .gt("amount_eur", 0);
+  const { data: pledgeRows, error: pErr } = await supabaseAdmin.rpc(
+    "get_acknowledged_pledges_json",
+    { p_company_id: companyId, p_from: start, p_to: end }
+  );
 
   if (pErr) {
     return NextResponse.json({ error: pErr.message }, { status: 500 });
   }
 
   const lines: ReceiptLineItem[] = [];
-  for (const row of (pledgeRows ?? []) as unknown as PledgeRow[]) {
-    const acks = row.pledge_acknowledgements;
-    const ack = Array.isArray(acks) && acks.length > 0 ? acks[0] : null;
-    if (!ack) continue;
-    const signed = new Date(ack.signed_at);
-    if (signed < new Date(start) || signed > new Date(end)) continue;
-    const inst = row.need?.institution;
+  for (const row of (Array.isArray(pledgeRows) ? pledgeRows : []) as PledgeRow[]) {
     lines.push({
       pledgeId: row.id,
-      dateIso: ack.signed_at,
-      institutionName: inst?.name ?? row.need?.title ?? "Institution",
-      institutionOib: inst?.oib ?? null,
+      dateIso: row.ack_signed_at,
+      institutionName: row.institution_name || row.need_title || "Institution",
+      institutionOib: row.institution_oib,
       taxCategory: row.tax_category,
       amountEur: Number(row.amount_eur),
-      ackKind: ack.kind,
+      ackKind: row.ack_kind,
     });
   }
 
@@ -151,50 +132,82 @@ export async function POST(
     );
   }
 
-  const totalEur = Math.round(lines.reduce((s, l) => s + l.amountEur, 0) * 100) / 100;
+  const totalCents = lines.reduce((sum, line) => sum + Math.round(line.amountEur * 100), 0);
+  const totalEur = totalCents / 100;
   const pct = ceilingPct();
   const consumed = consumedPct(totalEur, company.prior_year_revenue_eur);
 
-  const { data: versionRow } = await supabaseAdmin
-    .from("donation_receipts")
-    .select("version")
-    .eq("company_id", companyId)
-    .eq("fiscal_year", fiscalYear)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const version = (versionRow?.version ?? 0) + 1;
+  const { data: version, error: versionError } = await supabaseAdmin.rpc(
+    "reserve_artifact_version",
+    { p_company_id: companyId, p_artifact_kind: "receipt", p_scope_key: String(fiscalYear) }
+  );
+  if (versionError || typeof version !== "number") {
+    return NextResponse.json({ error: "Could not reserve receipt version" }, { status: 500 });
+  }
   const generatedAt = new Date().toISOString();
 
-  const pdfBytes = await renderDonationReceiptPdf({
-    company: {
-      legal_name: company.legal_name,
-      oib: company.oib,
-      address: company.address,
-      city: company.city,
-      brand_primary_hex: company.brand_primary_hex,
-    },
-    fiscalYear,
-    ceilingPct: pct,
-    consumedPct: consumed,
-    lines,
-    totalEur,
-    version,
-  });
+  const { data: receipt, error: reservationError } = await supabaseAdmin
+    .from("donation_receipts")
+    .insert({
+      company_id: companyId,
+      fiscal_year: fiscalYear,
+      version,
+      total_amount_eur: totalEur,
+      ceiling_pct: pct,
+      ceiling_consumed_pct: consumed,
+      generation_status: "generating",
+      manifest_jsonb: {
+        generated_at: generatedAt,
+        line_count: lines.length,
+        pledge_ids: lines.map((line) => line.pledgeId),
+      },
+    })
+    .select()
+    .single();
+  if (reservationError || !receipt) {
+    return NextResponse.json({ error: "Could not create receipt generation record" }, { status: 500 });
+  }
 
-  const xml = buildReceiptManifestXml({
-    companyId,
-    fiscalYear,
-    version,
-    generatedAtIso: generatedAt,
-    ceilingPct: pct,
-    consumedPct: consumed,
-    totalEur,
-    lines,
-  });
+  let pdfBytes: Uint8Array;
+  let xml: string;
+  try {
+    pdfBytes = await renderDonationReceiptPdf({
+      company: {
+        legal_name: company.legal_name,
+        oib: company.oib,
+        address: company.address,
+        city: company.city,
+        brand_primary_hex: company.brand_primary_hex,
+      },
+      fiscalYear,
+      ceilingPct: pct,
+      consumedPct: consumed,
+      lines,
+      totalEur,
+      version,
+    });
 
-  const basePath = `${companyId}/${fiscalYear}`;
+    xml = buildReceiptManifestXml({
+      companyId,
+      fiscalYear,
+      version,
+      generatedAtIso: generatedAt,
+      ceilingPct: pct,
+      consumedPct: consumed,
+      totalEur,
+      lines,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Receipt rendering failed";
+    await supabaseAdmin
+      .from("donation_receipts")
+      .update({ generation_status: "failed", generation_error: message })
+      .eq("id", receipt.id);
+    console.error("[receipt generation] rendering failed", { receiptId: receipt.id, message });
+    return NextResponse.json({ error: "Receipt rendering failed" }, { status: 500 });
+  }
+
+  const basePath = `${companyId}/${fiscalYear}/${receipt.id}`;
   const pdfPath = `${basePath}/receipt-v${version}.pdf`;
   const xmlPath = `${basePath}/receipt-v${version}.xml`;
 
@@ -205,6 +218,10 @@ export async function POST(
       upsert: true,
     });
   if (upPdf) {
+    await supabaseAdmin
+      .from("donation_receipts")
+      .update({ generation_status: "failed", generation_error: upPdf.message })
+      .eq("id", receipt.id);
     return NextResponse.json({ error: upPdf.message }, { status: 500 });
   }
 
@@ -215,41 +232,52 @@ export async function POST(
       upsert: true,
     });
   if (upXml) {
+    await supabaseAdmin.storage.from("receipts").remove([pdfPath]);
+    await supabaseAdmin
+      .from("donation_receipts")
+      .update({ generation_status: "failed", generation_error: upXml.message })
+      .eq("id", receipt.id);
     return NextResponse.json({ error: upXml.message }, { status: 500 });
   }
 
-  const { data: receipt, error: insErr } = await supabaseAdmin
+  const { data: readyReceipt, error: updateError } = await supabaseAdmin
     .from("donation_receipts")
-    .insert({
-      company_id: companyId,
-      fiscal_year: fiscalYear,
-      version,
+    .update({
       pdf_url: pdfPath,
       xml_url: xmlPath,
-      total_amount_eur: totalEur,
-      ceiling_pct: pct,
-      ceiling_consumed_pct: consumed,
-      manifest_jsonb: {
-        generated_at: generatedAt,
-        line_count: lines.length,
-        pledge_ids: lines.map((l) => l.pledgeId),
-      },
+      generation_status: "ready",
+      generation_error: null,
     })
+    .eq("id", receipt.id)
     .select()
     .single();
 
-  if (insErr || !receipt) {
-    return NextResponse.json({ error: insErr?.message ?? "Insert failed" }, { status: 500 });
+  if (updateError || !readyReceipt) {
+    await supabaseAdmin.storage.from("receipts").remove([pdfPath, xmlPath]);
+    await supabaseAdmin
+      .from("donation_receipts")
+      .update({ generation_status: "failed", generation_error: updateError?.message ?? "Publish failed" })
+      .eq("id", receipt.id);
+    return NextResponse.json({ error: "Receipt publication failed" }, { status: 500 });
   }
 
-  await writeAuditLog(supabaseAdmin, {
-    actor_profile_id: user.id,
-    company_id: companyId,
-    action: "receipt.generate",
-    entity_type: "donation_receipt",
-    entity_id: receipt.id,
-    payload: { fiscal_year: fiscalYear, version, total_eur: totalEur },
-  });
+  try {
+    await writeAuditLog(supabaseAdmin, {
+      actor_profile_id: user.id,
+      company_id: companyId,
+      action: "receipt.generate",
+      entity_type: "donation_receipt",
+      entity_id: readyReceipt.id,
+      payload: { fiscal_year: fiscalYear, version, total_eur: totalEur },
+    });
+  } catch {
+    await supabaseAdmin.storage.from("receipts").remove([pdfPath, xmlPath]);
+    await supabaseAdmin
+      .from("donation_receipts")
+      .update({ generation_status: "failed", generation_error: "Audit append failed" })
+      .eq("id", readyReceipt.id);
+    return NextResponse.json({ error: "Receipt evidence could not be finalized" }, { status: 500 });
+  }
 
   const { data: owner } = await supabaseAdmin
     .from("profiles")
@@ -267,5 +295,5 @@ export async function POST(
     });
   }
 
-  return NextResponse.json({ receipt });
+  return NextResponse.json({ receipt: readyReceipt });
 }

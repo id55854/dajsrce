@@ -13,7 +13,6 @@ export async function* parseCsvStream(readable) {
   let row = [];
   let field = "";
   let inQuotes = false;
-  let prevChar = "";
 
   function pushField() {
     row.push(field);
@@ -74,7 +73,6 @@ export async function* parseCsvStream(readable) {
           i += 1;
         }
       }
-      prevChar = c;
     }
     buf = buf.slice(i);
   }

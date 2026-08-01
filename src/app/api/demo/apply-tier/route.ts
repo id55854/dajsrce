@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireMembership } from "@/lib/companies";
 import { writeAuditLog } from "@/lib/audit";
+import { isDemoBillingEnabled } from "@/lib/security/runtime";
 import type { SubscriptionTier } from "@/lib/types";
 
 const ALLOWED: SubscriptionTier[] = ["free", "sme_tax", "sme_plus", "enterprise"];
@@ -12,7 +13,7 @@ const ALLOWED: SubscriptionTier[] = ["free", "sme_tax", "sme_plus", "enterprise"
  * Enable with ALLOW_DEMO_BILLING=true (never in production).
  */
 export async function POST(req: NextRequest) {
-  if (process.env.ALLOW_DEMO_BILLING !== "true") {
+  if (!isDemoBillingEnabled()) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

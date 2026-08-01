@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireMembership } from "@/lib/companies";
 import { getStripe, priceIdForPaidTier } from "@/lib/stripe/server";
 import type { SubscriptionTier } from "@/lib/types";
@@ -52,23 +54,49 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("email")
-    .eq("id", user.id)
-    .maybeSingle();
+  const [{ data: profile }, { data: existingSubscription }] = await Promise.all([
+    supabase.from("profiles").select("email").eq("id", user.id).maybeSingle(),
+    supabaseAdmin
+      .from("subscriptions")
+      .select("stripe_customer_id, stripe_subscription_id, status")
+      .eq("company_id", companyId)
+      .maybeSingle(),
+  ]);
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer_email: profile?.email ?? undefined,
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl}/dashboard/company/settings?cid=${companyId}&billing=success`,
-    cancel_url: `${appUrl}/dashboard/company/settings?cid=${companyId}&billing=cancel`,
-    metadata: { company_id: companyId, tier },
-    subscription_data: {
-      metadata: { company_id: companyId, tier },
+  if (
+    existingSubscription?.stripe_subscription_id &&
+    ["active", "trialing", "past_due", "incomplete", "unpaid"].includes(
+      existingSubscription.status ?? ""
+    )
+  ) {
+    return NextResponse.json(
+      { error: "An active or pending subscription already exists; use billing management" },
+      { status: 409 }
+    );
+  }
+
+  const hourBucket = Math.floor(Date.now() / 3_600_000);
+  const idempotencyKey = createHash("sha256")
+    .update(`${companyId}|${tier}|${hourBucket}`)
+    .digest("hex");
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: "subscription",
+      customer: existingSubscription?.stripe_customer_id ?? undefined,
+      customer_email: existingSubscription?.stripe_customer_id
+        ? undefined
+        : profile?.email ?? undefined,
+      client_reference_id: companyId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${appUrl}/dashboard/company/settings?cid=${companyId}&billing=success`,
+      cancel_url: `${appUrl}/dashboard/company/settings?cid=${companyId}&billing=cancel`,
+      metadata: { company_id: companyId },
+      subscription_data: {
+        metadata: { company_id: companyId },
+      },
     },
-  });
+    { idempotencyKey }
+  );
 
   if (!session.url) {
     return NextResponse.json({ error: "No checkout URL" }, { status: 500 });

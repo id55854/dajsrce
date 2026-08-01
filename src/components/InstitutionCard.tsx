@@ -1,29 +1,44 @@
 "use client";
 
-import type { ComponentType } from "react";
-import { Institution } from "@/lib/types";
+import type { Institution } from "@/lib/types";
+import type { PublicMapInstitution } from "@/lib/location-map";
 import { getCategoryConfig, DONATION_TYPES } from "@/lib/constants";
 import { formatDistance } from "@/lib/utils";
-import { BadgeCheck, Navigation } from "lucide-react";
-import * as Icons from "lucide-react";
+import {
+  Apple,
+  Baby,
+  BadgeCheck,
+  Banknote,
+  BedDouble,
+  BookOpen,
+  Clock,
+  Droplets,
+  Navigation,
+  Pencil,
+  Shirt,
+  Sofa,
+  Stethoscope,
+  type LucideIcon,
+} from "lucide-react";
 import clsx from "clsx";
+import { useLocale, useT } from "@/i18n/client";
 
-function LucideByName({
-  name,
-  className,
-}: {
-  name: string;
-  className?: string;
-}) {
-  const Cmp = (Icons as unknown as Record<string, ComponentType<{ className?: string }>>)[
-    name
-  ];
-  if (!Cmp) return null;
-  return <Cmp className={className} />;
-}
+const DONATION_ICONS: Record<string, LucideIcon> = {
+  Apple,
+  Baby,
+  Banknote,
+  BedDouble,
+  BookOpen,
+  Clock,
+  Droplets,
+  Pencil,
+  Shirt,
+  Sofa,
+  Stethoscope,
+};
 
 type InstitutionCardProps = {
-  institution: Institution;
+  institution: Institution | PublicMapInstitution;
   isSelected: boolean;
   onClick: () => void;
   distanceKm?: number | null;
@@ -35,11 +50,27 @@ export function InstitutionCard({
   onClick,
   distanceKm = null,
 }: InstitutionCardProps) {
+  const t = useT();
+  const { locale } = useLocale();
+  const isMapInstitution = "kind" in institution;
+  const acceptsDonations = isMapInstitution
+    ? institution.acceptsDonations
+    : institution.accepts_donations;
+  const isVerified = isMapInstitution
+    ? institution.isVerified
+    : institution.is_verified;
+  const isLocationHidden = isMapInstitution
+    ? institution.isLocationHidden
+    : institution.is_location_hidden;
+  const approximateArea = isMapInstitution
+    ? institution.approximateArea
+    : institution.approximate_area;
   const cat = getCategoryConfig(institution.category);
 
   return (
     <button
       type="button"
+      aria-pressed={isSelected}
       onClick={onClick}
       className={clsx(
         "w-full rounded-xl border border-gray-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:shadow-gray-900",
@@ -51,20 +82,20 @@ export function InstitutionCard({
           className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
           style={{ backgroundColor: cat.bgColor, color: cat.color }}
         >
-          {cat.label}
+          {locale === "hr" ? cat.labelHr : cat.label}
         </span>
         <div className="flex items-center gap-2">
           {distanceKm != null ? (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-              title="Distance from you"
+              title={t("map_ui.distance")}
             >
               <Navigation className="h-3 w-3" strokeWidth={2.5} />
               {formatDistance(distanceKm)}
             </span>
           ) : null}
-          {institution.is_verified ? (
-            <span className="inline-flex items-center gap-0.5 text-emerald-600" title="Verified">
+          {isVerified ? (
+            <span className="inline-flex items-center gap-0.5 text-emerald-600" title={t("map_ui.verified")}>
               <BadgeCheck className="h-5 w-5 shrink-0" strokeWidth={2} />
             </span>
           ) : null}
@@ -75,31 +106,33 @@ export function InstitutionCard({
         {institution.name}
       </h3>
       <p className="mt-1 text-sm text-gray-500 line-clamp-2 dark:text-gray-400">
-        {institution.address}
-        {institution.city ? `, ${institution.city}` : ""}
+        {isLocationHidden
+          ? approximateArea ?? institution.city ?? t("map_ui.approximate_area")
+          : institution.address}
+        {!isLocationHidden && institution.city ? `, ${institution.city}` : ""}
       </p>
 
-      {institution.is_location_hidden ? (
+      {isLocationHidden ? (
         <span className="mt-2 inline-block rounded-full bg-pink-100 px-2 py-0.5 text-xs font-medium text-pink-700">
-          Hidden location
+          {t("map_ui.hidden_location")}
         </span>
       ) : null}
 
-      {institution.accepts_donations && institution.accepts_donations.length > 0 ? (
+      {acceptsDonations.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {institution.accepts_donations.map((dt) => {
-            const dtCfg = DONATION_TYPES[dt];
-            if (!dtCfg) return null;
+          {acceptsDonations.map((donationType) => {
+            const donation = DONATION_TYPES[donationType];
+            if (!donation) return null;
+            const DonationIcon = DONATION_ICONS[donation.icon];
             return (
               <span
-                key={dt}
+                key={donationType}
                 className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400"
               >
-                <LucideByName
-                  name={dtCfg.icon}
-                  className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400"
-                />
-                {dtCfg.label}
+                {DonationIcon ? (
+                  <DonationIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                ) : null}
+                {locale === "hr" ? donation.labelHr : donation.label}
               </span>
             );
           })}

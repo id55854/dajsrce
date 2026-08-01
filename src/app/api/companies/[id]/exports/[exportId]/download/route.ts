@@ -28,6 +28,7 @@ export async function GET(
     .select("id, file_url, company_id")
     .eq("id", exportId)
     .eq("company_id", companyId)
+    .eq("generation_status", "ready")
     .maybeSingle();
 
   if (error || !row?.file_url) {

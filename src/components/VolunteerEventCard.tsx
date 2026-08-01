@@ -3,12 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
+import { enUS, hr } from "date-fns/locale";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import type { InstitutionCategory, VolunteerEvent } from "@/lib/types";
 import clsx from "clsx";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { AuthActionDialog } from "@/components/AuthActionDialog";
+import { useLocale, useT } from "@/i18n/client";
 
 function clsxRing(isRegistered: boolean): string {
   return clsx(
@@ -59,6 +61,8 @@ export function VolunteerEventCard({
   readOnlyHref,
   htmlId,
 }: VolunteerEventCardProps) {
+  const t = useT();
+  const { locale } = useLocale();
   const [loading, setLoading] = useState(false);
   const [errorState, setErrorState] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -69,7 +73,9 @@ export function VolunteerEventCard({
     ? CATEGORY_CONFIG[categoryKey]
     : null;
 
-  const dateLabel = format(parseISO(event.event_date), "EEEE, MMMM d, yyyy");
+  const dateLabel = format(parseISO(event.event_date), "PPPP", {
+    locale: locale === "hr" ? hr : enUS,
+  });
 
   const needed = event.volunteers_needed;
   const signed = event.volunteers_signed_up;
@@ -112,6 +118,7 @@ export function VolunteerEventCard({
   return (
     <article
       id={htmlId}
+      tabIndex={-1}
       className={clsxRing(isRegistered)}
     >
       <div className="flex min-h-0 flex-1 flex-col">
@@ -125,7 +132,7 @@ export function VolunteerEventCard({
                 className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
                 style={{ color: cat.color, backgroundColor: cat.bgColor }}
               >
-                {cat.label}
+                {locale === "hr" ? cat.labelHr : cat.label}
               </span>
             ) : (
               <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
@@ -154,10 +161,17 @@ export function VolunteerEventCard({
       <div className="mt-auto w-full shrink-0">
         <div>
           <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>Volunteers</span>
+            <span>{t("volunteer_card.volunteers")}</span>
             <span>{signed} / {needed}</span>
           </div>
-          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+          <div
+            className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct}
+            aria-label={t("volunteer_card.progress", { signed, needed })}
+          >
             <div
               className="h-full rounded-full bg-red-500 transition-[width] duration-300"
               style={{ width: `${pct}%` }}
@@ -172,17 +186,17 @@ export function VolunteerEventCard({
                 href={readOnlyHref}
                 className="flex w-full justify-center rounded-full bg-red-500 px-5 py-2.5 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600"
               >
-                {readOnlyLabel ?? "Sign in"}
+                {readOnlyLabel ?? t("volunteer_card.sign_in")}
               </Link>
             ) : (
               <p className="rounded-full bg-gray-100 px-5 py-2.5 text-center text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                {readOnlyLabel ?? "Sign in to continue"}
+                {readOnlyLabel ?? t("volunteer_card.sign_in_continue")}
               </p>
             )
           ) : isRegistered ? (
             <p className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-50 px-5 py-2.5 text-center text-sm font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
               <CheckCircle2 className="h-4 w-4" aria-hidden />
-              You&rsquo;re registered
+              {t("volunteer_card.registered")}
             </p>
           ) : (
             <>
@@ -192,11 +206,16 @@ export function VolunteerEventCard({
                 disabled={loading}
                 className="w-full rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-60"
               >
-                {loading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Sign Up"}
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    {t("volunteer_card.signing_up")}
+                  </span>
+                ) : t("volunteer_card.sign_up")}
               </button>
               {errorState ? (
                 <p className="mt-2 text-center text-xs text-red-600">
-                  Sign-up failed. Please try again.
+                  {t("volunteer_card.failed")}
                 </p>
               ) : null}
             </>
@@ -207,7 +226,7 @@ export function VolunteerEventCard({
         <AuthActionDialog
           open={authDialogOpen}
           onClose={() => setAuthDialogOpen(false)}
-          actionLabel="Volunteer"
+          actionLabel={t("volunteer_card.auth_action")}
           nextPath="/volunteer"
         />
       )}

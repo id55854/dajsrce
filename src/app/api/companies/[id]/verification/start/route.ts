@@ -12,6 +12,7 @@ import {
 } from "@/lib/sudreg/client";
 import { sendCompanyVerificationEmail } from "@/lib/email/verify-company";
 import { getLocale } from "@/i18n/server";
+import { hashBearerToken } from "@/lib/security/runtime";
 import type { Locale } from "@/lib/types";
 
 const TOKEN_TTL_DAYS = 1;
@@ -70,6 +71,35 @@ export async function POST(
     throw e;
   }
 
+  if (snapshot.status !== 1) {
+    return NextResponse.json(
+      { error: "Only an active company in the court registry can be verified" },
+      { status: 409 }
+    );
+  }
+
+  // A mailbox challenge is meaningful only when SudReg supplied that exact
+  // address or the company has already proved control of its DNS domain.
+  const registryEmails = new Set(snapshot.emails.map((email) => email.trim().toLowerCase()));
+  const contactDomain = contactEmail.slice(contactEmail.lastIndexOf("@") + 1);
+  const { data: verifiedDomain } = await supabaseAdmin
+    .from("company_domains")
+    .select("id")
+    .eq("company_id", id)
+    .eq("domain", contactDomain)
+    .not("verified_at", "is", null)
+    .maybeSingle();
+
+  if (!registryEmails.has(contactEmail) && !verifiedDomain) {
+    return NextResponse.json(
+      {
+        error:
+          "Use an email published by the court registry or first verify its company DNS domain",
+      },
+      { status: 400 }
+    );
+  }
+
   // Clear any prior in-flight (un-confirmed) verification for this company —
   // the unique partial index allows only one. Doing this via supabaseAdmin so
   // RLS doesn't matter; we already proved ownership above.
@@ -97,7 +127,8 @@ export async function POST(
       sudreg_oib: snapshot.oib,
       sudreg_fetched_at: snapshot.fetchedAt,
       contact_email: contactEmail,
-      token,
+      token: null,
+      token_hash: hashBearerToken(token),
       expires_at: expiresAt,
       created_by: user!.id,
     })

@@ -29,7 +29,23 @@
     "map": "Map",
     "needs": "Needs",
     "volunteer": "Volunteer",
-    "find_help": "Find NGOs"
+    "find_help": "Find NGOs",
+    "main_navigation": "Main navigation",
+    "mobile_navigation": "Mobile navigation",
+    "open_menu": "Open menu",
+    "close_menu": "Close menu",
+    "sign_in": "Sign in",
+    "sign_out": "Sign out",
+    "user_fallback": "User"
+  },
+  "theme": {
+    "switch_to_light": "Switch to light mode",
+    "switch_to_dark": "Switch to dark mode"
+  },
+  "auth_dialog": {
+    "title": "Login required",
+    "body": "To {action}, sign in or create an account. Browsing remains public.",
+    "register": "Register"
   },
   "your_pledges": {
     "section_title": "Your pledges",
@@ -212,6 +228,14 @@
     "download_zip": "Download ZIP"
   },
   "pledge": {
+    "cta": "I can help",
+    "dialog_title": "Pledge help",
+    "personal": "personal",
+    "quantity": "Quantity",
+    "message_optional": "Message (optional)",
+    "success": "Thank you! Your pledge has been recorded.",
+    "network_error": "Network error. Please try again.",
+    "auth_action": "donate or offer help",
     "amount_eur_label": "Estimated value (EUR)",
     "amount_eur_hint": "Optional. Needed for annual receipts when pledging on behalf of a company."
   },
@@ -283,7 +307,8 @@
   "notifications": {
     "title": "Notifications",
     "empty": "No notifications yet.",
-    "mark_all_read": "Mark all read"
+    "mark_all_read": "Mark all read",
+    "unread_count": "Notifications, {count} unread"
   },
   "dashboard_individual": {
     "title": "Individual Dashboard",
@@ -302,6 +327,144 @@
     "no_actions": "No actions yet. Browse needs and start helping.",
     "shipment_prefix": "Shipment:",
     "find_places": "Find places to help"
+  },
+  "filters": {
+    "category": "Category",
+    "donation": "Donation",
+    "all": "All",
+    "zagreb_only": "Zagreb only",
+    "all_croatia": "All Croatia",
+    "urgent_only": "Urgent only"
+  },
+  "needs_page": {
+    "title": "Institution needs",
+    "subtitle": "Institutions need your help — find where you can contribute",
+    "donation_type": "Donation type",
+    "urgency": "Urgency",
+    "all": "All",
+    "urgent": "Urgent",
+    "soon": "Soon",
+    "routine": "Routine",
+    "loading": "Loading institution needs",
+    "error_loading": "We couldn't load the needs. Please try again.",
+    "empty": "No active needs at this time"
+  },
+  "need_card": {
+    "urgent": "Urgent",
+    "needed_soon": "Needed soon",
+    "routine": "Routine",
+    "pledged": "{pledged} / {needed} pledged",
+    "progress": "{percent}% of this need pledged",
+    "posted": "Posted {time}"
+  },
+  "volunteer_page": {
+    "title": "Volunteer events",
+    "subtitle": "Join an event and make a difference",
+    "loading": "Loading volunteer events",
+    "error_loading": "We couldn't load volunteer events. Please try again.",
+    "empty": "No upcoming volunteer events. Check back soon!"
+  },
+  "volunteer_card": {
+    "volunteers": "Volunteers",
+    "progress": "{signed} of {needed} volunteer places filled",
+    "sign_in": "Sign in",
+    "sign_in_continue": "Sign in to continue",
+    "registered": "You're registered",
+    "sign_up": "Sign up",
+    "signing_up": "Signing up",
+    "failed": "Sign-up failed. Please try again.",
+    "auth_action": "Volunteer"
+  },
+  "volunteer_calendar": {
+    "aria_label": "Volunteer events calendar",
+    "previous_month": "Previous month",
+    "next_month": "Next month",
+    "today": "Today",
+    "event": "Event",
+    "registered": "You're registered",
+    "more": "more",
+    "events_one": "1 event on {date}",
+    "events_many": "{count} events on {date}",
+    "registered_suffix": ", you are registered"
+  },
+  "footer": {
+    "tagline": "Connecting donors with those in need",
+    "public_good": "A project for the public good · {year}"
+  },
+  "a11y": {
+    "dialog_label": "Accessibility settings",
+    "title": "Accessibility",
+    "close": "Close accessibility menu",
+    "text_size": "Text size",
+    "decrease_text": "Decrease text size",
+    "reset_text": "Reset text size",
+    "increase_text": "Increase text size",
+    "high_contrast": "High contrast",
+    "dyslexia_font": "Dyslexia-friendly font",
+    "highlight_links": "Highlight links",
+    "increase_spacing": "Increase spacing",
+    "grayscale": "Grayscale",
+    "big_cursor": "Large cursor",
+    "stop_animations": "Stop animations",
+    "reset_all": "Reset all settings",
+    "open": "Open accessibility menu"
+  },
+  "institution_detail": {
+    "close": "Close institution details",
+    "hidden_address": "Location hidden for safety — {area}",
+    "hidden_notice": "The exact location of this institution is hidden for residents' safety. Please contact the institution by phone.",
+    "verified": "Verified institution",
+    "address": "Address",
+    "phone": "Phone",
+    "email": "Email",
+    "website": "Website",
+    "working_hours": "Working hours",
+    "dropoff_hours": "Drop-off hours",
+    "accepts": "Accepts",
+    "capacity": "Capacity",
+    "nearby_stop": "Nearby ZET stop",
+    "lines": "Lines: {lines}",
+    "open_maps": "Open in Google Maps",
+    "call": "Call",
+    "contact_accepts": "Contact this institution to ask what they accept."
+  },
+  "map_page": {
+    "load_error": "We couldn't load institutions. Please try again.",
+    "detail_error": "Institution details are unavailable.",
+    "geo_unsupported": "Geolocation is not supported by this browser.",
+    "geo_denied": "Location permission was denied. Enable it in your browser settings.",
+    "geo_timeout": "Locating took too long. Try again.",
+    "geo_failed": "We couldn't determine your location.",
+    "search_placeholder": "Search institutions in this map area…",
+    "search_aria": "Search institutions in the visible map area",
+    "clear_search": "Clear search",
+    "type_more": "Type one more character to search.",
+    "searching": "Searching…",
+    "no_matches": "No matches in this map area.",
+    "updating": "Updating area",
+    "locate": "Locate me",
+    "recenter": "Recenter on me",
+    "institution_list": "Institution list",
+    "show_map": "Show map",
+    "loading": "Loading institutions…",
+    "clusters_count": "{count} institutions grouped on the map",
+    "area_count": "{count} institutions in this area",
+    "retry": "Retry",
+    "back_results": "Back to results",
+    "cluster_hint": "Zoom into a cluster to browse individual institutions. The national catalogue stays grouped so this page remains fast.",
+    "empty": "No institutions match this area and filters.",
+    "bounded": "Showing a bounded set of results. Zoom in or refine filters to see a smaller area."
+  },
+  "map_ui": {
+    "distance": "Distance from you",
+    "verified": "Verified",
+    "approximate_area": "Approximate area",
+    "hidden_location": "Hidden location",
+    "hidden_safety": "The exact location is hidden for safety.",
+    "cluster_title": "{count} institutions. Zoom in to explore.",
+    "cluster_alt": "Cluster of {count} institutions",
+    "your_location": "Your location",
+    "map_aria": "Interactive institution map"
   },
   "demo": {
     "ngo_plans_title": "Plans for organisations",

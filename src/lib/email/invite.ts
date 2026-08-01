@@ -24,25 +24,31 @@ export async function sendCompanyInviteEmail(input: {
     { day: "numeric", month: "long", year: "numeric" }
   );
 
+  const headerCompanyName = input.companyName.replace(/[\r\n]+/g, " ").trim();
   const subject =
     input.locale === "hr"
-      ? `Pozivnica za pridruživanje tvrtki ${input.companyName} na DajSrce`
-      : `Invitation to join ${input.companyName} on DajSrce`;
+      ? `Pozivnica za pridruživanje tvrtki ${headerCompanyName} na DajSrce`
+      : `Invitation to join ${headerCompanyName} on DajSrce`;
+
+  const safeCompanyName = escapeHtml(input.companyName);
+  const safeInviterName = escapeHtml(input.inviterName);
+  const safeRole = escapeHtml(input.role);
+  const safeAcceptUrl = escapeHtml(input.acceptUrl);
 
   const bodyHr = `
     <p>Pozdrav,</p>
-    <p><strong>${input.inviterName}</strong> Vas je pozvao/la da se pridružite tvrtki <strong>${input.companyName}</strong> na DajSrce kao <em>${input.role}</em>.</p>
+    <p><strong>${safeInviterName}</strong> Vas je pozvao/la da se pridružite tvrtki <strong>${safeCompanyName}</strong> na DajSrce kao <em>${safeRole}</em>.</p>
     <p>Pozivnicu možete prihvatiti klikom na sljedeću poveznicu:</p>
-    <p><a href="${input.acceptUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:9999px;text-decoration:none;font-weight:600">Prihvati pozivnicu</a></p>
+    <p><a href="${safeAcceptUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:9999px;text-decoration:none;font-weight:600">Prihvati pozivnicu</a></p>
     <p style="font-size:12px;color:#6b7280">Pozivnica vrijedi do <strong>${expiresHuman}</strong>.</p>
     <p style="font-size:12px;color:#6b7280">Ako ne prepoznajete pošiljatelja, ovu poruku slobodno zanemarite.</p>
     <p>— DajSrce</p>
   `;
   const bodyEn = `
     <p>Hello,</p>
-    <p><strong>${input.inviterName}</strong> invited you to join <strong>${input.companyName}</strong> on DajSrce as a <em>${input.role}</em>.</p>
+    <p><strong>${safeInviterName}</strong> invited you to join <strong>${safeCompanyName}</strong> on DajSrce as a <em>${safeRole}</em>.</p>
     <p>You can accept the invitation here:</p>
-    <p><a href="${input.acceptUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:9999px;text-decoration:none;font-weight:600">Accept invitation</a></p>
+    <p><a href="${safeAcceptUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:10px 18px;border-radius:9999px;text-decoration:none;font-weight:600">Accept invitation</a></p>
     <p style="font-size:12px;color:#6b7280">This invitation is valid until <strong>${expiresHuman}</strong>.</p>
     <p style="font-size:12px;color:#6b7280">If you don't recognise the sender you can safely ignore this message.</p>
     <p>— DajSrce</p>
@@ -59,4 +65,13 @@ export async function sendCompanyInviteEmail(input: {
     return { sent: false, error: error.message };
   }
   return { sent: true };
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

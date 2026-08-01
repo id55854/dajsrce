@@ -6,38 +6,104 @@ import type { SubscriptionTier } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-export async function POST(req: NextRequest) {
-  const stripe = requireStripe();
-  const whSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!whSecret) {
-    return NextResponse.json({ error: "STRIPE_WEBHOOK_SECRET not set" }, { status: 500 });
+type ClaimResult = { claimed?: boolean; status?: string };
+
+async function applySubscription(
+  subscription: Stripe.Subscription,
+  forceDeleted = false
+): Promise<void> {
+  const companyId = subscription.metadata?.company_id;
+  if (!companyId) {
+    throw new Error(`Subscription ${subscription.id} has no company_id metadata`);
   }
 
-  const body = await req.text();
-  const sig = req.headers.get("stripe-signature");
-  if (!sig) {
+  const priceId = subscription.items.data[0]?.price?.id;
+  const tier = priceId ? tierForStripePriceId(priceId) : null;
+  const isDeleted = forceDeleted || subscription.status === "canceled";
+  const isEntitled = !isDeleted && ["active", "trialing"].includes(subscription.status);
+  if (isEntitled && !tier) {
+    throw new Error(`Subscription ${subscription.id} uses an unknown Stripe price`);
+  }
+
+  const customerRaw = subscription.customer;
+  const customerId =
+    typeof customerRaw === "string" ? customerRaw : customerRaw?.id ?? null;
+  const period = subscription as unknown as {
+    current_period_end?: number;
+    cancel_at?: number | null;
+  };
+  const resolvedTier: SubscriptionTier = isEntitled && tier ? tier : "free";
+
+  const { error: subscriptionError } = await supabaseAdmin.from("subscriptions").upsert(
+    {
+      company_id: companyId,
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscription.id,
+      tier: resolvedTier,
+      status: isDeleted ? "canceled" : subscription.status,
+      current_period_end: period.current_period_end
+        ? new Date(period.current_period_end * 1000).toISOString()
+        : null,
+      cancel_at: period.cancel_at
+        ? new Date(period.cancel_at * 1000).toISOString()
+        : null,
+      raw: JSON.parse(JSON.stringify(subscription)) as Record<string, unknown>,
+    },
+    { onConflict: "company_id" }
+  );
+  if (subscriptionError) throw new Error(subscriptionError.message);
+
+  const { error: companyError } = await supabaseAdmin
+    .from("companies")
+    .update({
+      subscription_tier: resolvedTier,
+      subscription_status: isEntitled ? "active" : "inactive",
+    })
+    .eq("id", companyId);
+  if (companyError) throw new Error(companyError.message);
+}
+
+export async function POST(req: NextRequest) {
+  const stripe = requireStripe();
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    return NextResponse.json({ error: "Webhook is not configured" }, { status: 503 });
+  }
+
+  const signature = req.headers.get("stripe-signature");
+  if (!signature) {
     return NextResponse.json({ error: "Missing stripe-signature" }, { status: 400 });
   }
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, sig, whSecret);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Invalid payload";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    event = stripe.webhooks.constructEvent(await req.text(), signature, webhookSecret);
+  } catch {
+    return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
-  const { error: insErr } = await supabaseAdmin.from("stripe_events").insert({
-    id: event.id,
-    type: event.type,
-    payload: { id: event.id, type: event.type, livemode: event.livemode },
-  });
-
-  if (insErr?.code === "23505") {
-    return NextResponse.json({ received: true, duplicate: true });
+  const eventEnvelope = { id: event.id, type: event.type, livemode: event.livemode };
+  const { data: claimData, error: claimError } = await supabaseAdmin.rpc(
+    "claim_stripe_event",
+    { p_event_id: event.id, p_type: event.type, p_payload: eventEnvelope }
+  );
+  if (claimError) {
+    console.error("[stripe webhook] event claim failed", {
+      eventId: event.id,
+      code: claimError.code,
+      message: claimError.message,
+    });
+    return NextResponse.json({ error: "Could not claim webhook event" }, { status: 500 });
   }
-  if (insErr) {
-    return NextResponse.json({ error: insErr.message }, { status: 500 });
+
+  const claim = claimData as ClaimResult | null;
+  if (!claim?.claimed) {
+    if (claim?.status === "succeeded") {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    // Another worker owns a fresh processing lease. A non-2xx response keeps
+    // Stripe retrying instead of permanently discarding a possibly failed run.
+    return NextResponse.json({ error: "Webhook event is already processing" }, { status: 409 });
   }
 
   try {
@@ -45,109 +111,52 @@ export async function POST(req: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.mode !== "subscription") break;
-        const companyId = session.metadata?.company_id;
-        const tierMeta = session.metadata?.tier as SubscriptionTier | undefined;
-        const customerId =
-          typeof session.customer === "string" ? session.customer : session.customer?.id;
-        const subId =
+        const subscriptionId =
           typeof session.subscription === "string"
             ? session.subscription
             : session.subscription?.id;
-        if (companyId && customerId && subId) {
-          await supabaseAdmin.from("subscriptions").upsert(
-            {
-              company_id: companyId,
-              stripe_customer_id: customerId,
-              stripe_subscription_id: subId,
-              tier: tierMeta ?? null,
-              status: "active",
-              raw: JSON.parse(JSON.stringify(session)) as Record<string, unknown>,
-            },
-            { onConflict: "company_id" }
-          );
-          if (tierMeta) {
-            await supabaseAdmin
-              .from("companies")
-              .update({ subscription_tier: tierMeta, subscription_status: "active" })
-              .eq("id", companyId);
-          }
+        if (!subscriptionId) {
+          throw new Error(`Checkout session ${session.id} has no subscription`);
         }
+        // Retrieve the authoritative subscription and price. Checkout metadata
+        // is never allowed to decide the paid entitlement.
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        await applySubscription(subscription);
         break;
       }
-      case "customer.subscription.updated":
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        await applySubscription(event.data.object as Stripe.Subscription);
+        break;
+      }
       case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
-        const subTimes = sub as unknown as {
-          current_period_end?: number;
-          cancel_at?: number | null;
-        };
-        const companyId = sub.metadata?.company_id;
-        if (!companyId) break;
-
-        const priceId = sub.items.data[0]?.price?.id;
-        const tierFromPrice = priceId ? tierForStripePriceId(priceId) : null;
-        const tierMeta = sub.metadata?.tier as SubscriptionTier | undefined;
-        const resolvedTier: SubscriptionTier =
-          tierFromPrice ?? tierMeta ?? ("free" as SubscriptionTier);
-
-        const customerRaw = sub.customer;
-        const customerId =
-          typeof customerRaw === "string" ? customerRaw : customerRaw?.id ?? null;
-
-        if (event.type === "customer.subscription.deleted") {
-          await supabaseAdmin
-            .from("subscriptions")
-            .upsert(
-              {
-                company_id: companyId,
-                stripe_customer_id: customerId,
-                stripe_subscription_id: sub.id,
-                tier: "free",
-                status: "canceled",
-                current_period_end: null,
-                cancel_at: null,
-                raw: JSON.parse(JSON.stringify(sub)) as Record<string, unknown>,
-              },
-              { onConflict: "company_id" }
-            );
-          await supabaseAdmin
-            .from("companies")
-            .update({ subscription_tier: "free", subscription_status: "inactive" })
-            .eq("id", companyId);
-        } else {
-          await supabaseAdmin.from("subscriptions").upsert(
-            {
-              company_id: companyId,
-              stripe_customer_id: customerId,
-              stripe_subscription_id: sub.id,
-              tier: resolvedTier,
-              status: sub.status,
-              current_period_end: subTimes.current_period_end
-                ? new Date(subTimes.current_period_end * 1000).toISOString()
-                : null,
-              cancel_at: subTimes.cancel_at
-                ? new Date(subTimes.cancel_at * 1000).toISOString()
-                : null,
-              raw: JSON.parse(JSON.stringify(sub)) as Record<string, unknown>,
-            },
-            { onConflict: "company_id" }
-          );
-          const active = sub.status === "active" || sub.status === "trialing";
-          await supabaseAdmin
-            .from("companies")
-            .update({
-              subscription_tier: active ? resolvedTier : "free",
-              subscription_status: active ? "active" : "inactive",
-            })
-            .eq("id", companyId);
-        }
+        await applySubscription(event.data.object as Stripe.Subscription, true);
         break;
       }
       default:
         break;
     }
-  } catch (e) {
-    console.error("stripe webhook handler error", e);
+
+    const { error: completionError } = await supabaseAdmin.rpc("complete_stripe_event", {
+      p_event_id: event.id,
+      p_succeeded: true,
+      p_error: null,
+    });
+    if (completionError) throw new Error(completionError.message);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown webhook failure";
+    console.error("[stripe webhook] processing failed", { eventId: event.id, message });
+    const { error: failureStateError } = await supabaseAdmin.rpc("complete_stripe_event", {
+      p_event_id: event.id,
+      p_succeeded: false,
+      p_error: message,
+    });
+    if (failureStateError) {
+      console.error("[stripe webhook] could not persist failure state", {
+        eventId: event.id,
+        message: failureStateError.message,
+      });
+    }
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 

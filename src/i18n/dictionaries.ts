@@ -2,12 +2,21 @@ import hr from "./hr.json";
 import en from "./en.json";
 import type { Locale } from "@/lib/types";
 
-export const dictionaries = { hr, en } as const;
+type DictionaryShape<T> = {
+  [K in keyof T]: T[K] extends Record<string, unknown>
+    ? DictionaryShape<T[K]>
+    : string;
+};
+
+export type Dictionary = DictionaryShape<typeof hr>;
+
+// `satisfies` makes a missing locale key a compile-time failure while still
+// allowing each translation to contain a different string literal.
+export const dictionaries = { hr, en } satisfies Record<Locale, Dictionary>;
 export const LOCALE_COOKIE = "locale";
 export const DEFAULT_LOCALE: Locale = "hr";
 export const SUPPORTED_LOCALES: Locale[] = ["hr", "en"];
 
-export type Dictionary = typeof hr;
 export type TranslationKey = NestedKey<Dictionary>;
 
 type NestedKey<T, Prefix extends string = ""> = {

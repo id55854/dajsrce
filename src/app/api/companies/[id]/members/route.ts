@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { requireMembership } from "@/lib/companies";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET(
   _req: NextRequest,
@@ -17,7 +18,7 @@ export async function GET(
     return NextResponse.json({ error: check.error }, { status: check.status });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("company_members")
     .select(
       "id, role, department, joined_at, profile_id, profile:profiles(id, email, name, locale)"

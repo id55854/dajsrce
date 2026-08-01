@@ -1,67 +1,71 @@
-// Re-apply category-rules.mjs to existing ngo_registry rows in place.
-// Use after iterating on the rule set; doesn't touch geocoding or contact info.
-//
-// Usage:
-//   node scripts/remap-categories.mjs
-//   node scripts/remap-categories.mjs --limit 1000
+// Reclassify registry records in bounded reads and set-based update batches.
 
 import { supabaseAdmin } from "./lib/supabase-admin.mjs";
-import { scoreRow } from "./lib/category-rules.mjs";
+import { scoreRow, inferAcceptsDonations } from "./lib/category-rules.mjs";
 
 const args = process.argv.slice(2);
-const argVal = (n, d = null) => {
-  const i = args.indexOf(n);
-  return i >= 0 && i + 1 < args.length ? args[i + 1] : d;
+const argVal = (name, fallback = null) => {
+  const index = args.indexOf(name);
+  return index >= 0 && index + 1 < args.length ? args[index + 1] : fallback;
 };
-const LIMIT = argVal("--limit") ? parseInt(argVal("--limit")) : Infinity;
-
+const limit = argVal("--limit") ? Number.parseInt(argVal("--limit"), 10) : Number.POSITIVE_INFINITY;
+const pageSize = 500;
 let scanned = 0;
 let changed = 0;
-const PAGE = 500;
-let from = 0;
-const dist = {};
+let afterOib = "";
+const distribution = {};
 
-while (scanned < LIMIT) {
-  const { data, error } = await supabaseAdmin
+while (scanned < limit) {
+  const take = Math.min(pageSize, Number.isFinite(limit) ? limit - scanned : pageSize);
+  let query = supabaseAdmin
     .from("ngo_registry")
-    .select("oib, naziv, ciljane_skupine, opis_djelatnosti, ciljevi, mapped_category, mapped_confidence")
+    .select("oib, naziv, ciljane_skupine, opis_djelatnosti, ciljevi")
     .order("oib", { ascending: true })
-    .range(from, from + PAGE - 1);
+    .limit(take);
+  if (afterOib) query = query.gt("oib", afterOib);
+  const { data: rows, error } = await query;
   if (error) throw error;
-  if (!data || data.length === 0) break;
+  if (!rows?.length) break;
 
-  for (const r of data) {
-    if (scanned >= LIMIT) break;
-    scanned++;
+  const updates = rows.map((row) => {
+    const activityText = `${row.opis_djelatnosti || ""}\n${row.ciljevi || ""}`;
     const score = scoreRow({
-      groups: r.ciljane_skupine || "",
-      text: `${r.opis_djelatnosti || ""}\n${r.ciljevi || ""}`,
-      name: r.naziv || "",
+      groups: row.ciljane_skupine || "",
+      text: activityText,
+      name: row.naziv || "",
     });
-    dist[score.category || "__unmapped"] = (dist[score.category || "__unmapped"] || 0) + 1;
-    if (
-      score.category !== r.mapped_category ||
-      score.confidence !== Number(r.mapped_confidence)
-    ) {
-      const { error: ue } = await supabaseAdmin
-        .from("ngo_registry")
-        .update({
-          mapped_category: score.category,
-          mapped_confidence: score.confidence,
-          mapped_rule: score.rule,
-        })
-        .eq("oib", r.oib);
-      if (!ue) changed++;
-    }
-  }
-  from += PAGE;
-  if (data.length < PAGE) break;
-  if (scanned % 5000 === 0) console.log(`  ... scanned ${scanned}`);
+    distribution[score.classificationStatus] =
+      (distribution[score.classificationStatus] || 0) + 1;
+    return {
+      oib: row.oib,
+      mapped_category: score.category,
+      mapped_confidence: score.confidence,
+      mapped_rule: score.rule,
+      classification_status: score.classificationStatus,
+      classification_reasons: score.reviewReasons,
+      classification_candidates: score.candidateCategories,
+      classification_version: score.classificationVersion,
+      donation_candidates: inferAcceptsDonations(
+        score.category,
+        `${activityText}\n${row.ciljane_skupine || ""}`
+      ),
+    };
+  });
+
+  const { data: affected, error: updateError } = await supabaseAdmin.rpc(
+    "apply_registry_classifications",
+    { p_rows: updates }
+  );
+  if (updateError) throw updateError;
+  changed += Number(affected ?? 0);
+  scanned += rows.length;
+  afterOib = rows.at(-1).oib;
+  console.log(`  classified ${scanned.toLocaleString()} rows`);
 }
 
-console.log(`\nScanned : ${scanned}`);
-console.log(`Changed : ${changed}`);
-console.log("\nNew category distribution:");
-for (const [k, v] of Object.entries(dist).sort((a, b) => b[1] - a[1])) {
-  console.log(`  ${String(v).padStart(6)}  ${k}`);
+console.log("\n=== Classification report ===");
+console.log(`Scanned : ${scanned.toLocaleString()}`);
+console.log(`Updated : ${changed.toLocaleString()}`);
+for (const [status, count] of Object.entries(distribution).sort((a, b) => b[1] - a[1])) {
+  console.log(`  ${String(count).padStart(7)}  ${status}`);
 }

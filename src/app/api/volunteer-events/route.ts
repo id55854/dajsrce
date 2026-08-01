@@ -1,15 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeRole } from "@/lib/auth/roles";
 import { getLocalVolunteerEvents } from "@/lib/local-data";
+import { areLocalFixturesEnabled } from "@/lib/env";
+import { getRequestId, logError } from "@/lib/observability";
+import { parseVolunteerEventInput } from "@/lib/validation";
+import { projectHiddenLocation } from "@/lib/location-map";
 
-export async function GET(_req: NextRequest) {
+function publicFixtureEvent(event: ReturnType<typeof getLocalVolunteerEvents>[number]) {
+  const institution = event.institution;
+  if (!institution) return event;
+  const point = institution.is_location_hidden
+    ? projectHiddenLocation(institution.id, institution.lat, institution.lng)
+    : { latitude: institution.lat, longitude: institution.lng };
+  return {
+    ...event,
+    institution: {
+      id: institution.id,
+      name: institution.name,
+      category: institution.category,
+      address: institution.is_location_hidden
+        ? institution.approximate_area ?? institution.city
+        : institution.address,
+      city: institution.city,
+      lat: point.latitude,
+      lng: point.longitude,
+      is_location_hidden: institution.is_location_hidden,
+      approximate_area: institution.approximate_area,
+    },
+  };
+}
+
+export async function GET(req: NextRequest) {
+  const requestId = getRequestId(req.headers);
   try {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = await createServerSupabaseClient();
 
     const { data, error } = await supabase
       .from("volunteer_events")
-      .select("*, institution:institutions(id, name, category, address, city)")
+      .select("*, institution:institutions(id, name, category, address:public_address, city)")
       .gte("event_date", new Date().toISOString().split("T")[0])
       .order("event_date", { ascending: true })
       .limit(30);
@@ -18,11 +47,24 @@ export async function GET(_req: NextRequest) {
     if (data) {
       return NextResponse.json({ events: data });
     }
-  } catch {
-    // Fall back
+  } catch (error) {
+    logError("volunteer_events.list_failed", error, { request_id: requestId });
+    if (!areLocalFixturesEnabled()) {
+      return NextResponse.json(
+        { error: "Volunteer events are temporarily unavailable", request_id: requestId },
+        { status: 503, headers: { "x-request-id": requestId } }
+      );
+    }
   }
 
-  return NextResponse.json({ events: getLocalVolunteerEvents() });
+  return NextResponse.json(
+    {
+      events: getLocalVolunteerEvents().map(publicFixtureEvent),
+      fixture: true,
+      request_id: requestId,
+    },
+    { headers: { "cache-control": "no-store", "x-request-id": requestId } }
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -63,22 +105,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const { title, description, event_date, start_time, end_time, volunteers_needed, requirements } = body;
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+    const parsed = parseVolunteerEventInput(rawBody);
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    const { title, description, event_date, start_time, end_time, volunteers_needed, requirements } = parsed.value;
 
     const { data, error } = await supabase
       .from("volunteer_events")
       .insert({
         institution_id: profile.institution_id,
         title,
-        description: typeof description === "string" && description.trim() ? description.trim() : null,
+        description,
         event_date,
         start_time,
         end_time,
-        volunteers_needed: volunteers_needed || 5,
-        requirements: requirements || null,
+        volunteers_needed,
+        requirements,
       })
-      .select("*, institution:institutions(id, name, category, address, city, lat, lng)")
+      .select(
+        "*, institution:institutions(id, name, category, address:public_address, city, lat:public_lat, lng:public_lng)"
+      )
       .single();
 
     if (error) throw error;
@@ -95,7 +146,8 @@ export async function POST(req: NextRequest) {
           `Volunteer event: ${title}`,
           `${inst.name ?? "An NGO"} near you needs volunteers for "${title}" on ${event_date}`,
           `/volunteer`,
-          user.id
+          user.id,
+          `volunteer-event:${data.id}`
         );
       }
     }

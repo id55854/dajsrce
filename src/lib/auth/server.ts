@@ -26,7 +26,9 @@ export async function getCurrentUserProfile(): Promise<AuthProfile | null> {
         (user.user_metadata?.name as string | undefined) ??
         user.email?.split("@")[0] ??
         "User",
-      role: normalizeRole((user.user_metadata?.role as string | undefined) ?? null),
+      // Auth metadata is user-controlled; a missing database profile is always
+      // treated as least privileged.
+      role: "individual",
       institution_id: null,
     };
   }

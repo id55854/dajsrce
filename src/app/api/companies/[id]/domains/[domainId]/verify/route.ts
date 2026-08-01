@@ -50,7 +50,7 @@ export async function POST(
     return NextResponse.json({ verified: false, reason: "record_not_found" });
   }
 
-  const { data: updated, error } = await supabase
+  const { data: updated, error } = await supabaseAdmin
     .from("company_domains")
     .update({ verified_at: new Date().toISOString() })
     .eq("id", domainId)

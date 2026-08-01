@@ -41,23 +41,23 @@ export default async function CompanyConfirmationPage({
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Thank-you Confirmation
+          Legacy support record
         </h1>
         <PrintConfirmationButton />
       </div>
       <article className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900 print:shadow-none">
         <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
-          DajSrce • Corporate Support Confirmation
+          DajSrce • Self-reported legacy record
         </p>
         <h2 className="mt-2 text-3xl font-semibold text-gray-900 dark:text-gray-100">
-          Thank you for supporting the community
+          Historical company-submitted support entry
         </h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <Data label="Company" value={action.company_name} />
           <Data label="NGO" value={action.ngo_name} />
           <Data label="Donation/support type" value={action.support_type} />
           <Data label="Date" value={new Date(action.created_at).toLocaleDateString()} />
-          <Data label="Status" value={action.status} />
+          <Data label="Status" value="Self-reported — not independently verified" />
           <Data label="Delivery method" value={action.shipment_method} />
         </div>
         {action.note ? (
@@ -66,7 +66,9 @@ export default async function CompanyConfirmationPage({
           </div>
         ) : null}
         <p className="mt-8 text-xs text-gray-500">
-          This printable confirmation is generated for CSR/impact record keeping.
+          This legacy record was entered by the company and was not acknowledged by the
+          named NGO. It is not a donation receipt, tax document, or independently verified
+          evidence. Use acknowledged pledges and generated receipts for formal reporting.
         </p>
       </article>
     </div>

@@ -23,14 +23,13 @@ export async function runCompute(
 
   switch (key) {
     case "volunteer_hours_sum": {
-      const { data, error } = await admin
-        .from("volunteer_hours")
-        .select("id, hours")
-        .eq("company_id", companyId)
-        .gte("recorded_at", from)
-        .lte("recorded_at", to);
+      const { data, error } = await admin.rpc("get_volunteer_hours_json", {
+        p_company_id: companyId,
+        p_from: from,
+        p_to: to,
+      });
       if (error) throw new Error(error.message);
-      const rows = data ?? [];
+      const rows = (Array.isArray(data) ? data : []) as Array<{ id: string; hours: number | string }>;
       const sum = rows.reduce((s, r) => s + Number(r.hours ?? 0), 0);
       return {
         value: Math.round(sum * 100) / 100,
@@ -40,35 +39,32 @@ export async function runCompute(
       };
     }
     case "volunteer_sessions_count": {
-      const { data, error } = await admin
-        .from("volunteer_hours")
-        .select("id")
-        .eq("company_id", companyId)
-        .gte("recorded_at", from)
-        .lte("recorded_at", to);
+      const { data, error } = await admin.rpc("get_volunteer_hours_json", {
+        p_company_id: companyId,
+        p_from: from,
+        p_to: to,
+      });
       if (error) throw new Error(error.message);
-      const rows = data ?? [];
+      const rows = (Array.isArray(data) ? data : []) as Array<{ id: string }>;
       return {
         value: rows.length,
         evidence: rows.length ? [{ kind: "volunteer_hours" as const, ids: rows.map((r) => r.id) }] : [],
       };
     }
     case "pledges_acknowledged_eur": {
-      const { data, error } = await admin
-        .from("pledges")
-        .select("id, amount_eur, pledge_acknowledgements(signed_at)")
-        .eq("company_id", companyId)
-        .not("amount_eur", "is", null);
+      const { data, error } = await admin.rpc("get_acknowledged_pledges_json", {
+        p_company_id: companyId,
+        p_from: from,
+        p_to: to,
+      });
       if (error) throw new Error(error.message);
       let total = 0;
       const ids: string[] = [];
-      for (const row of data ?? []) {
-        const acks = row.pledge_acknowledgements as unknown;
-        if (!Array.isArray(acks) || acks.length === 0) continue;
-        const signedAt = (acks[0] as { signed_at?: string })?.signed_at;
-        if (!signedAt) continue;
-        const t = new Date(signedAt).getTime();
-        if (t < new Date(from).getTime() || t > new Date(to).getTime()) continue;
+      const rows = (Array.isArray(data) ? data : []) as Array<{
+        id: string;
+        amount_eur: number | string;
+      }>;
+      for (const row of rows) {
         total += Number(row.amount_eur ?? 0);
         ids.push(row.id);
       }
@@ -78,51 +74,40 @@ export async function runCompute(
       };
     }
     case "pledges_acknowledged_count": {
-      const { data, error } = await admin
-        .from("pledges")
-        .select("id, pledge_acknowledgements(signed_at)")
-        .eq("company_id", companyId);
+      const { data, error } = await admin.rpc("get_acknowledged_pledges_json", {
+        p_company_id: companyId,
+        p_from: from,
+        p_to: to,
+      });
       if (error) throw new Error(error.message);
-      let n = 0;
-      const ids: string[] = [];
-      for (const row of data ?? []) {
-        const acks = row.pledge_acknowledgements as unknown;
-        if (!Array.isArray(acks) || acks.length === 0) continue;
-        const signedAt = (acks[0] as { signed_at?: string })?.signed_at;
-        if (!signedAt) continue;
-        const t = new Date(signedAt).getTime();
-        if (t < new Date(from).getTime() || t > new Date(to).getTime()) continue;
-        n += 1;
-        ids.push(row.id);
-      }
+      const rows = (Array.isArray(data) ? data : []) as Array<{ id: string }>;
+      const ids = rows.map((row) => row.id);
       return {
-        value: n,
+        value: rows.length,
         evidence: ids.length ? [{ kind: "pledge" as const, ids }] : [],
       };
     }
     case "company_member_count": {
-      const { data, error } = await admin
+      const { count, error } = await admin
         .from("company_members")
-        .select("id")
+        .select("id", { count: "exact", head: true })
         .eq("company_id", companyId);
       if (error) throw new Error(error.message);
-      const rows = data ?? [];
       return {
-        value: rows.length,
-        evidence: rows.length ? [{ kind: "member" as const, ids: rows.map((r) => r.id) }] : [],
+        value: count ?? 0,
+        evidence: [],
       };
     }
     case "campaigns_active_count": {
-      const { data, error } = await admin
+      const { count, error } = await admin
         .from("campaigns")
-        .select("id")
+        .select("id", { count: "exact", head: true })
         .eq("company_id", companyId)
         .eq("is_active", true);
       if (error) throw new Error(error.message);
-      const rows = data ?? [];
       return {
-        value: rows.length,
-        evidence: rows.length ? [{ kind: "campaign" as const, ids: rows.map((r) => r.id) }] : [],
+        value: count ?? 0,
+        evidence: [],
       };
     }
     default:

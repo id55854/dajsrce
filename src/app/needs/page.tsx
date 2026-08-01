@@ -11,17 +11,23 @@ import {
   type YourPledgeRow,
 } from "@/components/YourPledgesSection";
 import { createClient } from "@/lib/supabase/client";
+import { useLocale, useT } from "@/i18n/client";
 
 const DONATION_KEYS = Object.keys(DONATION_TYPES) as DonationType[];
 
-const URGENCY_OPTIONS: { value: UrgencyLevel | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "urgent", label: "Urgent" },
-  { value: "needed_soon", label: "Soon" },
-  { value: "routine", label: "Routine" },
+const URGENCY_OPTIONS: Array<{
+  value: UrgencyLevel | "all";
+  key: string;
+}> = [
+  { value: "all", key: "needs_page.all" },
+  { value: "urgent", key: "needs_page.urgent" },
+  { value: "needed_soon", key: "needs_page.soon" },
+  { value: "routine", key: "needs_page.routine" },
 ];
 
 export default function NeedsPage() {
+  const t = useT();
+  const { locale } = useLocale();
   const [needs, setNeeds] = useState<NeedCardNeed[]>([]);
   const [donationType, setDonationType] = useState<DonationType | "all">("all");
   const [urgency, setUrgency] = useState<UrgencyLevel | "all">("all");
@@ -78,11 +84,11 @@ export default function NeedsPage() {
           needs?: NeedCardNeed[];
           error?: string;
         };
-        if (!res.ok) throw new Error(json.error ?? "Failed to load");
+        if (!res.ok) throw new Error();
         if (!cancelled) setNeeds(json.needs ?? []);
-      } catch (e) {
+      } catch {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Error loading data");
+          setError("needs_page.error_loading");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -149,10 +155,10 @@ export default function NeedsPage() {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Institution Needs
+          {t("needs_page.title")}
         </h1>
         <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
-          Institutions need your help — find where you can contribute
+          {t("needs_page.subtitle")}
         </p>
       </header>
 
@@ -165,11 +171,12 @@ export default function NeedsPage() {
       <div className="mb-8 space-y-4">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Donation type
+            {t("needs_page.donation_type")}
           </p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
+              aria-pressed={donationType === "all"}
               onClick={() => setDonationType("all")}
               className={clsx(
                 "rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
@@ -178,7 +185,7 @@ export default function NeedsPage() {
                   : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
               )}
             >
-              All
+              {t("needs_page.all")}
             </button>
             {DONATION_KEYS.map((key) => {
               const on = donationType === key;
@@ -186,6 +193,7 @@ export default function NeedsPage() {
                 <button
                   key={key}
                   type="button"
+                  aria-pressed={on}
                   onClick={() => setDonationType(on ? "all" : key)}
                   className={clsx(
                     "rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
@@ -194,7 +202,9 @@ export default function NeedsPage() {
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
                   )}
                 >
-                  {DONATION_TYPES[key].label}
+                  {locale === "hr"
+                    ? DONATION_TYPES[key].labelHr
+                    : DONATION_TYPES[key].label}
                 </button>
               );
             })}
@@ -203,7 +213,7 @@ export default function NeedsPage() {
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Urgency
+            {t("needs_page.urgency")}
           </p>
           <div className="flex flex-wrap gap-2">
             {URGENCY_OPTIONS.map((opt) => {
@@ -212,6 +222,7 @@ export default function NeedsPage() {
                 <button
                   key={opt.value}
                   type="button"
+                  aria-pressed={on}
                   onClick={() => setUrgency(opt.value)}
                   className={clsx(
                     "rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-colors",
@@ -220,7 +231,7 @@ export default function NeedsPage() {
                       : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
                   )}
                 >
-                  {opt.label}
+                  {t(opt.key)}
                 </button>
               );
             })}
@@ -229,7 +240,11 @@ export default function NeedsPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+          role="status"
+          aria-label={t("needs_page.loading")}
+        >
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
@@ -238,10 +253,10 @@ export default function NeedsPage() {
           ))}
         </div>
       ) : error ? (
-        <p className="text-center text-red-600">{error}</p>
+        <p className="text-center text-red-600" role="alert">{t(error)}</p>
       ) : needs.length === 0 ? (
         <p className="py-16 text-center text-gray-500 dark:text-gray-400">
-          No active needs at this time
+          {t("needs_page.empty")}
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

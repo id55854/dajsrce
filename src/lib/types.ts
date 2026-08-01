@@ -259,11 +259,11 @@ export interface CompanyInvite {
   company_id: string;
   email: string;
   role: Exclude<CompanyRole, "owner">;
-  token: string;
   expires_at: string;
   accepted_at: string | null;
   invited_by: string | null;
   created_at: string;
+  // Bearer tokens are hashed at rest and returned only once in the create API.
 }
 
 export interface CompanyVerification {

@@ -30,6 +30,7 @@ export async function GET(
     .select("id, pdf_url, xml_url, company_id")
     .eq("id", receiptId)
     .eq("company_id", companyId)
+    .eq("generation_status", "ready")
     .maybeSingle();
 
   if (error || !receipt) {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { writeAuditLog } from "@/lib/audit";
 import { isValidOib, lookupOib } from "@/lib/oib";
 import { slugify } from "@/lib/companies";
 import { loadCompanyMembershipsForUser } from "@/lib/companies-server";
@@ -97,7 +96,7 @@ export async function POST(req: NextRequest) {
 
   // Ensure the profile row exists before inserting a company — the trigger
   // should have created it, but we defensively upsert as other routes do.
-  await supabase
+  const { error: profileError } = await supabaseAdmin
     .from("profiles")
     .upsert(
       {
@@ -107,13 +106,15 @@ export async function POST(req: NextRequest) {
           (user.user_metadata?.name as string | undefined) ??
           user.email?.split("@")[0] ??
           "User",
-        role: "company",
       },
       { onConflict: "id" }
     );
+  if (profileError) {
+    return NextResponse.json({ error: "Could not initialize profile" }, { status: 500 });
+  }
 
   const baseSlug = slugify(body.display_name || legalName);
-  const slug = await ensureUniqueSlug(supabase, baseSlug);
+  const slug = await ensureUniqueSlug(baseSlug);
 
   const insertRow = {
     owner_id: user.id,
@@ -133,11 +134,10 @@ export async function POST(req: NextRequest) {
     default_match_ratio: body.default_match_ratio ?? 0,
   };
 
-  const { data: company, error: insertError } = await supabase
-    .from("companies")
-    .insert(insertRow)
-    .select()
-    .single();
+  const { data: company, error: insertError } = await supabaseAdmin.rpc(
+    "create_company_tenant_transaction",
+    { p_actor_id: user.id, p_company: insertRow }
+  );
 
   if (insertError || !company) {
     const msg = insertError?.message ?? "Failed to create company";
@@ -147,43 +147,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { error: memberError } = await supabase.from("company_members").insert({
-    company_id: company.id,
-    profile_id: user.id,
-    role: "owner",
-  });
-
-  if (memberError) {
-    // Roll back on member insert failure so we don't leak an ownerless
-    // company into the tenant list.
-    await supabase.from("companies").delete().eq("id", company.id);
-    return NextResponse.json(
-      { error: memberError.message, hint: supabaseMissingTableHint(memberError.message) },
-      { status: 500 }
-    );
-  }
-
-  await writeAuditLog(supabaseAdmin, {
-    actor_profile_id: user.id,
-    company_id: company.id,
-    action: "company.create",
-    entity_type: "company",
-    entity_id: company.id,
-    payload: { legal_name: insertRow.legal_name, oib: insertRow.oib ?? null, slug },
-  });
-
   return NextResponse.json({ company, registry_hit: Boolean(registryHit) }, { status: 201 });
 }
 
 async function ensureUniqueSlug(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   base: string
 ): Promise<string> {
   let candidate = base;
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const suffixed = attempt === 0 ? base : `${base}-${attempt + 1}`;
     candidate = suffixed;
-    const { data } = await supabase
+    const { data } = await supabaseAdmin
       .from("companies")
       .select("id")
       .eq("slug", candidate)

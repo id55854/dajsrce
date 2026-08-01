@@ -90,12 +90,12 @@ export default function SetupPage() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error: updateErr } = await supabase
-        .from("profiles")
-        .update({ role })
-        .eq("id", user.id);
+      const { error: setupErr } = await supabase.rpc("complete_profile_setup", {
+        p_role: role,
+        p_institution_name: role === "ngo" ? institutionName.trim() : null,
+      });
 
-      if (updateErr) throw updateErr;
+      if (setupErr) throw setupErr;
 
       const meta: Record<string, string | boolean> = { role };
       if (role === "individual") {
@@ -105,33 +105,6 @@ export default function SetupPage() {
       await supabase.auth.updateUser({
         data: meta,
       });
-
-      if (role === "ngo" && institutionName.trim()) {
-        const { data: inst, error: instErr } = await supabase
-          .from("institutions")
-          .insert({
-            name: institutionName.trim(),
-            category: "social_welfare",
-            description: `${institutionName.trim()} — registered through DajSrce`,
-            address: "To be updated",
-            city: "Zagreb",
-            lat: 45.8131,
-            lng: 15.9775,
-            served_population: "General",
-          })
-          .select("id")
-          .single();
-
-        if (instErr) throw instErr;
-        if (!inst?.id) throw new Error("Could not create institution.");
-
-        const { error: linkErr } = await supabase
-          .from("profiles")
-          .update({ institution_id: inst.id })
-          .eq("id", user.id);
-
-        if (linkErr) throw linkErr;
-      }
 
       router.replace("/dashboard");
     } catch (e) {

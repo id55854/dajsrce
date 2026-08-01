@@ -16,14 +16,17 @@ import {
   LocateFixed,
   MapPin,
   Pencil,
-  Phone,
   Shirt,
   Sofa,
   Stethoscope,
 } from "lucide-react";
 import clsx from "clsx";
-import type { DonationType, Institution } from "@/lib/types";
-import { DONATION_TYPES, ZAGREB_CENTER, getCategoryConfig } from "@/lib/constants";
+import type { DonationType } from "@/lib/types";
+import type {
+  PublicMapInstitution,
+  PublicMapResponse,
+} from "@/lib/location-map";
+import { DONATION_TYPES, getCategoryConfig } from "@/lib/constants";
 
 const DONATION_TYPE_ORDER = Object.keys(DONATION_TYPES) as DonationType[];
 
@@ -54,7 +57,7 @@ function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): num
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-type RankedInstitution = Institution & { distanceKm: number };
+type RankedInstitution = PublicMapInstitution & { distanceKm: number };
 
 async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   // Browser-side reverse geocode via Nominatim (no key needed). Best-effort —
@@ -79,6 +82,41 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   }
 }
 
+async function forwardGeocode(
+  address: string
+): Promise<{ lat: number; lng: number; label: string | null } | null> {
+  try {
+    const url =
+      "https://nominatim.openstreetmap.org/search?" +
+      new URLSearchParams({
+        q: `${address}, Hrvatska`,
+        format: "json",
+        limit: "1",
+        countrycodes: "hr",
+      }).toString();
+    const response = await fetch(url, {
+      headers: { "Accept-Language": "hr,en" },
+    });
+    if (!response.ok) return null;
+    const rows = (await response.json()) as Array<{
+      lat?: string;
+      lon?: string;
+      display_name?: string;
+    }>;
+    const row = rows[0];
+    const lat = Number(row?.lat);
+    const lng = Number(row?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return {
+      lat,
+      lng,
+      label: typeof row.display_name === "string" ? row.display_name : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function QuickStartWizard() {
   const [step, setStep] = useState(1);
   const [selected, setSelected] = useState<Set<DonationType>>(new Set());
@@ -88,7 +126,6 @@ export function QuickStartWizard() {
   const [userLng, setUserLng] = useState<number | null>(null);
   const [userAddress, setUserAddress] = useState<string | null>(null);
   const [resolvingAddress, setResolvingAddress] = useState(false);
-  const [usedZagrebFallback, setUsedZagrebFallback] = useState(false);
   const [manualLocation, setManualLocation] = useState("");
   const [results, setResults] = useState<RankedInstitution[]>([]);
   const [fetchLoading, setFetchLoading] = useState(false);
@@ -128,7 +165,6 @@ export function QuickStartWizard() {
         const lng = pos.coords.longitude;
         setUserLat(lat);
         setUserLng(lng);
-        setUsedZagrebFallback(false);
         setGeoLoading(false);
         setResolvingAddress(true);
         const addr = await reverseGeocode(lat, lng);
@@ -156,32 +192,62 @@ export function QuickStartWizard() {
     const types = [...selected];
     let lat = userLat;
     let lng = userLng;
-    let fallback = false;
     if (lat == null || lng == null) {
-      lat = ZAGREB_CENTER[0];
-      lng = ZAGREB_CENTER[1];
-      fallback = true;
+      const geocoded = await forwardGeocode(manualLocation.trim());
+      if (!geocoded) {
+        setFetchError(
+          "We could not find that address in Croatia. Check it and try again."
+        );
+        setResults([]);
+        setFetchLoading(false);
+        return;
+      }
+      lat = geocoded.lat;
+      lng = geocoded.lng;
+      setUserLat(lat);
+      setUserLng(lng);
+      setUserAddress(geocoded.label);
     }
-    setUsedZagrebFallback(fallback);
     setFetchLoading(true);
     setFetchError(null);
     try {
-      // One fetch for the full institution catalogue, filter client-side.
-      // Cheaper than N round-trips and lets us match orgs that accept ANY
-      // of the selected types (the previous approach already deduped via a
-      // Map but did N HTTP calls; the union of accepted_types is the same).
-      const res = await fetch("/api/institutions");
-      if (!res.ok) throw new Error(await res.text());
-      const { institutions } = (await res.json()) as { institutions: Institution[] };
-
-      const wanted = new Set(types);
-      const matching = institutions.filter((inst) =>
-        (inst.accepts_donations ?? []).some((t) => wanted.has(t as DonationType))
+      // Every request is spatially bounded and capped. The calls run in
+      // parallel so selecting several donation types never downloads the
+      // national catalogue or blocks types behind sequential round trips.
+      const radiusDegrees = 0.22;
+      const bbox = [
+        lng - radiusDegrees,
+        lat - radiusDegrees,
+        lng + radiusDegrees,
+        lat + radiusDegrees,
+      ].join(",");
+      const responses = await Promise.all(
+        types.map(async (donationType) => {
+          const params = new URLSearchParams({
+            bbox,
+            zoom: "12",
+            donationType,
+            limit: "50",
+          });
+          const response = await fetch(`/api/v1/map/institutions?${params}`);
+          if (!response.ok) throw new Error("Institution search failed");
+          return (await response.json()) as PublicMapResponse;
+        })
       );
-
-      const ranked: RankedInstitution[] = matching.map((inst) => ({
-        ...inst,
-        distanceKm: distanceKm(lat!, lng!, inst.lat, inst.lng),
+      const unique = new Map<string, PublicMapInstitution>();
+      for (const response of responses) {
+        for (const feature of response.features) {
+          if (feature.kind === "institution") unique.set(feature.id, feature);
+        }
+      }
+      const ranked: RankedInstitution[] = [...unique.values()].map((institution) => ({
+        ...institution,
+        distanceKm: distanceKm(
+          lat!,
+          lng!,
+          institution.latitude,
+          institution.longitude
+        ),
       }));
       ranked.sort((a, b) => a.distanceKm - b.distanceKm);
       setResults(ranked.slice(0, 5));
@@ -191,7 +257,7 @@ export function QuickStartWizard() {
     } finally {
       setFetchLoading(false);
     }
-  }, [selected, userLat, userLng]);
+  }, [manualLocation, selected, userLat, userLng]);
 
   const stepDots = useMemo(
     () =>
@@ -243,7 +309,6 @@ export function QuickStartWizard() {
             loading={fetchLoading}
             error={fetchError}
             results={results}
-            usedZagrebFallback={usedZagrebFallback}
           />
         ) : null}
       </div>
@@ -291,7 +356,6 @@ export function QuickStartWizard() {
               setManualLocation("");
               setResults([]);
               setFetchError(null);
-              setUsedZagrebFallback(false);
             }}
             className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600"
           >
@@ -443,7 +507,8 @@ function StepTwo({
           className="mt-1.5 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none ring-red-500/30 transition-shadow focus:border-red-400 focus:ring-2"
         />
         <p className="mt-1 text-xs text-gray-500">
-          Without GPS, distances are measured from Zagreb city center.
+          We use OpenStreetMap Nominatim to locate the address for this search;
+          the typed address is not saved by DajSrce.
         </p>
       </div>
     </div>
@@ -454,12 +519,10 @@ function StepThree({
   loading,
   error,
   results,
-  usedZagrebFallback,
 }: {
   loading: boolean;
   error: string | null;
   results: RankedInstitution[];
-  usedZagrebFallback: boolean;
 }) {
   if (loading) {
     return (
@@ -481,11 +544,6 @@ function StepThree({
   return (
     <div className="space-y-4">
       <p className="text-sm font-medium text-gray-800">Nearest institutions</p>
-      {usedZagrebFallback ? (
-        <p className="text-xs text-gray-500">
-          Distances are approximate (Zagreb city center).
-        </p>
-      ) : null}
       {results.length === 0 ? (
         <p className="text-sm text-gray-600">
           No institutions match your selection. Try other categories.
@@ -494,14 +552,10 @@ function StepThree({
         <ul className="space-y-3">
           {results.map((inst) => {
             const cat = getCategoryConfig(inst.category);
-            const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${inst.lat},${inst.lng}`;
-            const tel =
-              inst.phone != null
-                ? `tel:${inst.phone.replace(/\s/g, "")}`
-                : null;
-            const addressLine = inst.is_location_hidden
-              ? inst.approximate_area ?? "Hidden location"
-              : `${inst.address}, ${inst.city}`;
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${inst.latitude},${inst.longitude}`;
+            const addressLine = inst.isLocationHidden
+              ? inst.approximateArea ?? inst.city ?? "Hidden location"
+              : [inst.address, inst.city].filter(Boolean).join(", ");
             return (
               <li
                 key={inst.id}
@@ -525,24 +579,23 @@ function StepThree({
                 </div>
                 <p className="mt-2 text-sm text-gray-600">{addressLine}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex flex-1 min-w-[6rem] items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Directions
-                  </a>
-                  {tel ? (
+                  {!inst.isLocationHidden ? (
                     <a
-                      href={tel}
-                      className="inline-flex flex-1 min-w-[6rem] items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex flex-1 min-w-[6rem] items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
                     >
-                      <Phone className="h-3.5 w-3.5" />
-                      Call
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Directions
                     </a>
                   ) : null}
+                  <a
+                    href={`/institution/${inst.id}`}
+                    className="inline-flex flex-1 min-w-[6rem] items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                  >
+                    View details
+                  </a>
                 </div>
               </li>
             );

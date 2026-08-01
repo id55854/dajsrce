@@ -3,6 +3,7 @@
 import { InstitutionCategory, DonationType } from "@/lib/types";
 import { CATEGORY_CONFIG, DONATION_TYPES } from "@/lib/constants";
 import clsx from "clsx";
+import { useLocale, useT } from "@/i18n/client";
 
 const DONATION_TYPE_KEYS = Object.keys(DONATION_TYPES) as DonationType[];
 const CATEGORY_KEYS = Object.keys(CATEGORY_CONFIG) as InstitutionCategory[];
@@ -20,6 +21,8 @@ type FilterBarProps = {
 };
 
 export function FilterBar({ filters, onChange }: FilterBarProps) {
+  const t = useT();
+  const { locale } = useLocale();
   const toggleCategory = (cat: InstitutionCategory) => {
     const has = filters.categories.includes(cat);
     const categories = has
@@ -42,7 +45,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
       >
         <div className="flex shrink-0 items-center gap-1.5 pr-2">
           <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Category
+            {t("filters.category")}
           </span>
         </div>
         {CATEGORY_KEYS.map((cat) => {
@@ -52,6 +55,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
             <button
               key={cat}
               type="button"
+              aria-pressed={on}
               onClick={() => toggleCategory(cat)}
               className={clsx(
                 "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-shadow",
@@ -70,7 +74,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
                   : undefined
               }
             >
-              {cfg.label}
+              {locale === "hr" ? cfg.labelHr : cfg.label}
             </button>
           );
         })}
@@ -82,11 +86,12 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
 
         <div className="flex shrink-0 items-center gap-1.5 pr-2">
           <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Donation
+            {t("filters.donation")}
           </span>
         </div>
         <button
           type="button"
+          aria-pressed={filters.donationType === null}
           onClick={() => setDonationType(null)}
           className={clsx(
             "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
@@ -95,7 +100,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
           )}
         >
-          All
+          {t("filters.all")}
         </button>
         {DONATION_TYPE_KEYS.map((key) => {
           const on = filters.donationType === key;
@@ -103,6 +108,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
             <button
               key={key}
               type="button"
+              aria-pressed={on}
               onClick={() => setDonationType(on ? null : key)}
               className={clsx(
                 "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
@@ -111,7 +117,9 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
                   : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
               )}
             >
-              {DONATION_TYPES[key].label}
+              {locale === "hr"
+                ? DONATION_TYPES[key].labelHr
+                : DONATION_TYPES[key].label}
             </button>
           );
         })}
@@ -123,6 +131,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
 
         <button
           type="button"
+          aria-pressed={filters.onlyZagreb}
           onClick={() => onChange({ ...filters, onlyZagreb: !filters.onlyZagreb })}
           className={clsx(
             "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-colors",
@@ -131,11 +140,14 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
           )}
         >
-          {filters.onlyZagreb ? "Zagreb only" : "All Croatia"}
+          {filters.onlyZagreb
+            ? t("filters.zagreb_only")
+            : t("filters.all_croatia")}
         </button>
 
         <button
           type="button"
+          aria-pressed={filters.onlyUrgent}
           onClick={() => onChange({ ...filters, onlyUrgent: !filters.onlyUrgent })}
           className={clsx(
             "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-colors",
@@ -144,7 +156,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
           )}
         >
-          Urgent only
+          {t("filters.urgent_only")}
         </button>
       </div>
     </div>

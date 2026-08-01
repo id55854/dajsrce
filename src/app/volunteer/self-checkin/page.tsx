@@ -10,12 +10,13 @@ function SelfCheckInInner() {
   const t = useT();
   const searchParams = useSearchParams();
   const eventId = searchParams.get("event");
+  const token = searchParams.get("token");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
 
   async function confirm() {
-    if (!eventId) return;
+    if (!eventId || !token) return;
     setLoading(true);
     setMessage(null);
     try {
@@ -23,7 +24,7 @@ function SelfCheckInInner() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_id: eventId }),
+        body: JSON.stringify({ event_id: eventId, token }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -37,7 +38,7 @@ function SelfCheckInInner() {
     }
   }
 
-  if (!eventId) {
+  if (!eventId || !token) {
     return <p className="text-sm text-gray-600 dark:text-gray-400">{t("volunteer_self.missing_event")}</p>;
   }
 

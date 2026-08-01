@@ -1,17 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { isValidPublicCompanySlug, publicAppOrigin } from "@/lib/public-company-http";
 
 function escapeJsString(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r?\n/g, "\\n");
 }
 
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const origin =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    (typeof process.env.VERCEL_URL === "string" ? `https://${process.env.VERCEL_URL}` : "");
+  if (!isValidPublicCompanySlug(slug)) {
+    return new NextResponse("/* Invalid DajSrce company card. */", {
+      status: 404,
+      headers: { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "public, max-age=60" },
+    });
+  }
+  const origin = publicAppOrigin(req);
 
   const safeSlug = escapeJsString(slug);
   const safeOrigin = escapeJsString(origin || "");
@@ -58,7 +63,8 @@ export async function GET(
   return new NextResponse(js, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
-      "Cache-Control": "public, max-age=120",
+      "Cache-Control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
+      "Cross-Origin-Resource-Policy": "cross-origin",
     },
   });
 }

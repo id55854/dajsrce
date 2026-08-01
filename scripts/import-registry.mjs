@@ -1,220 +1,267 @@
-// Import RegistarUdruga.csv → public.ngo_registry.
+// Resumable staged import for RegistarUdruga.csv.
 //
-// Streams the CSV (multi-line quoted fields, ~70k rows), normalizes columns,
-// applies category rules, and upserts batches of 500 on (oib).
-//
-// Idempotent: re-running updates rows in place. Resumable via import_state.
-//
-// Usage:
-//   node scripts/import-registry.mjs                    # all rows
-//   node scripts/import-registry.mjs --zg               # only Grad Zagreb
-//   node scripts/import-registry.mjs --active-only      # default true
-//   node scripts/import-registry.mjs --limit 1000       # for smoke test
-//   node scripts/import-registry.mjs --dry-run
+// Each source row is preserved with its raw payload and validation result.
+// Valid rows are merged set-wise in Postgres. The batch checkpoint is advanced
+// after every committed batch, so interruption never requires starting over.
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { parseCsvStream } from "./lib/csv-stream.mjs";
-import { scoreRow, parseSjediste } from "./lib/category-rules.mjs";
-import { supabaseAdmin, getCursor, setCursor } from "./lib/supabase-admin.mjs";
+import {
+  scoreRow,
+  parseSjediste,
+  inferAcceptsDonations,
+} from "./lib/category-rules.mjs";
+import { isValidOib } from "./lib/oib.mjs";
+import { supabaseAdmin, setCursor } from "./lib/supabase-admin.mjs";
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
-const argVal = (name, def = null) => {
-  const i = args.indexOf(name);
-  return i >= 0 && i + 1 < args.length ? args[i + 1] : def;
+const argVal = (name, fallback = null) => {
+  const index = args.indexOf(name);
+  return index >= 0 && index + 1 < args.length ? args[index + 1] : fallback;
 };
 
-const CSV_PATH =
-  argVal("--csv") ||
-  process.env.REGISTRY_CSV_PATH ||
-  path.resolve(process.cwd(), "RegistarUdruga.csv") ||
-  path.resolve(process.cwd(), "../RegistarUdruga.csv");
+function resolveCsvPath() {
+  const candidates = [
+    argVal("--csv"),
+    process.env.REGISTRY_CSV_PATH,
+    path.resolve(process.cwd(), "RegistarUdruga.csv"),
+    path.resolve(process.cwd(), "../RegistarUdruga.csv"),
+  ].filter(Boolean);
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
+}
 
+const CSV_PATH = resolveCsvPath();
 const ONLY_ZG = flag("--zg");
-const ACTIVE_ONLY = !flag("--include-inactive"); // default: AKTIVAN only
+const ACTIVE_ONLY = !flag("--include-inactive");
 const DRY_RUN = flag("--dry-run");
-const LIMIT = argVal("--limit") ? parseInt(argVal("--limit")) : Infinity;
-const BATCH_BATCH_ID = `import-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}`;
+const LIMIT = argVal("--limit") ? Number.parseInt(argVal("--limit"), 10) : Number.POSITIVE_INFINITY;
+const BATCH_SIZE = Math.min(1_000, Math.max(50, Number.parseInt(argVal("--batch-size", "500"), 10)));
 
-if (!fs.existsSync(CSV_PATH)) {
-  console.error(`CSV not found at ${CSV_PATH}`);
-  console.error("Set --csv <path> or REGISTRY_CSV_PATH env var.");
+if (!CSV_PATH || !fs.existsSync(CSV_PATH)) {
+  console.error("Registry CSV not found. Set --csv <path> or REGISTRY_CSV_PATH.");
+  process.exit(1);
+}
+if (!Number.isFinite(LIMIT) && LIMIT !== Number.POSITIVE_INFINITY) {
+  console.error("--limit must be a positive integer");
   process.exit(1);
 }
 
-console.log(`Importing from: ${CSV_PATH}`);
-console.log(`Filter: ${ACTIVE_ONLY ? "AKTIVAN only" : "ALL statuses"} | ZG only: ${ONLY_ZG} | dry-run: ${DRY_RUN} | batch: ${BATCH_BATCH_ID}`);
-
-function parseDate(s) {
-  if (!s) return null;
-  // CSV format: "M/D/YYYY 12:00:00 AM"
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (!m) return null;
-  const [, mo, d, y] = m;
-  return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+async function sha256File(filePath) {
+  const hash = crypto.createHash("sha256");
+  for await (const chunk of fs.createReadStream(filePath)) hash.update(chunk);
+  return hash.digest("hex");
 }
 
-function rowToRegistry(o) {
-  const sjediste = (o.SJEDISTE || "").trim();
+function parseDate(value) {
+  if (!value) return null;
+  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!match) return null;
+  const [, monthRaw, dayRaw, yearRaw] = match;
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const year = Number(yearRaw);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) return null;
+  return `${yearRaw}-${monthRaw.padStart(2, "0")}-${dayRaw.padStart(2, "0")}`;
+}
+
+function normalizeRegistryRow(raw) {
+  const sjediste = (raw.SJEDISTE || "").trim();
   const { street, city } = parseSjediste(sjediste);
-
-  const groups = (o.CILJANE_SKUPINE || "").trim();
-  const text = `${o.OPIS_DJELATNOSTI || ""}\n${o.CILJEVI || ""}`.trim();
-  const name = (o.NAZIV || "").trim();
-
-  const score = scoreRow({ groups, text, name });
+  const groups = (raw.CILJANE_SKUPINE || "").trim();
+  const activityText = `${raw.OPIS_DJELATNOSTI || ""}\n${raw.CILJEVI || ""}`.trim();
+  const name = (raw.NAZIV || "").trim();
+  const score = scoreRow({ groups, text: activityText, name });
 
   return {
-    oib: (o.OIB || "").trim(),
-    mail: (o.MAIL || "").trim() || null,
+    oib: (raw.OIB || "").trim(),
+    mail: (raw.MAIL || "").trim() || null,
     naziv: name,
-    status: (o.STATUS || "").trim(),
-    udr_id: (o.UDR_ID || "").trim() || null,
-    ciljevi: (o.CILJEVI || "").trim() || null,
+    status: (raw.STATUS || "").trim(),
+    udr_id: (raw.UDR_ID || "").trim() || null,
+    ciljevi: (raw.CILJEVI || "").trim() || null,
     sjediste: sjediste || null,
-    zupanija: (o.ZUPANIJA || "").trim() || null,
-    datum_upisa: parseDate(o.DATUM_UPISA),
-    web_stranica: (o.WEB_STRANICA || "").trim() || null,
-    datum_statusa: parseDate(o.DATUM_STATUSA),
-    skraceni_naziv: (o.SKRACENI_NAZIV || "").trim() || null,
+    zupanija: (raw.ZUPANIJA || "").trim() || null,
+    datum_upisa: parseDate(raw.DATUM_UPISA),
+    web_stranica: (raw.WEB_STRANICA || "").trim() || null,
+    datum_statusa: parseDate(raw.DATUM_STATUSA),
+    skraceni_naziv: (raw.SKRACENI_NAZIV || "").trim() || null,
     ciljane_skupine: groups || null,
-    opis_djelatnosti: (o.OPIS_DJELATNOSTI || "").trim() || null,
-    registarski_broj: (o.REGISTARSKI_BROJ || "").trim() || null,
-    oblik_udruzivanja: (o.OBLIK_UDRUZIVANJA || "").trim() || null,
-    gospodarske_djelatnosti: (o.GOSPODARSKE_DJELATNOSTI || "").trim() || null,
-    naziv_na_drugim_jezicima: (o.NAZIV_NA_DRUGIM_JEZICIMA || "").trim() || null,
-    datum_osnivacke_skupstine: parseDate(o.DATUM_OSNIVACKE_SKUPSTINE),
-    skr_naziv_na_drugim_jezicima: (o.SKR_NAZIV_NA_DRUGIM_JEZICIMA || "").trim() || null,
-
+    opis_djelatnosti: (raw.OPIS_DJELATNOSTI || "").trim() || null,
+    registarski_broj: (raw.REGISTARSKI_BROJ || "").trim() || null,
+    oblik_udruzivanja: (raw.OBLIK_UDRUZIVANJA || "").trim() || null,
+    gospodarske_djelatnosti: (raw.GOSPODARSKE_DJELATNOSTI || "").trim() || null,
+    naziv_na_drugim_jezicima: (raw.NAZIV_NA_DRUGIM_JEZICIMA || "").trim() || null,
+    datum_osnivacke_skupstine: parseDate(raw.DATUM_OSNIVACKE_SKUPSTINE),
+    skr_naziv_na_drugim_jezicima: (raw.SKR_NAZIV_NA_DRUGIM_JEZICIMA || "").trim() || null,
     street,
     city,
-
     mapped_category: score.category,
     mapped_confidence: score.confidence,
     mapped_rule: score.rule,
-
-    import_batch_id: BATCH_BATCH_ID,
+    classification_status: score.classificationStatus,
+    classification_reasons: score.reviewReasons,
+    classification_candidates: score.candidateCategories,
+    classification_version: score.classificationVersion,
+    donation_candidates: inferAcceptsDonations(score.category, `${activityText}\n${groups}`),
   };
 }
 
-async function flushBatch(rows) {
-  if (rows.length === 0) return 0;
-  if (DRY_RUN) return rows.length;
-
-  // Upsert on oib. We deliberately DON'T overwrite lat/lng/geocode_*; the
-  // geocoder updates those separately. Send only fields we know about.
-  const { error } = await supabaseAdmin
-    .from("ngo_registry")
-    .upsert(rows, { onConflict: "oib", ignoreDuplicates: false });
-  if (error) {
-    console.error("Upsert error:", error.message);
-    console.error("First offending OIB:", rows[0]?.oib);
-    throw error;
-  }
-  return rows.length;
+function validateRow(row, seenOibs) {
+  const errors = [];
+  if (!row.oib) errors.push("missing_oib");
+  else if (!isValidOib(row.oib)) errors.push("invalid_oib_checksum");
+  if (!row.naziv) errors.push("missing_name");
+  if (!row.status) errors.push("missing_status");
+  if (row.oib && seenOibs.has(row.oib)) errors.push("duplicate_oib_in_source");
+  if (row.oib && !errors.includes("duplicate_oib_in_source")) seenOibs.add(row.oib);
+  return errors;
 }
 
-const stream = fs.createReadStream(CSV_PATH);
-const rowsAsync = parseCsvStream(stream);
+const sourceHash = await sha256File(CSV_PATH);
+const batchVariant = `${sourceHash}|active=${ACTIVE_ONLY}|zg=${ONLY_ZG}`;
+const batchId = `registry-${crypto.createHash("sha256").update(batchVariant).digest("hex").slice(0, 20)}`;
+const cursorName = `import-registry:${batchId}`;
+
+let resumeAfter = 0;
+if (!DRY_RUN) {
+  const { data: existingBatch, error: batchReadError } = await supabaseAdmin
+    .from("registry_import_batches")
+    .select("last_source_row, status")
+    .eq("id", batchId)
+    .maybeSingle();
+  if (batchReadError) throw batchReadError;
+  resumeAfter = Number(existingBatch?.last_source_row ?? 0);
+  const { error: batchError } = await supabaseAdmin.from("registry_import_batches").upsert({
+    id: batchId,
+    source_file_hash: sourceHash,
+    source_path: path.basename(CSV_PATH),
+    status: "running",
+    completed_at: null,
+    error: null,
+  });
+  if (batchError) throw batchError;
+}
+
+console.log(`Source: ${CSV_PATH}`);
+console.log(`SHA-256: ${sourceHash}`);
+console.log(`Batch: ${batchId} | resume after source row: ${resumeAfter} | dry-run: ${DRY_RUN}`);
 
 let header = null;
-let totalRead = 0;
-let totalKept = 0;
-let totalUpserted = 0;
-let totalSkippedNoOib = 0;
-let totalSkippedDup = 0;
-const seenOibs = new Set();
-const stats = {
-  byStatus: {},
-  byMappedCategory: {},
-  byZupanija: {},
-  withMail: 0,
-  withWeb: 0,
-};
-
+let sourceRowNumber = 0;
+let examinedThisRun = 0;
+let staged = 0;
+let merged = 0;
+let invalid = 0;
+let filtered = 0;
 let batch = [];
-const BATCH_SIZE = 500;
+const seenOibs = new Set();
+const startedAt = Date.now();
 
-const t0 = Date.now();
-
-for await (const row of rowsAsync) {
-  if (!header) {
-    header = row;
-    continue;
+async function flushBatch() {
+  if (batch.length === 0) return;
+  const rows = batch;
+  batch = [];
+  const firstRow = rows[0].source_row_number;
+  const lastRow = rows.at(-1).source_row_number;
+  if (DRY_RUN) {
+    staged += rows.length;
+    invalid += rows.filter((row) => row.validation_status === "invalid").length;
+    merged += rows.filter((row) => row.validation_status === "valid").length;
+    return;
   }
-  const obj = {};
-  for (let i = 0; i < header.length; i++) obj[header[i]] = row[i] ?? "";
-  totalRead++;
 
-  if (totalRead > LIMIT) break;
+  const { error: stageError } = await supabaseAdmin
+    .from("ngo_registry_staging")
+    .upsert(rows, { onConflict: "batch_id,source_row_number" });
+  if (stageError) throw stageError;
 
-  if (ACTIVE_ONLY && obj.STATUS !== "AKTIVAN") continue;
-  if (ONLY_ZG && !(obj.ZUPANIJA || "").includes("Grad Zagreb")) continue;
-
-  const r = rowToRegistry(obj);
-  if (!r.oib || r.oib.length !== 11) {
-    totalSkippedNoOib++;
-    continue;
-  }
-  if (seenOibs.has(r.oib)) {
-    totalSkippedDup++;
-    continue;
-  }
-  seenOibs.add(r.oib);
-
-  // Stats
-  stats.byStatus[r.status] = (stats.byStatus[r.status] || 0) + 1;
-  if (r.mapped_category) stats.byMappedCategory[r.mapped_category] = (stats.byMappedCategory[r.mapped_category] || 0) + 1;
-  else stats.byMappedCategory["__unmapped"] = (stats.byMappedCategory["__unmapped"] || 0) + 1;
-  if (r.zupanija) stats.byZupanija[r.zupanija] = (stats.byZupanija[r.zupanija] || 0) + 1;
-  if (r.mail) stats.withMail++;
-  if (r.web_stranica) stats.withWeb++;
-
-  batch.push(r);
-  totalKept++;
-
-  if (batch.length >= BATCH_SIZE) {
-    const n = await flushBatch(batch);
-    totalUpserted += n;
-    batch = [];
-    if (totalUpserted % 5000 === 0) {
-      const dt = ((Date.now() - t0) / 1000).toFixed(1);
-      console.log(`  ... ${totalUpserted.toLocaleString()} upserted (${dt}s elapsed)`);
-    }
-  }
-}
-
-const n = await flushBatch(batch);
-totalUpserted += n;
-
-if (!DRY_RUN) {
-  await setCursor("import-registry", BATCH_BATCH_ID, totalUpserted, JSON.stringify({
-    csv: CSV_PATH,
-    activeOnly: ACTIVE_ONLY,
-    onlyZg: ONLY_ZG,
-    finishedAt: new Date().toISOString(),
+  const { data: result, error: mergeError } = await supabaseAdmin.rpc(
+    "merge_registry_import_batch",
+    { p_batch_id: batchId, p_from_row: firstRow, p_to_row: lastRow }
+  );
+  if (mergeError) throw mergeError;
+  staged += Number(result?.staged ?? rows.length);
+  merged += Number(result?.merged ?? 0);
+  invalid += Number(result?.invalid ?? 0);
+  await setCursor(cursorName, String(lastRow), merged, JSON.stringify({
+    sourceHash,
+    batchId,
+    lastSourceRow: lastRow,
+    updatedAt: new Date().toISOString(),
   }));
+  console.log(`  committed through source row ${lastRow.toLocaleString()} (merged ${merged.toLocaleString()}, invalid ${invalid.toLocaleString()})`);
 }
 
-const dt = ((Date.now() - t0) / 1000).toFixed(1);
+try {
+  for await (const csvRow of parseCsvStream(fs.createReadStream(CSV_PATH))) {
+    if (!header) {
+      header = csvRow.map((value) => value.replace(/^\uFEFF/, ""));
+      continue;
+    }
+    sourceRowNumber += 1;
+    if (sourceRowNumber <= resumeAfter) continue;
+    if (examinedThisRun >= LIMIT) break;
+    examinedThisRun += 1;
 
-console.log("\n=== Import report ===");
-console.log(`CSV rows read   : ${totalRead.toLocaleString()}`);
-console.log(`Rows kept       : ${totalKept.toLocaleString()} (after status/region filters)`);
-console.log(`Rows upserted   : ${totalUpserted.toLocaleString()}`);
-console.log(`Skipped no OIB  : ${totalSkippedNoOib}`);
-console.log(`Skipped duplicate OIB in CSV: ${totalSkippedDup}`);
-console.log(`With email      : ${stats.withMail.toLocaleString()}`);
-console.log(`With website    : ${stats.withWeb.toLocaleString()}`);
-console.log(`Elapsed         : ${dt}s`);
-console.log("\nBy mapped_category:");
-for (const [k, v] of Object.entries(stats.byMappedCategory).sort((a, b) => b[1] - a[1])) {
-  console.log(`  ${String(v).padStart(6)}  ${k}`);
-}
-console.log("\nTop zupanije (kept):");
-for (const [k, v] of Object.entries(stats.byZupanija).sort((a, b) => b[1] - a[1]).slice(0, 8)) {
-  console.log(`  ${String(v).padStart(6)}  ${k}`);
+    const raw = Object.fromEntries(header.map((name, index) => [name, csvRow[index] ?? ""]));
+    if (ACTIVE_ONLY && raw.STATUS !== "AKTIVAN") {
+      filtered += 1;
+      continue;
+    }
+    if (ONLY_ZG && !(raw.ZUPANIJA || "").includes("Grad Zagreb")) {
+      filtered += 1;
+      continue;
+    }
+
+    const normalized = normalizeRegistryRow(raw);
+    const validationErrors = validateRow(normalized, seenOibs);
+    batch.push({
+      batch_id: batchId,
+      source_row_number: sourceRowNumber,
+      oib: normalized.oib || null,
+      raw_row_jsonb: raw,
+      normalized_jsonb: normalized,
+      validation_status: validationErrors.length ? "invalid" : "valid",
+      validation_errors: validationErrors,
+    });
+    if (batch.length >= BATCH_SIZE) await flushBatch();
+  }
+  await flushBatch();
+
+  if (!DRY_RUN) {
+    const { error } = await supabaseAdmin
+      .from("registry_import_batches")
+      .update({ status: "completed", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", batchId);
+    if (error) throw error;
+  }
+} catch (error) {
+  if (!DRY_RUN) {
+    await supabaseAdmin
+      .from("registry_import_batches")
+      .update({
+        status: "failed",
+        error: error instanceof Error ? error.message.slice(0, 2000) : "Unknown import failure",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", batchId);
+  }
+  throw error;
 }
 
-if (DRY_RUN) console.log("\n[DRY RUN] no rows written.");
+console.log("\n=== Registry import report ===");
+console.log(`Source rows examined : ${examinedThisRun.toLocaleString()}`);
+console.log(`Filtered             : ${filtered.toLocaleString()}`);
+console.log(`Staged               : ${staged.toLocaleString()}`);
+console.log(`${DRY_RUN ? "Would merge" : "Merged"}          : ${merged.toLocaleString()}`);
+console.log(`Invalid/quarantined  : ${invalid.toLocaleString()}`);
+console.log(`Elapsed              : ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
+if (DRY_RUN) console.log("[DRY RUN] No database rows were written.");

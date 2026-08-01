@@ -45,7 +45,14 @@ export default function InstitutionVolunteersPage() {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const entries: Record<string, string> = {};
       for (const eid of eventIds) {
-        const url = `${origin}/volunteer/self-checkin?event=${eid}`;
+        const tokenResponse = await fetch(`/api/volunteer-events/${eid}/check-in-token`, {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!tokenResponse.ok) continue;
+        const tokenData = (await tokenResponse.json()) as { token?: string };
+        if (!tokenData.token) continue;
+        const url = `${origin}/volunteer/self-checkin?event=${encodeURIComponent(eid)}&token=${encodeURIComponent(tokenData.token)}`;
         entries[eid] = await QRCode.toDataURL(url, { width: 160, margin: 1 });
       }
       setQrByEvent(entries);
@@ -164,6 +171,8 @@ export default function InstitutionVolunteersPage() {
                   </div>
                   {qrByEvent[eventId] ? (
                     <div className="text-center">
+                      {/* Generated QR data URLs are already final-size assets. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={qrByEvent[eventId]} alt="" className="mx-auto rounded-lg border border-gray-200" />
                       <p className="mt-1 text-[10px] text-gray-500">{t("institution.volunteers_qr_caption")}</p>
                     </div>

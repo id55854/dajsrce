@@ -20,7 +20,7 @@ export function CompanyExportsSection({ companyId, memberRole, subscriptionTier 
   const t = useT();
   const { locale } = useLocale();
   const canFinance = memberRole === "owner" || memberRole === "admin" || memberRole === "finance";
-  const allowedFrameworks = SUBSCRIPTION_TIERS[subscriptionTier]?.exports ?? [];
+  const allowedFrameworks = SUBSCRIPTION_TIERS[subscriptionTier].exports;
   const fullyEnabled = flags.exportsEnabled && allowedFrameworks.length > 0;
 
   const displayFrameworks = useMemo(

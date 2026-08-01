@@ -18,20 +18,20 @@ export async function GET(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const check = await requireMembership(supabase, id, user?.id ?? null);
+  const check = await requireMembership(supabase, id, user?.id ?? null, ["owner", "admin"]);
   if (!check.ok) {
     return NextResponse.json({ error: check.error }, { status: check.status });
   }
 
   const [{ data: verification }, { data: company }] = await Promise.all([
-    supabase
+    supabaseAdmin
       .from("company_verifications")
       .select(PUBLIC_FIELDS)
       .eq("company_id", id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase.from("companies").select("verified_at").eq("id", id).maybeSingle(),
+    supabaseAdmin.from("companies").select("verified_at").eq("id", id).maybeSingle(),
   ]);
 
   return NextResponse.json({

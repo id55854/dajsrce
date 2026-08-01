@@ -1,24 +1,37 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const RADIUS_KM = 3;
+const INSERT_BATCH_SIZE = 500;
 
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+export type NearbyNotificationJob = {
+  id: string;
+  origin_lat: number;
+  origin_lng: number;
+  radius_km: number;
+  title: string;
+  body: string;
+  link: string | null;
+  exclude_user_id: string | null;
+  attempt_count: number;
+};
+
+function assertCoordinates(latitude: number, longitude: number): void {
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    throw new Error("Invalid notification origin coordinates");
+  }
 }
 
+/**
+ * Enqueue nearby delivery and return immediately. The idempotency key should
+ * name the originating domain record, for example `need:<uuid>`.
+ */
 export async function notifyNearbyUsers(
   supabaseAdmin: SupabaseClient,
   institutionLat: number,
@@ -26,46 +39,60 @@ export async function notifyNearbyUsers(
   title: string,
   body: string,
   link: string | null,
-  excludeUserId?: string
-) {
-  const degBuffer = RADIUS_KM / 111;
-
-  const { data: nearbyUsers } = await supabaseAdmin
-    .from("profiles")
-    .select("id, lat, lng")
-    .not("lat", "is", null)
-    .not("lng", "is", null)
-    .gte("lat", institutionLat - degBuffer)
-    .lte("lat", institutionLat + degBuffer)
-    .gte("lng", institutionLng - degBuffer)
-    .lte("lng", institutionLng + degBuffer)
-    .eq("role", "individual");
-
-  if (!nearbyUsers || nearbyUsers.length === 0) return 0;
-
-  const notifications = nearbyUsers
-    .filter((u) => {
-      if (excludeUserId && u.id === excludeUserId) return false;
-      return haversineKm(u.lat!, u.lng!, institutionLat, institutionLng) <= RADIUS_KM;
-    })
-    .map((u) => ({
-      user_id: u.id,
-      title,
-      body,
-      link,
-      is_read: false,
-    }));
-
-  if (notifications.length === 0) return 0;
-
-  const { error } = await supabaseAdmin
-    .from("notifications")
-    .insert(notifications);
-
-  if (error) {
-    console.error("Failed to insert notifications:", error.message);
-    return 0;
+  excludeUserId: string | undefined,
+  idempotencyKey: string
+): Promise<string> {
+  assertCoordinates(institutionLat, institutionLng);
+  const { data, error } = await supabaseAdmin.rpc("enqueue_nearby_notification", {
+    p_idempotency_key: idempotencyKey,
+    p_lat: institutionLat,
+    p_lng: institutionLng,
+    p_title: title.slice(0, 200),
+    p_body: body.slice(0, 2000),
+    p_link: link,
+    p_exclude_user_id: excludeUserId ?? null,
+    p_radius_km: RADIUS_KM,
+  });
+  if (error || typeof data !== "string") {
+    throw new Error(`Notification enqueue failed: ${error?.message ?? "invalid job id"}`);
   }
+  return data;
+}
 
-  return notifications.length;
+/** Deliver one claimed job. Per-user uniqueness makes retries idempotent. */
+export async function deliverNearbyNotificationJob(
+  supabaseAdmin: SupabaseClient,
+  job: NearbyNotificationJob
+): Promise<number> {
+  assertCoordinates(job.origin_lat, job.origin_lng);
+  const { data, error: lookupError } = await supabaseAdmin.rpc(
+    "nearby_notification_profile_ids_json",
+    {
+      p_lat: job.origin_lat,
+      p_lng: job.origin_lng,
+      p_radius_km: job.radius_km,
+      p_exclude_user_id: job.exclude_user_id,
+    }
+  );
+  if (lookupError) throw new Error(`Nearby recipient lookup failed: ${lookupError.message}`);
+
+  const profileIds = (Array.isArray(data) ? data : []).filter(
+    (value): value is string => typeof value === "string"
+  );
+  for (let offset = 0; offset < profileIds.length; offset += INSERT_BATCH_SIZE) {
+    const notifications = profileIds.slice(offset, offset + INSERT_BATCH_SIZE).map((userId) => ({
+      user_id: userId,
+      title: job.title,
+      body: job.body,
+      link: job.link,
+      is_read: false,
+      delivery_job_id: job.id,
+    }));
+    const { error } = await supabaseAdmin.from("notifications").upsert(notifications, {
+      onConflict: "delivery_job_id,user_id",
+      ignoreDuplicates: true,
+    });
+    if (error) throw new Error(`Notification delivery failed: ${error.message}`);
+  }
+  return profileIds.length;
 }

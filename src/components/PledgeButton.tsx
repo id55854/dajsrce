@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Building2, HeartHandshake, Loader2, X } from "lucide-react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
 import { AuthActionDialog } from "@/components/AuthActionDialog";
 import { useT } from "@/i18n/client";
 import type { CompanyRole } from "@/lib/types";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 /**
  * Subset of `/api/pledges` POST response that the parent uses to patch its
@@ -64,6 +65,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
   const [amountEur, setAmountEur] = useState("");
   const titleId = useId();
   const descId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const closeModal = useCallback(() => {
     setOpen(false);
@@ -79,14 +81,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
     return () => clearTimeout(timer);
   }, [toast]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeModal();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, closeModal]);
+  useDialogFocus({ open, dialogRef, onClose: closeModal });
 
   // Load company memberships once the modal first opens.
   useEffect(() => {
@@ -142,14 +137,14 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
         return;
       }
       const responseBody = (await res.json().catch(() => null)) as PledgeSuccessPayload | null;
-      setToast({ type: "success", message: "Thank you! Your pledge has been recorded." });
+      setToast({ type: "success", message: t("pledge.success") });
       onPledge?.();
       if (responseBody) onPledgeSuccess?.(responseBody);
       closeModal();
     } catch {
       setToast({
         type: "error",
-        message: "Network error. Please try again.",
+          message: t("pledge.network_error"),
       });
     } finally {
       setLoading(false);
@@ -160,6 +155,8 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
     <>
       <button
         type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
         onClick={async () => {
           const supabase = createClient();
           const {
@@ -174,7 +171,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
         className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
       >
         <HeartHandshake className="h-4 w-4" strokeWidth={2} />
-        I can help
+        {t("pledge.cta")}
       </button>
 
       {open ? (
@@ -186,11 +183,14 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
           }}
         >
           <div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={descId}
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900"
+            aria-busy={loading}
+            tabIndex={-1}
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl outline-none dark:bg-gray-900"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -198,7 +198,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
                 id={titleId}
                 className="text-lg font-semibold text-gray-900 dark:text-gray-100"
               >
-                Pledge help
+                {t("pledge.dialog_title")}
               </h2>
               <button
                 type="button"
@@ -227,7 +227,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
                   }}
                   className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                 >
-                  <option value="me">— (personal)</option>
+                  <option value="me">— ({t("pledge.personal")})</option>
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.display_name || c.legal_name}
@@ -257,8 +257,9 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
             ) : null}
 
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Quantity
+              {t("pledge.quantity")}
               <input
+                data-dialog-initial-focus
                 type="number"
                 min={1}
                 value={quantity}
@@ -283,7 +284,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
             </label>
 
             <label className="mt-4 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Message (optional)
+              {t("pledge.message_optional")}
               <textarea
                 rows={3}
                 value={message}
@@ -299,7 +300,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
                 disabled={loading}
                 className="rounded-full border-2 border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -310,7 +311,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : null}
-                Confirm
+                {t("common.confirm")}
               </button>
             </div>
           </div>
@@ -325,7 +326,8 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
               ? "bg-emerald-600 text-white"
               : "bg-red-600 text-white"
           )}
-          role="status"
+          role={toast.type === "error" ? "alert" : "status"}
+          aria-live={toast.type === "error" ? "assertive" : "polite"}
         >
           {toast.message}
         </div>
@@ -333,7 +335,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
       <AuthActionDialog
         open={authDialogOpen}
         onClose={() => setAuthDialogOpen(false)}
-        actionLabel="Donate / offer help"
+        actionLabel={t("pledge.auth_action")}
         nextPath={`/needs`}
       />
     </>

@@ -1,23 +1,15 @@
 "use client";
 
-import type { ComponentType } from "react";
 import { CheckCircle2 } from "lucide-react";
 import clsx from "clsx";
 import { Need } from "@/lib/types";
 import type { InstitutionCategory } from "@/lib/types";
 import { DONATION_TYPES, getCategoryConfig } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
-import * as Icons from "lucide-react";
-import { useT } from "@/i18n/client";
+import { enUS, hr } from "date-fns/locale";
+import { useLocale, useT } from "@/i18n/client";
 import { PledgeButton, type PledgeSuccessPayload } from "./PledgeButton";
-
-function LucideByName({ name, className }: { name: string; className?: string }) {
-  const Cmp = (Icons as unknown as Record<string, ComponentType<{ className?: string }>>)[
-    name
-  ];
-  if (!Cmp) return null;
-  return <Cmp className={className} />;
-}
+import { DonationTypeIcon } from "@/components/DonationTypeIcon";
 
 export type NeedCardNeed = Need & {
   institution?: {
@@ -38,19 +30,20 @@ type NeedCardProps = {
 };
 
 const urgencyStyles = {
-  urgent: { label: "Urgent", className: "bg-red-500 text-white" },
+  urgent: { key: "need_card.urgent", className: "bg-red-500 text-white" },
   needed_soon: {
-    label: "Needed soon",
+    key: "need_card.needed_soon",
     className: "bg-orange-500 text-white",
   },
   routine: {
-    label: "Routine",
+    key: "need_card.routine",
     className: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
   },
 } as const;
 
 export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCardProps) {
   const t = useT();
+  const { locale } = useLocale();
   const inst = need.institution;
   const cat = inst ? getCategoryConfig(inst.category) : null;
   const urgency = urgencyStyles[need.urgency];
@@ -66,6 +59,7 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
 
   const posted = formatDistanceToNow(new Date(need.created_at), {
     addSuffix: true,
+    locale: locale === "hr" ? hr : enUS,
   });
 
   return (
@@ -86,7 +80,7 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
             className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
             style={{ backgroundColor: cat.bgColor, color: cat.color }}
           >
-            {cat.label}
+            {locale === "hr" ? cat.labelHr : cat.label}
           </span>
         </div>
       ) : null}
@@ -101,15 +95,17 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
           <span
             className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${urgency.className}`}
           >
-            {urgency.label}
+            {t(urgency.key)}
           </span>
         )}
         <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-          <LucideByName
-            name={DONATION_TYPES[need.donation_type].icon}
+          <DonationTypeIcon
+            type={need.donation_type}
             className="h-3.5 w-3.5"
           />
-          {DONATION_TYPES[need.donation_type].label}
+          {locale === "hr"
+            ? DONATION_TYPES[need.donation_type].labelHr
+            : DONATION_TYPES[need.donation_type].label}
         </span>
         {myPledgedQty && myPledgedQty > 0 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -129,11 +125,21 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
       <div className="mt-4">
         <div className="mb-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
           <span>
-            {pledged} / {needed > 0 ? needed : "—"} pledged
+            {t("need_card.pledged", {
+              pledged,
+              needed: needed > 0 ? needed : "—",
+            })}
           </span>
           <span>{needed > 0 ? `${pct}%` : ""}</span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+        <div
+          className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={pct}
+          aria-label={t("need_card.progress", { percent: pct })}
+        >
           <div
             className="h-full rounded-full bg-red-500 transition-all"
             style={{ width: `${needed > 0 ? pct : pledged > 0 ? 100 : 0}%` }}
@@ -148,7 +154,7 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
           onPledgeSuccess={onPledgeSuccess}
         />
         <time className="text-xs text-gray-400" dateTime={need.created_at}>
-          {posted}
+          {t("need_card.posted", { time: posted })}
         </time>
       </div>
     </article>

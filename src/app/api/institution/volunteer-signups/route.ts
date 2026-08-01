@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET() {
   const supabase = await createServerSupabaseClient();
@@ -51,7 +52,7 @@ export async function GET() {
   const userIds = Array.from(new Set((signups ?? []).map((s) => s.user_id)));
   const { data: profiles } =
     userIds.length > 0
-      ? await supabase.from("profiles").select("id, name, email").in("id", userIds)
+      ? await supabaseAdmin.from("profiles").select("id, name, email").in("id", userIds)
       : { data: [] };
 
   const byUser = new Map((profiles ?? []).map((p) => [p.id, p]));

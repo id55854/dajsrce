@@ -7,6 +7,7 @@ import {
   type VolunteerEventCardProps,
 } from "@/components/VolunteerEventCard";
 import { VolunteerCalendar } from "@/components/VolunteerCalendar";
+import { useT } from "@/i18n/client";
 
 type EventRow = VolunteerEventCardProps["event"];
 
@@ -15,6 +16,7 @@ function eventCardId(eventId: string): string {
 }
 
 export default function VolunteerPage() {
+  const t = useT();
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export default function VolunteerPage() {
           events?: EventRow[];
           error?: string;
         };
-        if (!eventsRes.ok) throw new Error(eventsJson.error ?? "Failed to load");
+        if (!eventsRes.ok) throw new Error();
 
         // Signups endpoint never errors (returns empty list when not logged in).
         const signupsJson = (await signupsRes.json().catch(() => ({}))) as {
@@ -48,9 +50,9 @@ export default function VolunteerPage() {
         setRegistered(
           new Set((signupsJson.signups ?? []).map((s) => s.event_id))
         );
-      } catch (e) {
+      } catch {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Error loading data");
+          setError("volunteer_page.error_loading");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -89,7 +91,14 @@ export default function VolunteerPage() {
       if (!targetId) return;
       const node = document.getElementById(eventCardId(targetId));
       if (!node) return;
-      node.scrollIntoView({ behavior: "smooth", block: "center" });
+      const reducedMotion = window.matchMedia?.(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+      node.scrollIntoView({
+        behavior: reducedMotion ? "auto" : "smooth",
+        block: "center",
+      });
+      node.focus({ preventScroll: true });
       // Brief flash so the user sees what was scrolled to.
       node.classList.add("ring-2", "ring-red-400", "ring-offset-2");
       window.setTimeout(() => {
@@ -113,15 +122,15 @@ export default function VolunteerPage() {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Volunteer Events
+          {t("volunteer_page.title")}
         </h1>
         <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
-          Join an event and make a difference
+          {t("volunteer_page.subtitle")}
         </p>
       </header>
 
       {loading ? (
-        <>
+        <div role="status" aria-label={t("volunteer_page.loading")}>
           <div className="mb-8 h-72 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
@@ -131,9 +140,9 @@ export default function VolunteerPage() {
               />
             ))}
           </div>
-        </>
+        </div>
       ) : error ? (
-        <p className="text-center text-red-600">{error}</p>
+        <p className="text-center text-red-600" role="alert">{t(error)}</p>
       ) : events.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 py-16 text-center text-gray-500 dark:text-gray-400">
           <CalendarHeart
@@ -142,7 +151,7 @@ export default function VolunteerPage() {
             aria-hidden
           />
           <p className="max-w-md text-base">
-            No upcoming volunteer events. Check back soon!
+            {t("volunteer_page.empty")}
           </p>
         </div>
       ) : (

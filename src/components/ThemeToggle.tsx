@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
+import { useT } from "@/i18n/client";
 
 export function ThemeToggle() {
   const [dark, setDark] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     const stored = localStorage.getItem("theme");
@@ -26,7 +28,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       className="inline-flex items-center rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={dark ? t("theme.switch_to_light") : t("theme.switch_to_dark")}
     >
       {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
     </button>

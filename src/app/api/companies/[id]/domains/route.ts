@@ -60,7 +60,7 @@ export async function POST(
 
   const token = `dajsrce-verify=${generateToken(16)}`;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("company_domains")
     .insert({ company_id: id, domain, dns_token: token })
     .select()

@@ -81,7 +81,7 @@ export async function PATCH(
     return NextResponse.json({ error: "No updatable fields" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("companies")
     .update(patch)
     .eq("id", id)

@@ -5,6 +5,7 @@ import { addDays, generateToken, requireMembership } from "@/lib/companies";
 import { writeAuditLog } from "@/lib/audit";
 import { sendCompanyInviteEmail } from "@/lib/email/invite";
 import { getLocale } from "@/i18n/server";
+import { hashBearerToken } from "@/lib/security/runtime";
 import type { Locale } from "@/lib/types";
 
 export async function GET(
@@ -22,7 +23,7 @@ export async function GET(
     return NextResponse.json({ error: check.error }, { status: check.status });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("company_invites")
     .select("id, email, role, expires_at, accepted_at, created_at")
     .eq("company_id", id)
@@ -61,30 +62,44 @@ export async function POST(
     : typeof body.emails === "string"
     ? body.emails.split(/[,\s]+/)
     : [];
-  const normalized = emails
-    .map((e) => e.trim().toLowerCase())
-    .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e));
+  const normalized = Array.from(
+    new Set(
+      emails
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e))
+    )
+  );
 
   if (normalized.length === 0) {
     return NextResponse.json({ error: "At least one valid email required" }, { status: 400 });
+  }
+  if (normalized.length > 25) {
+    return NextResponse.json({ error: "At most 25 invitations may be sent at once" }, { status: 400 });
   }
 
   const role = body.role && ["admin", "finance", "employee"].includes(body.role) ? body.role : "employee";
   const expiresAt = addDays(14).toISOString();
 
-  const rows = normalized.map((email) => ({
-    company_id: id,
-    email,
-    role,
-    token: generateToken(24),
-    expires_at: expiresAt,
-    invited_by: user!.id,
-  }));
+  const drafts = normalized.map((email) => {
+    const rawToken = generateToken(32);
+    return {
+      rawToken,
+      row: {
+        company_id: id,
+        email,
+        role,
+        token: null,
+        token_hash: hashBearerToken(rawToken),
+        expires_at: expiresAt,
+        invited_by: user!.id,
+      },
+    };
+  });
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("company_invites")
-    .insert(rows)
-    .select("id, email, role, token, expires_at, created_at");
+    .insert(drafts.map((draft) => draft.row))
+    .select("id, email, role, expires_at, created_at");
 
   if (error || !data) {
     return NextResponse.json({ error: error?.message ?? "Insert failed" }, { status: 500 });
@@ -99,9 +114,10 @@ export async function POST(
     payload: { emails: normalized, role },
   });
 
+  const tokenByEmail = new Map(drafts.map((draft) => [draft.row.email, draft.rawToken]));
   const invites = data.map((row) => ({
     ...row,
-    accept_url: buildAcceptUrl(row.token),
+    accept_url: buildAcceptUrl(tokenByEmail.get(row.email)!),
   }));
 
   // Look up company display name + inviter display name once for the emails.

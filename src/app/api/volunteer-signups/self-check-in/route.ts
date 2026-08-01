@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 /** Volunteer marks arrival for an event they signed up for (QR flow). */
 export async function POST(req: NextRequest) {
@@ -12,39 +14,31 @@ export async function POST(req: NextRequest) {
   }
 
   let eventId: string;
+  let token: string;
   try {
-    const body = (await req.json()) as { event_id?: string };
+    const body = (await req.json()) as { event_id?: string; token?: string };
     if (!body.event_id || typeof body.event_id !== "string") {
       throw new Error("bad");
     }
+    if (!body.token || typeof body.token !== "string" || body.token.length > 256) {
+      throw new Error("bad");
+    }
     eventId = body.event_id;
+    token = body.token;
   } catch {
-    return NextResponse.json({ error: "event_id required" }, { status: 400 });
+    return NextResponse.json({ error: "event_id and token required" }, { status: 400 });
   }
 
-  const { data: signup, error: fErr } = await supabase
-    .from("volunteer_signups")
-    .select("id, checked_in_at, checked_out_at")
-    .eq("user_id", user.id)
-    .eq("event_id", eventId)
-    .maybeSingle();
-
-  if (fErr || !signup) {
-    return NextResponse.json({ error: "No signup for this event" }, { status: 404 });
-  }
-  if (signup.checked_out_at) {
-    return NextResponse.json({ error: "Session already completed" }, { status: 409 });
-  }
-  if (signup.checked_in_at) {
-    return NextResponse.json({ ok: true, checked_in_at: signup.checked_in_at, already: true });
-  }
-
-  const now = new Date().toISOString();
-  const { error } = await supabase.from("volunteer_signups").update({ checked_in_at: now }).eq("id", signup.id);
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const { data: checkedInAt, error } = await supabaseAdmin.rpc(
+    "volunteer_self_checkin_transaction",
+    { p_user_id: user.id, p_event_id: eventId, p_token_hash: tokenHash }
+  );
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : 409;
+    return NextResponse.json({ error: "Check-in link is invalid, expired, or unavailable" }, { status });
   }
 
-  return NextResponse.json({ ok: true, checked_in_at: now });
+  return NextResponse.json({ ok: true, checked_in_at: checkedInAt });
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET() {
   try {
@@ -39,47 +40,28 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!existingProfile) {
-      await supabase.from("profiles").insert({
-        id: user.id,
-        email: user.email!,
-        name: user.user_metadata?.name || user.email!.split("@")[0],
-        role: user.user_metadata?.role || "individual",
-      });
+      return NextResponse.json({ error: "Profile setup is incomplete" }, { status: 409 });
     }
 
-    const body = await req.json();
+    const body = (await req.json()) as { event_id?: unknown };
     const { event_id } = body;
+    if (typeof event_id !== "string" || !event_id) {
+      return NextResponse.json({ error: "event_id is required" }, { status: 400 });
+    }
 
-    const { data, error } = await supabase
-      .from("volunteer_signups")
-      .insert({ user_id: user.id, event_id })
-      .select()
-      .single();
+    const { data, error } = await supabaseAdmin.rpc("volunteer_signup_transaction", {
+      p_user_id: user.id,
+      p_event_id: event_id,
+    });
 
     if (error) {
-      if (error.code === "23505") {
-        return NextResponse.json({ error: "Already signed up" }, { status: 409 });
-      }
-      throw error;
+      const status = error.code === "P0002" ? 404 : 409;
+      return NextResponse.json({ error: "Could not sign up for this event" }, { status });
     }
 
-    // Increment volunteers_signed_up
-    const { data: evt } = await supabase
-      .from("volunteer_events")
-      .select("volunteers_signed_up")
-      .eq("id", event_id)
-      .single();
-
-    if (evt) {
-      await supabase
-        .from("volunteer_events")
-        .update({ volunteers_signed_up: (evt.volunteers_signed_up || 0) + 1 })
-        .eq("id", event_id);
-    }
-
-    return NextResponse.json({ signup: data });
+    return NextResponse.json({ signup: data }, { status: 201 });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to sign up";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[/api/volunteer-signups POST] failed", e);
+    return NextResponse.json({ error: "Failed to sign up" }, { status: 500 });
   }
 }

@@ -28,6 +28,7 @@ function NavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={clsx(
         "text-sm font-medium transition-colors hover:text-red-500",
         active ? "text-red-500 underline underline-offset-4" : "text-gray-700 dark:text-gray-300"
@@ -38,36 +39,21 @@ function NavLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-function saveUserLocation() {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      fetch("/api/location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        }),
-      }).catch(() => {});
-    },
-    () => {},
-    { enableHighAccuracy: false, timeout: 10000 }
-  );
-}
-
 function NotificationPanel({
+  id,
   notifications,
   onMarkRead,
   onMarkAllRead,
   onClose,
 }: {
+  id: string;
   notifications: Notification[];
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
   onClose: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const t = useT();
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -83,12 +69,15 @@ function NotificationPanel({
 
   return (
     <div
+      id={id}
       ref={panelRef}
+      role="region"
+      aria-label={t("notifications.title")}
       className="absolute right-0 top-full z-[60] mt-2 w-80 max-h-[70vh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900 dark:shadow-gray-950/50 sm:w-96"
     >
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Notifications {unreadCount > 0 ? `(${unreadCount})` : ""}
+          {t("notifications.title")} {unreadCount > 0 ? `(${unreadCount})` : ""}
         </h3>
         {unreadCount > 0 ? (
           <button
@@ -96,7 +85,7 @@ function NotificationPanel({
             onClick={onMarkAllRead}
             className="text-xs font-medium text-red-500 hover:text-red-600"
           >
-            Mark all read
+            {t("notifications.mark_all_read")}
           </button>
         ) : null}
       </div>
@@ -104,7 +93,7 @@ function NotificationPanel({
       <div className="max-h-[60vh] overflow-y-auto">
         {notifications.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500">
-            No notifications yet
+            {t("notifications.empty")}
           </p>
         ) : (
           notifications.map((n) => (
@@ -131,16 +120,17 @@ function NotificationPanel({
                   </p>
                 </Link>
               ) : (
-                <div
+                <button
+                  type="button"
                   onClick={() => { if (!n.is_read) onMarkRead(n.id); }}
-                  className="cursor-pointer"
+                  className="block w-full text-left"
                 >
                   <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{n.title}</p>
                   <p className="mt-0.5 text-xs text-gray-600 line-clamp-2 dark:text-gray-400">{n.body}</p>
                   <p className="mt-1 text-xs text-gray-400">
                     {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                   </p>
-                </div>
+                </button>
               )}
             </div>
           ))
@@ -173,16 +163,10 @@ export function Navbar() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
-      if (data.user) {
-        saveUserLocation();
-      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        saveUserLocation();
-      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -212,15 +196,6 @@ export function Navbar() {
       setActiveCompanyId(null);
       return;
     }
-    function fetchNotifications() {
-      fetch("/api/notifications", { credentials: "include" })
-        .then((r) => r.json())
-        .then((data) => setNotifications(data.notifications ?? []))
-        .catch(() => {});
-    }
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30_000);
-
     // Fetch company memberships once per session; the switcher only
     // renders when the user belongs to at least two companies.
     fetch("/api/companies", { credentials: "include" })
@@ -244,8 +219,22 @@ export function Navbar() {
         }
       })
       .catch(() => {});
-    return () => clearInterval(interval);
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !panelOpen) return;
+    const controller = new AbortController();
+    fetch("/api/notifications", {
+      credentials: "include",
+      signal: controller.signal,
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { notifications?: Notification[] } | null) => {
+        if (data) setNotifications(data.notifications ?? []);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [user, panelOpen]);
 
   const markRead = useCallback((id: string) => {
     setNotifications((prev) =>
@@ -279,6 +268,7 @@ export function Navbar() {
     await supabase.auth.signOut();
     setUser(null);
     setNotifications([]);
+    setPanelOpen(false);
     router.push("/map");
     router.refresh();
   }
@@ -287,7 +277,7 @@ export function Navbar() {
     meProfile?.name ||
     user?.user_metadata?.name ||
     user?.email?.split("@")[0] ||
-    "User";
+    t("nav.user_fallback");
 
   const profileEmail = meProfile?.email || user?.email || undefined;
 
@@ -308,7 +298,7 @@ export function Navbar() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex" aria-label="Main navigation">
+        <nav className="hidden items-center gap-8 md:flex" aria-label={t("nav.main_navigation")}>
           {navLinks.map(({ href, labelKey }) => (
             <NavLink key={href} href={href} label={t(labelKey)} />
           ))}
@@ -325,25 +315,24 @@ export function Navbar() {
               <div className="relative">
                 <button
                   type="button"
+                  onMouseDown={(event) => event.stopPropagation()}
                   onClick={() => setPanelOpen((o) => !o)}
                   className="relative inline-flex items-center rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                  aria-label="Notifications"
+                  aria-label={
+                    unreadCount > 0
+                      ? t("notifications.unread_count", { count: unreadCount })
+                      : t("notifications.title")
+                  }
+                  aria-expanded={panelOpen}
+                  aria-controls="notifications-panel"
                 >
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 ? (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white" aria-hidden="true">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                   ) : null}
                 </button>
-                {panelOpen ? (
-                  <NotificationPanel
-                    notifications={notifications}
-                    onMarkRead={markRead}
-                    onMarkAllRead={markAllRead}
-                    onClose={() => setPanelOpen(false)}
-                  />
-                ) : null}
               </div>
               <Link
                 href="/dashboard"
@@ -359,6 +348,7 @@ export function Navbar() {
                 className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
               >
                 <LogOut className="h-4 w-4" />
+                <span className="sr-only">{t("nav.sign_out")}</span>
               </button>
             </>
           ) : (
@@ -366,24 +356,33 @@ export function Navbar() {
               href="/auth/login"
               className="inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
             >
-              Sign In
+              {t("nav.sign_in")}
             </Link>
           )}
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />
-          {user && unreadCount > 0 ? (
+          {user ? (
             <button
               type="button"
+              onMouseDown={(event) => event.stopPropagation()}
               onClick={() => setPanelOpen((o) => !o)}
               className="relative inline-flex items-center rounded-xl p-2 text-gray-700"
-              aria-label="Notifications"
+              aria-label={
+                unreadCount > 0
+                  ? t("notifications.unread_count", { count: unreadCount })
+                  : t("notifications.title")
+              }
+              aria-expanded={panelOpen}
+              aria-controls="notifications-panel"
             >
               <Bell className="h-5 w-5" />
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-bold text-white">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
+              {unreadCount > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-bold text-white" aria-hidden="true">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              ) : null}
             </button>
           ) : null}
           <button
@@ -391,7 +390,7 @@ export function Navbar() {
             className="inline-flex rounded-xl p-2 text-gray-700 dark:text-gray-300"
             aria-expanded={mobileOpen}
             aria-controls="mobile-nav"
-            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-label={mobileOpen ? t("nav.close_menu") : t("nav.open_menu")}
             onClick={() => setMobileOpen((o) => !o)}
           >
             {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -399,29 +398,29 @@ export function Navbar() {
         </div>
       </div>
 
-      {panelOpen && (
-        <div className="md:hidden">
-          <NotificationPanel
-            notifications={notifications}
-            onMarkRead={markRead}
-            onMarkAllRead={markAllRead}
-            onClose={() => setPanelOpen(false)}
-          />
-        </div>
-      )}
+      {panelOpen && user ? (
+        <NotificationPanel
+          id="notifications-panel"
+          notifications={notifications}
+          onMarkRead={markRead}
+          onMarkAllRead={markAllRead}
+          onClose={() => setPanelOpen(false)}
+        />
+      ) : null}
 
       {mobileOpen ? (
         <div
           id="mobile-nav"
           className="border-t border-gray-100 bg-white px-4 py-4 shadow-inner dark:border-gray-800 dark:bg-gray-950 md:hidden"
         >
-          <nav className="flex flex-col gap-3" aria-label="Mobile navigation">
+          <nav className="flex flex-col gap-3" aria-label={t("nav.mobile_navigation")}>
             {navLinks.map(({ href, labelKey }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <Link
                   key={href}
                   href={href}
+                  aria-current={active ? "page" : undefined}
                   className={clsx(
                     "rounded-xl px-3 py-2 text-base font-medium hover:bg-red-50",
                     active ? "text-red-500 underline underline-offset-4" : "text-gray-800 dark:text-gray-200 dark:hover:bg-gray-800"
@@ -450,7 +449,7 @@ export function Navbar() {
                   }}
                   className="rounded-xl px-3 py-2 text-left text-base font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
                 >
-                  Sign Out
+                  {t("nav.sign_out")}
                 </button>
               </>
             ) : (
@@ -459,7 +458,7 @@ export function Navbar() {
                 className="mt-2 inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2.5 text-sm font-semibold text-red-500"
                 onClick={() => setMobileOpen(false)}
               >
-                Sign In
+                {t("nav.sign_in")}
               </Link>
             )}
           </nav>

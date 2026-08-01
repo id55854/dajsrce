@@ -6,7 +6,6 @@ import {
   endOfMonth,
   endOfWeek,
   format,
-  isSameDay,
   isSameMonth,
   parseISO,
   startOfMonth,
@@ -14,6 +13,8 @@ import {
 } from "date-fns";
 import clsx from "clsx";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { enUS, hr } from "date-fns/locale";
+import { useLocale, useT } from "@/i18n/client";
 
 type Event = {
   id: string;
@@ -34,6 +35,9 @@ export function VolunteerCalendar({
   registeredEventIds,
   onDayClick,
 }: VolunteerCalendarProps) {
+  const t = useT();
+  const { locale } = useLocale();
+  const dateLocale = locale === "hr" ? hr : enUS;
   const [cursor, setCursor] = useState<Date>(() => {
     // Start on the month containing the earliest upcoming event, or today if none.
     if (events.length === 0) return startOfMonth(new Date());
@@ -65,23 +69,27 @@ export function VolunteerCalendar({
 
   const todayIso = format(new Date(), "yyyy-MM-dd");
 
-  const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weekdayLabels = useMemo(() => {
+    return Array.from({ length: 7 }, (_, index) =>
+      format(new Date(2024, 0, 1 + index), "EEE", { locale: dateLocale })
+    );
+  }, [dateLocale]);
 
   return (
     <section
       className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5"
-      aria-label="Volunteer events calendar"
+      aria-label={t("volunteer_calendar.aria_label")}
     >
       <header className="mb-3 flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-          {format(cursor, "MMMM yyyy")}
+          {format(cursor, "LLLL yyyy", { locale: dateLocale })}
         </h2>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setCursor((c) => addMonths(c, -1))}
             className="rounded-full p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-            aria-label="Previous month"
+            aria-label={t("volunteer_calendar.previous_month")}
           >
             <ChevronLeft className="h-4 w-4" aria-hidden />
           </button>
@@ -90,13 +98,13 @@ export function VolunteerCalendar({
             onClick={() => setCursor(startOfMonth(new Date()))}
             className="rounded-full px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
           >
-            Today
+            {t("volunteer_calendar.today")}
           </button>
           <button
             type="button"
             onClick={() => setCursor((c) => addMonths(c, 1))}
             className="rounded-full p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-            aria-label="Next month"
+            aria-label={t("volunteer_calendar.next_month")}
           >
             <ChevronRight className="h-4 w-4" aria-hidden />
           </button>
@@ -125,7 +133,10 @@ export function VolunteerCalendar({
             ? dayEvents
                 .slice(0, 3)
                 .map((e) => `${e.start_time?.slice(0, 5) ?? ""} ${e.title}`.trim())
-                .join("\n") + (dayEvents.length > 3 ? `\n+${dayEvents.length - 3} more` : "")
+                .join("\n") +
+                (dayEvents.length > 3
+                  ? `\n+${dayEvents.length - 3} ${t("volunteer_calendar.more")}`
+                  : "")
             : "";
 
           const Tag = hasEvents ? "button" : "div";
@@ -138,7 +149,15 @@ export function VolunteerCalendar({
                     type: "button" as const,
                     onClick: () => onDayClick?.(iso, dayEvents.map((e) => e.id)),
                     title: tooltip,
-                    "aria-label": `${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"} on ${format(day, "EEEE, MMMM d")}${hasRegistered ? " (you are registered)" : ""}`,
+                    "aria-label": `${t(
+                      dayEvents.length === 1
+                        ? "volunteer_calendar.events_one"
+                        : "volunteer_calendar.events_many",
+                      {
+                        count: dayEvents.length,
+                        date: format(day, "PPPP", { locale: dateLocale }),
+                      }
+                    )}${hasRegistered ? t("volunteer_calendar.registered_suffix") : ""}`,
                   }
                 : {
                     "aria-hidden": true as const,
@@ -185,15 +204,15 @@ export function VolunteerCalendar({
       <footer className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-red-400" aria-hidden />
-          Event
+          {t("volunteer_calendar.event")}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-          You&rsquo;re registered
+          {t("volunteer_calendar.registered")}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-blue-400 ring-2 ring-blue-400/50" aria-hidden />
-          Today
+          {t("volunteer_calendar.today")}
         </span>
       </footer>
     </section>

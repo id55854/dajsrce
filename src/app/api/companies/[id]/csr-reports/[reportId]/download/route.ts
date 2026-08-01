@@ -29,6 +29,7 @@ export async function GET(
     .select("id, company_id, pdf_storage_path, docx_storage_path")
     .eq("id", reportId)
     .eq("company_id", companyId)
+    .eq("generation_status", "ready")
     .maybeSingle();
 
   if (error || !row) {

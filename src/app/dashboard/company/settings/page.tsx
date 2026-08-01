@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserProfile } from "@/lib/auth/server";
 import { resolveActiveCompany } from "@/lib/companies-server";
 import { SettingsEditor } from "./settings-editor";
+import { isDemoBillingEnabled } from "@/lib/security/runtime";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
@@ -19,7 +20,7 @@ export default async function CompanySettingsPage({
   const { active } = await resolveActiveCompany(cid);
   if (!active) redirect("/dashboard/company/new");
 
-  const allowDemoBilling = process.env.ALLOW_DEMO_BILLING === "true";
+  const allowDemoBilling = isDemoBillingEnabled();
 
   return (
     <SettingsEditor

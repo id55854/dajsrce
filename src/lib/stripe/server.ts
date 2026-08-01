@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import type { SubscriptionTier } from "@/lib/types";
 
 /** Stripe API version pinned for typed webhook/event compatibility. */
-const API_VERSION = "2026-03-25.dahlia";
+const API_VERSION = "2026-07-29.dahlia";
 
 let stripeSingleton: Stripe | null | undefined;
 

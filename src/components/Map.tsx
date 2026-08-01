@@ -9,11 +9,23 @@ import {
   Popup,
   TileLayer,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
 import { useEffect, useMemo, useState } from "react";
-import type { Institution, InstitutionCategory, DonationType } from "@/lib/types";
-import { CATEGORY_CONFIG, ZAGREB_CENTER, DEFAULT_ZOOM, getCategoryConfig, FALLBACK_CATEGORY_CONFIG } from "@/lib/constants";
+import type {
+  MapBounds,
+  PublicMapCluster,
+  PublicMapFeature,
+  PublicMapInstitution,
+} from "@/lib/location-map";
+import type { DonationType, InstitutionCategory } from "@/lib/types";
+import {
+  CATEGORY_CONFIG,
+  FALLBACK_CATEGORY_CONFIG,
+  getCategoryConfig,
+} from "@/lib/constants";
+import { useLocale, useT } from "@/i18n/client";
 
 const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
@@ -25,7 +37,16 @@ export interface MapFilters {
   onlyUrgent: boolean;
 }
 
-export function createCategoryIcon(color: string, size: number = 32, dark = false): L.DivIcon {
+export type MapViewport = {
+  bbox: MapBounds;
+  zoom: number;
+};
+
+export function createCategoryIcon(
+  color: string,
+  size: number = 32,
+  dark = false
+): L.DivIcon {
   const border = dark ? "#1f2937" : "white";
   return L.divIcon({
     className: "",
@@ -40,6 +61,23 @@ export function createCategoryIcon(color: string, size: number = 32, dark = fals
     iconSize: [size, size],
     iconAnchor: [size / 2, size],
     popupAnchor: [0, -size],
+  });
+}
+
+function createClusterIcon(count: number, urgent: boolean, dark: boolean): L.DivIcon {
+  const size = count >= 100 ? 48 : count >= 10 ? 42 : 36;
+  const background = urgent ? "#dc2626" : "#1d4ed8";
+  const border = dark ? "#111827" : "#ffffff";
+  return L.divIcon({
+    className: "",
+    html: `<div style="
+      width:${size}px;height:${size}px;border-radius:9999px;
+      display:flex;align-items:center;justify-content:center;
+      background:${background};color:white;border:3px solid ${border};
+      font:700 12px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.35)
+    ">${Math.max(1, Math.trunc(count))}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 }
 
@@ -65,33 +103,42 @@ function buildIcons(dark: boolean) {
   for (const key of Object.keys(CATEGORY_CONFIG) as InstitutionCategory[]) {
     icons[key] = createCategoryIcon(CATEGORY_CONFIG[key].color, 32, dark);
   }
-  // Fallback icon for any unknown category that may arrive from the DB.
-  icons["__fallback__"] = createCategoryIcon(FALLBACK_CATEGORY_CONFIG.color, 32, dark);
+  icons.__fallback__ = createCategoryIcon(FALLBACK_CATEGORY_CONFIG.color, 32, dark);
   return icons;
 }
 
-const HIDDEN_CIRCLE_RADIUS_M = 650;
-
-function isZagrebCity(city: string): boolean {
-  const n = city.trim().toLowerCase();
-  return n === "zagreb" || n.startsWith("zagreb ");
+function currentViewport(map: L.Map): MapViewport {
+  const bounds = map.getBounds();
+  return {
+    bbox: [
+      bounds.getWest(),
+      bounds.getSouth(),
+      bounds.getEast(),
+      bounds.getNorth(),
+    ],
+    zoom: map.getZoom(),
+  };
 }
 
-function passesFilters(inst: Institution, filters: MapFilters): boolean {
-  if (filters.categories.length > 0 && !filters.categories.includes(inst.category)) {
-    return false;
-  }
-  if (
-    filters.donationType != null &&
-    !inst.accepts_donations.includes(filters.donationType)
-  ) {
-    return false;
-  }
-  if (filters.onlyZagreb && !isZagrebCity(inst.city)) {
-    return false;
-  }
-  // filters.onlyUrgent: no urgency on Institution — pass a pre-filtered `institutions` list from the parent.
-  return true;
+function MapViewportObserver({
+  onChange,
+}: {
+  onChange: (viewport: MapViewport) => void;
+}) {
+  const map = useMapEvents({
+    moveend() {
+      onChange(currentViewport(map));
+    },
+    zoomend() {
+      onChange(currentViewport(map));
+    },
+  });
+
+  useEffect(() => {
+    onChange(currentViewport(map));
+  }, [map, onChange]);
+
+  return null;
 }
 
 function MapFlyToSelection({
@@ -99,15 +146,17 @@ function MapFlyToSelection({
   institutions,
 }: {
   selectedId: string | null;
-  institutions: Institution[];
+  institutions: PublicMapInstitution[];
 }) {
   const map = useMap();
 
   useEffect(() => {
     if (!selectedId) return;
-    const inst = institutions.find((i) => i.id === selectedId);
-    if (!inst) return;
-    map.flyTo([inst.lat, inst.lng], 15, { duration: 0.75 });
+    const institution = institutions.find((item) => item.id === selectedId);
+    if (!institution) return;
+    map.flyTo([institution.latitude, institution.longitude], Math.max(map.getZoom(), 14), {
+      duration: 0.65,
+    });
   }, [selectedId, institutions, map]);
 
   return null;
@@ -125,18 +174,113 @@ function MapFlyToUser({
   useEffect(() => {
     if (!userPosition || flyTrigger === 0) return;
     map.flyTo([userPosition.lat, userPosition.lng], 14, { duration: 0.85 });
-    // flyTrigger increments on each Locate click so repeat clicks re-center
-    // even if userPosition coordinates haven't changed.
   }, [userPosition, flyTrigger, map]);
 
   return null;
 }
 
+function ClusterMarker({ cluster, dark }: { cluster: PublicMapCluster; dark: boolean }) {
+  const t = useT();
+  const map = useMap();
+  const icon = useMemo(
+    () => createClusterIcon(cluster.count, cluster.hasUrgentNeed, dark),
+    [cluster.count, cluster.hasUrgentNeed, dark]
+  );
+
+  function zoomIntoCluster() {
+    const [minLng, minLat, maxLng, maxLat] = cluster.bounds;
+    if (minLng === maxLng && minLat === maxLat) {
+      map.setView(
+        [cluster.latitude, cluster.longitude],
+        Math.min(map.getZoom() + 2, 19)
+      );
+      return;
+    }
+    map.fitBounds(
+      [
+        [minLat, minLng],
+        [maxLat, maxLng],
+      ],
+      { maxZoom: Math.min(map.getZoom() + 3, 14), padding: [24, 24] }
+    );
+  }
+
+  return (
+    <Marker
+      position={[cluster.latitude, cluster.longitude]}
+      icon={icon}
+      title={t("map_ui.cluster_title", { count: cluster.count })}
+      alt={t("map_ui.cluster_alt", { count: cluster.count })}
+      eventHandlers={{ click: zoomIntoCluster }}
+    />
+  );
+}
+
+function InstitutionLayer({
+  institution,
+  icon,
+  onSelect,
+}: {
+  institution: PublicMapInstitution;
+  icon: L.DivIcon;
+  onSelect: (id: string) => void;
+}) {
+  const t = useT();
+  const { locale } = useLocale();
+  const category = getCategoryConfig(institution.category);
+  const position: [number, number] = [institution.latitude, institution.longitude];
+
+  if (institution.isLocationHidden) {
+    return (
+      <Circle
+        center={position}
+        radius={2200}
+        pathOptions={{
+          color: category.color,
+          fillColor: category.color,
+          fillOpacity: 0.18,
+          weight: 2,
+        }}
+        eventHandlers={{ click: () => onSelect(institution.id) }}
+      >
+        <Popup>
+          <div className="text-sm">
+            <p className="font-semibold">{institution.name}</p>
+            <p className="text-gray-600">{locale === "hr" ? category.labelHr : category.label}</p>
+            <p className="mt-2 text-xs text-gray-600">
+              {t("map_ui.hidden_safety")}
+            </p>
+          </div>
+        </Popup>
+      </Circle>
+    );
+  }
+
+  return (
+    <Marker
+      position={position}
+      icon={icon}
+      title={institution.name}
+      alt={`${institution.name}, ${locale === "hr" ? category.labelHr : category.label}`}
+      eventHandlers={{ click: () => onSelect(institution.id) }}
+    >
+      <Popup>
+        <div className="text-sm">
+          <p className="font-semibold">{institution.name}</p>
+          <p className="text-gray-600">{locale === "hr" ? category.labelHr : category.label}</p>
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
 export type MapProps = {
-  institutions: Institution[];
+  features: PublicMapFeature[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  filters: MapFilters;
+  onViewportChange: (viewport: MapViewport) => void;
+  initialCenter: [number, number];
+  initialZoom: number;
   userPosition?: { lat: number; lng: number } | null;
   flyToUserTrigger?: number;
 };
@@ -158,28 +302,42 @@ function useDarkMode() {
 }
 
 export default function Map({
-  institutions,
+  features,
   selectedId,
   onSelect,
-  filters,
+  onViewportChange,
+  initialCenter,
+  initialZoom,
   userPosition = null,
   flyToUserTrigger = 0,
 }: MapProps) {
+  const t = useT();
   const dark = useDarkMode();
   const icons = useMemo(() => buildIcons(dark), [dark]);
   const userIcon = useMemo(() => createUserLocationIcon(), []);
-
-  const visible = useMemo(
-    () => institutions.filter((i) => passesFilters(i, filters)),
-    [institutions, filters],
+  const institutions = useMemo(
+    () =>
+      features.filter(
+        (feature): feature is PublicMapInstitution => feature.kind === "institution"
+      ),
+    [features]
   );
 
   return (
     <MapContainer
-      center={ZAGREB_CENTER}
-      zoom={DEFAULT_ZOOM}
+      center={initialCenter}
+      zoom={initialZoom}
+      minZoom={6}
+      maxZoom={19}
+      maxBounds={[
+        [40.5, 9.5],
+        [49.5, 24.0],
+      ]}
+      maxBoundsViscosity={0.6}
+      preferCanvas
       className="h-full w-full z-0"
       scrollWheelZoom
+      aria-label={t("map_ui.map_aria")}
     >
       <TileLayer
         key={dark ? "dark" : "light"}
@@ -187,65 +345,32 @@ export default function Map({
         url={dark ? DARK_TILES : LIGHT_TILES}
         subdomains="abcd"
       />
+      <MapViewportObserver onChange={onViewportChange} />
       <MapFlyToSelection selectedId={selectedId} institutions={institutions} />
       <MapFlyToUser userPosition={userPosition} flyTrigger={flyToUserTrigger} />
       {userPosition ? (
-        <Marker position={[userPosition.lat, userPosition.lng]} icon={userIcon}>
+        <Marker
+          position={[userPosition.lat, userPosition.lng]}
+          icon={userIcon}
+          title={t("map_ui.your_location")}
+          alt={t("map_ui.your_location")}
+        >
           <Popup>
-            <div className="text-sm font-semibold">Your location</div>
+            <div className="text-sm font-semibold">{t("map_ui.your_location")}</div>
           </Popup>
         </Marker>
       ) : null}
-      {visible.map((inst) => {
-        const cat = getCategoryConfig(inst.category);
-        const icon = icons[inst.category] ?? icons["__fallback__"];
-
-        if (inst.is_location_hidden) {
-          const fill = cat.color;
-          return (
-            <Circle
-              key={inst.id}
-              center={[inst.lat, inst.lng]}
-              radius={HIDDEN_CIRCLE_RADIUS_M}
-              pathOptions={{
-                color: fill,
-                fillColor: fill,
-                fillOpacity: 0.22,
-                weight: 2,
-              }}
-              eventHandlers={{
-                click: () => onSelect(inst.id),
-              }}
-            >
-              <Popup>
-                <div className="text-sm">
-                  <p className="font-semibold">{inst.name}</p>
-                  <p className="text-gray-600">{cat.labelHr}</p>
-                  <p className="mt-2 text-xs text-gray-600">
-                    Točna lokacija je skrivena radi sigurnosti
-                  </p>
-                </div>
-              </Popup>
-            </Circle>
-          );
+      {features.map((feature) => {
+        if (feature.kind === "cluster") {
+          return <ClusterMarker key={feature.id} cluster={feature} dark={dark} />;
         }
-
         return (
-          <Marker
-            key={inst.id}
-            position={[inst.lat, inst.lng]}
-            icon={icon}
-            eventHandlers={{
-              click: () => onSelect(inst.id),
-            }}
-          >
-            <Popup>
-              <div className="text-sm">
-                <p className="font-semibold">{inst.name}</p>
-                <p className="text-gray-600">{cat.labelHr}</p>
-              </div>
-            </Popup>
-          </Marker>
+          <InstitutionLayer
+            key={feature.id}
+            institution={feature}
+            icon={icons[feature.category] ?? icons.__fallback__}
+            onSelect={onSelect}
+          />
         );
       })}
     </MapContainer>

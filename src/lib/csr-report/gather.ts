@@ -20,15 +20,14 @@ export type CsrReportManifest = {
   campaigns: { name: string; sdg_tags: number[] }[];
 };
 
-function inPeriod(isoDate: string | null, start: string, end: string): boolean {
-  if (!isoDate) return false;
-  const d = isoDate.slice(0, 10);
-  return d >= start && d <= end;
-}
+type AcknowledgedPledge = {
+  id: string;
+  amount_eur: number | string;
+  ack_signed_at: string;
+  institution_name: string;
+};
 
-function pledgeEffectiveDate(deliveredAt: string | null, createdAt: string): string {
-  return (deliveredAt ?? createdAt).slice(0, 10);
-}
+type VolunteerHour = { id: string; hours: number | string };
 
 export async function gatherCsrReportManifest(
   admin: SupabaseClient,
@@ -37,92 +36,77 @@ export async function gatherCsrReportManifest(
   periodEnd: string,
   company: CsrReportManifest["company"]
 ): Promise<CsrReportManifest> {
-  const { data: pledgeRows, error: pledgesErr } = await admin
-    .from("pledges")
-    .select(
-      "amount_eur, status, created_at, delivered_at, need:needs(institution:institutions(name))"
-    )
-    .eq("company_id", companyId)
-    .in("status", ["delivered", "confirmed"]);
+  const from = `${periodStart}T00:00:00.000Z`;
+  const to = `${periodEnd}T23:59:59.999Z`;
+  const [pledgesResult, hoursResult, campaignsResult] = await Promise.all([
+    admin.rpc("get_acknowledged_pledges_json", {
+      p_company_id: companyId,
+      p_from: from,
+      p_to: to,
+    }),
+    admin.rpc("get_volunteer_hours_json", {
+      p_company_id: companyId,
+      p_from: from,
+      p_to: to,
+    }),
+    admin
+      .from("campaigns")
+      .select("name, sdg_tags")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
 
-  if (pledgesErr) {
-    throw new Error(pledgesErr.message);
-  }
+  if (pledgesResult.error) throw new Error(pledgesResult.error.message);
+  if (hoursResult.error) throw new Error(hoursResult.error.message);
+  if (campaignsResult.error) throw new Error(campaignsResult.error.message);
 
-  const rows = pledgeRows ?? [];
-  const scoped = rows.filter((r) => {
-    if (r.amount_eur == null) return false;
-    const d = pledgeEffectiveDate(r.delivered_at as string | null, r.created_at as string);
-    return inPeriod(d, periodStart, periodEnd);
-  });
-
-  let givenEur = 0;
+  const pledges = (Array.isArray(pledgesResult.data) ? pledgesResult.data : []) as AcknowledgedPledge[];
+  const hours = (Array.isArray(hoursResult.data) ? hoursResult.data : []) as VolunteerHour[];
   const byInstitution = new Map<string, number>();
   const byMonth = new Map<string, number>();
+  let givenCents = 0;
 
-  for (const r of scoped) {
-    const amt = Number(r.amount_eur);
-    givenEur += amt;
-    const need = r.need as { institution?: { name: string } | null } | null;
-    const instName = need?.institution?.name ?? "—";
-    byInstitution.set(instName, (byInstitution.get(instName) ?? 0) + amt);
-
-    const d = pledgeEffectiveDate(r.delivered_at as string | null, r.created_at as string);
-    const monthKey = d.slice(0, 7);
-    byMonth.set(monthKey, (byMonth.get(monthKey) ?? 0) + amt);
+  for (const pledge of pledges) {
+    const amountCents = Math.round(Number(pledge.amount_eur) * 100);
+    if (!Number.isFinite(amountCents) || amountCents < 0) {
+      throw new Error(`Invalid amount for pledge ${pledge.id}`);
+    }
+    givenCents += amountCents;
+    const institution = pledge.institution_name || "—";
+    byInstitution.set(institution, (byInstitution.get(institution) ?? 0) + amountCents);
+    const month = pledge.ack_signed_at.slice(0, 7);
+    byMonth.set(month, (byMonth.get(month) ?? 0) + amountCents);
   }
 
-  const { data: hoursRows, error: hoursErr } = await admin
-    .from("volunteer_hours")
-    .select("hours, recorded_at")
-    .eq("company_id", companyId)
-    .gte("recorded_at", `${periodStart}T00:00:00.000Z`)
-    .lte("recorded_at", `${periodEnd}T23:59:59.999Z`);
-
-  if (hoursErr) {
-    throw new Error(hoursErr.message);
-  }
-
-  let volunteerHours = 0;
-  for (const h of hoursRows ?? []) {
-    volunteerHours += Number(h.hours);
-  }
-
-  const { data: campRows } = await admin
-    .from("campaigns")
-    .select("name, sdg_tags")
-    .eq("company_id", companyId)
-    .eq("is_active", true)
-    .order("created_at", { ascending: false })
-    .limit(20);
+  const volunteerHours = Math.round(
+    hours.reduce((sum, row) => sum + Number(row.hours ?? 0), 0) * 100
+  ) / 100;
 
   const top_institutions = [...byInstitution.entries()]
-    .map(([name, eur]) => ({ name, eur }))
+    .map(([name, cents]) => ({ name, eur: cents / 100 }))
     .sort((a, b) => b.eur - a.eur)
     .slice(0, 8);
-
   const monthly_eur = [...byMonth.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, eur]) => ({ month, eur: Math.round(eur * 100) / 100 }));
-
-  givenEur = Math.round(givenEur * 100) / 100;
-  volunteerHours = Math.round(volunteerHours * 100) / 100;
+    .map(([month, cents]) => ({ month, eur: cents / 100 }));
 
   return {
     period_start: periodStart,
     period_end: periodEnd,
     company,
     totals: {
-      given_eur: givenEur,
+      given_eur: givenCents / 100,
       volunteer_hours: volunteerHours,
       institutions_supported: byInstitution.size,
-      pledges_in_scope: scoped.length,
+      pledges_in_scope: pledges.length,
     },
     monthly_eur,
     top_institutions,
-    campaigns: (campRows ?? []).map((c) => ({
-      name: c.name as string,
-      sdg_tags: (c.sdg_tags as number[]) ?? [],
+    campaigns: (campaignsResult.data ?? []).map((campaign) => ({
+      name: campaign.name as string,
+      sdg_tags: (campaign.sdg_tags as number[]) ?? [],
     })),
   };
 }

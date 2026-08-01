@@ -2,7 +2,9 @@
 
 import type { ReactNode } from "react";
 import type { Institution } from "@/lib/types";
+import type { PublicInstitutionDetail } from "@/lib/location-map";
 import { getCategoryConfig, DONATION_TYPES } from "@/lib/constants";
+import { useLocale, useT } from "@/i18n/client";
 import {
   CheckCircle2,
   Clock,
@@ -18,7 +20,7 @@ import {
 } from "lucide-react";
 
 export interface InstitutionDetailPanelProps {
-  institution: Institution;
+  institution: Institution | PublicInstitutionDetail;
   onClose?: () => void;
   /** When false, hides the close control (e.g. standalone public page). */
   showCloseButton?: boolean;
@@ -34,12 +36,42 @@ export function InstitutionDetailPanel({
   onClose,
   showCloseButton = true,
 }: InstitutionDetailPanelProps) {
+  const t = useT();
+  const { locale } = useLocale();
+  const isPublicDetail = "latitude" in institution;
+  const isLocationHidden = isPublicDetail
+    ? institution.isLocationHidden
+    : institution.is_location_hidden;
+  const approximateArea = isPublicDetail
+    ? institution.approximateArea
+    : institution.approximate_area;
+  const isVerified = isPublicDetail
+    ? institution.isVerified
+    : institution.is_verified;
+  const workingHours = isPublicDetail
+    ? institution.workingHours
+    : institution.working_hours;
+  const dropOffHours = isPublicDetail
+    ? institution.dropOffHours
+    : institution.drop_off_hours;
+  const acceptsDonations = isPublicDetail
+    ? institution.acceptsDonations
+    : institution.accepts_donations;
+  const nearestZetStop = isPublicDetail
+    ? institution.nearestZetStop
+    : institution.nearest_zet_stop;
+  const zetLines = isPublicDetail ? institution.zetLines : institution.zet_lines;
+  const latitude = isPublicDetail ? institution.latitude : institution.lat;
+  const longitude = isPublicDetail ? institution.longitude : institution.lng;
   const cat = getCategoryConfig(institution.category);
-  const addressDisplay = institution.is_location_hidden
-    ? `Location hidden for safety — ${institution.approximate_area ?? "—"}`
-    : `${institution.address}, ${institution.city}`;
+  const addressDisplay = isLocationHidden
+    ? t("institution_detail.hidden_address", {
+        area: approximateArea ?? institution.city ?? t("map_ui.approximate_area"),
+      })
+    : [institution.address, institution.city].filter(Boolean).join(", ");
+  const noValue = "—";
 
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${institution.lat},${institution.lng}`;
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
   const telHref = institution.phone
     ? `tel:${institution.phone.replace(/\s/g, "")}`
     : null;
@@ -51,17 +83,16 @@ export function InstitutionDetailPanel({
           type="button"
           onClick={() => onClose?.()}
           className="absolute right-3 top-3 z-10 rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-          aria-label="Close"
+          aria-label={t("institution_detail.close")}
         >
           <X className="h-5 w-5" />
         </button>
       ) : null}
 
       <div>
-        {institution.is_location_hidden ? (
+        {isLocationHidden ? (
           <div className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
-            The exact location of this institution is hidden for the safety of
-            residents. Please contact them by phone.
+            {t("institution_detail.hidden_notice")}
           </div>
         ) : null}
 
@@ -80,16 +111,16 @@ export function InstitutionDetailPanel({
                 backgroundColor: cat.bgColor,
               }}
             >
-              {cat.label}
+              {locale === "hr" ? cat.labelHr : cat.label}
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-[family-name:var(--font-dm-sans)] text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {institution.name}
               </h2>
-              {institution.is_verified ? (
+              {isVerified ? (
                 <CheckCircle2
                   className="h-6 w-6 shrink-0 text-emerald-500"
-                  aria-label="Verified institution"
+                  aria-label={t("institution_detail.verified")}
                 />
               ) : null}
             </div>
@@ -102,12 +133,12 @@ export function InstitutionDetailPanel({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <InfoItem
               icon={MapPin}
-              label="Address"
+              label={t("institution_detail.address")}
               value={addressDisplay}
             />
             <InfoItem
               icon={Phone}
-              label="Phone"
+              label={t("institution_detail.phone")}
               value={
                 institution.phone ? (
                   <a
@@ -117,13 +148,13 @@ export function InstitutionDetailPanel({
                     {institution.phone}
                   </a>
                 ) : (
-                  "—"
+                  noValue
                 )
               }
             />
             <InfoItem
               icon={Mail}
-              label="Email"
+              label={t("institution_detail.email")}
               value={
                 institution.email ? (
                   <a
@@ -133,13 +164,13 @@ export function InstitutionDetailPanel({
                     {institution.email}
                   </a>
                 ) : (
-                  "—"
+                  noValue
                 )
               }
             />
             <InfoItem
               icon={Globe}
-              label="Website"
+              label={t("institution_detail.website")}
               value={
                 institution.website ? (
                   <a
@@ -151,27 +182,27 @@ export function InstitutionDetailPanel({
                     {institution.website}
                   </a>
                 ) : (
-                  "—"
+                  noValue
                 )
               }
             />
             <InfoItem
               icon={Clock}
-              label="Working hours"
-              value={institution.working_hours ?? "—"}
+              label={t("institution_detail.working_hours")}
+              value={workingHours ?? noValue}
             />
             <InfoItem
               icon={Package}
-              label="Drop-off hours"
-              value={institution.drop_off_hours ?? "—"}
+              label={t("institution_detail.dropoff_hours")}
+              value={dropOffHours ?? noValue}
             />
           </div>
 
           <section>
             <h3 className="mb-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Accepts
+              {t("institution_detail.accepts")}
             </h3>
-            <DonationBadges accepts={institution.accepts_donations} />
+            <DonationBadges accepts={acceptsDonations} />
           </section>
 
           {institution.capacity ? (
@@ -179,7 +210,7 @@ export function InstitutionDetailPanel({
               <Users className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" />
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Capacity
+                  {t("institution_detail.capacity")}
                 </p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">
                   {institution.capacity}
@@ -188,40 +219,42 @@ export function InstitutionDetailPanel({
             </div>
           ) : null}
 
-          {institution.nearest_zet_stop ? (
+          {nearestZetStop ? (
             <section className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 dark:border-gray-800 dark:bg-gray-800/80">
               <h3 className="mb-2 flex items-center gap-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900 dark:text-gray-100">
                 <Train className="h-4 w-4 text-gray-600" />
-                Nearby ZET stop
+                {t("institution_detail.nearby_stop")}
               </h3>
               <p className="text-sm text-gray-800 dark:text-gray-200">
-                {institution.nearest_zet_stop}
+                {nearestZetStop}
               </p>
-              {institution.zet_lines ? (
+              {zetLines ? (
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  Lines: {institution.zet_lines}
+                  {t("institution_detail.lines", { lines: zetLines })}
                 </p>
               ) : null}
             </section>
           ) : null}
 
           <div className="flex flex-wrap gap-3 pt-1">
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex flex-1 min-w-[10rem] items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open in Google Maps
-            </a>
+            {!isLocationHidden ? (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex flex-1 min-w-[10rem] items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+              >
+                <ExternalLink className="h-4 w-4" />
+                {t("institution_detail.open_maps")}
+              </a>
+            ) : null}
             {institution.phone ? (
               <a
                 href={telHref!}
                 className="inline-flex flex-1 min-w-[10rem] items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
               >
                 <Phone className="h-4 w-4" />
-                Call
+                {t("institution_detail.call")}
               </a>
             ) : null}
           </div>
@@ -260,10 +293,12 @@ function DonationBadges({
 }: {
   accepts: Institution["accepts_donations"];
 }) {
+  const t = useT();
+  const { locale } = useLocale();
   if (!accepts || accepts.length === 0) {
     return (
       <p className="text-sm italic text-gray-500 dark:text-gray-400">
-        Contact this institution to ask what they accept.
+        {t("institution_detail.contact_accepts")}
       </p>
     );
   }
@@ -277,7 +312,7 @@ function DonationBadges({
             key={type}
             className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400"
           >
-            {dt.label}
+            {locale === "hr" ? dt.labelHr : dt.label}
           </span>
         );
       })}

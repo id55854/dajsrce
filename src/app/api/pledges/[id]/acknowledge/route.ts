@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(
   req: NextRequest,
@@ -23,48 +23,20 @@ export async function POST(
     notes = undefined;
   }
 
-  const { data: pledge, error: pledgeErr } = await supabase
-    .from("pledges")
-    .select("id, status, need_id")
-    .eq("id", pledgeId)
-    .maybeSingle();
-
-  if (pledgeErr || !pledge) {
-    return NextResponse.json({ error: "Pledge not found" }, { status: 404 });
-  }
-  if (pledge.status !== "delivered") {
-    return NextResponse.json(
-      { error: "Pledge must be marked delivered before acknowledgement" },
-      { status: 409 }
-    );
+  if (notes != null && (typeof notes !== "string" || notes.length > 2000)) {
+    return NextResponse.json({ error: "notes must be at most 2000 characters" }, { status: 400 });
   }
 
-  const signedAt = new Date().toISOString();
-  const signatureHash = createHash("sha256")
-    .update([pledgeId, user.id, signedAt, notes ?? ""].join("|"))
-    .digest("hex");
-
-  const { data, error } = await supabase
-    .from("pledge_acknowledgements")
-    .insert({
-      pledge_id: pledgeId,
-      institution_user_id: user.id,
-      kind: "manual",
-      notes: notes?.trim() || null,
-      signature_hash: signatureHash,
-      signed_at: signedAt,
-    })
-    .select()
-    .single();
+  const { data, error } = await supabaseAdmin.rpc("acknowledge_pledge_transaction", {
+    p_actor_id: user.id,
+    p_pledge_id: pledgeId,
+    p_notes: notes?.trim() || null,
+  });
 
   if (error) {
-    if (error.code === "23505") {
-      return NextResponse.json({ error: "Already acknowledged" }, { status: 409 });
-    }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : 409;
+    return NextResponse.json({ error: "Pledge could not be acknowledged" }, { status });
   }
-
-  await supabase.from("pledges").update({ status: "confirmed" }).eq("id", pledgeId);
 
   return NextResponse.json({ acknowledgement: data });
 }

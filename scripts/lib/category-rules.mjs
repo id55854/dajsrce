@@ -87,6 +87,21 @@ export const NEGATIVE_SIGNALS = [
   { source: "groups", pattern: /\bSPORTAS\b|\bSPORTSKI DJELATNICI\b|\bAKADEMSKA ZAJEDNICA\b/i, penalty: 3 },
   { source: "name",   pattern: /\bsportski klub\b|\bnogometni klub\b|\bkosarkaski klub\b|\brukometni klub\b|\bsah\b|\bplesni klub\b/i, penalty: 4 },
   { source: "name",   pattern: /\blovacka udruga\b|\bribolovni\b|\bplaninarski\b|\bautoklub\b/i, penalty: 4 },
+  { source: "name",   pattern: /\bkonjicki\b|\bjahacki\b|\bkinolosk|\buzgajivac|\bgolubar/i, penalty: 6 },
+  { source: "name",   pattern: /\bkulturno umjetnick|\bkulturna udruga\b|\bfolklor|\btamburas|\bpjevack|\bglazben/i, penalty: 6 },
+  { source: "name",   pattern: /\bstrukovn|\bprofesionaln|\balumni\b|\bhobi\b|\bkolekcionar/i, penalty: 5 },
+];
+
+export const CLASSIFICATION_VERSION = "2026-08-01.1";
+
+// Entity-shaped exclusions always require review even when a broad target
+// group happens to match. This prevents sports/cultural/hobby organizations
+// from being auto-published as disability or elderly support providers.
+export const AUTO_PUBLISH_EXCLUSIONS = [
+  /\b(sportski|nogometni|kosarkaski|rukometni|odbojkaski|atletski|teniski|bocarski|sahovski) (klub|savez|drustvo)\b/i,
+  /\b(konjicki|jahacki|lovacki|ribolovni|planinarski|kinoloski|automoto|auto klub)\b/i,
+  /\b(kulturno umjetnick|folklor|tamburas|pjevack|glazben|plesni klub|kazalisn)\b/i,
+  /\b(uzgajivac|golubar|kolekcionar|strukovn|profesionaln|alumni|hobi)\b/i,
 ];
 
 // Diacritic-insensitive normalisation. Strips ČĆŽŠĐ → CCZSDj for matching.
@@ -111,6 +126,9 @@ export function scoreRow(row) {
 
   const scores = {};
   const ruleHits = {};
+  const exclusionHits = AUTO_PUBLISH_EXCLUSIONS
+    .filter((pattern) => pattern.test(name))
+    .map((pattern) => pattern.source);
 
   for (const r of RULES) {
     const hay = r.source === "groups" ? groups : r.source === "name" ? name : text;
@@ -146,14 +164,32 @@ export function scoreRow(row) {
   };
   const entries = Object.entries(scores).map(([k, v]) => [k, v, SPECIFICITY[k] ?? 0]);
   if (entries.length === 0) {
-    return { category: null, confidence: 0, rule: null, scores: {} };
+    return {
+      category: null,
+      confidence: 0,
+      rule: null,
+      scores: {},
+      candidateCategories: [],
+      classificationStatus: exclusionHits.length ? "rejected" : "unmapped",
+      reviewReasons: exclusionHits.length ? ["excluded entity type"] : ["no qualifying support signal"],
+      classificationVersion: CLASSIFICATION_VERSION,
+    };
   }
   // Sort by score desc, then specificity desc.
   entries.sort((a, b) => (b[1] - a[1]) || (b[2] - a[2]));
   const [bestCat, bestScore] = entries[0];
   const adjScore = Math.max(0, bestScore - penalty);
   if (adjScore <= 0) {
-    return { category: null, confidence: 0, rule: "outweighed by negative signals", scores };
+    return {
+      category: null,
+      confidence: 0,
+      rule: "outweighed by negative signals",
+      scores,
+      candidateCategories: entries.map(([category, score]) => ({ category, score })),
+      classificationStatus: "rejected",
+      reviewReasons: ["negative entity signals outweigh support evidence"],
+      classificationVersion: CLASSIFICATION_VERSION,
+    };
   }
 
   // Confidence: 0.95 for ≥8, 0.7 for ≥5, 0.45 for ≥3, 0.25 below.
@@ -174,11 +210,22 @@ export function scoreRow(row) {
     }
   }
 
+  const reviewReasons = [];
+  if (exclusionHits.length) reviewReasons.push("excluded entity type requires human review");
+  if (confidence < 0.7) reviewReasons.push("classification confidence below auto-publish threshold");
+  if (entries.length > 1 && entries[0][1] - entries[1][1] <= 1) {
+    reviewReasons.push("multiple categories have similar evidence");
+  }
   return {
     category: bestCat,
-    confidence: Number(confidence.toFixed(3)),
+    confidence: Number((exclusionHits.length ? Math.min(confidence, 0.49) : confidence).toFixed(3)),
     rule: (ruleHits[bestCat] || []).join(" + ") || null,
     scores,
+    candidateCategories: entries.map(([category, score]) => ({ category, score })),
+    classificationStatus:
+      exclusionHits.length || confidence < 0.7 ? "needs_review" : "auto_eligible",
+    reviewReasons,
+    classificationVersion: CLASSIFICATION_VERSION,
   };
 }
 
@@ -225,7 +272,7 @@ export function derivedServedPopulation(groups) {
 export function inferAcceptsDonations(category, text) {
   const t = normalize(text);
   const hits = new Set();
-  if (/hrana|topli obrok|namirnic|prehrana/.test(t)) hits.add("food");
+  if (/hran[aeu]|topli obrok|namirnic|prehran/.test(t)) hits.add("food");
   if (/odjec|obuc|tekstil/.test(t)) hits.add("clothes");
   if (/higijensk|sapun|pelene/.test(t)) hits.add("hygiene");
   if (/igracke|knjige|skolski pribor/.test(t)) hits.add("toys_books");
@@ -235,13 +282,9 @@ export function inferAcceptsDonations(category, text) {
   if (/donacij|novcan/.test(t)) hits.add("money");
   if (/volonter/.test(t)) hits.add("time");
 
-  // category-derived defaults
-  if (category === "soup_kitchen") { hits.add("food"); hits.add("hygiene"); }
-  if (category === "homeless_shelter") { hits.add("clothes"); hits.add("hygiene"); hits.add("blankets_bedding"); }
-  if (category === "domestic_violence") { hits.add("hygiene"); hits.add("clothes"); }
-  if (category === "children_home") { hits.add("clothes"); hits.add("toys_books"); hits.add("school_supplies"); }
-  if (category === "elderly_care") { hits.add("hygiene"); hits.add("medical_supplies"); }
-  if (category === "disability_support") { hits.add("medical_supplies"); }
-
+  // These are candidates for a claim/review form only. They must never be
+  // presented publicly as accepted donation types until the organization
+  // explicitly confirms them.
+  void category;
   return Array.from(hits);
 }

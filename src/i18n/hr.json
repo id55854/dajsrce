@@ -29,7 +29,23 @@
     "map": "Karta",
     "needs": "Potrebe",
     "volunteer": "Volontiraj",
-    "find_help": "Pronađi NGO"
+    "find_help": "Pronađi NGO",
+    "main_navigation": "Glavna navigacija",
+    "mobile_navigation": "Mobilna navigacija",
+    "open_menu": "Otvori izbornik",
+    "close_menu": "Zatvori izbornik",
+    "sign_in": "Prijava",
+    "sign_out": "Odjava",
+    "user_fallback": "Korisnik"
+  },
+  "theme": {
+    "switch_to_light": "Uključi svijetli način",
+    "switch_to_dark": "Uključi tamni način"
+  },
+  "auth_dialog": {
+    "title": "Potrebna je prijava",
+    "body": "Za radnju „{action}” prijavite se ili izradite račun. Pregledavanje ostaje javno.",
+    "register": "Registracija"
   },
   "your_pledges": {
     "section_title": "Vaša obećanja",
@@ -212,6 +228,14 @@
     "download_zip": "Preuzmi ZIP"
   },
   "pledge": {
+    "cta": "Mogu pomoći",
+    "dialog_title": "Obećajte pomoć",
+    "personal": "osobno",
+    "quantity": "Količina",
+    "message_optional": "Poruka (nije obavezno)",
+    "success": "Hvala! Vaše obećanje je zabilježeno.",
+    "network_error": "Mrežna pogreška. Pokušajte ponovno.",
+    "auth_action": "doniranje ili ponudu pomoći",
     "amount_eur_label": "Procijenjena vrijednost (EUR)",
     "amount_eur_hint": "Nije obavezno. Potrebno za godišnje potvrde kada darujete u ime tvrtke."
   },
@@ -283,7 +307,8 @@
   "notifications": {
     "title": "Obavijesti",
     "empty": "Nema obavijesti.",
-    "mark_all_read": "Označi sve pročitanim"
+    "mark_all_read": "Označi sve pročitanim",
+    "unread_count": "Obavijesti, nepročitano: {count}"
   },
   "dashboard_individual": {
     "title": "Osobna nadzorna ploča",
@@ -302,6 +327,144 @@
     "no_actions": "Još nema aktivnosti. Pregledajte potrebe i počnite pomoći.",
     "shipment_prefix": "Pošiljka:",
     "find_places": "Pronađite gdje pomoći"
+  },
+  "filters": {
+    "category": "Kategorija",
+    "donation": "Donacija",
+    "all": "Sve",
+    "zagreb_only": "Samo Zagreb",
+    "all_croatia": "Cijela Hrvatska",
+    "urgent_only": "Samo hitno"
+  },
+  "needs_page": {
+    "title": "Potrebe ustanova",
+    "subtitle": "Ustanovama treba vaša pomoć — pronađite gdje možete doprinijeti",
+    "donation_type": "Vrsta donacije",
+    "urgency": "Hitnost",
+    "all": "Sve",
+    "urgent": "Hitno",
+    "soon": "Uskoro",
+    "routine": "Redovno",
+    "loading": "Učitavanje potreba ustanova",
+    "error_loading": "Nismo uspjeli učitati potrebe. Pokušajte ponovno.",
+    "empty": "Trenutačno nema aktivnih potreba"
+  },
+  "need_card": {
+    "urgent": "Hitno",
+    "needed_soon": "Potrebno uskoro",
+    "routine": "Redovno",
+    "pledged": "Obećano {pledged} / {needed}",
+    "progress": "Obećano je {percent}% ove potrebe",
+    "posted": "Objavljeno {time}"
+  },
+  "volunteer_page": {
+    "title": "Volonterski događaji",
+    "subtitle": "Pridružite se događaju i učinite razliku",
+    "loading": "Učitavanje volonterskih događaja",
+    "error_loading": "Nismo uspjeli učitati volonterske događaje. Pokušajte ponovno.",
+    "empty": "Nema nadolazećih volonterskih događaja. Navratite ponovno!"
+  },
+  "volunteer_card": {
+    "volunteers": "Volonteri",
+    "progress": "Popunjeno je {signed} od {needed} volonterskih mjesta",
+    "sign_in": "Prijavite se",
+    "sign_in_continue": "Prijavite se za nastavak",
+    "registered": "Prijavljeni ste",
+    "sign_up": "Prijavi se",
+    "signing_up": "Prijava u tijeku",
+    "failed": "Prijava nije uspjela. Pokušajte ponovno.",
+    "auth_action": "Volontiranje"
+  },
+  "volunteer_calendar": {
+    "aria_label": "Kalendar volonterskih događaja",
+    "previous_month": "Prethodni mjesec",
+    "next_month": "Sljedeći mjesec",
+    "today": "Danas",
+    "event": "Događaj",
+    "registered": "Prijavljeni ste",
+    "more": "još",
+    "events_one": "1 događaj na datum {date}",
+    "events_many": "{count} događaja na datum {date}",
+    "registered_suffix": ", prijavljeni ste"
+  },
+  "footer": {
+    "tagline": "Povezujemo donatore s onima kojima je pomoć potrebna",
+    "public_good": "Projekt za opće dobro · {year}"
+  },
+  "a11y": {
+    "dialog_label": "Postavke pristupačnosti",
+    "title": "Pristupačnost",
+    "close": "Zatvori izbornik pristupačnosti",
+    "text_size": "Veličina teksta",
+    "decrease_text": "Smanji veličinu teksta",
+    "reset_text": "Vrati zadanu veličinu teksta",
+    "increase_text": "Povećaj veličinu teksta",
+    "high_contrast": "Visoki kontrast",
+    "dyslexia_font": "Font prilagođen disleksiji",
+    "highlight_links": "Istakni poveznice",
+    "increase_spacing": "Povećaj razmak",
+    "grayscale": "Sivi tonovi",
+    "big_cursor": "Veliki pokazivač",
+    "stop_animations": "Zaustavi animacije",
+    "reset_all": "Vrati sve postavke",
+    "open": "Otvori izbornik pristupačnosti"
+  },
+  "institution_detail": {
+    "close": "Zatvori detalje ustanove",
+    "hidden_address": "Lokacija je skrivena radi sigurnosti — {area}",
+    "hidden_notice": "Točna lokacija ove ustanove skrivena je radi sigurnosti korisnika. Obratite se ustanovi telefonom.",
+    "verified": "Provjerena ustanova",
+    "address": "Adresa",
+    "phone": "Telefon",
+    "email": "E-pošta",
+    "website": "Web-stranica",
+    "working_hours": "Radno vrijeme",
+    "dropoff_hours": "Vrijeme zaprimanja",
+    "accepts": "Prihvaća",
+    "capacity": "Kapacitet",
+    "nearby_stop": "Najbliža ZET stanica",
+    "lines": "Linije: {lines}",
+    "open_maps": "Otvori u Google kartama",
+    "call": "Nazovi",
+    "contact_accepts": "Obratite se ustanovi i provjerite što prihvaća."
+  },
+  "map_page": {
+    "load_error": "Nismo uspjeli učitati ustanove. Pokušajte ponovno.",
+    "detail_error": "Podaci o ustanovi nisu dostupni.",
+    "geo_unsupported": "Ovaj preglednik ne podržava geolokaciju.",
+    "geo_denied": "Pristup lokaciji je odbijen. Omogućite ga u postavkama preglednika.",
+    "geo_timeout": "Određivanje lokacije traje predugo. Pokušajte ponovno.",
+    "geo_failed": "Nismo uspjeli odrediti vašu lokaciju.",
+    "search_placeholder": "Pretražite ustanove na ovom području karte…",
+    "search_aria": "Pretražite ustanove na vidljivom području karte",
+    "clear_search": "Očisti pretraživanje",
+    "type_more": "Upišite još jedan znak za pretraživanje.",
+    "searching": "Pretraživanje…",
+    "no_matches": "Nema rezultata na ovom području karte.",
+    "updating": "Ažuriranje područja",
+    "locate": "Pronađi me",
+    "recenter": "Centriraj na mene",
+    "institution_list": "Popis ustanova",
+    "show_map": "Prikaži kartu",
+    "loading": "Učitavanje ustanova…",
+    "clusters_count": "{count} ustanova grupirano je na karti",
+    "area_count": "{count} ustanova na ovom području",
+    "retry": "Pokušaj ponovno",
+    "back_results": "Natrag na rezultate",
+    "cluster_hint": "Povećajte grupu kako biste pregledali pojedinačne ustanove. Nacionalni katalog ostaje grupiran kako bi stranica bila brza.",
+    "empty": "Nijedna ustanova ne odgovara ovom području i filtrima.",
+    "bounded": "Prikazan je ograničen skup rezultata. Povećajte kartu ili suzite filtre."
+  },
+  "map_ui": {
+    "distance": "Udaljenost od vas",
+    "verified": "Provjereno",
+    "approximate_area": "Približno područje",
+    "hidden_location": "Skrivena lokacija",
+    "hidden_safety": "Točna lokacija skrivena je radi sigurnosti.",
+    "cluster_title": "{count} ustanova. Povećajte kartu za pregled.",
+    "cluster_alt": "Grupa od {count} ustanova",
+    "your_location": "Vaša lokacija",
+    "map_aria": "Interaktivna karta ustanova"
   },
   "demo": {
     "ngo_plans_title": "Planovi za ustanove",

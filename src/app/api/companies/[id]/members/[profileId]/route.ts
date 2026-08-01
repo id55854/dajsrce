@@ -27,7 +27,7 @@ export async function DELETE(
   }
 
   // Guard: never remove the only owner.
-  const { data: target } = await supabase
+  const { data: target } = await supabaseAdmin
     .from("company_members")
     .select("role")
     .eq("company_id", id)
@@ -43,7 +43,7 @@ export async function DELETE(
     );
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from("company_members")
     .delete()
     .eq("company_id", id)

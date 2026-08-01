@@ -1,13 +1,17 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { getCurrentUserProfile } from "@/lib/auth/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export default async function SuperadminDashboardPage() {
-  const supabase = await createServerSupabaseClient();
+  const profile = await getCurrentUserProfile();
+  if (!profile) redirect("/auth/login?next=/dashboard/admin");
+  if (profile.role !== "superadmin") redirect("/dashboard");
 
   const [profiles, needs, pledges, institutions] = await Promise.all([
-    supabase.from("profiles").select("id", { count: "exact", head: true }),
-    supabase.from("needs").select("id", { count: "exact", head: true }),
-    supabase.from("pledges").select("id", { count: "exact", head: true }),
-    supabase
+    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("needs").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("pledges").select("id", { count: "exact", head: true }),
+    supabaseAdmin
       .from("institutions")
       .select("id", { count: "exact", head: true })
       .eq("is_verified", false),

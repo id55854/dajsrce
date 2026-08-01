@@ -62,17 +62,23 @@ export async function middleware(request: NextRequest) {
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
-    // Match getCurrentUserProfile(): if the trigger row is not visible yet, use
-    // signup metadata so we do not bounce company/ngo users against /dashboard.
-    const metaRole = user.user_metadata?.role;
-    const role = normalizeRole(
-      profile?.role ??
-        (typeof metaRole === "string" ? metaRole : null) ??
-        null
-    );
+    // user_metadata is user-controlled and must never grant an application
+    // role. A missing profile is treated as least privileged.
+    const role = normalizeRole(profile?.role ?? null);
 
-    if (pathname.startsWith("/dashboard/company") && role !== "company") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+    if (
+      pathname.startsWith("/dashboard/company") &&
+      pathname !== "/dashboard/company/new"
+    ) {
+      const { data: membership } = await supabase
+        .from("company_members")
+        .select("id")
+        .eq("profile_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      if (!membership) {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
     }
     if (pathname.startsWith("/dashboard/admin") && role !== "superadmin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -96,6 +102,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/dashboard/:path*",
+    "/company/confirmations/:path*",
   ],
 };
