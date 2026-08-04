@@ -9,6 +9,14 @@ const releaseMigrations = [
   "20260801160000_security_release_gate.sql",
   "20260801170000_registry_pipeline.sql",
   "20260801180000_async_notifications_public_metrics.sql",
+  "20260804190000_official_association_directory.sql",
+  "20260804200000_registry_snapshot_reconciliation.sql",
+  "20260804203000_atomic_registry_snapshot_visibility.sql",
+  "20260804210000_registry_snapshot_memberships.sql",
+  "20260804213000_constant_time_registry_finalize.sql",
+  "20260804220000_registry_directory_projection.sql",
+  "20260804223000_registry_compatibility_reconciliation.sql",
+  "20260804230000_registry_storage_lifecycle.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -113,5 +121,81 @@ describe("release migration contracts", () => {
     expect(sql).toContain("WITH duplicate_hours AS");
     expect(sql.match(/INSERT INTO public\.artifact_version_counters AS counters/g)).toHaveLength(3);
     expect(sql.trim().endsWith("COMMIT;")).toBe(true);
+  });
+
+  it("hosts the complete official register behind bounded public RPCs", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260804190000_official_association_directory.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("PRIMARY KEY (udr_id)");
+    expect(sql).toContain("ALTER COLUMN oib DROP NOT NULL");
+    expect(sql).toContain("source_present boolean NOT NULL DEFAULT true");
+    expect(sql).toContain("CHECK (validation_status IN ('valid', 'warning', 'invalid'))");
+    expect(sql).toContain("p_page_size > 100");
+    expect(sql).toContain("registry mirror mismatch");
+    expect(sql).toContain("DELETE FROM public.ngo_registry_staging");
+    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.search_association_registry_v1[\s\S]+TO anon, authenticated, service_role/i);
+    expect(sql).not.toMatch(/GRANT\s+SELECT\s+ON\s+public\.ngo_registry\s+TO\s+anon/i);
+  });
+
+  it("publishes complete registry snapshots through one atomic membership pointer", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260804210000_registry_snapshot_memberships.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("registry_snapshot_memberships");
+    expect(sql).toContain("registry_publication_state");
+    expect(sql).toContain("registry membership mismatch");
+    expect(sql).toMatch(/SET current_batch_id = p_batch_id/i);
+    expect(sql).not.toMatch(/GRANT\s+SELECT\s+ON\s+public\.current_association_registry/i);
+  });
+
+  it("keeps final snapshot publication constant-time", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260804213000_constant_time_registry_finalize.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("v_batch.rows_merged <> p_expected_source_rows");
+    expect(sql).toContain("SET current_batch_id = p_batch_id");
+    expect(sql).not.toMatch(/count\(\*\)[\s\S]+registry_snapshot_memberships/i);
+  });
+
+  it("serves directory queries from a lean snapshot projection", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260804220000_registry_directory_projection.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("registry_directory_entries");
+    expect(sql).toContain("registry_snapshot_facets");
+    expect(sql).toContain("refresh_registry_snapshot_facets");
+    expect(sql).toMatch(/FROM public\.registry_directory_entries d/i);
+    expect(sql).not.toMatch(/GRANT\s+SELECT\s+ON\s+public\.registry_directory_entries/i);
+  });
+
+  it("reconciles legacy maintenance visibility in bounded service-only batches", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260804223000_registry_compatibility_reconciliation.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("idx_ngo_registry_source_present_udr_id");
+    expect(sql).toContain("p_limit integer DEFAULT 250");
+    expect(sql).toContain("FOR UPDATE OF r SKIP LOCKED");
+    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.reconcile_registry_source_presence_batch[\s\S]+TO service_role/i);
+    expect(sql).not.toMatch(/GRANT EXECUTE[\s\S]+TO anon/i);
+  });
+
+  it("bounds historical registry snapshot storage", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260804230000_registry_storage_lifecycle.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("cleanup_registry_snapshot_storage_batch");
+    expect(sql).toContain("p_limit integer DEFAULT 250");
+    expect(sql).toContain("FOR UPDATE SKIP LOCKED");
+    expect(sql).toContain("DROP INDEX IF EXISTS public.idx_ngo_registry_name_trgm");
+    expect(sql).toContain("idx_registry_directory_entries_city_trgm");
+    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.cleanup_registry_snapshot_storage_batch[\s\S]+TO service_role/i);
+    expect(sql).not.toMatch(/GRANT EXECUTE[\s\S]+TO anon/i);
   });
 });

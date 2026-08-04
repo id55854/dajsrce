@@ -12,17 +12,18 @@ const limit = argVal("--limit") ? Number.parseInt(argVal("--limit"), 10) : Numbe
 const pageSize = 500;
 let scanned = 0;
 let changed = 0;
-let afterOib = "";
+let afterUdrId = "";
 const distribution = {};
 
 while (scanned < limit) {
   const take = Math.min(pageSize, Number.isFinite(limit) ? limit - scanned : pageSize);
   let query = supabaseAdmin
     .from("ngo_registry")
-    .select("oib, naziv, ciljane_skupine, opis_djelatnosti, ciljevi")
-    .order("oib", { ascending: true })
+    .select("udr_id, naziv, ciljane_skupine, opis_djelatnosti, ciljevi")
+    .eq("source_present", true)
+    .order("udr_id", { ascending: true })
     .limit(take);
-  if (afterOib) query = query.gt("oib", afterOib);
+  if (afterUdrId) query = query.gt("udr_id", afterUdrId);
   const { data: rows, error } = await query;
   if (error) throw error;
   if (!rows?.length) break;
@@ -37,7 +38,7 @@ while (scanned < limit) {
     distribution[score.classificationStatus] =
       (distribution[score.classificationStatus] || 0) + 1;
     return {
-      oib: row.oib,
+      udr_id: row.udr_id,
       mapped_category: score.category,
       mapped_confidence: score.confidence,
       mapped_rule: score.rule,
@@ -59,7 +60,7 @@ while (scanned < limit) {
   if (updateError) throw updateError;
   changed += Number(affected ?? 0);
   scanned += rows.length;
-  afterOib = rows.at(-1).oib;
+  afterUdrId = rows.at(-1).udr_id;
   console.log(`  classified ${scanned.toLocaleString()} rows`);
 }
 

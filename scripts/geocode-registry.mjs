@@ -105,11 +105,12 @@ while (processed < LIMIT) {
   let query = supabaseAdmin
     .from("ngo_registry")
     .select(
-      "oib, naziv, sjediste, city, zupanija, status, classification_status, mapped_confidence, geocode_status, geocode_attempts"
+      "udr_id, oib, naziv, sjediste, city, zupanija, status, classification_status, mapped_confidence, geocode_status, geocode_attempts"
     )
+    .eq("source_present", true)
     .in("geocode_status", ["pending", "retryable_failed"])
     .or(`next_geocode_attempt_at.is.null,next_geocode_attempt_at.lte.${now}`)
-    .order("oib", { ascending: true })
+    .order("udr_id", { ascending: true })
     .limit(pageSize);
   if (ONLY_PROMOTABLE) {
     query = query
@@ -133,9 +134,9 @@ while (processed < LIMIT) {
         last_geocode_error: null,
         next_geocode_attempt_at: null,
       })
-      .eq("oib", row.oib)
+      .eq("udr_id", row.udr_id)
       .eq("geocode_status", row.geocode_status)
-      .select("oib")
+      .select("udr_id")
       .maybeSingle();
     if (claimError || !claimed) continue;
     processed += 1;
@@ -194,11 +195,11 @@ while (processed < LIMIT) {
     const { error: updateError } = await supabaseAdmin
       .from("ngo_registry")
       .update(update)
-      .eq("oib", row.oib)
+      .eq("udr_id", row.udr_id)
       .eq("geocode_status", "in_progress");
     if (updateError) {
       updateErrors += 1;
-      console.error(`Update failed for ${row.oib}: ${updateError.message}`);
+      console.error(`Update failed for UDR_ID ${row.udr_id}: ${updateError.message}`);
     }
 
     if (processed % 25 === 0) {

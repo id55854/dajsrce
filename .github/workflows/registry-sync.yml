@@ -1,0 +1,46 @@
+name: Official registry sync
+
+on:
+  schedule:
+    - cron: "30 6,18 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Download and verify even when CKAN metadata is unchanged"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: official-registry-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PRODUCTION_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PRODUCTION_SUPABASE_SERVICE_ROLE_KEY }}
+      REGISTRY_USER_AGENT: DajSrce/1.0 (+https://dajsrce.vercel.app; official-registry-sync)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          test -n "$NEXT_PUBLIC_SUPABASE_URL"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Sync official CKAN snapshot
+        shell: bash
+        run: |
+          args=(--batch-size 500)
+          if [ "${{ inputs.force || false }}" = "true" ]; then args+=(--force); fi
+          npm run registry:sync -- "${args[@]}"

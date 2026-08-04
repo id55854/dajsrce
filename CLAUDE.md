@@ -1,6 +1,6 @@
 # DajSrce agent playbook
 
-**Synced:** 2026-08-01. Read `TECHNICAL_IMPLEMENTATION.md` and `REMEDIATION_IMPLEMENTATION_STATUS.md` before changing a domain. The detailed original findings and acceptance targets are in `PROJECT_WIDE_AUDIT_AND_OPTIMIZATION_PLAN.md`.
+**Synced:** 2026-08-04. Read `TECHNICAL_IMPLEMENTATION.md` and `REMEDIATION_IMPLEMENTATION_STATUS.md` before changing a domain. The detailed original findings and acceptance targets are in `PROJECT_WIDE_AUDIT_AND_OPTIMIZATION_PLAN.md`.
 
 ## Product snapshot
 
@@ -49,6 +49,14 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 4. `20260801160000_security_release_gate.sql`
 5. `20260801170000_registry_pipeline.sql`
 6. `20260801180000_async_notifications_public_metrics.sql`
+7. `20260804190000_official_association_directory.sql`
+8. `20260804200000_registry_snapshot_reconciliation.sql`
+9. `20260804203000_atomic_registry_snapshot_visibility.sql`
+10. `20260804210000_registry_snapshot_memberships.sql`
+11. `20260804213000_constant_time_registry_finalize.sql`
+12. `20260804220000_registry_directory_projection.sql`
+13. `20260804223000_registry_compatibility_reconciliation.sql`
+14. `20260804230000_registry_storage_lifecycle.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 
@@ -78,9 +86,12 @@ Receipt and CSR PDFs use complete static Noto Sans TTFs from `@expo-google-fonts
 
 ## Registry commands
 
+- `npm run registry:sync -- --dry-run`
+- `npm run registry:sync -- --batch-size 500` (the importer automatically bisects timed-out ranges)
 - `npm run registry:import -- --csv <path>`
+- `npm run registry:verify`
 - `npm run registry:remap`
 - `npm run registry:geocode`
 - `npm run registry:promote -- --dry-run`
 
-Use dry-run/coverage before promotion. Nominatim requires a real identifying user agent/contact and <= 1 request/second. Never infer public donation acceptance from category defaults.
+`registry:sync` must mirror the complete CTS snapshot; `--active-only` and `--limit` are dry-run-only. `UDR_ID` is the official canonical key and OIB is optional source data. Publication is one pointer update over immutable batch membership/directory rows; the legacy `source_present` flag is reconciled afterward in timeout-safe batches for maintenance jobs. Configure GitHub Actions secrets `PRODUCTION_SUPABASE_URL` and `PRODUCTION_SUPABASE_SERVICE_ROLE_KEY` for scheduled sync. Run `registry:verify` after publication. Use dry-run/coverage before promotion. Nominatim requires a real identifying user agent/contact and <= 1 request/second. Never infer public donation acceptance from category defaults.

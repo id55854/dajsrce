@@ -1,4 +1,4 @@
-// Resumable staged import for RegistarUdruga.csv.
+// Resumable staged import for the official Registar udruga CTS CSV.
 //
 // Each source row is preserved with its raw payload and validation result.
 // Valid rows are merged set-wise in Postgres. The batch checkpoint is advanced
@@ -35,7 +35,7 @@ function resolveCsvPath() {
 
 const CSV_PATH = resolveCsvPath();
 const ONLY_ZG = flag("--zg");
-const ACTIVE_ONLY = !flag("--include-inactive");
+const ACTIVE_ONLY = flag("--active-only");
 const DRY_RUN = flag("--dry-run");
 const LIMIT = argVal("--limit") ? Number.parseInt(argVal("--limit"), 10) : Number.POSITIVE_INFINITY;
 const BATCH_SIZE = Math.min(1_000, Math.max(50, Number.parseInt(argVal("--batch-size", "500"), 10)));
@@ -46,6 +46,10 @@ if (!CSV_PATH || !fs.existsSync(CSV_PATH)) {
 }
 if (!Number.isFinite(LIMIT) && LIMIT !== Number.POSITIVE_INFINITY) {
   console.error("--limit must be a positive integer");
+  process.exit(1);
+}
+if (!DRY_RUN && (ACTIVE_ONLY || Number.isFinite(LIMIT))) {
+  console.error("Production imports must consume the complete source. Use --active-only/--limit only with --dry-run.");
   process.exit(1);
 }
 
@@ -85,7 +89,7 @@ function normalizeRegistryRow(raw) {
     mail: (raw.MAIL || "").trim() || null,
     naziv: name,
     status: (raw.STATUS || "").trim(),
-    udr_id: (raw.UDR_ID || "").trim() || null,
+    udr_id: String(raw.UDR_ID || "").trim() || null,
     ciljevi: (raw.CILJEVI || "").trim() || null,
     sjediste: sjediste || null,
     zupanija: (raw.ZUPANIJA || "").trim() || null,
@@ -114,35 +118,57 @@ function normalizeRegistryRow(raw) {
   };
 }
 
-function validateRow(row, seenOibs) {
+function validateRow(row, seenUdrIds, seenOibs) {
   const errors = [];
-  if (!row.oib) errors.push("missing_oib");
-  else if (!isValidOib(row.oib)) errors.push("invalid_oib_checksum");
+  const warnings = [];
+  if (!row.udr_id) errors.push("missing_udr_id");
+  else if (seenUdrIds.has(row.udr_id)) errors.push("duplicate_udr_id_in_source");
+  else seenUdrIds.add(row.udr_id);
   if (!row.naziv) errors.push("missing_name");
   if (!row.status) errors.push("missing_status");
-  if (row.oib && seenOibs.has(row.oib)) errors.push("duplicate_oib_in_source");
-  if (row.oib && !errors.includes("duplicate_oib_in_source")) seenOibs.add(row.oib);
-  return errors;
+  if (!row.oib) warnings.push("missing_oib");
+  else {
+    if (!isValidOib(row.oib)) warnings.push("invalid_oib_checksum");
+    if (seenOibs.has(row.oib)) warnings.push("duplicate_oib_in_source");
+    seenOibs.add(row.oib);
+  }
+  if (!row.sjediste) warnings.push("missing_address");
+  if (!row.zupanija) warnings.push("missing_county");
+  return {
+    status: errors.length > 0 ? "invalid" : warnings.length > 0 ? "warning" : "valid",
+    issues: [...errors, ...warnings],
+  };
 }
 
 const sourceHash = await sha256File(CSV_PATH);
 const batchVariant = `${sourceHash}|active=${ACTIVE_ONLY}|zg=${ONLY_ZG}`;
 const batchId = `registry-${crypto.createHash("sha256").update(batchVariant).digest("hex").slice(0, 20)}`;
 const cursorName = `import-registry:${batchId}`;
+const sourceMetadataModified = process.env.REGISTRY_SOURCE_METADATA_MODIFIED || null;
+const sourceBytes = process.env.REGISTRY_SOURCE_BYTES
+  ? Number.parseInt(process.env.REGISTRY_SOURCE_BYTES, 10)
+  : fs.statSync(CSV_PATH).size;
 
 let resumeAfter = 0;
+let resumeWarnings = 0;
 if (!DRY_RUN) {
   const { data: existingBatch, error: batchReadError } = await supabaseAdmin
     .from("registry_import_batches")
-    .select("last_source_row, status")
+    .select("last_source_row, status, rows_warning")
     .eq("id", batchId)
     .maybeSingle();
   if (batchReadError) throw batchReadError;
   resumeAfter = Number(existingBatch?.last_source_row ?? 0);
+  resumeWarnings = Number(existingBatch?.rows_warning ?? 0);
   const { error: batchError } = await supabaseAdmin.from("registry_import_batches").upsert({
     id: batchId,
     source_file_hash: sourceHash,
     source_path: path.basename(CSV_PATH),
+    source_dataset_id: process.env.REGISTRY_SOURCE_DATASET_ID || null,
+    source_resource_id: process.env.REGISTRY_SOURCE_RESOURCE_ID || null,
+    source_url: process.env.REGISTRY_SOURCE_URL || null,
+    source_metadata_modified: sourceMetadataModified,
+    source_bytes: sourceBytes,
     status: "running",
     completed_at: null,
     error: null,
@@ -160,8 +186,10 @@ let examinedThisRun = 0;
 let staged = 0;
 let merged = 0;
 let invalid = 0;
+let warnings = resumeWarnings;
 let filtered = 0;
 let batch = [];
+const seenUdrIds = new Set();
 const seenOibs = new Set();
 const startedAt = Date.now();
 
@@ -169,12 +197,12 @@ async function flushBatch() {
   if (batch.length === 0) return;
   const rows = batch;
   batch = [];
-  const firstRow = rows[0].source_row_number;
   const lastRow = rows.at(-1).source_row_number;
   if (DRY_RUN) {
     staged += rows.length;
     invalid += rows.filter((row) => row.validation_status === "invalid").length;
-    merged += rows.filter((row) => row.validation_status === "valid").length;
+    warnings += rows.filter((row) => row.validation_status === "warning").length;
+    merged += rows.filter((row) => row.validation_status !== "invalid").length;
     return;
   }
 
@@ -183,20 +211,50 @@ async function flushBatch() {
     .upsert(rows, { onConflict: "batch_id,source_row_number" });
   if (stageError) throw stageError;
 
-  const { data: result, error: mergeError } = await supabaseAdmin.rpc(
-    "merge_registry_import_batch",
-    { p_batch_id: batchId, p_from_row: firstRow, p_to_row: lastRow }
-  );
-  if (mergeError) throw mergeError;
+  const mergeRange = async (rangeRows) => {
+    const rangeFirst = rangeRows[0].source_row_number;
+    const rangeLast = rangeRows.at(-1).source_row_number;
+    const { data, error } = await supabaseAdmin.rpc(
+      "merge_registry_import_batch",
+      { p_batch_id: batchId, p_from_row: rangeFirst, p_to_row: rangeLast }
+    );
+    if (!error) return data;
+    if (error.code === "57014" && rangeRows.length > 1) {
+      const midpoint = Math.ceil(rangeRows.length / 2);
+      console.warn(
+        `  merge timed out for rows ${rangeFirst.toLocaleString()}-${rangeLast.toLocaleString()}; ` +
+        `retrying as ${midpoint} + ${rangeRows.length - midpoint}`
+      );
+      const left = await mergeRange(rangeRows.slice(0, midpoint));
+      const right = await mergeRange(rangeRows.slice(midpoint));
+      return {
+        staged: Number(left?.staged ?? 0) + Number(right?.staged ?? 0),
+        merged: Number(left?.merged ?? 0) + Number(right?.merged ?? 0),
+        invalid: Number(left?.invalid ?? 0) + Number(right?.invalid ?? 0),
+      };
+    }
+    throw error;
+  };
+
+  const result = await mergeRange(rows);
   staged += Number(result?.staged ?? rows.length);
   merged += Number(result?.merged ?? 0);
   invalid += Number(result?.invalid ?? 0);
-  await setCursor(cursorName, String(lastRow), merged, JSON.stringify({
-    sourceHash,
-    batchId,
-    lastSourceRow: lastRow,
-    updatedAt: new Date().toISOString(),
-  }));
+  warnings += rows.filter((row) => row.validation_status === "warning").length;
+  const [warningUpdate] = await Promise.all([
+    supabaseAdmin
+      .from("registry_import_batches")
+      .update({ rows_warning: warnings })
+      .eq("id", batchId),
+    setCursor(cursorName, String(lastRow), merged, JSON.stringify({
+      sourceHash,
+      batchId,
+      lastSourceRow: lastRow,
+      warnings,
+      updatedAt: new Date().toISOString(),
+    })),
+  ]);
+  if (warningUpdate.error) throw warningUpdate.error;
   console.log(`  committed through source row ${lastRow.toLocaleString()} (merged ${merged.toLocaleString()}, invalid ${invalid.toLocaleString()})`);
 }
 
@@ -222,26 +280,87 @@ try {
     }
 
     const normalized = normalizeRegistryRow(raw);
-    const validationErrors = validateRow(normalized, seenOibs);
+    const validation = validateRow(normalized, seenUdrIds, seenOibs);
     batch.push({
       batch_id: batchId,
       source_row_number: sourceRowNumber,
+      udr_id: normalized.udr_id,
       oib: normalized.oib || null,
       raw_row_jsonb: raw,
       normalized_jsonb: normalized,
-      validation_status: validationErrors.length ? "invalid" : "valid",
-      validation_errors: validationErrors,
+      validation_status: validation.status,
+      validation_errors: validation.issues,
     });
     if (batch.length >= BATCH_SIZE) await flushBatch();
   }
   await flushBatch();
 
   if (!DRY_RUN) {
-    const { error } = await supabaseAdmin
+    const { error: warningError } = await supabaseAdmin
       .from("registry_import_batches")
-      .update({ status: "completed", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .update({ rows_warning: warnings })
       .eq("id", batchId);
+    if (warningError) throw warningError;
+    const { data: facetReport, error: facetError } = await supabaseAdmin.rpc(
+      "refresh_registry_snapshot_facets",
+      { p_batch_id: batchId }
+    );
+    if (facetError) throw facetError;
+    console.log(`Prepared directory facets: ${JSON.stringify(facetReport)}`);
+    const { data: finalReport, error } = await supabaseAdmin.rpc(
+      "finalize_registry_import_batch",
+      { p_batch_id: batchId, p_expected_source_rows: sourceRowNumber }
+    );
     if (error) throw error;
+    console.log(`Finalized mirror: ${JSON.stringify(finalReport)}`);
+
+    // Public visibility is already atomically switched by finalization. Keep the
+    // legacy flag used by maintenance scripts aligned in bounded best-effort
+    // batches; a failure here must not mark a published snapshot as failed.
+    try {
+      let reconciled = { enabled: 0, disabled: 0, complete: false };
+      do {
+        const { data, error: reconcileError } = await supabaseAdmin.rpc(
+          "reconcile_registry_source_presence_batch",
+          { p_batch_id: batchId, p_limit: 250 }
+        );
+        if (reconcileError) throw reconcileError;
+        reconciled = data;
+        if (!reconciled.complete) {
+          console.log(
+            `  reconciled legacy visibility (+${reconciled.enabled}, -${reconciled.disabled})`
+          );
+        }
+      } while (!reconciled.complete);
+    } catch (reconcileError) {
+      console.warn(
+        "Published snapshot is healthy, but legacy source_present reconciliation must be retried:",
+        reconcileError instanceof Error ? reconcileError.message : reconcileError
+      );
+    }
+
+    try {
+      let cleanup = { directory_deleted: 0, memberships_deleted: 0, complete: false };
+      do {
+        const { data, error: cleanupError } = await supabaseAdmin.rpc(
+          "cleanup_registry_snapshot_storage_batch",
+          { p_limit: 250 }
+        );
+        if (cleanupError) throw cleanupError;
+        cleanup = data;
+        if (!cleanup.complete) {
+          console.log(
+            `  removed old snapshot rows (directory ${cleanup.directory_deleted}, ` +
+            `membership ${cleanup.memberships_deleted})`
+          );
+        }
+      } while (!cleanup.complete);
+    } catch (cleanupError) {
+      console.warn(
+        "Published snapshot is healthy, but old snapshot storage cleanup must be retried:",
+        cleanupError instanceof Error ? cleanupError.message : cleanupError
+      );
+    }
   }
 } catch (error) {
   if (!DRY_RUN) {
@@ -263,5 +382,6 @@ console.log(`Filtered             : ${filtered.toLocaleString()}`);
 console.log(`Staged               : ${staged.toLocaleString()}`);
 console.log(`${DRY_RUN ? "Would merge" : "Merged"}          : ${merged.toLocaleString()}`);
 console.log(`Invalid/quarantined  : ${invalid.toLocaleString()}`);
+console.log(`Warnings             : ${warnings.toLocaleString()}`);
 console.log(`Elapsed              : ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
 if (DRY_RUN) console.log("[DRY RUN] No database rows were written.");

@@ -16,6 +16,7 @@ import { useT } from "@/i18n/client";
 
 const navLinks = [
   { href: "/map", labelKey: "nav.map" },
+  { href: "/organisations", labelKey: "nav.organisations" },
   { href: "/needs", labelKey: "nav.needs" },
   { href: "/volunteer", labelKey: "nav.volunteer" },
   { href: "/quick-start", labelKey: "nav.find_help" },
