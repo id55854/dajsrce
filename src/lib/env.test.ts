@@ -21,11 +21,17 @@ describe("production environment validation", () => {
     expect(() => assertProductionEnvironment(validEnvironment)).not.toThrow();
   });
 
-  it("rejects demo/fixture toggles, insecure URLs, and missing secrets", () => {
+  it("allows the application to boot while cron remains fail-closed", () => {
+    const environmentWithoutCron = { ...validEnvironment, CRON_SECRET: undefined };
+    expect(getProductionEnvironmentIssues(environmentWithoutCron)).toEqual([]);
+    expect(() => assertProductionEnvironment(environmentWithoutCron)).not.toThrow();
+  });
+
+  it("rejects demo/fixture toggles, insecure URLs, and weak configured secrets", () => {
     const issues = getProductionEnvironmentIssues({
       ...validEnvironment,
       NEXT_PUBLIC_APP_URL: "http://dajsrce.example",
-      CRON_SECRET: "",
+      CRON_SECRET: "too-short",
       ALLOW_DEMO_BILLING: "true",
       ALLOW_LOCAL_FIXTURES: "true",
     });
