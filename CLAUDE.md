@@ -57,6 +57,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 12. `20260804220000_registry_directory_projection.sql`
 13. `20260804223000_registry_compatibility_reconciliation.sql`
 14. `20260804230000_registry_storage_lifecycle.sql`
+15. `20260804233000_registry_count_fast_path.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 

@@ -154,13 +154,14 @@ official register is not a DajSrce verification or donation-acceptance claim.
 - `registry:verify` checks public facets, every status count, Croatian ordering, first/deep pages, detail lookup, projection/membership/current-count agreement and anonymous denial of the canonical table.
 - The compatibility reconciler aligns the legacy `source_present` flag after atomic publication in timeout-safe batches so geocoding, remapping and promotion see the same snapshot without delaying public cutover.
 - After publication, bounded cleanup removes non-current membership/directory projections. Canonical legacy trigram and ineffective city/form composites are absent so full snapshots retain safe storage headroom.
+- Unfiltered pages read their exact total from immutable snapshot facets instead of rescanning 71,057 rows, keeping cold deep-page requests below the API statement budget.
 - `registry:remap`: keyset-scans and sends bounded classifications to a set-based RPC.
 - Classification distinguishes eligibility, category candidates and donation candidates. Cultural, sports, equestrian, hobby and professional entity shapes cannot auto-publish from a broad keyword hit.
 - `registry:geocode`: durable pending/in-progress/succeeded/retryable/permanent state, capped attempts/backoff and Nominatim identification/rate limits.
 - `registry:promote`: one set-based transaction; only active, valid, strongly classified, street/exact-geocoded rows qualify. Curated content wins. Donation types remain unconfirmed until the organization explicitly confirms them.
 - Registry-to-institution promotion still requires a usable OIB plus the existing classification/geocode quality gate. Coverage is computed in the database without a client row cap.
 
-Migrations: `20260801170000_registry_pipeline.sql`, `20260804190000_official_association_directory.sql`, `20260804200000_registry_snapshot_reconciliation.sql`, `20260804203000_atomic_registry_snapshot_visibility.sql`, `20260804210000_registry_snapshot_memberships.sql`, `20260804213000_constant_time_registry_finalize.sql`, `20260804220000_registry_directory_projection.sql`, `20260804223000_registry_compatibility_reconciliation.sql` and `20260804230000_registry_storage_lifecycle.sql`.
+Migrations: `20260801170000_registry_pipeline.sql`, `20260804190000_official_association_directory.sql`, `20260804200000_registry_snapshot_reconciliation.sql`, `20260804203000_atomic_registry_snapshot_visibility.sql`, `20260804210000_registry_snapshot_memberships.sql`, `20260804213000_constant_time_registry_finalize.sql`, `20260804220000_registry_directory_projection.sql`, `20260804223000_registry_compatibility_reconciliation.sql`, `20260804230000_registry_storage_lifecycle.sql` and `20260804233000_registry_count_fast_path.sql`.
 
 ## 8. Environment contract
 
@@ -200,11 +201,12 @@ Apply these new migrations in order before deploying the application commit:
 12. `20260804220000_registry_directory_projection.sql`
 13. `20260804223000_registry_compatibility_reconciliation.sql`
 14. `20260804230000_registry_storage_lifecycle.sql`
+15. `20260804233000_registry_count_fast_path.sql`
 
 Mandatory release sequence:
 
 1. Take a database backup and record current migration history/policies/grants.
-2. Restore the backup into staging and apply all fourteen migrations there.
+2. Restore the backup into staging and apply all fifteen migrations there.
 3. Run RPC/RLS smoke tests for anonymous map/detail, signup/setup, NGO writes, pledges, volunteer tokens/checkout, tenant creation/invites/verification, Stripe retry, report generation and both cron routes.
 4. Run `npm ci`, `npm run check`, `npm audit`, `npm run build` and the map benchmark.
 5. Set production secrets/flags; configure authenticated POST schedulers.

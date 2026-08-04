@@ -17,6 +17,7 @@ const releaseMigrations = [
   "20260804220000_registry_directory_projection.sql",
   "20260804223000_registry_compatibility_reconciliation.sql",
   "20260804230000_registry_storage_lifecycle.sql",
+  "20260804233000_registry_count_fast_path.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -197,5 +198,15 @@ describe("release migration contracts", () => {
     expect(sql).toContain("idx_registry_directory_entries_city_trgm");
     expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.cleanup_registry_snapshot_storage_batch[\s\S]+TO service_role/i);
     expect(sql).not.toMatch(/GRANT EXECUTE[\s\S]+TO anon/i);
+  });
+
+  it("uses immutable facets for unfiltered directory totals", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260804233000_registry_count_fast_path.sql"),
+      "utf8"
+    );
+    expect(sql).toMatch(/IF v_query IS NULL AND v_status IS NULL[\s\S]+registry_snapshot_facets/i);
+    expect(sql).toMatch(/ELSE\s+SELECT count\(\*\) INTO v_total/i);
+    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.search_association_registry_v1[\s\S]+TO anon, authenticated, service_role/i);
   });
 });

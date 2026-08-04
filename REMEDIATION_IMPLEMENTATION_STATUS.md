@@ -7,7 +7,7 @@
 
 ## Release verdict
 
-The repository-actionable release blockers and primary scalability defects are remediated in the current worktree. All fourteen new migrations and the complete official association snapshot have been applied to the production Supabase project before application deployment. A restored-staging rehearsal, off-site backup evidence, external schedulers, provider credentials, alert destinations and legal/privacy/accounting review remain explicit owner controls.
+The repository-actionable release blockers and primary scalability defects are remediated in the current worktree. All fifteen new migrations and the complete official association snapshot have been applied to the production Supabase project before application deployment. A restored-staging rehearsal, off-site backup evidence, external schedulers, provider credentials, alert destinations and legal/privacy/accounting review remain explicit owner controls.
 
 The old schema/client combination is intentionally incompatible with the new security posture: broad direct table privileges were removed. Roll forward with the complete migration/application set.
 
@@ -23,7 +23,7 @@ The old schema/client combination is intentionally incompatible with the new sec
 | Public map objects | ~1,000 markers plus cards | <= 200 features, <= 60 result rows |
 | Dependency audit | 7 known production advisories | 0 known npm advisories at implementation time |
 | Map incremental raw bundle | no enforced budget | 269,176 bytes; CI budget 327,680 bytes |
-| Automated repository tests | no reliable gate | 91 tests across 17 files |
+| Automated repository tests | no reliable gate | 93 tests across 17 files |
 | Official association directory | 43,748 active-only legacy rows | 71,057 official rows across all 3 statuses |
 | Directory public read | no complete public directory | 513 ms first page; 2,255 ms final page; 202 ms detail in production smoke |
 
