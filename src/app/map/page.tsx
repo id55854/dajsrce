@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import clsx from "clsx";
 import {
   AlertTriangle,
@@ -137,6 +137,7 @@ export default function MapPage() {
 function MapExperience() {
   const t = useT();
   const { locale } = useLocale();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initial = useMemo(
     () => initialState(new URLSearchParams(searchParams.toString())),
@@ -307,7 +308,7 @@ function MapExperience() {
   const institutionRows = useMemo(() => {
     const rows = institutions.map((institution) => ({
       institution,
-      distance: userPosition
+      distance: userPosition && institution.locationPrecision === "exact"
         ? distanceKm(
             userPosition.lat,
             userPosition.lng,
@@ -357,9 +358,13 @@ function MapExperience() {
   }, []);
 
   const onSelect = useCallback((id: string) => {
+    if (id.startsWith("registry:")) {
+      router.push(`/organisations/${encodeURIComponent(id.slice("registry:".length))}`);
+      return;
+    }
     setSelectedId(id);
     setMobileView("list");
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!searchOpen) return;

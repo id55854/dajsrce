@@ -18,6 +18,13 @@ export const CATEGORY_CONFIG: Record<
     icon: string;
   }
 > = {
+  association: {
+    label: "Association",
+    labelHr: "Udruga",
+    color: "#475569",
+    bgColor: "#f1f5f9",
+    icon: "Landmark",
+  },
   homeless_shelter: {
     label: "Homeless shelter",
     labelHr: "Prihvatilište / prenoćište",

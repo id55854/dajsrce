@@ -124,10 +124,12 @@ describe("hidden-location projection", () => {
 describe("location payload budget", () => {
   it("keeps the maximum feature response below 150 KiB", () => {
     const response: PublicMapResponse = {
-      version: 1,
+      version: 2,
       features: Array.from({ length: MAP_FEATURE_LIMIT }, (_, index) => ({
         kind: "institution" as const,
         id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+        entityType: "institution" as const,
+        registryId: `udr-${index}`,
         name: `Representative Croatian institution ${index}`,
         category: "social_welfare" as const,
         city: "Zagreb",
@@ -138,6 +140,7 @@ describe("location payload budget", () => {
         acceptsDonations: ["food" as const, "clothes" as const],
         isVerified: index % 3 === 0,
         isLocationHidden: false,
+        locationPrecision: "exact" as const,
         trustStatus: "registry" as const,
         hasUrgentNeed: index % 10 === 0,
       })),

@@ -18,6 +18,7 @@
     "registry:import": "node scripts/import-registry.mjs",
     "registry:sync": "node scripts/sync-official-registry.mjs",
     "registry:verify": "node scripts/verify-official-registry.mjs",
+    "registry:verify-map": "node scripts/verify-registry-map.mjs",
     "registry:maintain": "node scripts/maintain-registry.mjs",
     "registry:remap": "node scripts/remap-categories.mjs",
     "registry:geocode": "node scripts/geocode-registry.mjs",

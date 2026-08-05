@@ -268,6 +268,12 @@ function InstitutionLayer({
         <div className="text-sm">
           <p className="font-semibold">{institution.name}</p>
           <p className="text-gray-600">{locale === "hr" ? category.labelHr : category.label}</p>
+          {institution.entityType === "registry" &&
+          (institution.locationPrecision === "city" || institution.locationPrecision === "county") ? (
+            <p className="mt-2 text-xs text-gray-600">
+              {t("map_ui.registry_approximate")}
+            </p>
+          ) : null}
         </div>
       </Popup>
     </Marker>

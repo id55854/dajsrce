@@ -4,7 +4,7 @@ import type {
   InstitutionCategory,
 } from "@/lib/types";
 
-export const MAP_API_VERSION = 1 as const;
+export const MAP_API_VERSION = 2 as const;
 export const MAP_FEATURE_LIMIT = 150;
 export const MAP_FEATURE_LIMIT_MAX = 200;
 export const MAP_LIST_RENDER_LIMIT = 60;
@@ -55,6 +55,8 @@ export type PublicMapCluster = {
 export type PublicMapInstitution = {
   kind: "institution";
   id: string;
+  entityType: "institution" | "registry";
+  registryId: string | null;
   name: string;
   category: InstitutionCategory;
   city: string | null;
@@ -65,6 +67,7 @@ export type PublicMapInstitution = {
   acceptsDonations: DonationType[];
   isVerified: boolean;
   isLocationHidden: boolean;
+  locationPrecision: "exact" | "hidden" | "city" | "county";
   trustStatus: PublicTrustStatus;
   hasUrgentNeed: boolean;
 };

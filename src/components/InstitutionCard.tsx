@@ -65,6 +65,9 @@ export function InstitutionCard({
   const approximateArea = isMapInstitution
     ? institution.approximateArea
     : institution.approximate_area;
+  const isApproximateRegistryLocation = isMapInstitution &&
+    institution.entityType === "registry" &&
+    (institution.locationPrecision === "city" || institution.locationPrecision === "county");
   const cat = getCategoryConfig(institution.category);
 
   return (
@@ -106,15 +109,25 @@ export function InstitutionCard({
         {institution.name}
       </h3>
       <p className="mt-1 text-sm text-gray-500 line-clamp-2 dark:text-gray-400">
-        {isLocationHidden
+        {isApproximateRegistryLocation
+          ? approximateArea ?? institution.city ?? t("map_ui.approximate_area")
+          : isLocationHidden
           ? approximateArea ?? institution.city ?? t("map_ui.approximate_area")
           : institution.address}
-        {!isLocationHidden && institution.city ? `, ${institution.city}` : ""}
+        {!isLocationHidden && !isApproximateRegistryLocation && institution.city
+          ? `, ${institution.city}`
+          : ""}
       </p>
 
       {isLocationHidden ? (
         <span className="mt-2 inline-block rounded-full bg-pink-100 px-2 py-0.5 text-xs font-medium text-pink-700">
           {t("map_ui.hidden_location")}
+        </span>
+      ) : null}
+
+      {isApproximateRegistryLocation ? (
+        <span className="mt-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+          {t("map_ui.registry_approximate")}
         </span>
       ) : null}
 

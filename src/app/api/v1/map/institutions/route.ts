@@ -21,11 +21,14 @@ type RpcMapRow = {
   feature_kind: "cluster" | "institution";
   feature_id: string;
   institution_id: string | null;
+  registry_id: string | null;
+  entity_type: "institution" | "registry" | null;
   name: string | null;
   category: string | null;
   city: string | null;
   address: string | null;
   approximate_area: string | null;
+  location_precision: "exact" | "hidden" | "city" | "county" | null;
   latitude: number;
   longitude: number;
   accepts_donations: string[] | null;
@@ -60,7 +63,7 @@ function isMissingRpc(error: { code?: string; message?: string }): boolean {
   return (
     error.code === "PGRST202" ||
     error.code === "42883" ||
-    /map_institutions_v1|could not find the function/i.test(error.message ?? "")
+    /map_association_registry_v1|could not find the function/i.test(error.message ?? "")
   );
 }
 
@@ -81,10 +84,12 @@ function rpcRowToFeature(row: RpcMapRow): PublicMapFeature | null {
     };
   }
 
-  if (!row.institution_id || !row.name || !row.category) return null;
+  if (!row.name || !row.category || !row.entity_type) return null;
   return {
     kind: "institution",
-    id: row.institution_id,
+    id: row.feature_id,
+    entityType: row.entity_type,
+    registryId: row.registry_id,
     name: row.name,
     category: row.category as InstitutionCategory,
     city: row.city,
@@ -95,6 +100,7 @@ function rpcRowToFeature(row: RpcMapRow): PublicMapFeature | null {
     acceptsDonations: (row.accepts_donations ?? []) as DonationType[],
     isVerified: Boolean(row.is_verified),
     isLocationHidden: Boolean(row.is_location_hidden),
+    locationPrecision: row.location_precision ?? (row.is_location_hidden ? "hidden" : "exact"),
     trustStatus: trustStatus(Boolean(row.is_verified), row.source),
     hasUrgentNeed: Boolean(row.has_urgent_need),
   };
@@ -103,7 +109,7 @@ function rpcRowToFeature(row: RpcMapRow): PublicMapFeature | null {
 async function queryIndexedRpc(query: MapQuery) {
   const supabase = createPublicSupabaseClient();
   const [minLng, minLat, maxLng, maxLat] = query.bbox;
-  const { data, error } = await supabase.rpc("map_institutions_v1", {
+  const { data, error } = await supabase.rpc("map_association_registry_v1", {
     p_min_lng: minLng,
     p_min_lat: minLat,
     p_max_lng: maxLng,
@@ -211,6 +217,8 @@ async function queryBoundedFallback(query: MapQuery) {
       return {
         kind: "institution" as const,
         id: row.id,
+        entityType: "institution" as const,
+        registryId: null,
         name: row.name,
         category: row.category,
         city: row.city,
@@ -221,6 +229,7 @@ async function queryBoundedFallback(query: MapQuery) {
         acceptsDonations: row.accepts_donations ?? [],
         isVerified: Boolean(row.is_verified),
         isLocationHidden: Boolean(row.is_location_hidden),
+        locationPrecision: row.is_location_hidden ? "hidden" as const : "exact" as const,
         trustStatus: trustStatus(Boolean(row.is_verified), row.source),
         hasUrgentNeed: Boolean(urgentIds?.includes(row.id)),
       };

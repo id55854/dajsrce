@@ -19,6 +19,7 @@ const releaseMigrations = [
   "20260804230000_registry_storage_lifecycle.sql",
   "20260804233000_registry_count_fast_path.sql",
   "20260805010000_active_registry_scope.sql",
+  "20260805160000_active_registry_map.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -223,5 +224,20 @@ describe("release migration contracts", () => {
     expect(sql).toMatch(/NOT EXISTS \([\s\S]+registry_snapshot_memberships/i);
     expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.purge_unpublished_registry_rows_batch[\s\S]+TO service_role/i);
     expect(sql).not.toMatch(/GRANT EXECUTE[\s\S]+TO anon/i);
+  });
+
+  it("maps every active registry row through bounded, non-truncating clusters", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260805160000_active_registry_map.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("registry_location_centroids");
+    expect(sql).toContain("registry_public_map_point");
+    expect(sql).toContain("map_association_registry_v1");
+    expect(sql).toContain("axis_cells");
+    expect(sql).toContain("s.matches > effective_limit");
+    expect(sql).toContain("s.matches <= effective_limit");
+    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.map_association_registry_v1[\s\S]+TO anon, authenticated, service_role/i);
+    expect(sql).not.toMatch(/GRANT\s+SELECT\s+ON\s+public\.registry_location_centroids/i);
   });
 });

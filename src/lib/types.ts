@@ -1,4 +1,5 @@
 export type InstitutionCategory =
+  | "association"
   | "homeless_shelter"
   | "soup_kitchen"
   | "children_home"

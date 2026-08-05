@@ -23,11 +23,14 @@ describe("GET /api/v1/map/institutions", () => {
           feature_kind: "cluster",
           feature_id: "cluster:7:31:91",
           institution_id: null,
+          registry_id: null,
+          entity_type: null,
           name: null,
           category: null,
           city: null,
           address: null,
           approximate_area: null,
+          location_precision: null,
           latitude: 45.5,
           longitude: 15.5,
           accepts_donations: [],
@@ -54,7 +57,7 @@ describe("GET /api/v1/map/institutions", () => {
     expect(response.headers.get("etag")).toMatch(/^".+"$/);
     expect(response.headers.get("x-request-id")).toBeTruthy();
     expect(payload).toEqual({
-      version: 1,
+      version: 2,
       features: [
         {
           kind: "cluster",
@@ -78,6 +81,7 @@ describe("GET /api/v1/map/institutions", () => {
     expect(JSON.stringify(payload)).not.toContain("phone");
     expect(JSON.stringify(payload)).not.toContain("email");
     expect(JSON.stringify(payload)).not.toContain("description");
+    expect(rpc).toHaveBeenCalledWith("map_association_registry_v1", expect.any(Object));
   });
 
   it("honours If-None-Match with a stable semantic ETag", async () => {
@@ -113,11 +117,14 @@ describe("GET /api/v1/map/institutions", () => {
         feature_kind: "institution",
         feature_id: `feature-${index}`,
         institution_id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+        registry_id: `udr-${index}`,
+        entity_type: "institution",
         name: `Institution ${index}`,
         category: "social_welfare",
         city: "Zagreb",
         address: `Address ${index}`,
         approximate_area: null,
+        location_precision: "exact",
         latitude: 45.8,
         longitude: 15.9,
         accepts_donations: [],
@@ -139,5 +146,47 @@ describe("GET /api/v1/map/institutions", () => {
     const payload = await response.json();
     expect(payload.features).toHaveLength(150);
     expect(payload.meta.truncated).toBe(true);
+  });
+
+  it("returns registry-only organisations with an official-detail target", async () => {
+    rpc.mockResolvedValue({
+      error: null,
+      data: [{
+        feature_kind: "institution",
+        feature_id: "registry:12345",
+        institution_id: null,
+        registry_id: "12345",
+        entity_type: "registry",
+        name: "Example association",
+        category: "association",
+        city: "Split",
+        address: null,
+        approximate_area: "Split, Splitsko-dalmatinska županija",
+        location_precision: "city",
+        latitude: 43.51,
+        longitude: 16.44,
+        accepts_donations: [],
+        is_verified: false,
+        is_location_hidden: false,
+        source: "registry",
+        has_urgent_need: false,
+        member_count: 1,
+        min_lng: 16.44,
+        min_lat: 43.51,
+        max_lng: 16.44,
+        max_lat: 43.51,
+        total_matches: 1,
+        total_features: 1,
+      }],
+    });
+
+    const response = await GET(new NextRequest(url));
+    const payload = await response.json();
+    expect(payload.features[0]).toMatchObject({
+      id: "registry:12345",
+      entityType: "registry",
+      registryId: "12345",
+      locationPrecision: "city",
+    });
   });
 });
