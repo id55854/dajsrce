@@ -1,11 +1,22 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { flags } from "@/lib/flags";
 import type { PublicCompanyBundle } from "@/lib/types";
 import { getLocale, getTranslator } from "@/i18n/server";
 import { SDG_GOALS } from "@/lib/constants";
+import {
+  Badge,
+  Card,
+  PageHeader,
+  PageShell,
+  SectionHeader,
+  Stat,
+  buttonClasses,
+} from "@/components/ui";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -87,91 +98,84 @@ export default async function PublicCompanyPage({ params }: Props) {
     }).format(n);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <header
-        className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
-        style={{ borderBottomColor: `${accent}33` }}
+    // No `min-h-dvh` here: the layout already owns one, and a second nested
+    // inside it is what pushed the footer below the fold on every visit.
+    <PageShell width="content">
+      <Link
+        href="/map"
+        className={buttonClasses({
+          variant: "ghost",
+          size: "sm",
+          className: "mb-4 -ml-4",
+        })}
       >
-        <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-center">
-          {c.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={c.logo_url}
-              alt=""
-              className="h-20 w-20 shrink-0 rounded-2xl object-contain ring-1 ring-gray-200 dark:ring-gray-700"
-            />
-          ) : (
-            <div
-              className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold text-white"
-              style={{ backgroundColor: accent }}
-              aria-hidden
-            >
-              {(c.display_name ?? c.legal_name).slice(0, 1).toUpperCase()}
-            </div>
-          )}
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-              {c.display_name?.trim() || c.legal_name}
-            </h1>
-            {c.tagline ? (
-              <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">{c.tagline}</p>
-            ) : null}
-            <Link
-              href="/map"
-              className="mt-4 inline-block text-sm font-semibold text-red-600 hover:underline dark:text-red-400"
-            >
-              DajSrce
-            </Link>
-          </div>
-        </div>
-      </header>
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        {t("company.public_company_back")}
+      </Link>
 
-      <main className="mx-auto max-w-4xl space-y-10 px-4 py-10">
+      <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center">
+        {c.logo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={c.logo_url}
+            alt=""
+            className="h-20 w-20 shrink-0 rounded-card object-contain ring-1 ring-border-subtle"
+          />
+        ) : (
+          // The brand hue rides on `--cat`, the same channel the category
+          // classes use, so the tint and ink are mixed against the theme's
+          // surface/ink tokens rather than painted on as a light-mode literal
+          // (white-on-accent could not be guaranteed readable either).
+          <div
+            style={{ "--cat": accent } as CSSProperties}
+            className="category-tint category-accent flex h-20 w-20 shrink-0 items-center justify-center rounded-card text-2xl font-bold"
+            aria-hidden
+          >
+            {(c.display_name ?? c.legal_name).slice(0, 1).toUpperCase()}
+          </div>
+        )}
+        <PageHeader
+          className="mb-0 flex-1"
+          title={c.display_name?.trim() || c.legal_name}
+          subtitle={c.tagline ?? undefined}
+        />
+      </div>
+
+      <div className="space-y-10">
         <section className="grid gap-4 sm:grid-cols-3">
-          <MetricCard label={t("company.public_company_metrics_given")} value={fmtEur(given)} accent={accent} />
-          <MetricCard
+          <Stat label={t("company.public_company_metrics_given")} value={fmtEur(given)} />
+          <Stat
             label={t("company.public_company_hours")}
             value={`${hours.toLocaleString(loc === "hr" ? "hr-HR" : "en-GB")} h`}
-            accent={accent}
           />
-          <MetricCard
+          <Stat
             label={t("company.public_company_institutions")}
             value={inst.toLocaleString(loc === "hr" ? "hr-HR" : "en-GB")}
-            accent={accent}
           />
         </section>
 
         {bundle.latest_report ? (
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {t("company.public_company_report")}
-            </h2>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              {bundle.latest_report.period_start} — {bundle.latest_report.period_end}
-            </p>
+          <Card padding="lg">
+            <SectionHeader
+              className="mb-3"
+              title={t("company.public_company_report")}
+              description={`${bundle.latest_report.period_start} — ${bundle.latest_report.period_end}`}
+            />
             <a
               href={`/api/public/company/${c.slug}/latest-report?redirect=1`}
-              className="mt-4 inline-flex rounded-full px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
-              style={{ backgroundColor: accent }}
+              className={buttonClasses()}
             >
               {t("company.public_company_download")}
             </a>
-          </section>
+          </Card>
         ) : null}
 
         {sdgList.length > 0 ? (
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {t("company.public_company_sdg")}
-            </h2>
+            <SectionHeader title={t("company.public_company_sdg")} />
             <div className="flex flex-wrap gap-2">
               {sdgList.map((id) => (
-                <span
-                  key={id}
-                  className="rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                >
-                  {sdgLabel(id, loc)}
-                </span>
+                <Badge key={id}>{sdgLabel(id, loc)}</Badge>
               ))}
             </div>
           </section>
@@ -179,16 +183,13 @@ export default async function PublicCompanyPage({ params }: Props) {
 
         {bundle.campaigns.length > 0 ? (
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {t("company.public_company_campaigns")}
-            </h2>
+            <SectionHeader title={t("company.public_company_campaigns")} />
             <ul className="space-y-2">
               {bundle.campaigns.map((camp) => (
-                <li
-                  key={camp.slug}
-                  className="rounded-xl border border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900"
-                >
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{camp.name}</span>
+                <li key={camp.slug}>
+                  <Card padding="sm">
+                    <span className="text-base font-medium text-ink">{camp.name}</span>
+                  </Card>
                 </li>
               ))}
             </ul>
@@ -197,43 +198,18 @@ export default async function PublicCompanyPage({ params }: Props) {
 
         {bundle.stories.length > 0 ? (
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {t("company.public_company_stories")}
-            </h2>
+            <SectionHeader title={t("company.public_company_stories")} />
             <div className="space-y-4">
               {bundle.stories.map((s, i) => (
-                <article
-                  key={`${s.institution_name}-${i}`}
-                  className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
-                >
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{s.institution_name}</h3>
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{s.description}</p>
-                </article>
+                <Card key={`${s.institution_name}-${i}`} as="article">
+                  <h3 className="text-base font-semibold text-ink">{s.institution_name}</h3>
+                  <p className="mt-2 text-base leading-6 text-ink-secondary">{s.description}</p>
+                </Card>
               ))}
             </div>
           </section>
         ) : null}
-      </main>
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent: string;
-}) {
-  return (
-    <div
-      className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900"
-      style={{ borderTopWidth: 3, borderTopColor: accent }}
-    >
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
-    </div>
+      </div>
+    </PageShell>
   );
 }

@@ -4,22 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import type { InstitutionCategory, VolunteerEvent } from "@/lib/types";
 import clsx from "clsx";
-import { CATEGORY_CONFIG } from "@/lib/constants";
+import { CATEGORY_CONFIG, categoryVars } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { AuthActionDialog } from "@/components/AuthActionDialog";
 import { useLocale, useT } from "@/i18n/client";
-
-function clsxRing(isRegistered: boolean): string {
-  return clsx(
-    "flex h-full min-h-0 flex-col rounded-xl border bg-white p-5 shadow-sm transition-shadow dark:bg-gray-900",
-    isRegistered
-      ? "border-emerald-300 ring-2 ring-emerald-200/70 dark:border-emerald-800 dark:ring-emerald-900/40"
-      : "border-gray-100 dark:border-gray-800"
-  );
-}
+import { Badge, Button, Card, buttonClasses } from "@/components/ui";
 
 export type VolunteerEventCardProps = {
   event: Omit<VolunteerEvent, "institution"> & {
@@ -116,56 +108,63 @@ export function VolunteerEventCard({
   }
 
   return (
-    <article
+    <Card
       id={htmlId}
+      as="article"
       tabIndex={-1}
-      className={clsxRing(isRegistered)}
+      className={clsx(
+        // The transition is what makes the calendar's "here it is" highlight
+        // ring fade in and out instead of blinking on for 1.5s.
+        "flex h-full min-h-0 flex-col outline-none transition-[box-shadow,border-color] duration-300 ease-out",
+        isRegistered && "border-success ring-1 ring-success/30"
+      )}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         {institution ? (
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            {/* The id was already in props; the name used to be a dead <span>. */}
+            <Link
+              href={`/institution/${institution.id}`}
+              className="rounded-control text-sm font-semibold text-ink underline-offset-2 transition-colors hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            >
               {institution.name}
-            </span>
-            {cat ? (
+            </Link>
+            {cat && categoryKey ? (
               <span
-                className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                style={{ color: cat.color, backgroundColor: cat.bgColor }}
+                style={categoryVars(categoryKey)}
+                className="category-chip inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold"
               >
                 {locale === "hr" ? cat.labelHr : cat.label}
               </span>
             ) : (
-              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                {institution.category}
-              </span>
+              <Badge>{institution.category}</Badge>
             )}
           </div>
         ) : null}
 
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        {/* Same heading level as NeedCard: both are one browsable object. */}
+        <h2 className="line-clamp-2 text-lg font-semibold leading-snug text-ink">
           {event.title}
-        </h3>
+        </h2>
 
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{dateLabel}</p>
-        <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+        <p className="mt-2 text-sm text-ink-secondary">{dateLabel}</p>
+        <p className="mt-1 text-base text-ink">
           {event.start_time} – {event.end_time}
         </p>
 
         {event.requirements ? (
-          <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-            {event.requirements}
-          </p>
+          <p className="mt-3 text-sm text-ink-secondary">{event.requirements}</p>
         ) : null}
       </div>
 
-      <div className="mt-auto w-full shrink-0">
+      <div className="mt-auto w-full shrink-0 pt-4">
         <div>
-          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex justify-between text-sm text-ink-tertiary">
             <span>{t("volunteer_card.volunteers")}</span>
-            <span>{signed} / {needed}</span>
+            <span className="tabular-nums">{signed} / {needed}</span>
           </div>
           <div
-            className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+            className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-sunken"
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -173,7 +172,7 @@ export function VolunteerEventCard({
             aria-label={t("volunteer_card.progress", { signed, needed })}
           >
             <div
-              className="h-full rounded-full bg-red-500 transition-[width] duration-300"
+              className="h-full rounded-full bg-brand transition-[width] duration-300 ease-out"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -184,37 +183,29 @@ export function VolunteerEventCard({
             readOnlyHref ? (
               <Link
                 href={readOnlyHref}
-                className="flex w-full justify-center rounded-full bg-red-500 px-5 py-2.5 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600"
+                className={buttonClasses({ fullWidth: true })}
               >
                 {readOnlyLabel ?? t("volunteer_card.sign_in")}
               </Link>
             ) : (
-              <p className="rounded-full bg-gray-100 px-5 py-2.5 text-center text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+              <p className="rounded-full bg-surface-sunken px-5 py-2.5 text-center text-sm font-medium text-ink-secondary">
                 {readOnlyLabel ?? t("volunteer_card.sign_in_continue")}
               </p>
             )
           ) : isRegistered ? (
-            <p className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-50 px-5 py-2.5 text-center text-sm font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <p className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-success-soft px-5 py-2.5 text-center text-sm font-semibold text-success-on-soft">
               <CheckCircle2 className="h-4 w-4" aria-hidden />
               {t("volunteer_card.registered")}
             </p>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={handleSignUp}
-                disabled={loading}
-                className="w-full rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-60"
-              >
-                {loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    {t("volunteer_card.signing_up")}
-                  </span>
-                ) : t("volunteer_card.sign_up")}
-              </button>
+              <Button onClick={handleSignUp} loading={loading} fullWidth>
+                {loading
+                  ? t("volunteer_card.signing_up")
+                  : t("volunteer_card.sign_up")}
+              </Button>
               {errorState ? (
-                <p className="mt-2 text-center text-xs text-red-600">
+                <p className="mt-2 text-center text-sm text-danger" role="alert">
                   {t("volunteer_card.failed")}
                 </p>
               ) : null}
@@ -230,6 +221,6 @@ export function VolunteerEventCard({
           nextPath="/volunteer"
         />
       )}
-    </article>
+    </Card>
   );
 }

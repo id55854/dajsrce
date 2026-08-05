@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type {
   InstitutionCategory,
   DonationType,
@@ -110,6 +111,19 @@ export const CATEGORY_CONFIG: Record<
     icon: "HeartPulse",
   },
 };
+
+/**
+ * Publishes a category's hue as the `--cat` custom property.
+ *
+ * Pair with the `category-chip` / `category-tint` / `category-accent` classes
+ * in globals.css, which derive the tint and ink by mixing this hue against the
+ * theme's surface and ink tokens. Applying `CATEGORY_CONFIG[c].bgColor`
+ * directly is what made category chips render near-white on dark surfaces, so
+ * prefer this everywhere the colour reaches the DOM.
+ */
+export function categoryVars(category: InstitutionCategory): CSSProperties {
+  return { "--cat": CATEGORY_CONFIG[category].color } as CSSProperties;
+}
 
 export const DONATION_TYPES: Record<
   DonationType,

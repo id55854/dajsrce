@@ -13,6 +13,7 @@ import {
   Link as LinkIcon,
   Palette,
 } from "lucide-react";
+import { usePresence } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
 function A11yIcon({ className }: { className?: string }) {
@@ -53,6 +54,11 @@ const DEFAULTS: A11ySettings = {
 };
 
 const STORAGE_KEY = "dajsrce-a11y";
+
+// 40px minimum on controls that users of this very menu are the most
+// likely to need to hit accurately.
+const STEPPER_BUTTON =
+  "inline-flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold text-ink transition-colors hover:bg-surface-sunken disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-safe:active:scale-[0.95]";
 
 const CLASS_MAP: Record<string, string> = {
   highContrast: "high-contrast",
@@ -117,6 +123,9 @@ export function AccessibilityMenu() {
   const [settings, setSettings] = useState<A11ySettings>(DEFAULTS);
   const panelRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  // Symmetric enter/exit: the panel used to slide up on open and then
+  // vanish in a single frame on close.
+  const panel = usePresence(isOpen);
 
   useEffect(() => {
     try {
@@ -225,40 +234,51 @@ export function AccessibilityMenu() {
 
   return (
     <>
-      {isOpen ? (
-        <div className="fixed inset-0 z-40" onClick={close} aria-hidden />
+      {/* The panel traps focus, so it is a modal task and earns a dimming
+          scrim — previously the overlay was fully transparent. */}
+      {panel.present ? (
+        <div
+          data-ui-motion
+          data-state={panel.state}
+          className="fixed inset-0 z-[var(--z-modal)] bg-scrim data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out"
+          onClick={close}
+          aria-hidden
+        />
       ) : null}
 
-      {isOpen ? (
+      {panel.present ? (
         <div
           ref={panelRef}
           role="dialog"
           aria-label={t("a11y.dialog_label")}
           aria-modal="true"
-          className="a11y-panel-enter fixed bottom-20 left-4 z-50 w-80 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900"
+          data-ui-motion
+          data-state={panel.state}
+          onAnimationEnd={panel.onAnimationEnd}
+          className="fixed bottom-20 left-4 z-[var(--z-modal)] w-80 origin-bottom-left rounded-card border border-border-subtle bg-surface-overlay shadow-modal data-[state=open]:animate-menu-in data-[state=closed]:animate-menu-out"
         >
-          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
             <div className="flex items-center gap-2">
-              <A11yIcon className="h-5 w-5 text-red-500" />
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <A11yIcon className="h-5 w-5 text-brand" aria-hidden="true" />
+              <span className="text-sm font-semibold text-ink">
                 {t("a11y.title")}
               </span>
             </div>
             <button
               type="button"
               onClick={close}
-              className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-safe:active:scale-[0.92]"
               aria-label={t("a11y.close")}
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 
-          <div className="max-h-[70vh] space-y-1 overflow-y-auto p-4">
-            <div className="flex items-center justify-between rounded-xl px-2 py-2">
+          <div className="max-h-[70dvh] space-y-1 overflow-y-auto overscroll-contain p-4">
+            <div className="flex items-center justify-between rounded-control px-2 py-2">
               <div className="flex items-center gap-3">
-                <Eye className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <Eye className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
+                <span className="text-sm font-medium text-ink">
                   {t("a11y.text_size")}
                 </span>
               </div>
@@ -268,7 +288,7 @@ export function AccessibilityMenu() {
                   onClick={() => adjustFontSize(-10)}
                   disabled={settings.fontSize <= 90}
                   aria-label={t("a11y.decrease_text")}
-                  className="rounded-lg px-2 py-1 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800"
+                  className={STEPPER_BUTTON}
                 >
                   A-
                 </button>
@@ -276,7 +296,7 @@ export function AccessibilityMenu() {
                   type="button"
                   onClick={resetFontSize}
                   aria-label={t("a11y.reset_text")}
-                  className="rounded-lg px-2 py-1 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
+                  className="inline-flex h-10 min-w-12 items-center justify-center rounded-full text-xs font-bold tabular-nums text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-safe:active:scale-[0.95]"
                 >
                   {settings.fontSize}%
                 </button>
@@ -285,7 +305,7 @@ export function AccessibilityMenu() {
                   onClick={() => adjustFontSize(10)}
                   disabled={settings.fontSize >= 150}
                   aria-label={t("a11y.increase_text")}
-                  className="rounded-lg px-2 py-1 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800"
+                  className={STEPPER_BUTTON}
                 >
                   A+
                 </button>
@@ -295,11 +315,11 @@ export function AccessibilityMenu() {
             {features.map(({ key, label, icon }) => (
               <div
                 key={key}
-                className="flex items-center justify-between rounded-xl px-2 py-2"
+                className="flex items-center justify-between rounded-control px-2 py-2"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-gray-500 dark:text-gray-400">{icon}</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  <span className="text-ink-tertiary" aria-hidden="true">{icon}</span>
+                  <span className="text-sm font-medium text-ink">
                     {label}
                   </span>
                 </div>
@@ -312,14 +332,14 @@ export function AccessibilityMenu() {
             ))}
           </div>
 
-          <div className="border-t border-gray-200 p-4 dark:border-gray-700">
+          <div className="border-t border-border-subtle p-4">
             <button
               type="button"
               onClick={resetAll}
               aria-label={t("a11y.reset_all")}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-red-500 hover:text-red-500 dark:border-gray-700 dark:text-gray-300 dark:hover:border-red-500 dark:hover:text-red-500"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border-subtle text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-safe:active:scale-[0.97]"
             >
-              <RotateCcw className="h-4 w-4" />
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
               {t("a11y.reset_all")}
             </button>
           </div>
@@ -330,11 +350,11 @@ export function AccessibilityMenu() {
         ref={toggleRef}
         type="button"
         onClick={() => setIsOpen((o) => !o)}
-        className="fixed bottom-4 left-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-[var(--z-chrome)] flex h-14 w-14 items-center justify-center rounded-full bg-brand text-white shadow-overlay transition-transform duration-150 ease-out hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-safe:active:scale-[0.94]"
         aria-label={t("a11y.open")}
         aria-expanded={isOpen}
       >
-        <A11yIcon className="h-7 w-7" />
+        <A11yIcon className="h-7 w-7" aria-hidden="true" />
       </button>
     </>
   );

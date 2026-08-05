@@ -1,18 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import {
-  Building2,
   CalendarPlus,
   ClipboardList,
+  Inbox,
   MapPin,
   Plus,
-  Inbox,
   Users,
+  X,
 } from "lucide-react";
 import { DONATION_TYPES } from "@/lib/constants";
 import type { DonationType, UrgencyLevel } from "@/lib/types";
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  PageHeader,
+  PageShell,
+  SectionHeader,
+  Select,
+  Stat,
+  Textarea,
+  buttonClasses,
+  useToast,
+} from "@/components/ui";
+
+// NOTE: every string on this page is hardcoded English. It predates the i18n
+// layer and needs roughly 30 keys under an `institution_dashboard.*` namespace;
+// translating it is tracked separately so this pass could stay presentational.
 
 const donationEntries = Object.entries(DONATION_TYPES) as [
   DonationType,
@@ -26,15 +44,16 @@ const urgencyOptions: { value: UrgencyLevel; label: string }[] = [
 ];
 
 export default function InstitutionDashboardPage() {
+  const toast = useToast();
+  const needPanelId = useId();
+  const eventPanelId = useId();
   const [panel, setPanel] = useState<"need" | "event" | null>(null);
 
   const [needTitle, setNeedTitle] = useState("");
   const [needDescription, setNeedDescription] = useState("");
-  const [needDonationType, setNeedDonationType] =
-    useState<DonationType>("food");
+  const [needDonationType, setNeedDonationType] = useState<DonationType>("food");
   const [needUrgency, setNeedUrgency] = useState<UrgencyLevel>("routine");
   const [needQuantity, setNeedQuantity] = useState("1");
-  const [needSuccess, setNeedSuccess] = useState(false);
   const [needSubmitting, setNeedSubmitting] = useState(false);
   const [needError, setNeedError] = useState<string | null>(null);
 
@@ -44,7 +63,6 @@ export default function InstitutionDashboardPage() {
   const [evStart, setEvStart] = useState("09:00");
   const [evEnd, setEvEnd] = useState("12:00");
   const [evVolunteers, setEvVolunteers] = useState("5");
-  const [evSuccess, setEvSuccess] = useState(false);
   const [evSubmitting, setEvSubmitting] = useState(false);
   const [evError, setEvError] = useState<string | null>(null);
 
@@ -69,14 +87,14 @@ export default function InstitutionDashboardPage() {
         const json = await res.json().catch(() => ({}));
         throw new Error((json as { error?: string }).error ?? "Failed to post need");
       }
-      setNeedSuccess(true);
+      // Success used to replace the form with a green banner and then close the
+      // panel on a 2s timer, so the content vanished from under the user. The
+      // outcome is a toast; the panel closes because the task is finished.
+      toast({ tone: "success", title: "Need posted", description: needTitle });
       setNeedTitle("");
       setNeedDescription("");
       setNeedQuantity("1");
-      setTimeout(() => {
-        setNeedSuccess(false);
-        setPanel(null);
-      }, 2000);
+      setPanel(null);
     } catch (err) {
       setNeedError(err instanceof Error ? err.message : "Failed to post need");
     } finally {
@@ -106,15 +124,12 @@ export default function InstitutionDashboardPage() {
         const json = await res.json().catch(() => ({}));
         throw new Error((json as { error?: string }).error ?? "Failed to post event");
       }
-      setEvSuccess(true);
+      toast({ tone: "success", title: "Volunteer event posted", description: evTitle });
       setEvTitle("");
       setEvDescription("");
       setEvDate("");
       setEvVolunteers("5");
-      setTimeout(() => {
-        setEvSuccess(false);
-        setPanel(null);
-      }, 2000);
+      setPanel(null);
     } catch (err) {
       setEvError(err instanceof Error ? err.message : "Failed to post event");
     } finally {
@@ -123,315 +138,305 @@ export default function InstitutionDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/60 to-white px-4 py-10 dark:from-gray-950 dark:to-gray-950">
-      <div className="mx-auto max-w-3xl space-y-8">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Institution Management
-            </h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Manage needs, events, and activities.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+    <PageShell width="content">
+      <PageHeader
+        title="Institution Management"
+        subtitle="Manage needs, events, and activities."
+        actions={
+          <>
             <Link
               href="/dashboard/institution/pledges"
-              className="inline-flex items-center gap-2 rounded-full border-2 border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:hover:bg-red-950/40"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
-              <Inbox className="h-4 w-4" aria-hidden />
+              <Inbox className="h-4 w-4" aria-hidden="true" />
               Pledges
             </Link>
             <Link
               href="/dashboard/institution/volunteers"
-              className="inline-flex items-center gap-2 rounded-full border-2 border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:hover:bg-red-950/40"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
-              <Users className="h-4 w-4" aria-hidden />
+              <Users className="h-4 w-4" aria-hidden="true" />
               Volunteers
             </Link>
-          </div>
-        </header>
+          </>
+        }
+      />
 
-        <section className="rounded-2xl border border-red-100 bg-white p-6 shadow-sm dark:border-red-900 dark:bg-gray-900">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-500">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Institution Profile
-              </h2>
-            </div>
-          </div>
-        </section>
-
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <h3 className="mb-1 text-sm font-semibold text-gray-500">
-            Pledges this month
-          </h3>
-          <p className="text-3xl font-bold text-red-500">0</p>
-        </div>
+      <div className="space-y-6">
+        {/* NOTE: this figure has never had a query behind it. Rather than print
+            a fabricated `0`, show an explicit em-dash and point at the pledges
+            page, which does load real rows. */}
+        <Stat
+          label="Pledges this month"
+          tone="muted"
+          value={
+            <>
+              <span aria-hidden="true">—</span>
+              <span className="sr-only">Not available yet</span>
+            </>
+          }
+          hint={
+            <>
+              Monthly totals aren&apos;t available yet.{" "}
+              <Link
+                href="/dashboard/institution/pledges"
+                className="rounded font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              >
+                See every pledge
+              </Link>
+            </>
+          }
+        />
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
+          <Button
+            size="lg"
+            fullWidth
+            aria-expanded={panel === "need"}
+            aria-controls={needPanelId}
             onClick={() => {
-              setNeedSuccess(false);
               setNeedError(null);
-              setPanel("need");
+              setPanel((current) => (current === "need" ? null : "need"));
             }}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3.5 text-sm font-semibold text-white shadow-md shadow-red-500/20 transition-colors hover:bg-red-600"
+            icon={<Plus className="h-5 w-5" aria-hidden="true" />}
           >
-            <Plus className="h-5 w-5" />
             New Need
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            size="lg"
+            variant="secondary"
+            fullWidth
+            aria-expanded={panel === "event"}
+            aria-controls={eventPanelId}
             onClick={() => {
-              setEvSuccess(false);
               setEvError(null);
-              setPanel("event");
+              setPanel((current) => (current === "event" ? null : "event"));
             }}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-white px-4 py-3.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:bg-gray-900 dark:hover:bg-red-950"
+            icon={<CalendarPlus className="h-5 w-5" aria-hidden="true" />}
           >
-            <CalendarPlus className="h-5 w-5" />
             New Volunteer Event
-          </button>
+          </Button>
         </div>
 
+        {/* These were in-page cards wearing modal-weight `shadow-lg` with no
+            focus move, no Escape, no scrim and no dialog role. They are honest
+            inline sections now: normal card elevation and a real close button. */}
         {panel === "need" ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-900">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                <ClipboardList className="h-5 w-5 text-red-500" />
-                New Need
-              </h3>
-              <button
-                type="button"
-                onClick={() => setPanel(null)}
-                className="text-sm font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                Close
-              </button>
-            </div>
-            {needSuccess ? (
-              <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                Need posted!
-              </p>
-            ) : (
-              <form onSubmit={submitNeed} className="space-y-4">
-                {needError ? (
-                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
-                    {needError}
-                  </p>
-                ) : null}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Title
-                  </label>
-                  <input
+          <Card padding="lg" id={needPanelId}>
+            <SectionHeader
+              title={
+                <span className="flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5 text-brand" aria-hidden="true" />
+                  New Need
+                </span>
+              }
+              actions={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPanel(null)}
+                  aria-label="Close the new need form"
+                  icon={<X className="h-4 w-4" aria-hidden="true" />}
+                >
+                  Close
+                </Button>
+              }
+            />
+            <form onSubmit={submitNeed} className="space-y-4">
+              <FormError message={needError} />
+              <Field label="Title" required requiredLabel="required">
+                {(field) => (
+                  <Input
+                    {...field}
                     required
                     value={needTitle}
                     onChange={(e) => setNeedTitle(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Description <span className="text-xs font-normal text-gray-400">(optional)</span>
-                  </label>
-                  <textarea
+                )}
+              </Field>
+              <Field label="Description" hint="Optional">
+                {(field) => (
+                  <Textarea
+                    {...field}
                     rows={3}
                     value={needDescription}
                     onChange={(e) => setNeedDescription(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none ring-red-500/20 focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Donation type
-                  </label>
-                  <select
+                )}
+              </Field>
+              <Field label="Donation type">
+                {(field) => (
+                  <Select
+                    {...field}
                     value={needDonationType}
-                    onChange={(e) =>
-                      setNeedDonationType(e.target.value as DonationType)
-                    }
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                    onChange={(e) => setNeedDonationType(e.target.value as DonationType)}
                   >
                     {donationEntries.map(([key, { label }]) => (
                       <option key={key} value={key}>
                         {label}
                       </option>
                     ))}
-                  </select>
+                  </Select>
+                )}
+              </Field>
+              <fieldset>
+                <legend className="mb-2 text-sm font-medium text-ink">Urgency</legend>
+                <div className="flex flex-wrap gap-3">
+                  {urgencyOptions.map((o) => (
+                    <label
+                      key={o.value}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-control border border-border-subtle px-3 py-2 text-sm text-ink transition-colors has-[:checked]:border-brand has-[:checked]:bg-brand-soft has-[:checked]:text-brand-on-soft"
+                    >
+                      <input
+                        type="radio"
+                        name="urgency"
+                        value={o.value}
+                        checked={needUrgency === o.value}
+                        onChange={() => setNeedUrgency(o.value)}
+                        className="h-4 w-4 accent-brand"
+                      />
+                      {o.label}
+                    </label>
+                  ))}
                 </div>
-                <fieldset>
-                  <legend className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Urgency
-                  </legend>
-                  <div className="flex flex-wrap gap-3">
-                    {urgencyOptions.map((o) => (
-                      <label
-                        key={o.value}
-                        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 has-[:checked]:border-red-400 has-[:checked]:bg-red-50 dark:border-gray-700 dark:has-[:checked]:bg-red-950"
-                      >
-                        <input
-                          type="radio"
-                          name="urgency"
-                          value={o.value}
-                          checked={needUrgency === o.value}
-                          onChange={() => setNeedUrgency(o.value)}
-                          className="text-red-500"
-                        />
-                        <span className="text-sm">{o.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Quantity needed
-                  </label>
-                  <input
+              </fieldset>
+              <Field label="Quantity needed" required requiredLabel="required">
+                {(field) => (
+                  <Input
+                    {...field}
                     type="number"
                     min={1}
                     required
                     value={needQuantity}
                     onChange={(e) => setNeedQuantity(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
-                </div>
-                <button
-                  type="submit"
-                  disabled={needSubmitting}
-                  className="w-full rounded-xl bg-red-500 py-3 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
-                >
-                  {needSubmitting ? "Posting…" : "Post Need"}
-                </button>
-              </form>
-            )}
-          </div>
+                )}
+              </Field>
+              <Button type="submit" fullWidth loading={needSubmitting}>
+                {needSubmitting ? "Posting…" : "Post Need"}
+              </Button>
+            </form>
+          </Card>
         ) : null}
 
         {panel === "event" ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-900">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                <CalendarPlus className="h-5 w-5 text-red-500" />
-                New Volunteer Event
-              </h3>
-              <button
-                type="button"
-                onClick={() => setPanel(null)}
-                className="text-sm font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                Close
-              </button>
-            </div>
-            {evSuccess ? (
-              <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                Event posted!
-              </p>
-            ) : (
-              <form onSubmit={submitEvent} className="space-y-4">
-                {evError ? (
-                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
-                    {evError}
-                  </p>
-                ) : null}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Title
-                  </label>
-                  <input
+          <Card padding="lg" id={eventPanelId}>
+            <SectionHeader
+              title={
+                <span className="flex items-center gap-2">
+                  <CalendarPlus className="h-5 w-5 text-brand" aria-hidden="true" />
+                  New Volunteer Event
+                </span>
+              }
+              actions={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPanel(null)}
+                  aria-label="Close the new volunteer event form"
+                  icon={<X className="h-4 w-4" aria-hidden="true" />}
+                >
+                  Close
+                </Button>
+              }
+            />
+            <form onSubmit={submitEvent} className="space-y-4">
+              <FormError message={evError} />
+              <Field label="Title" required requiredLabel="required">
+                {(field) => (
+                  <Input
+                    {...field}
                     required
                     value={evTitle}
                     onChange={(e) => setEvTitle(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Description <span className="text-xs font-normal text-gray-400">(optional)</span>
-                  </label>
-                  <textarea
+                )}
+              </Field>
+              <Field label="Description" hint="Optional">
+                {(field) => (
+                  <Textarea
+                    {...field}
                     rows={3}
                     value={evDescription}
                     onChange={(e) => setEvDescription(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Date
-                  </label>
-                  <input
+                )}
+              </Field>
+              <Field label="Date" required requiredLabel="required">
+                {(field) => (
+                  <Input
+                    {...field}
                     type="date"
                     required
                     value={evDate}
                     onChange={(e) => setEvDate(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Start
-                    </label>
-                    <input
+                )}
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Start">
+                  {(field) => (
+                    <Input
+                      {...field}
                       type="time"
                       value={evStart}
                       onChange={(e) => setEvStart(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                     />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      End
-                    </label>
-                    <input
+                  )}
+                </Field>
+                <Field label="End">
+                  {(field) => (
+                    <Input
+                      {...field}
                       type="time"
                       value={evEnd}
                       onChange={(e) => setEvEnd(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                     />
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Volunteers needed
-                  </label>
-                  <input
+                  )}
+                </Field>
+              </div>
+              <Field label="Volunteers needed" required requiredLabel="required">
+                {(field) => (
+                  <Input
+                    {...field}
                     type="number"
                     min={1}
                     required
                     value={evVolunteers}
                     onChange={(e) => setEvVolunteers(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   />
-                </div>
-                <button
-                  type="submit"
-                  disabled={evSubmitting}
-                  className="w-full rounded-xl bg-red-500 py-3 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
-                >
-                  {evSubmitting ? "Posting…" : "Post Event"}
-                </button>
-              </form>
-            )}
-          </div>
+                )}
+              </Field>
+              <Button type="submit" fullWidth loading={evSubmitting}>
+                {evSubmitting ? "Posting…" : "Post Event"}
+              </Button>
+            </form>
+          </Card>
         ) : null}
 
-        <div className="pb-8">
+        <div>
           <Link
             href="/map"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 py-4 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-colors hover:bg-red-600 sm:w-auto sm:px-10"
+            className={buttonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}
           >
-            <MapPin className="h-5 w-5" />
+            <MapPin className="h-5 w-5" aria-hidden="true" />
             View Map
           </Link>
         </div>
       </div>
-    </div>
+    </PageShell>
+  );
+}
+
+/** The one form-level error recipe for this page. */
+function FormError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p
+      role="alert"
+      className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger-on-soft"
+    >
+      {message}
+    </p>
   );
 }

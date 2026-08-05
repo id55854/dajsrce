@@ -1,52 +1,75 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LayoutDashboard, MapPin, PackageSearch, Users } from "lucide-react";
 import { getCurrentUserProfile } from "@/lib/auth/server";
-import { roleToDashboardPath, roleLabel } from "@/lib/auth/roles";
+import { roleToDashboardPath } from "@/lib/auth/roles";
+import type { AppRole } from "@/lib/auth/roles";
+import { getTranslator } from "@/i18n/server";
+import { Card, PageHeader, PageShell } from "@/components/ui";
+
+// Role names live in the dictionaries; the helper in lib/auth/roles is
+// English-only and used for logs and dashboard routing.
+const ROLE_LABEL_KEY: Record<AppRole, string> = {
+  individual: "dashboard_individual.role_individual",
+  ngo: "dashboard_individual.role_ngo",
+  company: "dashboard_individual.role_company",
+  superadmin: "dashboard_individual.role_superadmin",
+};
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return {
+    title: `${t("hub.title")} | DajSrce`,
+    description: t("hub.subtitle"),
+  };
+}
 
 export default async function Hub() {
+  const t = await getTranslator();
   const profile = await getCurrentUserProfile();
   const dashboardHref = profile
     ? roleToDashboardPath(profile.role)
     : "/auth/login?next=/dashboard";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">DajSrce</h1>
-      <p className="mt-2 text-gray-600 dark:text-gray-400">
-        Browse public opportunities and log in only when you want to act.
-      </p>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <PageShell>
+      <PageHeader title={t("hub.title")} subtitle={t("hub.subtitle")} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <HomeCard
           href="/map"
-          title="Map"
-          desc="Explore nearby NGOs and associations."
-          icon={<MapPin className="h-5 w-5" />}
+          title={t("nav.map")}
+          desc={t("hub.map_desc")}
+          icon={<MapPin className="h-5 w-5" aria-hidden />}
         />
         <HomeCard
           href="/needs"
-          title="Needs"
-          desc="See active needs for food, clothes, hygiene and more."
-          icon={<PackageSearch className="h-5 w-5" />}
+          title={t("nav.needs")}
+          desc={t("hub.needs_desc")}
+          icon={<PackageSearch className="h-5 w-5" aria-hidden />}
         />
         <HomeCard
           href="/volunteer"
-          title="Volunteer"
-          desc="Discover volunteer opportunities."
-          icon={<Users className="h-5 w-5" />}
+          title={t("nav.volunteer")}
+          desc={t("hub.volunteer_desc")}
+          icon={<Users className="h-5 w-5" aria-hidden />}
         />
         <HomeCard
           href={dashboardHref}
-          title={profile ? `${roleLabel(profile.role)} Dashboard` : "Your Dashboard"}
-          desc={
+          title={
             profile
-              ? "Open your role-specific dashboard."
-              : "Sign in when you want to take action."
+              ? t("hub.dashboard_title_role", {
+                  role: t(ROLE_LABEL_KEY[profile.role]),
+                })
+              : t("hub.dashboard_title")
           }
-          icon={<LayoutDashboard className="h-5 w-5" />}
+          desc={
+            profile ? t("hub.dashboard_desc") : t("hub.dashboard_desc_signed_out")
+          }
+          icon={<LayoutDashboard className="h-5 w-5" aria-hidden />}
         />
       </div>
-    </div>
+    </PageShell>
   );
 }
 
@@ -64,11 +87,13 @@ function HomeCard({
   return (
     <Link
       href={href}
-      className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+      className="block rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
     >
-      <div className="mb-3 text-red-500">{icon}</div>
-      <h2 className="font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
-      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{desc}</p>
+      <Card interactive className="h-full">
+        <div className="mb-3 text-brand">{icon}</div>
+        <h2 className="text-base font-semibold text-ink">{title}</h2>
+        <p className="mt-1 text-sm text-ink-secondary">{desc}</p>
+      </Card>
     </Link>
   );
 }

@@ -18,7 +18,16 @@
     "copied": "Kopirano!",
     "yes": "Da",
     "no": "Ne",
-    "error_generic": "Nešto je pošlo po zlu. Pokušajte ponovno."
+    "error_generic": "Nešto je pošlo po zlu. Pokušajte ponovno.",
+    "saved": "Spremljeno"
+  },
+  "errors": {
+    "not_found_title": "Nismo našli tu stranicu",
+    "not_found_body": "Veza je možda zastarjela ili je stranica premještena.",
+    "generic_title": "Nešto je pošlo po zlu",
+    "generic_body": "Ovaj se dio nije uspio učitati. Ponovni pokušaj obično pomaže.",
+    "retry": "Pokušajte ponovno",
+    "go_to_map": "Idi na kartu"
   },
   "locale": {
     "switch_to_hr": "Hrvatski",
@@ -100,6 +109,92 @@
     "switch_to_light": "Uključi svijetli način",
     "switch_to_dark": "Uključi tamni način"
   },
+  "auth": {
+    "email_label": "E-pošta",
+    "password_label": "Lozinka",
+    "show_password": "Prikaži lozinku",
+    "hide_password": "Sakrij lozinku",
+    "or": "ili",
+    "back_to_sign_in": "Natrag na prijavu",
+    "go_to_dashboard": "Otvori nadzornu ploču",
+    "sign_in_title": "Prijava",
+    "sign_in_subtitle": "Dobro došli natrag. Prijavite se na svoj račun.",
+    "sign_in_cta": "Prijavi se",
+    "sign_in_failed": "Prijava nije uspjela. Pokušajte ponovno.",
+    "continue_with_google": "Nastavi s Googleom",
+    "forgot_password": "Zaboravili ste lozinku?",
+    "no_account": "Nemate račun?",
+    "sign_up_link": "Registrirajte se",
+    "sign_up_title": "Registracija",
+    "sign_up_cta": "Otvori račun",
+    "sign_up_failed": "Registracija nije uspjela. Pokušajte ponovno.",
+    "sign_up_confirm_email": "Račun je otvoren. Provjerite e-poštu i potvrdite adresu kako biste se mogli prijaviti.",
+    "have_account": "Već imate račun?",
+    "sign_in_link": "Prijavite se",
+    "full_name_label": "Ime i prezime",
+    "password_label_min": "Lozinka (najmanje {min} znakova)",
+    "password_too_short": "Lozinka mora imati najmanje {min} znakova.",
+    "role_title": "Tko ste?",
+    "role_subtitle": "Odaberite svoju ulogu za nastavak.",
+    "role_required": "Odaberite ulogu.",
+    "role_individual_title": "Želim pomoći",
+    "role_individual_subtitle": "Pojedinac / volonter",
+    "role_ngo_title": "Predstavljam udrugu",
+    "role_ngo_subtitle": "Udruga / ustanova",
+    "ngo_name_label": "Naziv udruge",
+    "ngo_name_placeholder": "npr. Prihvatilište za beskućnike Zagreb",
+    "ngo_name_required": "Unesite naziv udruge.",
+    "company_name_label": "Naziv tvrtke",
+    "company_name_required": "Unesite naziv tvrtke.",
+    "setup_title": "Dobro došli! Tko ste?",
+    "setup_subtitle": "Odaberite svoju ulogu kako bismo pripremili vašu nadzornu ploču.",
+    "setup_checking": "Provjeravamo vaš račun…",
+    "invite_title": "Pozivnica tvrtke",
+    "invite_subtitle": "Pregledajte pozivnicu i prihvatite je za račun s kojim ste prijavljeni.",
+    "invite_missing_token": "Pozivnica nema token. Ponovno otvorite poveznicu iz e-pošte.",
+    "invite_need_login": "Prijavite se ili izradite račun kako biste prihvatili pozivnicu.",
+    "invite_accept": "Prihvati pozivnicu",
+    "invite_accepted": "Dobro došli u tim!",
+    "invite_redirecting": "Preusmjeravamo vas na nadzornu ploču tvrtke…",
+    "invite_error_invalid_token": "Ova pozivnica nije valjana.",
+    "invite_error_signed_out": "Sesija je istekla. Prijavite se ponovno i pokušajte opet.",
+    "invite_error_email_mismatch": "Pozivnica je vezana na drugu e-adresu. Prijavite se s adresom na koju je poslana i potvrdite je.",
+    "invite_error_not_found": "Pozivnicu nismo našli. Zatražite novu od tvrtke.",
+    "invite_error_expired": "Pozivnica je istekla ili je već iskorištena. Zatražite novu od tvrtke.",
+    "create_account": "Izradi račun",
+    "forgot_title": "Zaboravljena lozinka",
+    "forgot_subtitle": "Unesite e-adresu svog računa i poslat ćemo vam poveznicu za postavljanje nove lozinke.",
+    "forgot_submit": "Pošalji poveznicu",
+    "forgot_email_required": "Unesite e-adresu.",
+    "forgot_sent_title": "Provjerite e-poštu",
+    "forgot_sent_body": "Ako račun za {email} postoji, poslali smo poveznicu za postavljanje nove lozinke. Poveznica vrijedi ograničeno vrijeme.",
+    "forgot_sent_toast": "Poveznica za obnovu lozinke je poslana",
+    "forgot_resend": "Pošalji ponovno",
+    "reset_title": "Nova lozinka",
+    "reset_subtitle": "Odaberite novu lozinku za svoj račun.",
+    "reset_new_password_label": "Nova lozinka (najmanje {min} znakova)",
+    "reset_confirm_label": "Ponovite novu lozinku",
+    "reset_mismatch": "Lozinke se ne podudaraju.",
+    "reset_submit": "Spremi novu lozinku",
+    "reset_checking": "Provjeravamo poveznicu za obnovu…",
+    "reset_invalid_title": "Poveznica nije valjana",
+    "reset_invalid_body": "Poveznica za obnovu lozinke je istekla ili je već iskorištena. Zatražite novu.",
+    "reset_request_new": "Zatraži novu poveznicu",
+    "reset_done_toast": "Lozinka je promijenjena",
+    "reset_done_title": "Lozinka je promijenjena",
+    "reset_done_body": "Prijavljeni ste s novom lozinkom.",
+    "error_not_configured": "Prijava trenutačno nije dostupna jer autentifikacija nije konfigurirana. Obratite se administratoru.",
+    "error_network": "Ne možemo se povezati sa servisom za prijavu. Provjerite internetsku vezu i pokušajte ponovno.",
+    "error_invalid_credentials": "E-pošta ili lozinka nisu ispravni.",
+    "error_email_not_confirmed": "E-adresa još nije potvrđena. Otvorite poveznicu iz poruke koju smo vam poslali.",
+    "error_email_exists": "Račun s tom e-adresom već postoji. Prijavite se ili obnovite lozinku.",
+    "error_email_invalid": "E-adresa nije u ispravnom obliku.",
+    "error_weak_password": "Lozinka je preslaba. Odaberite dulju i manje očitu lozinku.",
+    "error_same_password": "Nova lozinka mora se razlikovati od dosadašnje.",
+    "error_rate_limited": "Previše pokušaja u kratkom vremenu. Pokušajte ponovno za nekoliko minuta.",
+    "error_signup_disabled": "Otvaranje novih računa trenutačno je onemogućeno.",
+    "error_not_authenticated": "Nismo pronašli prijavljenog korisnika. Prijavite se ponovno."
+  },
   "auth_dialog": {
     "title": "Potrebna je prijava",
     "body": "Za radnju „{action}” prijavite se ili izradite račun. Pregledavanje ostaje javno.",
@@ -120,8 +215,49 @@
     "status_cancelled": "Otkazano"
   },
   "quick_start": {
-    "page_title": "Pronađi NGO za pomoć",
-    "page_subtitle": "Odaberi što možeš donirati i pronađi institucije u svojoj blizini koje to trebaju."
+    "page_title": "Pronađite NGO za pomoć",
+    "page_subtitle": "Odaberite što možete darovati i pronađite ustanove u svojoj blizini kojima to treba.",
+    "step_progress": "Korak {current} od {total}",
+    "step1_title": "Što možete darovati?",
+    "step1_hint": "Odaberite jednu ili više kategorija.",
+    "step2_title": "Gdje se nalazite?",
+    "step2_privacy": "Vašu lokaciju koristimo samo za izračun udaljenosti.",
+    "use_my_location": "Koristi moju lokaciju",
+    "relocate_me": "Ponovno me lociraj",
+    "locating": "Određujem lokaciju…",
+    "found_you": "Ovdje smo vas našli:",
+    "resolving_address": "Tražim adresu…",
+    "address_unresolved": "Adresu nismo mogli odrediti, ali koordinate su zabilježene.",
+    "wrong_location": "Pogrešna lokacija? Kliknite „{action}” iznad ili upišite naselje ispod.",
+    "manual_label": "Ili upišite naselje / adresu",
+    "manual_placeholder": "npr. Trešnjevka, Ilica 12…",
+    "manual_note": "Adresu za ovo pretraživanje pronalazimo preko OpenStreetMap Nominatima; upisana adresa ne pohranjuje se na DajSrce.",
+    "geo_denied": "Pristup lokaciji je odbijen. Omogućite ga u postavkama preglednika ili upišite naselje ispod.",
+    "geo_timeout": "Određivanje lokacije traje predugo. Pokušajte ponovno ili upišite naselje ispod.",
+    "geo_failed": "Nismo uspjeli odrediti vašu lokaciju. Provjerite dopuštenja ili upišite naselje.",
+    "geocode_failed": "Tu adresu nismo našli u Hrvatskoj. Provjerite je i pokušajte ponovno.",
+    "searching": "Tražim ustanove u blizini…",
+    "results_title": "Najbliže ustanove",
+    "no_results": "Nijedna ustanova ne odgovara vašem odabiru. Pokušajte s drugim kategorijama.",
+    "directions": "Navigacija",
+    "view_details": "Pogledaj detalje",
+    "start_over": "Počni ponovno"
+  },
+  "hub": {
+    "title": "Kako želite pomoći?",
+    "subtitle": "Pregledajte javne mogućnosti i prijavite se samo kada želite djelovati.",
+    "map_desc": "Istražite udruge i ustanove u svojoj blizini.",
+    "needs_desc": "Pogledajte aktivne potrebe za hranom, odjećom, higijenom i više.",
+    "volunteer_desc": "Otkrijte volonterske prilike u zajednici.",
+    "dashboard_title": "Vaša nadzorna ploča",
+    "dashboard_title_role": "Nadzorna ploča: {role}",
+    "dashboard_desc": "Otvorite nadzornu ploču za svoju ulogu.",
+    "dashboard_desc_signed_out": "Prijavite se kada želite poduzeti radnju."
+  },
+  "institution_page": {
+    "not_found": "Ustanova nije pronađena",
+    "active_needs": "Aktivne potrebe",
+    "back_to_map": "Natrag na kartu"
   },
   "company": {
     "verification": {
@@ -176,26 +312,21 @@
     },
     "role_tile_title": "Predstavljam tvrtku",
     "role_tile_subtitle": "Tvrtka / CSR program",
-
     "onboarding_title": "Prijava tvrtke",
     "onboarding_intro": "Postavite DajSrce profil svoje tvrtke u nekoliko koraka. Uvijek možete preskočiti i dovršiti kasnije.",
-
     "step_identity": "Identitet",
     "step_address": "Adresa",
     "step_brand": "Brend",
     "step_invite": "Pozovi tim",
-
     "legal_name_label": "Pravni naziv tvrtke",
     "display_name_label": "Prikazni naziv (nije obavezan)",
     "oib_label": "OIB",
     "oib_hint": "11 znamenki. Bit će provjeren automatski preko sudskog registra.",
     "oib_invalid": "Neispravan OIB. Provjerite kontrolnu znamenku.",
     "oib_lookup_failed": "Nismo mogli dohvatiti podatke iz registra — provjerite ručno.",
-
     "address_label": "Adresa",
     "city_label": "Grad",
     "country_label": "Država",
-
     "logo_label": "Logotip",
     "logo_hint": "Preporuka: PNG ili SVG, 512 × 512.",
     "brand_primary_label": "Primarna boja",
@@ -203,13 +334,10 @@
     "size_class_label": "Veličina tvrtke",
     "prior_year_revenue_label": "Prihod prethodne godine (EUR)",
     "prior_year_revenue_hint": "Potrebno za izračun limita odbitnih darovanja.",
-
     "invite_emails_label": "E-adrese kolega (odvojene zarezom)",
     "invite_note": "Poslat ćemo im pozivnicu s jednokratnim linkom koji vrijedi 14 dana.",
-
     "create_cta": "Otvori profil tvrtke",
     "create_success": "Profil tvrtke je otvoren.",
-
     "dashboard_title": "Nadzorna ploča tvrtke",
     "dashboard_subtitle": "Vodite zajedničko davanje i pratite utjecaj — sve na jednom mjestu.",
     "metric_members": "Članovi",
@@ -217,44 +345,37 @@
     "metric_pledges_ytd": "Pledge-ovi ove godine",
     "metric_headroom": "Preostali limit",
     "metric_headroom_hint": "Od prihoda prethodne godine",
-
     "team_title": "Tim",
     "team_invite_cta": "Pošalji pozivnicu",
     "team_domain_verify_cta": "Potvrdi domenu",
     "team_empty": "Još nema članova. Pozovite prvi tim.",
     "team_invite_sent": "Pozivnica je spremna. Kopirajte link i pošaljite kolegi.",
-
     "domain_title": "Verifikacija domene",
     "domain_instructions": "Dodajte sljedeći TXT zapis na DNS domene i pritisnite 'Potvrdi'.",
     "domain_record_host": "Host",
     "domain_record_value": "Vrijednost",
     "domain_verify_success": "Domena je potvrđena.",
     "domain_verify_failed": "TXT zapis još nije vidljiv. Pokušajte za 5 minuta.",
-
     "campaigns_title": "Kampanje",
     "campaigns_new": "Nova kampanja",
     "campaigns_empty": "Nema kampanja. Pokrenite prvu i okupite tim oko jednog cilja.",
-
+    "actions_recent_title": "Nedavne akcije podrške",
+    "actions_open_confirmation": "Otvori potvrdu",
     "settings_title": "Postavke tvrtke",
     "settings_brand_section": "Brending",
     "settings_finance_section": "Financije i porezne potvrde",
     "settings_billing_section": "Pretplata",
     "settings_match_ratio_label": "Podudaranje doprinosa (npr. 1.0 = 1:1)",
     "settings_match_ratio_hint": "Kad zaposlenik traži podudaranje, tvrtka automatski dodaje pledge u ovom omjeru.",
-
     "switcher_label": "Izaberi tvrtku",
     "switcher_multi": "Više tvrtki",
-
     "pledge_on_behalf_label": "Pledge u ime tvrtke",
     "pledge_match_label": "Zatraži podudaranje tvrtke",
     "pledge_match_hint": "Tvrtka će dodati odgovarajući pledge ako je omjer podudaranja > 0.",
-
     "receipts_section_title": "Porezne potvrde",
     "receipts_section_hint": "Generirajte PDF i XML sažetke za fiskalnu godinu.",
-
     "exports_section_title": "ESG izvozi",
     "exports_section_hint": "Preuzmite ZIP izvještaja s CSV, JSON, narativnim PDF-om i dokazima, po okviru i razdoblju.",
-
     "csr_section_title": "CSR izvještaji",
     "csr_section_hint": "PDF i DOCX sažetak za razdoblje. Uključuje isporučene/potvrđene pledge-ove s EUR u razdoblju i volonterske sate povezane s tvrtkom.",
     "csr_generate": "Generiraj izvještaj",
@@ -272,7 +393,14 @@
     "public_company_download": "Preuzmi PDF",
     "public_company_hours": "Volonterski sati",
     "public_company_institutions": "Podržane ustanove",
-    "public_company_metrics_given": "Potvrđeno darovanje"
+    "public_company_metrics_given": "Potvrđeno darovanje",
+    "public_company_back": "Natrag na kartu",
+    "csr_generated": "CSR izvještaj je izrađen",
+    "campaign_created": "Kampanja je izrađena",
+    "campaign_updated": "Kampanja je ažurirana",
+    "domain_added": "Domena je dodana",
+    "member_removed": "Član je uklonjen",
+    "verification_sent": "E-pošta za provjeru je poslana"
   },
   "export": {
     "framework": "Okvir",
@@ -283,7 +411,8 @@
     "generating": "Generiranje…",
     "list_title": "Povijest izvoza",
     "empty": "Još nema izvoza.",
-    "download_zip": "Preuzmi ZIP"
+    "download_zip": "Preuzmi ZIP",
+    "generated": "Izvoz je izrađen"
   },
   "pledge": {
     "cta": "Mogu pomoći",
@@ -311,7 +440,6 @@
     "volunteers_check_out": "Odjava",
     "volunteers_in": "Prijava",
     "volunteers_out": "Odjava",
-
     "pledges_title": "Pledge-ovi za vašu ustanovu",
     "pledges_subtitle": "Označite zaprimanje i potvrdite isporuku za porezne zapise donatora.",
     "pledges_empty": "Još nema pledge-ova.",
@@ -332,7 +460,8 @@
     "empty": "Još nema generiranih potvrda.",
     "download_pdf": "Preuzmi PDF",
     "download_xml": "Preuzmi XML",
-    "year_invalid": "Unesite ispravnu godinu."
+    "year_invalid": "Unesite ispravnu godinu.",
+    "generated": "Potvrda je izrađena"
   },
   "billing": {
     "checkout_sme_tax": "Nadogradi na SME Tax",
@@ -405,7 +534,11 @@
     "routine": "Redovno",
     "loading": "Učitavanje potreba ustanova",
     "error_loading": "Nismo uspjeli učitati potrebe. Pokušajte ponovno.",
-    "empty": "Trenutačno nema aktivnih potreba"
+    "empty": "Trenutačno nema aktivnih potreba",
+    "empty_hint": "Filtri su možda preuski. Očistite ih ili pregledajte ustanove na karti.",
+    "clear_filters": "Očisti filtre",
+    "empty_open_map": "Otvori kartu ustanova",
+    "browse_needs": "Pregledaj potrebe"
   },
   "need_card": {
     "urgent": "Hitno",
@@ -420,7 +553,10 @@
     "subtitle": "Pridružite se događaju i učinite razliku",
     "loading": "Učitavanje volonterskih događaja",
     "error_loading": "Nismo uspjeli učitati volonterske događaje. Pokušajte ponovno.",
-    "empty": "Nema nadolazećih volonterskih događaja. Navratite ponovno!"
+    "empty": "Nema nadolazećih volonterskih događaja. Navratite ponovno!",
+    "empty_hint": "U međuvremenu možete pomoći darovanjem ili pronaći ustanove na karti.",
+    "empty_browse_needs": "Pregledaj potrebe",
+    "empty_open_map": "Otvori kartu"
   },
   "volunteer_card": {
     "volunteers": "Volonteri",
@@ -511,7 +647,8 @@
     "back_results": "Natrag na rezultate",
     "cluster_hint": "Povećajte grupu kako biste pregledali pojedinačne udruge. Svi aktivni službeni zapisi ostaju prikazani, a nacionalni prikaz ostaje brz.",
     "empty": "Nijedna ustanova ne odgovara ovom području i filtrima.",
-    "bounded": "Prikazan je ograničen skup rezultata. Povećajte kartu ili suzite filtre."
+    "bounded": "Prikazan je ograničen skup rezultata. Povećajte kartu ili suzite filtre.",
+    "filters": "Filtri"
   },
   "map_ui": {
     "distance": "Udaljenost od vas",
@@ -523,7 +660,9 @@
     "cluster_title": "{count} ustanova. Povećajte kartu za pregled.",
     "cluster_alt": "Grupa od {count} ustanova",
     "your_location": "Vaša lokacija",
-    "map_aria": "Interaktivna karta ustanova"
+    "map_aria": "Interaktivna karta ustanova",
+    "zoom_in": "Povećaj",
+    "zoom_out": "Smanji"
   },
   "demo": {
     "ngo_plans_title": "Planovi za ustanove",

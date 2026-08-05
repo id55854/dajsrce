@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import clsx from "clsx";
-import { BadgeCheck, Loader2, Save, Settings as SettingsIcon } from "lucide-react";
+import { BadgeCheck, Save, Settings as SettingsIcon } from "lucide-react";
 import { useT, useLocale } from "@/i18n/client";
 import { SIZE_CLASSES, SUBSCRIPTION_TIERS } from "@/lib/constants";
 import { flags } from "@/lib/flags";
@@ -11,6 +11,17 @@ import { ceilingPct, headroomEur } from "@/lib/tax";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BillingPanel } from "./billing-panel";
 import { CompanyVerificationSection } from "@/components/CompanyVerificationSection";
+import {
+  Badge,
+  Button,
+  Card,
+  Field,
+  Input,
+  PageHeader,
+  SectionHeader,
+  Select,
+  useToast,
+} from "@/components/ui";
 
 type Props = {
   company: Company;
@@ -20,12 +31,16 @@ type Props = {
 
 type Tab = "general" | "verification";
 
+const TABS: Tab[] = ["general", "verification"];
+
 export function SettingsEditor({ company, myRole, allowDemoBilling = false }: Props) {
   const t = useT();
   const { locale } = useLocale();
   const router = useRouter();
+  const toast = useToast();
   const searchParams = useSearchParams();
   const canManage = myRole === "owner" || myRole === "admin";
+  const tabBaseId = useId();
 
   const [tab, setTab] = useState<Tab>(
     searchParams.get("verified") === "1" ? "verification" : "general"
@@ -36,7 +51,6 @@ export function SettingsEditor({ company, myRole, allowDemoBilling = false }: Pr
   useEffect(() => {
     if (searchParams.get("verified") === "1") setTab("verification");
   }, [searchParams]);
-
 
   const [displayName, setDisplayName] = useState(company.display_name ?? "");
   const [tagline, setTagline] = useState(company.tagline ?? "");
@@ -57,11 +71,9 @@ export function SettingsEditor({ company, myRole, allowDemoBilling = false }: Pr
     (SUBSCRIPTION_TIERS[company.subscription_tier]?.publicProfile ?? false);
 
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   async function save() {
     setSaving(true);
-    setMessage(null);
     try {
       const res = await fetch(`/api/companies/${company.id}`, {
         method: "PATCH",
@@ -83,255 +95,313 @@ export function SettingsEditor({ company, myRole, allowDemoBilling = false }: Pr
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setMessage(data.error ?? t("common.error_generic"));
+        // Success and failure used to share one state and one grey style.
+        toast({
+          tone: "error",
+          title: t("errors.generic_title"),
+          description: typeof data.error === "string" ? data.error : t("common.error_generic"),
+        });
         return;
       }
-      setMessage(locale === "hr" ? "Spremljeno." : "Saved.");
+      toast({ tone: "success", title: t("common.saved") });
       router.refresh();
+    } catch {
+      toast({
+        tone: "error",
+        title: t("errors.generic_title"),
+        description: t("common.error_generic"),
+      });
     } finally {
       setSaving(false);
     }
   }
 
   const headroom = headroomEur(priorRevenue ? Number(priorRevenue) : null);
+  const tabId = (name: Tab) => `${tabBaseId}-tab-${name}`;
+  const panelId = (name: Tab) => `${tabBaseId}-panel-${name}`;
+
+  function moveTab(direction: 1 | -1) {
+    const index = TABS.indexOf(tab);
+    const next = TABS[(index + direction + TABS.length) % TABS.length]!;
+    setTab(next);
+    document.getElementById(tabId(next))?.focus();
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          {t("company.settings_title")}
-        </h2>
-        {company.verified_at ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-            <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-            {t("company.verification.verified_badge")}
-          </span>
-        ) : null}
-      </div>
+    <div>
+      <PageHeader
+        title={t("company.settings_title")}
+        actions={
+          company.verified_at ? (
+            <Badge tone="success" icon={<BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />}>
+              {t("company.verification.verified_badge")}
+            </Badge>
+          ) : undefined
+        }
+      />
 
       <nav
-        className="flex gap-1 rounded-full border border-gray-200 bg-white p-1 text-sm shadow-sm dark:border-gray-800 dark:bg-gray-900"
+        className="mb-6 flex gap-1 rounded-full border border-border-subtle bg-surface-raised p-1 shadow-raised"
         role="tablist"
-        aria-label="Settings tabs"
+        aria-label={t("company.settings_title")}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            moveTab(1);
+          } else if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            moveTab(-1);
+          }
+        }}
       >
-        <TabButton active={tab === "general"} onClick={() => setTab("general")}>
-          <SettingsIcon className="h-4 w-4" aria-hidden />
+        <TabButton
+          id={tabId("general")}
+          controls={panelId("general")}
+          active={tab === "general"}
+          onClick={() => setTab("general")}
+        >
+          <SettingsIcon className="h-4 w-4" aria-hidden="true" />
           {locale === "hr" ? "Postavke" : "Settings"}
         </TabButton>
-        <TabButton active={tab === "verification"} onClick={() => setTab("verification")}>
-          <BadgeCheck className="h-4 w-4" aria-hidden />
+        <TabButton
+          id={tabId("verification")}
+          controls={panelId("verification")}
+          active={tab === "verification"}
+          onClick={() => setTab("verification")}
+        >
+          <BadgeCheck className="h-4 w-4" aria-hidden="true" />
           {t("company.verification.tab_label")}
         </TabButton>
       </nav>
 
       {tab === "verification" ? (
-        <CompanyVerificationSection
-          companyId={company.id}
-          companySlug={company.slug}
-          companyDomain={null}
-        />
+        <div
+          role="tabpanel"
+          id={panelId("verification")}
+          aria-labelledby={tabId("verification")}
+          tabIndex={0}
+        >
+          <CompanyVerificationSection
+            companyId={company.id}
+            companySlug={company.slug}
+            companyDomain={null}
+          />
+        </div>
       ) : (
-        <GeneralTab />
+        <div
+          role="tabpanel"
+          id={panelId("general")}
+          aria-labelledby={tabId("general")}
+          tabIndex={0}
+          className="space-y-8"
+        >
+          <Card padding="lg">
+            <SectionHeader title={t("company.settings_brand_section")} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={locale === "hr" ? "Prikazni naziv" : "Display name"}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    disabled={!canManage}
+                  />
+                )}
+              </Field>
+              <Field label={locale === "hr" ? "Slogan" : "Tagline"}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    value={tagline}
+                    onChange={(e) => setTagline(e.target.value)}
+                    disabled={!canManage}
+                  />
+                )}
+              </Field>
+              <Field label={t("company.address_label")}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    disabled={!canManage}
+                  />
+                )}
+              </Field>
+              <Field label={t("company.city_label")}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    disabled={!canManage}
+                  />
+                )}
+              </Field>
+              <Field label={t("company.brand_primary_label")}>
+                {(field) => (
+                  <input
+                    {...field}
+                    type="color"
+                    className="h-11 w-full cursor-pointer rounded-control border border-border-subtle bg-surface-raised p-1 disabled:cursor-not-allowed disabled:opacity-60"
+                    value={brandPrimary}
+                    onChange={(e) => setBrandPrimary(e.target.value)}
+                    disabled={!canManage}
+                  />
+                )}
+              </Field>
+              <Field label={t("company.brand_secondary_label")}>
+                {(field) => (
+                  <input
+                    {...field}
+                    type="color"
+                    className="h-11 w-full cursor-pointer rounded-control border border-border-subtle bg-surface-raised p-1 disabled:cursor-not-allowed disabled:opacity-60"
+                    value={brandSecondary}
+                    onChange={(e) => setBrandSecondary(e.target.value)}
+                    disabled={!canManage}
+                  />
+                )}
+              </Field>
+              <Field label={t("company.logo_label")} hint={t("company.logo_hint")}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="https://…"
+                    disabled={!canManage}
+                  />
+                )}
+              </Field>
+              <Field label={t("company.size_class_label")}>
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={sizeClass}
+                    onChange={(e) => setSizeClass(e.target.value as SizeClass | "")}
+                    disabled={!canManage}
+                  >
+                    <option value="">—</option>
+                    {(Object.keys(SIZE_CLASSES) as SizeClass[]).map((k) => (
+                      <option key={k} value={k}>
+                        {SIZE_CLASSES[k].label}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            </div>
+          </Card>
+
+          {canPublicProfile && canManage ? (
+            <Card padding="lg">
+              <SectionHeader title={t("company.public_profile_section_title")} />
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-border-strong accent-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                  checked={publicProfileEnabled}
+                  onChange={(e) => setPublicProfileEnabled(e.target.checked)}
+                />
+                <span>
+                  <span className="block text-sm font-medium text-ink">
+                    {t("company.public_profile_toggle")}
+                  </span>
+                  <span className="mt-1 block text-sm text-ink-secondary">
+                    {t("company.public_profile_hint")}
+                  </span>
+                </span>
+              </label>
+              <div className="mt-6">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary">
+                  {t("company.public_profile_embed_title")}
+                </h3>
+                <p className="mt-1 text-sm text-ink-secondary">
+                  {t("company.public_profile_embed_hint")}
+                </p>
+                <pre className="mt-2 overflow-x-auto rounded-control bg-surface-sunken p-3 text-xs text-ink">
+                  {`<script src="${(process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "") || "https://YOUR_APP_URL"}/company/${company.slug}/embed" async></script>`}
+                </pre>
+              </div>
+            </Card>
+          ) : null}
+
+          <Card padding="lg">
+            <SectionHeader title={t("company.settings_finance_section")} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label={t("company.prior_year_revenue_label")}
+                hint={t("company.prior_year_revenue_hint")}
+              >
+                {(field) => (
+                  <Input
+                    {...field}
+                    type="number"
+                    min={0}
+                    value={priorRevenue}
+                    onChange={(e) => setPriorRevenue(e.target.value)}
+                    disabled={!canManage}
+                  />
+                )}
+              </Field>
+              <Field
+                label={t("company.settings_match_ratio_label")}
+                hint={t("company.settings_match_ratio_hint")}
+              >
+                {(field) => (
+                  <Input
+                    {...field}
+                    type="number"
+                    step="0.05"
+                    min={0}
+                    max={10}
+                    value={matchRatio}
+                    onChange={(e) => setMatchRatio(e.target.value)}
+                    disabled={!canManage}
+                  />
+                )}
+              </Field>
+            </div>
+            <p className="mt-4 rounded-control bg-surface-sunken p-3 text-sm text-ink-secondary">
+              {t("tax.ceiling_hint", { pct: ceilingPct().toFixed(1) })}
+              {" · "}
+              {locale === "hr" ? "Gornji limit" : "Ceiling"}: {formatEur(headroom)}
+            </p>
+          </Card>
+
+          <BillingPanel
+            companyId={company.id}
+            myRole={myRole}
+            subscriptionTier={company.subscription_tier}
+            allowDemoBilling={allowDemoBilling}
+          />
+
+          {canManage ? (
+            <div className="flex justify-end">
+              <Button
+                onClick={() => void save()}
+                loading={saving}
+                icon={<Save className="h-4 w-4" aria-hidden="true" />}
+              >
+                {saving ? t("common.saving") : t("common.save")}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );
-
-  // Existing settings tree, kept as an inner function so we can show / hide
-  // it via the tab without changing surrounding state.
-  function GeneralTab() {
-    return (
-      <div className="space-y-8">
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          {t("company.settings_brand_section")}
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={locale === "hr" ? "Prikazni naziv" : "Display name"}>
-            <input
-              className={inputClass}
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              disabled={!canManage}
-            />
-          </Field>
-          <Field label={locale === "hr" ? "Slogan" : "Tagline"}>
-            <input
-              className={inputClass}
-              value={tagline}
-              onChange={(e) => setTagline(e.target.value)}
-              disabled={!canManage}
-            />
-          </Field>
-          <Field label={t("company.address_label")}>
-            <input
-              className={inputClass}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              disabled={!canManage}
-            />
-          </Field>
-          <Field label={t("company.city_label")}>
-            <input
-              className={inputClass}
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              disabled={!canManage}
-            />
-          </Field>
-          <Field label={t("company.brand_primary_label")}>
-            <input
-              type="color"
-              className="h-10 w-full rounded-xl border border-gray-200 dark:border-gray-700"
-              value={brandPrimary}
-              onChange={(e) => setBrandPrimary(e.target.value)}
-              disabled={!canManage}
-            />
-          </Field>
-          <Field label={t("company.brand_secondary_label")}>
-            <input
-              type="color"
-              className="h-10 w-full rounded-xl border border-gray-200 dark:border-gray-700"
-              value={brandSecondary}
-              onChange={(e) => setBrandSecondary(e.target.value)}
-              disabled={!canManage}
-            />
-          </Field>
-          <Field label={t("company.logo_label")} hint={t("company.logo_hint")}>
-            <input
-              className={inputClass}
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              placeholder="https://…"
-              disabled={!canManage}
-            />
-          </Field>
-          <Field label={t("company.size_class_label")}>
-            <select
-              className={inputClass}
-              value={sizeClass}
-              onChange={(e) => setSizeClass(e.target.value as SizeClass | "")}
-              disabled={!canManage}
-            >
-              <option value="">—</option>
-              {(Object.keys(SIZE_CLASSES) as SizeClass[]).map((k) => (
-                <option key={k} value={k}>
-                  {SIZE_CLASSES[k].label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      </section>
-
-      {canPublicProfile && canManage ? (
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-            {t("company.public_profile_section_title")}
-          </h3>
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 rounded border-gray-300 text-red-500 focus:ring-red-500"
-              checked={publicProfileEnabled}
-              onChange={(e) => setPublicProfileEnabled(e.target.checked)}
-            />
-            <span>
-              <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">
-                {t("company.public_profile_toggle")}
-              </span>
-              <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
-                {t("company.public_profile_hint")}
-              </span>
-            </span>
-          </label>
-          <div className="mt-6">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              {t("company.public_profile_embed_title")}
-            </h4>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {t("company.public_profile_embed_hint")}
-            </p>
-            <pre className="mt-2 overflow-x-auto rounded-xl bg-gray-900 p-3 text-xs text-gray-100">
-              {`<script src="${(process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "") || "https://YOUR_APP_URL"}/company/${company.slug}/embed" async></script>`}
-            </pre>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-          {t("company.settings_finance_section")}
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label={t("company.prior_year_revenue_label")}
-            hint={t("company.prior_year_revenue_hint")}
-          >
-            <input
-              type="number"
-              min={0}
-              className={inputClass}
-              value={priorRevenue}
-              onChange={(e) => setPriorRevenue(e.target.value)}
-              disabled={!canManage}
-            />
-          </Field>
-          <Field
-            label={t("company.settings_match_ratio_label")}
-            hint={t("company.settings_match_ratio_hint")}
-          >
-            <input
-              type="number"
-              step="0.05"
-              min={0}
-              max={10}
-              className={inputClass}
-              value={matchRatio}
-              onChange={(e) => setMatchRatio(e.target.value)}
-              disabled={!canManage}
-            />
-          </Field>
-        </div>
-        <p className="mt-4 rounded-xl bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-800/60 dark:text-gray-400">
-          {t("tax.ceiling_hint", { pct: ceilingPct().toFixed(1) })}
-          {" · "}
-          {locale === "hr" ? "Gornji limit" : "Ceiling"}: {formatEur(headroom)}
-        </p>
-      </section>
-
-      <BillingPanel
-        companyId={company.id}
-        myRole={myRole}
-        subscriptionTier={company.subscription_tier}
-        allowDemoBilling={allowDemoBilling}
-      />
-
-      {canManage ? (
-        <div className="flex items-center justify-end gap-3">
-          {message ? (
-            <span className="text-sm text-gray-600 dark:text-gray-400">{message}</span>
-          ) : null}
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-red-600 disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {t("common.save")}
-          </button>
-        </div>
-      ) : null}
-      </div>
-    );
-  }
 }
 
 function TabButton({
+  id,
+  controls,
   active,
   onClick,
   children,
 }: {
+  id: string;
+  controls: string;
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
@@ -339,14 +409,19 @@ function TabButton({
   return (
     <button
       type="button"
+      id={id}
       role="tab"
       aria-selected={active}
+      aria-controls={controls}
+      tabIndex={active ? 0 : -1}
       onClick={onClick}
       className={clsx(
-        "inline-flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+        "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition duration-150 ease-out",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+        "motion-safe:active:scale-[0.97]",
         active
-          ? "bg-red-500 text-white shadow-sm"
-          : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+          ? "bg-brand text-white shadow-raised"
+          : "text-ink-secondary hover:bg-surface-sunken hover:text-ink"
       )}
     >
       {children}
@@ -354,28 +429,11 @@ function TabButton({
   );
 }
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-      {label}
-      {children}
-      {hint ? <span className="mt-1 block text-xs font-normal text-gray-500">{hint}</span> : null}
-    </label>
-  );
-}
-
 function formatEur(value: number): string {
   if (!value || value <= 0) return "—";
-  return new Intl.NumberFormat("hr-HR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("hr-HR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
-
-const inputClass =
-  "mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100";

@@ -1,12 +1,83 @@
 "use client";
 
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { InstitutionCategory, DonationType } from "@/lib/types";
-import { CATEGORY_CONFIG, DONATION_TYPES } from "@/lib/constants";
+import { CATEGORY_CONFIG, DONATION_TYPES, categoryVars } from "@/lib/constants";
 import clsx from "clsx";
 import { useLocale, useT } from "@/i18n/client";
 
 const DONATION_TYPE_KEYS = Object.keys(DONATION_TYPES) as DonationType[];
 const CATEGORY_KEYS = Object.keys(CATEGORY_CONFIG) as InstitutionCategory[];
+
+/**
+ * One transition declaration per chip: stacking `transition-colors` with
+ * `transition-shadow`/`transition-transform` lets whichever utility Tailwind
+ * emits last win, which is why the coloured category chips used to snap while
+ * their siblings faded.
+ *
+ * `min-h-10` raises the target from the old 32px toward the comfortable
+ * minimum without making a scrolling chip row feel like a toolbar.
+ */
+const CHIP_BASE = [
+  "inline-flex min-h-10 shrink-0 items-center justify-center rounded-full border px-3.5 py-1.5 text-sm font-medium",
+  "transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out",
+  "motion-safe:active:scale-[0.97]",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+].join(" ");
+
+const CHIP_INACTIVE =
+  "border-border-subtle bg-surface-raised text-ink-secondary hover:border-border-strong hover:text-ink";
+
+const CHIP_ACTIVE = "border-brand bg-brand-soft text-brand-on-soft";
+
+export type FilterChipProps = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "aria-pressed"
+> & {
+  /**
+   * Required, and the single source of both the pressed state and the visual
+   * treatment — a chip can never look active without announcing it.
+   */
+  "aria-pressed": boolean;
+  /**
+   * Tints the active chip with the category hue instead of the brand. The hue
+   * is published as `--cat` and mixed against the theme's surface/ink tokens by
+   * `.category-chip`, so it stays readable in dark mode (applying the raw
+   * light-mode tint is what made these chips near-white on dark cards).
+   */
+  category?: InstitutionCategory;
+};
+
+/**
+ * The one filter chip. `/needs` used to re-implement this markup byte for byte
+ * — and its two chip rows still disagreed with each other on weight and ink.
+ */
+export function FilterChip({
+  "aria-pressed": pressed,
+  category,
+  className,
+  style,
+  ...rest
+}: FilterChipProps) {
+  const tinted = pressed && category;
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      style={tinted ? { ...categoryVars(category), ...style } : style}
+      className={clsx(
+        CHIP_BASE,
+        pressed
+          ? tinted
+            ? "category-chip border-current"
+            : CHIP_ACTIVE
+          : CHIP_INACTIVE,
+        className
+      )}
+      {...rest}
+    />
+  );
+}
 
 export type FilterState = {
   categories: InstitutionCategory[];
@@ -19,6 +90,16 @@ type FilterBarProps = {
   filters: FilterState;
   onChange: (next: FilterState) => void;
 };
+
+function GroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex shrink-0 items-center gap-1.5 pr-2">
+      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-tertiary">
+        {children}
+      </span>
+    </div>
+  );
+}
 
 export function FilterBar({ filters, onChange }: FilterBarProps) {
   const t = useT();
@@ -43,121 +124,69 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         )}
       >
-        <div className="flex shrink-0 items-center gap-1.5 pr-2">
-          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            {t("filters.category")}
-          </span>
-        </div>
+        <GroupLabel>{t("filters.category")}</GroupLabel>
         {CATEGORY_KEYS.map((cat) => {
           const cfg = CATEGORY_CONFIG[cat];
           const on = filters.categories.includes(cat);
           return (
-            <button
+            <FilterChip
               key={cat}
-              type="button"
               aria-pressed={on}
+              category={cat}
               onClick={() => toggleCategory(cat)}
-              className={clsx(
-                "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-shadow",
-                on
-                  ? "shadow-sm ring-2 ring-offset-1"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
-              )}
-              style={
-                on
-                  ? {
-                      borderColor: cfg.color,
-                      backgroundColor: cfg.bgColor,
-                      color: cfg.color,
-                      boxShadow: `0 0 0 2px ${cfg.color}33`,
-                    }
-                  : undefined
-              }
             >
               {locale === "hr" ? cfg.labelHr : cfg.label}
-            </button>
+            </FilterChip>
           );
         })}
 
         <div
-          className="mx-1 h-8 w-px shrink-0 self-center bg-gray-200 dark:bg-gray-700"
+          className="mx-1 h-8 w-px shrink-0 self-center bg-border-subtle"
           aria-hidden
         />
 
-        <div className="flex shrink-0 items-center gap-1.5 pr-2">
-          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            {t("filters.donation")}
-          </span>
-        </div>
-        <button
-          type="button"
+        <GroupLabel>{t("filters.donation")}</GroupLabel>
+        <FilterChip
           aria-pressed={filters.donationType === null}
           onClick={() => setDonationType(null)}
-          className={clsx(
-            "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
-            filters.donationType === null
-              ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
-              : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
-          )}
         >
           {t("filters.all")}
-        </button>
+        </FilterChip>
         {DONATION_TYPE_KEYS.map((key) => {
           const on = filters.donationType === key;
           return (
-            <button
+            <FilterChip
               key={key}
-              type="button"
               aria-pressed={on}
               onClick={() => setDonationType(on ? null : key)}
-              className={clsx(
-                "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-medium transition-colors",
-                on
-                  ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
-              )}
             >
               {locale === "hr"
                 ? DONATION_TYPES[key].labelHr
                 : DONATION_TYPES[key].label}
-            </button>
+            </FilterChip>
           );
         })}
 
         <div
-          className="mx-1 h-8 w-px shrink-0 self-center bg-gray-200 dark:bg-gray-700"
+          className="mx-1 h-8 w-px shrink-0 self-center bg-border-subtle"
           aria-hidden
         />
 
-        <button
-          type="button"
+        <FilterChip
           aria-pressed={filters.onlyZagreb}
           onClick={() => onChange({ ...filters, onlyZagreb: !filters.onlyZagreb })}
-          className={clsx(
-            "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-colors",
-            filters.onlyZagreb
-              ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
-              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
-          )}
         >
           {filters.onlyZagreb
             ? t("filters.zagreb_only")
             : t("filters.all_croatia")}
-        </button>
+        </FilterChip>
 
-        <button
-          type="button"
+        <FilterChip
           aria-pressed={filters.onlyUrgent}
           onClick={() => onChange({ ...filters, onlyUrgent: !filters.onlyUrgent })}
-          className={clsx(
-            "shrink-0 rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-colors",
-            filters.onlyUrgent
-              ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
-              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600"
-          )}
         >
           {t("filters.urgent_only")}
-        </button>
+        </FilterChip>
       </div>
     </div>
   );

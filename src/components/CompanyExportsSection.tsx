@@ -1,12 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FileArchive, Loader2 } from "lucide-react";
+import { FileArchive } from "lucide-react";
 import { useT, useLocale } from "@/i18n/client";
 import { flags } from "@/lib/flags";
 import type { CompanyRole, EsgExport, Framework } from "@/lib/types";
 import { FRAMEWORK_LABELS, SUBSCRIPTION_TIERS } from "@/lib/constants";
 import type { SubscriptionTier } from "@/lib/types";
+import {
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  Input,
+  SectionHeader,
+  Select,
+  Skeleton,
+  useToast,
+} from "@/components/ui";
 
 const ALL_FRAMEWORKS = Object.keys(FRAMEWORK_LABELS) as Framework[];
 
@@ -18,6 +29,7 @@ type Props = {
 
 export function CompanyExportsSection({ companyId, memberRole, subscriptionTier }: Props) {
   const t = useT();
+  const toast = useToast();
   const { locale } = useLocale();
   const canFinance = memberRole === "owner" || memberRole === "admin" || memberRole === "finance";
   const allowedFrameworks = SUBSCRIPTION_TIERS[subscriptionTier].exports;
@@ -39,8 +51,11 @@ export function CompanyExportsSection({ companyId, memberRole, subscriptionTier 
   const [periodEnd, setPeriodEnd] = useState(() => new Date().toISOString().slice(0, 10));
   const [exports, setExports] = useState<EsgExport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [frameworkError, setFrameworkError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (displayFrameworks.length && !displayFrameworks.includes(framework)) {
@@ -48,30 +63,59 @@ export function CompanyExportsSection({ companyId, memberRole, subscriptionTier 
     }
   }, [displayFrameworks, framework]);
 
-  const load = useCallback(async () => {
-    if (!canFinance || !fullyEnabled) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/companies/${companyId}/exports`, { credentials: "include" });
-      const data = await res.json();
-      if (res.ok) setExports(data.exports ?? []);
-    } catch {
-      setMessage(t("common.error_generic"));
-    } finally {
-      setLoading(false);
-    }
-  }, [canFinance, companyId, fullyEnabled, t]);
+  const frameworkLabel = useCallback(
+    (value: Framework) => {
+      const entry = FRAMEWORK_LABELS[value];
+      if (!entry) return value;
+      return locale === "hr" ? entry.labelHr : entry.label;
+    },
+    [locale]
+  );
+
+  const load = useCallback(
+    async (mode: "initial" | "refresh" = "initial") => {
+      if (!canFinance || !fullyEnabled) {
+        setLoading(false);
+        return;
+      }
+      if (mode === "refresh") setRefreshing(true);
+      try {
+        const res = await fetch(`/api/companies/${companyId}/exports`, {
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setLoadError(typeof data.error === "string" ? data.error : t("common.error_generic"));
+          return;
+        }
+        setLoadError(null);
+        setExports(data.exports ?? []);
+      } catch {
+        setLoadError(t("common.error_generic"));
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [canFinance, companyId, fullyEnabled, t]
+  );
 
   useEffect(() => {
-    void load();
+    void load("initial");
   }, [load]);
 
+  function reportFailure(detail?: unknown) {
+    toast({
+      tone: "error",
+      title: t("errors.generic_title"),
+      description: typeof detail === "string" ? detail : t("common.error_generic"),
+    });
+  }
+
   async function generate() {
-    setMessage(null);
+    setFrameworkError(null);
     if (!framework) {
-      setMessage(t("export.framework_required"));
+      setFrameworkError(t("export.framework_required"));
       return;
     }
     setGenerating(true);
@@ -84,114 +128,193 @@ export function CompanyExportsSection({ companyId, memberRole, subscriptionTier 
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMessage(typeof data.error === "string" ? data.error : t("common.error_generic"));
+        reportFailure(data.error);
         return;
       }
-      await load();
+      toast({
+        tone: "success",
+        title: t("export.generated"),
+        description: `${frameworkLabel(framework)} · ${periodStart} — ${periodEnd}`,
+      });
+      await load("refresh");
+    } catch {
+      reportFailure();
     } finally {
       setGenerating(false);
     }
   }
 
   async function download(exportId: string) {
-    const res = await fetch(`/api/companies/${companyId}/exports/${exportId}/download`, {
-      credentials: "include",
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && typeof data.url === "string") {
+    setDownloading(exportId);
+    try {
+      const res = await fetch(`/api/companies/${companyId}/exports/${exportId}/download`, {
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      // Was `if (res.ok && …)` with no else: a rejected download said nothing.
+      if (!res.ok || typeof data.url !== "string") {
+        reportFailure(data.error);
+        return;
+      }
       window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch {
+      reportFailure();
+    } finally {
+      setDownloading(null);
     }
   }
 
   if (!canFinance) return null;
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-      <div className="mb-3 flex items-center gap-2 text-red-500">
-        <FileArchive className="h-4 w-4" aria-hidden />
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-          {t("company.exports_section_title")}
-        </h3>
-      </div>
-      <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">{t("company.exports_section_hint")}</p>
+    <Card padding="lg">
+      <SectionHeader
+        title={
+          <span className="flex items-center gap-2">
+            <FileArchive className="h-4 w-4 text-brand" aria-hidden="true" />
+            {t("company.exports_section_title")}
+          </span>
+        }
+        description={t("company.exports_section_hint")}
+      />
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {t("export.framework")}
-          <select
-            className="mt-1 block w-full min-w-[200px] rounded-xl border border-gray-200 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            value={framework}
-            onChange={(e) => setFramework(e.target.value as Framework)}
-          >
-            {displayFrameworks.map((f) => (
-              <option key={f} value={f}>
-                {locale === "hr" ? FRAMEWORK_LABELS[f].labelHr : FRAMEWORK_LABELS[f].label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {t("export.period_start")}
-          <input
-            type="date"
-            className="mt-1 rounded-xl border border-gray-200 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            value={periodStart}
-            onChange={(e) => setPeriodStart(e.target.value)}
-          />
-        </label>
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {t("export.period_end")}
-          <input
-            type="date"
-            className="mt-1 rounded-xl border border-gray-200 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            value={periodEnd}
-            onChange={(e) => setPeriodEnd(e.target.value)}
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            if (!fullyEnabled) return;
-            void generate();
-          }}
-          disabled={fullyEnabled && generating}
-          className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+      <div className="flex flex-wrap items-end gap-3">
+        <Field
+          label={t("export.framework")}
+          error={frameworkError}
+          className="min-w-[13rem] flex-1 sm:flex-none"
         >
-          {fullyEnabled && generating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {fullyEnabled && generating ? t("export.generating") : t("export.generate")}
-        </button>
+          {(field) => (
+            <Select
+              {...field}
+              value={framework}
+              onChange={(e) => setFramework(e.target.value as Framework)}
+              disabled={!fullyEnabled}
+            >
+              {displayFrameworks.map((f) => (
+                <option key={f} value={f}>
+                  {frameworkLabel(f)}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        <Field label={t("export.period_start")} className="w-40">
+          {(field) => (
+            <Input
+              {...field}
+              type="date"
+              value={periodStart}
+              onChange={(e) => setPeriodStart(e.target.value)}
+              disabled={!fullyEnabled}
+            />
+          )}
+        </Field>
+        <Field label={t("export.period_end")} className="w-40">
+          {(field) => (
+            <Input
+              {...field}
+              type="date"
+              value={periodEnd}
+              onChange={(e) => setPeriodEnd(e.target.value)}
+              disabled={!fullyEnabled}
+            />
+          )}
+        </Field>
+        <Button
+          onClick={() => void generate()}
+          disabled={!fullyEnabled}
+          loading={generating}
+        >
+          {generating ? t("export.generating") : t("export.generate")}
+        </Button>
       </div>
-      {fullyEnabled && message ? (
-        <p className="mb-3 text-sm text-red-600 dark:text-red-400">{message}</p>
-      ) : null}
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+
+      <h3 className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-ink-tertiary">
         {t("export.list_title")}
-      </h4>
-      {fullyEnabled && loading ? (
-        <p className="text-sm text-gray-500">{t("institution.loading")}</p>
-      ) : fullyEnabled && exports.length > 0 ? (
-        <ul className="space-y-2 text-sm">
+      </h3>
+
+      {!fullyEnabled ? (
+        <p className="text-sm text-ink-secondary">{t("export.empty")}</p>
+      ) : loading ? (
+        <ul className="space-y-2" aria-busy="true">
+          {[0, 1].map((i) => (
+            <Skeleton key={i} className="h-16 rounded-control" />
+          ))}
+        </ul>
+      ) : loadError ? (
+        <EmptyState
+          title={t("errors.generic_title")}
+          description={loadError}
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void load("refresh")}>
+              {t("errors.retry")}
+            </Button>
+          }
+        />
+      ) : exports.length === 0 ? (
+        <p className="text-sm text-ink-secondary">{t("export.empty")}</p>
+      ) : (
+        <ul
+          className={refreshing ? "space-y-2 opacity-60" : "space-y-2"}
+          aria-busy={refreshing || undefined}
+        >
           {exports.map((ex) => (
             <li
               key={ex.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-100 px-3 py-2 dark:border-gray-800"
+              className="rounded-control border border-border-subtle bg-surface-sunken px-4 py-3"
             >
-              <span className="text-gray-800 dark:text-gray-200">
-                {ex.framework} · {ex.period_start} — {ex.period_end} · v{ex.version}
-              </span>
-              <button
-                type="button"
-                onClick={() => void download(ex.id)}
-                className="text-xs font-semibold text-red-600 hover:underline"
-              >
-                {t("export.download_zip")}
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                {/* Framework, period and version were one concatenated string,
+                    so nothing could be scanned down a column. */}
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:flex sm:items-start sm:gap-8">
+                  <Cell
+                    label={t("export.framework")}
+                    value={frameworkLabel(ex.framework)}
+                    width="col-span-2 sm:w-56"
+                  />
+                  <Cell
+                    label={t("export.period_start")}
+                    value={ex.period_start}
+                    width="sm:w-28"
+                  />
+                  <Cell label={t("export.period_end")} value={ex.period_end} width="sm:w-28" />
+                  <Cell label="v" value={ex.version} width="sm:w-12" />
+                </dl>
+                <div className="shrink-0">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void download(ex.id)}
+                    loading={downloading === ex.id}
+                  >
+                    {t("export.download_zip")}
+                  </Button>
+                </div>
+              </div>
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="text-sm text-gray-500 dark:text-gray-400">{t("export.empty")}</p>
       )}
-    </section>
+    </Card>
+  );
+}
+
+function Cell({
+  label,
+  value,
+  width,
+}: {
+  label: string;
+  value: React.ReactNode;
+  width?: string;
+}) {
+  return (
+    <div className={width}>
+      <dt className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">
+        {label}
+      </dt>
+      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">{value}</dd>
+    </div>
   );
 }

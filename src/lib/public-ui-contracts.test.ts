@@ -9,7 +9,10 @@ function source(path: string): string {
 describe("public UI accessibility contracts", () => {
   it("keeps filter state programmatically exposed", () => {
     const filterBar = source("src/components/FilterBar.tsx");
-    const needsPage = source("src/app/needs/page.tsx");
+    // `/needs` and `/volunteer` are thin server shells that exist only to
+    // export localized metadata; the interactive markup lives in the client
+    // components these assertions point at.
+    const needsPage = source("src/app/needs/needs-client.tsx");
     expect(filterBar).toContain("aria-pressed={on}");
     expect(filterBar).toContain("aria-pressed={filters.onlyZagreb}");
     expect(filterBar).toContain("aria-pressed={filters.onlyUrgent}");
@@ -17,7 +20,10 @@ describe("public UI accessibility contracts", () => {
   });
 
   it("keeps async errors and loading state announced", () => {
-    for (const path of ["src/app/needs/page.tsx", "src/app/volunteer/page.tsx"]) {
+    for (const path of [
+      "src/app/needs/needs-client.tsx",
+      "src/app/volunteer/volunteer-client.tsx",
+    ]) {
       const contents = source(path);
       expect(contents).toContain('role="status"');
       expect(contents).toContain('role="alert"');

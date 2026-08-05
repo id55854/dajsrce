@@ -1,13 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Building2, HeartHandshake, Loader2, X } from "lucide-react";
-import clsx from "clsx";
+import { useCallback, useEffect, useState } from "react";
+import { Building2, HeartHandshake } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { AuthActionDialog } from "@/components/AuthActionDialog";
 import { useT } from "@/i18n/client";
 import type { CompanyRole } from "@/lib/types";
-import { useDialogFocus } from "@/lib/use-dialog-focus";
+import {
+  Button,
+  Dialog,
+  Field,
+  Input,
+  Select,
+  Textarea,
+  useToast,
+} from "@/components/ui";
 
 /**
  * Subset of `/api/pledges` POST response that the parent uses to patch its
@@ -41,8 +48,6 @@ type PledgeButtonProps = {
   onPledgeSuccess?: (payload: PledgeSuccessPayload) => void;
 };
 
-type ToastState = { type: "success" | "error"; message: string } | null;
-
 type CompanyOption = {
   id: string;
   legal_name: string;
@@ -53,19 +58,16 @@ type CompanyOption = {
 
 export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: PledgeButtonProps) {
   const t = useT();
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<ToastState>(null);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string>("me");
   const [requestMatch, setRequestMatch] = useState(false);
   const [amountEur, setAmountEur] = useState("");
-  const titleId = useId();
-  const descId = useId();
-  const dialogRef = useRef<HTMLDivElement>(null);
 
   const closeModal = useCallback(() => {
     setOpen(false);
@@ -74,14 +76,6 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
     setRequestMatch(false);
     setAmountEur("");
   }, []);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  useDialogFocus({ open, dialogRef, onClose: closeModal });
 
   // Load company memberships once the modal first opens.
   useEffect(() => {
@@ -128,24 +122,19 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const msg =
-          typeof err?.error === "string"
-            ? err.error
-            : `Error (${res.status})`;
-        setToast({ type: "error", message: msg });
+        // The API's `error` field is an internal, untranslated string (and the
+        // old fallback rendered a raw `Error (500)` at the user). Neither
+        // belongs on screen.
+        toast({ tone: "error", title: t("common.error_generic") });
         return;
       }
       const responseBody = (await res.json().catch(() => null)) as PledgeSuccessPayload | null;
-      setToast({ type: "success", message: t("pledge.success") });
+      toast({ tone: "success", title: t("pledge.success") });
       onPledge?.();
       if (responseBody) onPledgeSuccess?.(responseBody);
       closeModal();
     } catch {
-      setToast({
-        type: "error",
-          message: t("pledge.network_error"),
-      });
+      toast({ tone: "error", title: t("pledge.network_error") });
     } finally {
       setLoading(false);
     }
@@ -153,10 +142,10 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
 
   return (
     <>
-      <button
-        type="button"
+      <Button
         aria-haspopup="dialog"
         aria-expanded={open}
+        icon={<HeartHandshake className="h-4 w-4" strokeWidth={2} aria-hidden="true" />}
         onClick={async () => {
           const supabase = createClient();
           const {
@@ -168,64 +157,46 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
           }
           setOpen(true);
         }}
-        className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
       >
-        <HeartHandshake className="h-4 w-4" strokeWidth={2} />
         {t("pledge.cta")}
-      </button>
+      </Button>
 
-      {open ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4 sm:items-center"
-          role="presentation"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) closeModal();
-          }}
-        >
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-            aria-describedby={descId}
-            aria-busy={loading}
-            tabIndex={-1}
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl outline-none dark:bg-gray-900"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <h2
-                id={titleId}
-                className="text-lg font-semibold text-gray-900 dark:text-gray-100"
-              >
-                {t("pledge.dialog_title")}
-              </h2>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <p id={descId} className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              {needTitle}
-            </p>
-
-            {companies.length > 0 ? (
-              <label className="mb-4 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                <span className="mb-1 inline-flex items-center gap-1.5">
-                  <Building2 className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
+      <Dialog
+        open={open}
+        onClose={closeModal}
+        title={t("pledge.dialog_title")}
+        description={needTitle}
+        closeLabel={t("common.close")}
+        variant="sheet-on-mobile"
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeModal} disabled={loading}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={submit} loading={loading} className="flex-1">
+              {t("common.confirm")}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {companies.length > 0 ? (
+            <Field
+              label={
+                <span className="inline-flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
                   {t("company.pledge_on_behalf_label")}
                 </span>
-                <select
+              }
+            >
+              {(props) => (
+                <Select
+                  {...props}
                   value={selectedCompany}
                   onChange={(e) => {
                     setSelectedCompany(e.target.value);
                     setRequestMatch(false);
                   }}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                 >
                   <option value="me">— ({t("pledge.personal")})</option>
                   {companies.map((c) => (
@@ -233,32 +204,36 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
                       {c.display_name || c.legal_name}
                     </option>
                   ))}
-                </select>
-              </label>
-            ) : null}
+                </Select>
+              )}
+            </Field>
+          ) : null}
 
-            {showMatchOption ? (
-              <label className="mb-4 flex items-start gap-2 rounded-xl bg-red-50 p-3 text-sm dark:bg-red-950/30">
-                <input
-                  type="checkbox"
-                  checked={requestMatch}
-                  onChange={(e) => setRequestMatch(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-red-500"
-                />
-                <span>
-                  <span className="block font-semibold text-red-800 dark:text-red-200">
-                    {t("company.pledge_match_label")}
-                  </span>
-                  <span className="block text-xs text-red-700/90 dark:text-red-300/80">
-                    {t("company.pledge_match_hint")}
-                  </span>
-                </span>
-              </label>
-            ) : null}
-
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t("pledge.quantity")}
+          {showMatchOption ? (
+            <label className="flex items-start gap-2.5 rounded-control bg-brand-soft p-3">
               <input
+                type="checkbox"
+                checked={requestMatch}
+                onChange={(e) => setRequestMatch(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-brand-on-soft">
+                  {t("company.pledge_match_label")}
+                </span>
+                <span className="block text-sm text-brand-on-soft/80">
+                  {t("company.pledge_match_hint")}
+                </span>
+              </span>
+            </label>
+          ) : null}
+
+          <Field label={t("pledge.quantity")}>
+            {(props) => (
+              <Input
+                {...props}
+                // Focus lands on the one control the user came here to set,
+                // not on the dismissive close button.
                 data-dialog-initial-focus
                 type="number"
                 min={1}
@@ -266,72 +241,37 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
                 onChange={(e) =>
                   setQuantity(Math.max(1, Number(e.target.value) || 1))
                 }
-                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
-            </label>
+            )}
+          </Field>
 
-            <label className="mt-4 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t("pledge.amount_eur_label")}
-              <input
+          <Field label={t("pledge.amount_eur_label")} hint={t("pledge.amount_eur_hint")}>
+            {(props) => (
+              <Input
+                {...props}
                 type="text"
                 inputMode="decimal"
                 placeholder="0"
                 value={amountEur}
                 onChange={(e) => setAmountEur(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
-              <span className="mt-1 block text-xs font-normal text-gray-500">{t("pledge.amount_eur_hint")}</span>
-            </label>
+            )}
+          </Field>
 
-            <label className="mt-4 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t("pledge.message_optional")}
-              <textarea
+          <Field label={t("pledge.message_optional")}>
+            {(props) => (
+              <Textarea
+                {...props}
                 rows={3}
+                className="resize-none"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className="mt-1 w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-gray-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
-            </label>
-
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeModal}
-                disabled={loading}
-                className="rounded-full border-2 border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={submit}
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : null}
-                {t("common.confirm")}
-              </button>
-            </div>
-          </div>
+            )}
+          </Field>
         </div>
-      ) : null}
+      </Dialog>
 
-      {toast ? (
-        <div
-          className={clsx(
-            "fixed bottom-4 left-1/2 z-[110] max-w-sm -translate-x-1/2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg",
-            toast.type === "success"
-              ? "bg-emerald-600 text-white"
-              : "bg-red-600 text-white"
-          )}
-          role={toast.type === "error" ? "alert" : "status"}
-          aria-live={toast.type === "error" ? "assertive" : "polite"}
-        >
-          {toast.message}
-        </div>
-      ) : null}
       <AuthActionDialog
         open={authDialogOpen}
         onClose={() => setAuthDialogOpen(false)}

@@ -1,13 +1,17 @@
 "use client";
 
+import { Printer } from "lucide-react";
+import { Button } from "@/components/ui";
+
 export function PrintConfirmationButton() {
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
       onClick={() => window.print()}
-      className="rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 print:hidden"
+      icon={<Printer className="h-4 w-4" aria-hidden="true" />}
+      className="print:hidden"
     >
       Download / Print PDF
-    </button>
+    </Button>
   );
 }

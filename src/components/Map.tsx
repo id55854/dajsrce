@@ -3,6 +3,7 @@
 import "leaflet/dist/leaflet.css";
 
 import {
+  AttributionControl,
   Circle,
   MapContainer,
   Marker,
@@ -12,7 +13,8 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
-import { useEffect, useMemo, useState } from "react";
+import { Minus, Plus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   MapBounds,
   PublicMapCluster,
@@ -42,55 +44,113 @@ export type MapViewport = {
   zoom: number;
 };
 
+/**
+ * The one imperative channel from the results panel to the map: a cluster row,
+ * the "zoom in" affordance on the truncation notice, "zoom out" on an empty
+ * result, and locate-me all travel through here.
+ *
+ * Every command carries a monotonic token (counting from 1) so re-issuing the
+ * same move runs exactly once, without each action inventing its own trigger
+ * counter.
+ */
+export type MapCommand =
+  | { token: number; kind: "fitBounds"; bounds: MapBounds }
+  | { token: number; kind: "zoom"; delta: number }
+  | { token: number; kind: "flyTo"; center: [number, number]; zoom: number };
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * Markers fade in as they are added, which is what carries the eye across the
+ * zoom-12 handoff where clusters become pins. Opacity only: the icon's own
+ * `transform` holds the teardrop rotation, so animating transform here would
+ * unwind the shape. Reduced motion damps this globally.
+ */
+const MARKER_ENTER = "animation: ui-marker-in 180ms ease-out both;";
+
+/**
+ * One marker silhouette for the whole map. A cluster and a pin differ only by
+ * fill and by whether they carry a count — previously clusters were blue/red
+ * circles set in `system-ui` while pins were category-coloured teardrops, so a
+ * zoom step read as a change of subject rather than a change of scale.
+ *
+ * Colours are theme tokens (`--surface-raised`, `--ink`, `--brand`,
+ * `--warning`), so the icons follow the theme without being rebuilt on a flip.
+ */
+function markerHtml({
+  fill,
+  size,
+  selected = false,
+  label,
+  urgent = false,
+}: {
+  fill: string;
+  size: number;
+  selected?: boolean;
+  label?: string;
+  urgent?: boolean;
+}): string {
+  const ring = selected
+    ? `0 0 0 3px var(--ink), 0 0 0 7px color-mix(in oklab, ${fill} 45%, transparent), `
+    : "";
+  const count = label
+    ? `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 ${
+        size >= 48 ? 14 : 12
+      }px/1 var(--font-app-sans);color:#fff;">${label}</span>`
+    : "";
+  const flag = urgent
+    ? `<span style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-radius:9999px;background:var(--warning);border:2px solid var(--surface-raised);"></span>`
+    : "";
+  return `<div style="position:relative;width:${size}px;height:${size}px;${MARKER_ENTER}">
+    <div style="position:absolute;inset:0;background:${fill};border:3px solid var(--surface-raised);border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:${ring}0 2px 6px rgba(0,0,0,.35);"></div>
+    ${count}${flag}
+  </div>`;
+}
+
 export function createCategoryIcon(
   color: string,
   size: number = 32,
-  dark = false
+  selected = false
 ): L.DivIcon {
-  const border = dark ? "#1f2937" : "white";
+  const pinSize = selected ? Math.round(size * 1.35) : size;
   return L.divIcon({
-    className: "",
-    html: `<div style="
-      width: ${size}px; height: ${size}px;
-      background: ${color};
-      border: 3px solid ${border};
-      border-radius: 50% 50% 50% 0;
-      transform: rotate(-45deg);
-      box-shadow: 0 2px 6px rgba(0,0,0,${dark ? "0.6" : "0.3"});
-    "></div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size],
-    popupAnchor: [0, -size],
+    className: selected ? "dajsrce-pin dajsrce-pin-selected" : "dajsrce-pin",
+    html: markerHtml({ fill: color, size: pinSize, selected }),
+    iconSize: [pinSize, pinSize],
+    iconAnchor: [pinSize / 2, pinSize],
   });
 }
 
-function createClusterIcon(count: number, urgent: boolean, dark: boolean): L.DivIcon {
+function createClusterIcon(count: number, urgent: boolean): L.DivIcon {
   const size = count >= 100 ? 48 : count >= 10 ? 42 : 36;
-  const background = urgent ? "#dc2626" : "#1d4ed8";
-  const border = dark ? "#111827" : "#ffffff";
   return L.divIcon({
-    className: "",
-    html: `<div style="
-      width:${size}px;height:${size}px;border-radius:9999px;
-      display:flex;align-items:center;justify-content:center;
-      background:${background};color:white;border:3px solid ${border};
-      font:700 12px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.35)
-    ">${Math.max(1, Math.trunc(count))}</div>`,
+    className: "dajsrce-pin dajsrce-cluster",
+    html: markerHtml({
+      fill: "var(--brand)",
+      size,
+      label: String(Math.max(1, Math.trunc(count))),
+      urgent,
+    }),
     iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconAnchor: [size / 2, size],
   });
 }
 
 function createUserLocationIcon(): L.DivIcon {
   return L.divIcon({
-    className: "",
-    html: `<div style="position: relative; width: 18px; height: 18px;">
+    className: "dajsrce-user-dot",
+    html: `<div style="position:relative;width:18px;height:18px;${MARKER_ENTER}">
       <div style="
         position: absolute; inset: 0;
-        background: #3b82f6;
-        border: 3px solid white;
+        background: var(--info);
+        border: 3px solid var(--surface-raised);
         border-radius: 50%;
-        box-shadow: 0 0 0 8px rgba(59,130,246,0.20), 0 2px 6px rgba(0,0,0,0.4);
+        box-shadow: 0 0 0 8px color-mix(in oklab, var(--info) 22%, transparent), 0 2px 6px rgba(0,0,0,0.4);
       "></div>
     </div>`,
     iconSize: [18, 18],
@@ -98,12 +158,16 @@ function createUserLocationIcon(): L.DivIcon {
   });
 }
 
-function buildIcons(dark: boolean) {
+function buildIcons(selected = false) {
   const icons = {} as Record<string, L.DivIcon>;
   for (const key of Object.keys(CATEGORY_CONFIG) as InstitutionCategory[]) {
-    icons[key] = createCategoryIcon(CATEGORY_CONFIG[key].color, 32, dark);
+    icons[key] = createCategoryIcon(CATEGORY_CONFIG[key].color, 32, selected);
   }
-  icons.__fallback__ = createCategoryIcon(FALLBACK_CATEGORY_CONFIG.color, 32, dark);
+  icons.__fallback__ = createCategoryIcon(
+    FALLBACK_CATEGORY_CONFIG.color,
+    32,
+    selected
+  );
   return icons;
 }
 
@@ -118,6 +182,34 @@ function currentViewport(map: L.Map): MapViewport {
     ],
     zoom: map.getZoom(),
   };
+}
+
+/**
+ * Shared by the cluster markers and by the cluster rows in the results panel,
+ * so activating a group behaves the same wherever it is activated from.
+ *
+ * `maxZoom` is a cap, not a floor: `fitBounds` still picks the zoom the group's
+ * own extent needs, so a county-wide group drills down one step while a
+ * city-block group lands past the zoom-12 clustering threshold immediately.
+ */
+export function fitFeatureBounds(map: L.Map, bounds: MapBounds) {
+  const [minLng, minLat, maxLng, maxLat] = bounds;
+  const animate = !prefersReducedMotion();
+  if (minLng === maxLng && minLat === maxLat) {
+    // A single-point group cannot be fitted; step past the clustering threshold
+    // so the tap actually reveals institutions instead of the same circle.
+    map.setView([minLat, minLng], Math.min(Math.max(map.getZoom() + 3, 12), 16), {
+      animate,
+    });
+    return;
+  }
+  map.fitBounds(
+    [
+      [minLat, minLng],
+      [maxLat, maxLng],
+    ],
+    { maxZoom: 14, padding: [32, 32], animate }
+  );
 }
 
 function MapViewportObserver({
@@ -141,6 +233,71 @@ function MapViewportObserver({
   return null;
 }
 
+/**
+ * Replaces Leaflet's stock zoom control, which was the only chrome on the
+ * screen outside the design system: monospace glyphs, its own shadow, and 26px
+ * targets against a 44px minimum.
+ *
+ * The z-index is deliberately a local one. This element lives inside the
+ * Leaflet container's own stacking context (`z-0` plus `isolate` on the map
+ * wrapper), where it only has to out-rank Leaflet's internal panes (≤ 700); it
+ * never competes with the app-level ladder in globals.css.
+ */
+function MapZoomControl() {
+  const t = useT();
+  const map = useMap();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useMapEvents({
+    zoomend() {
+      setZoom(map.getZoom());
+    },
+  });
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    // What Leaflet's own controls do. A press here must not pan the map and a
+    // double-tap must not zoom it; React's synthetic `stopPropagation` cannot
+    // achieve that, because Leaflet listens natively on the container beneath.
+    L.DomEvent.disableClickPropagation(node);
+    L.DomEvent.disableScrollPropagation(node);
+  }, []);
+
+  const control =
+    "inline-flex h-11 w-11 items-center justify-center text-ink transition-[background-color,color,transform] duration-150 ease-out hover:bg-surface-sunken motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand disabled:pointer-events-none disabled:opacity-40";
+
+  return (
+    <div
+      ref={containerRef}
+      data-ui-material
+      className="absolute right-3 top-3 z-[800] flex flex-col overflow-hidden rounded-control border border-border-subtle bg-chrome shadow-overlay backdrop-blur-md"
+    >
+      <button
+        type="button"
+        onClick={() => map.zoomIn()}
+        disabled={zoom >= map.getMaxZoom()}
+        aria-label={t("map_ui.zoom_in")}
+        title={t("map_ui.zoom_in")}
+        className={control}
+      >
+        <Plus className="h-5 w-5" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => map.zoomOut()}
+        disabled={zoom <= map.getMinZoom()}
+        aria-label={t("map_ui.zoom_out")}
+        title={t("map_ui.zoom_out")}
+        className={`${control} border-t border-border-subtle`}
+      >
+        <Minus className="h-5 w-5" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 function MapFlyToSelection({
   selectedId,
   institutions,
@@ -149,61 +306,64 @@ function MapFlyToSelection({
   institutions: PublicMapInstitution[];
 }) {
   const map = useMap();
+  // Data refetches hand us a fresh `institutions` array on every viewport change.
+  // Remember which selection we already flew to so a refresh never re-centres the
+  // map and traps the user on the selected marker.
+  const flownSelectionRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId) {
+      flownSelectionRef.current = null;
+      return;
+    }
+    if (flownSelectionRef.current === selectedId) return;
     const institution = institutions.find((item) => item.id === selectedId);
+    // The selection can arrive before its feature does; stay pending until it lands.
     if (!institution) return;
+    flownSelectionRef.current = selectedId;
     map.flyTo([institution.latitude, institution.longitude], Math.max(map.getZoom(), 14), {
       duration: 0.65,
+      animate: !prefersReducedMotion(),
     });
   }, [selectedId, institutions, map]);
 
   return null;
 }
 
-function MapFlyToUser({
-  userPosition,
-  flyTrigger,
-}: {
-  userPosition: { lat: number; lng: number } | null;
-  flyTrigger: number;
-}) {
+function MapCommandRunner({ command }: { command: MapCommand | null }) {
   const map = useMap();
+  const lastTokenRef = useRef(0);
 
   useEffect(() => {
-    if (!userPosition || flyTrigger === 0) return;
-    map.flyTo([userPosition.lat, userPosition.lng], 14, { duration: 0.85 });
-  }, [userPosition, flyTrigger, map]);
+    if (!command || command.token === lastTokenRef.current) return;
+    lastTokenRef.current = command.token;
+    if (command.kind === "zoom") {
+      // Leaflet clamps against the container's own min/max zoom.
+      map.setZoom(map.getZoom() + command.delta, {
+        animate: !prefersReducedMotion(),
+      });
+      return;
+    }
+    if (command.kind === "flyTo") {
+      map.flyTo(command.center, command.zoom, {
+        duration: 0.85,
+        animate: !prefersReducedMotion(),
+      });
+      return;
+    }
+    fitFeatureBounds(map, command.bounds);
+  }, [command, map]);
 
   return null;
 }
 
-function ClusterMarker({ cluster, dark }: { cluster: PublicMapCluster; dark: boolean }) {
+function ClusterMarker({ cluster }: { cluster: PublicMapCluster }) {
   const t = useT();
   const map = useMap();
   const icon = useMemo(
-    () => createClusterIcon(cluster.count, cluster.hasUrgentNeed, dark),
-    [cluster.count, cluster.hasUrgentNeed, dark]
+    () => createClusterIcon(cluster.count, cluster.hasUrgentNeed),
+    [cluster.count, cluster.hasUrgentNeed]
   );
-
-  function zoomIntoCluster() {
-    const [minLng, minLat, maxLng, maxLat] = cluster.bounds;
-    if (minLng === maxLng && minLat === maxLat) {
-      map.setView(
-        [cluster.latitude, cluster.longitude],
-        Math.min(map.getZoom() + 2, 19)
-      );
-      return;
-    }
-    map.fitBounds(
-      [
-        [minLat, minLng],
-        [maxLat, maxLng],
-      ],
-      { maxZoom: Math.min(map.getZoom() + 3, 14), padding: [24, 24] }
-    );
-  }
 
   return (
     <Marker
@@ -211,7 +371,7 @@ function ClusterMarker({ cluster, dark }: { cluster: PublicMapCluster; dark: boo
       icon={icon}
       title={t("map_ui.cluster_title", { count: cluster.count })}
       alt={t("map_ui.cluster_alt", { count: cluster.count })}
-      eventHandlers={{ click: zoomIntoCluster }}
+      eventHandlers={{ click: () => fitFeatureBounds(map, cluster.bounds) }}
     />
   );
 }
@@ -219,17 +379,28 @@ function ClusterMarker({ cluster, dark }: { cluster: PublicMapCluster; dark: boo
 function InstitutionLayer({
   institution,
   icon,
+  isSelected,
   onSelect,
 }: {
   institution: PublicMapInstitution;
   icon: L.DivIcon;
+  isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
   const t = useT();
   const { locale } = useLocale();
   const category = getCategoryConfig(institution.category);
   const position: [number, number] = [institution.latitude, institution.longitude];
+  const categoryLabel = locale === "hr" ? category.labelHr : category.label;
+  const isApproximateRegistryLocation =
+    institution.entityType === "registry" &&
+    (institution.locationPrecision === "city" ||
+      institution.locationPrecision === "county");
 
+  // The only popup left on the map. A protected institution is drawn as a
+  // coarse area rather than a point, and that needs explaining where it is
+  // seen. Pin popups were removed: the same click opens the full detail, so
+  // they were duplicate work in mismatched chrome.
   if (institution.isLocationHidden) {
     return (
       <Circle
@@ -238,16 +409,16 @@ function InstitutionLayer({
         pathOptions={{
           color: category.color,
           fillColor: category.color,
-          fillOpacity: 0.18,
-          weight: 2,
+          fillOpacity: isSelected ? 0.32 : 0.18,
+          weight: isSelected ? 4 : 2,
         }}
         eventHandlers={{ click: () => onSelect(institution.id) }}
       >
         <Popup>
           <div className="text-sm">
-            <p className="font-semibold">{institution.name}</p>
-            <p className="text-gray-600">{locale === "hr" ? category.labelHr : category.label}</p>
-            <p className="mt-2 text-xs text-gray-600">
+            <p className="font-semibold text-ink">{institution.name}</p>
+            <p className="text-ink-secondary">{categoryLabel}</p>
+            <p className="mt-2 text-xs text-ink-secondary">
               {t("map_ui.hidden_safety")}
             </p>
           </div>
@@ -260,23 +431,17 @@ function InstitutionLayer({
     <Marker
       position={position}
       icon={icon}
-      title={institution.name}
-      alt={`${institution.name}, ${locale === "hr" ? category.labelHr : category.label}`}
+      zIndexOffset={isSelected ? 1000 : 0}
+      // The approximate-location caveat used to live in a popup; it rides along
+      // with the marker's own accessible name now that the popup is gone.
+      title={
+        isApproximateRegistryLocation
+          ? `${institution.name} — ${t("map_ui.registry_approximate")}`
+          : institution.name
+      }
+      alt={`${institution.name}, ${categoryLabel}`}
       eventHandlers={{ click: () => onSelect(institution.id) }}
-    >
-      <Popup>
-        <div className="text-sm">
-          <p className="font-semibold">{institution.name}</p>
-          <p className="text-gray-600">{locale === "hr" ? category.labelHr : category.label}</p>
-          {institution.entityType === "registry" &&
-          (institution.locationPrecision === "city" || institution.locationPrecision === "county") ? (
-            <p className="mt-2 text-xs text-gray-600">
-              {t("map_ui.registry_approximate")}
-            </p>
-          ) : null}
-        </div>
-      </Popup>
-    </Marker>
+    />
   );
 }
 
@@ -288,7 +453,8 @@ export type MapProps = {
   initialCenter: [number, number];
   initialZoom: number;
   userPosition?: { lat: number; lng: number } | null;
-  flyToUserTrigger?: number;
+  /** Panel-driven moves; see `MapCommand`. */
+  command?: MapCommand | null;
 };
 
 function useDarkMode() {
@@ -307,6 +473,24 @@ function useDarkMode() {
   return dark;
 }
 
+/**
+ * True below `md`. Safe to branch on without a hydration flash, because this
+ * module is only ever loaded on the client (`dynamic(…, { ssr: false })`).
+ */
+function useCompactViewport() {
+  const [compact, setCompact] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const sync = () => setCompact(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
+  return compact;
+}
+
 export default function Map({
   features,
   selectedId,
@@ -315,11 +499,15 @@ export default function Map({
   initialCenter,
   initialZoom,
   userPosition = null,
-  flyToUserTrigger = 0,
+  command = null,
 }: MapProps) {
   const t = useT();
   const dark = useDarkMode();
-  const icons = useMemo(() => buildIcons(dark), [dark]);
+  const compact = useCompactViewport();
+  // Icons are token-driven, so a theme flip no longer remounts the entire
+  // marker set — only the tile layer changes.
+  const icons = useMemo(() => buildIcons(), []);
+  const selectedIcons = useMemo(() => buildIcons(true), []);
   const userIcon = useMemo(() => createUserLocationIcon(), []);
   const institutions = useMemo(
     () =>
@@ -343,6 +531,8 @@ export default function Map({
       preferCanvas
       className="h-full w-full z-0"
       scrollWheelZoom
+      zoomControl={false}
+      attributionControl={false}
       aria-label={t("map_ui.map_aria")}
     >
       <TileLayer
@@ -351,30 +541,33 @@ export default function Map({
         url={dark ? DARK_TILES : LIGHT_TILES}
         subdomains="abcd"
       />
+      {/* Attribution leaves the bottom corner on phones, where the results
+          sheet peeks over it, and stays bottom-right on the desktop split. */}
+      <AttributionControl position={compact ? "topleft" : "bottomright"} />
+      <MapZoomControl />
       <MapViewportObserver onChange={onViewportChange} />
       <MapFlyToSelection selectedId={selectedId} institutions={institutions} />
-      <MapFlyToUser userPosition={userPosition} flyTrigger={flyToUserTrigger} />
+      <MapCommandRunner command={command} />
       {userPosition ? (
         <Marker
           position={[userPosition.lat, userPosition.lng]}
           icon={userIcon}
           title={t("map_ui.your_location")}
           alt={t("map_ui.your_location")}
-        >
-          <Popup>
-            <div className="text-sm font-semibold">{t("map_ui.your_location")}</div>
-          </Popup>
-        </Marker>
+        />
       ) : null}
       {features.map((feature) => {
         if (feature.kind === "cluster") {
-          return <ClusterMarker key={feature.id} cluster={feature} dark={dark} />;
+          return <ClusterMarker key={feature.id} cluster={feature} />;
         }
+        const isSelected = feature.id === selectedId;
+        const iconSet = isSelected ? selectedIcons : icons;
         return (
           <InstitutionLayer
             key={feature.id}
             institution={feature}
-            icon={icons[feature.category] ?? icons.__fallback__}
+            icon={iconSet[feature.category] ?? iconSet.__fallback__}
+            isSelected={isSelected}
             onSelect={onSelect}
           />
         );

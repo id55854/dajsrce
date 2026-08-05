@@ -18,7 +18,16 @@
     "copied": "Copied!",
     "yes": "Yes",
     "no": "No",
-    "error_generic": "Something went wrong. Please try again."
+    "error_generic": "Something went wrong. Please try again.",
+    "saved": "Saved"
+  },
+  "errors": {
+    "not_found_title": "We couldn't find that page",
+    "not_found_body": "The link may be out of date, or the page may have been moved.",
+    "generic_title": "Something went wrong",
+    "generic_body": "This section failed to load. Trying again usually helps.",
+    "retry": "Try again",
+    "go_to_map": "Go to the map"
   },
   "locale": {
     "switch_to_hr": "Hrvatski",
@@ -100,6 +109,92 @@
     "switch_to_light": "Switch to light mode",
     "switch_to_dark": "Switch to dark mode"
   },
+  "auth": {
+    "email_label": "Email",
+    "password_label": "Password",
+    "show_password": "Show password",
+    "hide_password": "Hide password",
+    "or": "or",
+    "back_to_sign_in": "Back to sign in",
+    "go_to_dashboard": "Open dashboard",
+    "sign_in_title": "Sign in",
+    "sign_in_subtitle": "Welcome back. Sign in to your account.",
+    "sign_in_cta": "Sign in",
+    "sign_in_failed": "Sign in failed. Please try again.",
+    "continue_with_google": "Continue with Google",
+    "forgot_password": "Forgot your password?",
+    "no_account": "Don't have an account?",
+    "sign_up_link": "Sign up",
+    "sign_up_title": "Create your account",
+    "sign_up_cta": "Create account",
+    "sign_up_failed": "Sign up failed. Please try again.",
+    "sign_up_confirm_email": "Your account is created. Check your email and confirm the address so you can sign in.",
+    "have_account": "Already have an account?",
+    "sign_in_link": "Sign in",
+    "full_name_label": "Full name",
+    "password_label_min": "Password (at least {min} characters)",
+    "password_too_short": "The password must be at least {min} characters.",
+    "role_title": "Who are you?",
+    "role_subtitle": "Select your role to continue.",
+    "role_required": "Please select a role.",
+    "role_individual_title": "I want to help",
+    "role_individual_subtitle": "Individual / volunteer",
+    "role_ngo_title": "I represent an NGO",
+    "role_ngo_subtitle": "NGO / association",
+    "ngo_name_label": "NGO name",
+    "ngo_name_placeholder": "e.g. Zagreb Homeless Shelter",
+    "ngo_name_required": "Enter the NGO name.",
+    "company_name_label": "Company name",
+    "company_name_required": "Enter the company name.",
+    "setup_title": "Welcome! Who are you?",
+    "setup_subtitle": "Select your role so we can set up your dashboard.",
+    "setup_checking": "Checking your account…",
+    "invite_title": "Company invitation",
+    "invite_subtitle": "Review the invitation and accept it for the account you are signed in with.",
+    "invite_missing_token": "This invitation has no token. Open the link from your email again.",
+    "invite_need_login": "Sign in or create an account to accept this invitation.",
+    "invite_accept": "Accept invitation",
+    "invite_accepted": "Welcome aboard!",
+    "invite_redirecting": "Taking you to the company dashboard…",
+    "invite_error_invalid_token": "This invitation is not valid.",
+    "invite_error_signed_out": "Your session expired. Sign in again and retry.",
+    "invite_error_email_mismatch": "This invitation belongs to a different email address. Sign in with the invited address and confirm it.",
+    "invite_error_not_found": "We couldn't find this invitation. Ask the company for a new one.",
+    "invite_error_expired": "This invitation has expired or was already used. Ask the company for a new one.",
+    "create_account": "Create account",
+    "forgot_title": "Forgot your password",
+    "forgot_subtitle": "Enter your account email and we'll send you a link to set a new password.",
+    "forgot_submit": "Send the link",
+    "forgot_email_required": "Enter your email address.",
+    "forgot_sent_title": "Check your email",
+    "forgot_sent_body": "If an account for {email} exists, we've sent a link to set a new password. The link is valid for a limited time.",
+    "forgot_sent_toast": "Password reset link sent",
+    "forgot_resend": "Send again",
+    "reset_title": "New password",
+    "reset_subtitle": "Choose a new password for your account.",
+    "reset_new_password_label": "New password (at least {min} characters)",
+    "reset_confirm_label": "Repeat the new password",
+    "reset_mismatch": "The passwords don't match.",
+    "reset_submit": "Save the new password",
+    "reset_checking": "Checking your reset link…",
+    "reset_invalid_title": "This link is not valid",
+    "reset_invalid_body": "Your password reset link has expired or was already used. Request a new one.",
+    "reset_request_new": "Request a new link",
+    "reset_done_toast": "Password updated",
+    "reset_done_title": "Password updated",
+    "reset_done_body": "You are signed in with your new password.",
+    "error_not_configured": "Sign-in is unavailable because authentication is not configured. Contact an administrator.",
+    "error_network": "We couldn't reach the sign-in service. Check your connection and try again.",
+    "error_invalid_credentials": "That email or password is not correct.",
+    "error_email_not_confirmed": "This email address isn't confirmed yet. Open the link in the message we sent you.",
+    "error_email_exists": "An account with that email already exists. Sign in or reset your password.",
+    "error_email_invalid": "That email address is not valid.",
+    "error_weak_password": "That password is too weak. Choose a longer, less obvious one.",
+    "error_same_password": "The new password must be different from your current one.",
+    "error_rate_limited": "Too many attempts in a short time. Please try again in a few minutes.",
+    "error_signup_disabled": "New account sign-ups are currently disabled.",
+    "error_not_authenticated": "We couldn't find a signed-in user. Please sign in again."
+  },
   "auth_dialog": {
     "title": "Login required",
     "body": "To {action}, sign in or create an account. Browsing remains public.",
@@ -121,7 +216,48 @@
   },
   "quick_start": {
     "page_title": "Find NGOs to help",
-    "page_subtitle": "Pick what you can donate and we'll show institutions nearby that need it."
+    "page_subtitle": "Pick what you can donate and we'll show institutions nearby that need it.",
+    "step_progress": "Step {current} of {total}",
+    "step1_title": "What can you give?",
+    "step1_hint": "Select one or more categories.",
+    "step2_title": "Where are you?",
+    "step2_privacy": "We only use your location to calculate distances.",
+    "use_my_location": "Use my location",
+    "relocate_me": "Re-locate me",
+    "locating": "Getting location…",
+    "found_you": "We found you here:",
+    "resolving_address": "Resolving address…",
+    "address_unresolved": "The address could not be resolved, but your coordinates are saved.",
+    "wrong_location": "Wrong location? Click “{action}” above or type a neighbourhood below.",
+    "manual_label": "Or enter a neighbourhood / address",
+    "manual_placeholder": "e.g. Trešnjevka, Ilica 12…",
+    "manual_note": "We use OpenStreetMap Nominatim to locate the address for this search; the typed address is not saved by DajSrce.",
+    "geo_denied": "Location permission denied. Enable it in your browser settings or enter a neighbourhood below.",
+    "geo_timeout": "Locating took too long. Try again or enter a neighbourhood below.",
+    "geo_failed": "We couldn't determine your location. Check permissions or enter a neighbourhood.",
+    "geocode_failed": "We couldn't find that address in Croatia. Check it and try again.",
+    "searching": "Searching for nearby institutions…",
+    "results_title": "Nearest institutions",
+    "no_results": "No institutions match your selection. Try other categories.",
+    "directions": "Directions",
+    "view_details": "View details",
+    "start_over": "Start over"
+  },
+  "hub": {
+    "title": "How do you want to help?",
+    "subtitle": "Browse public opportunities and sign in only when you want to act.",
+    "map_desc": "Explore nearby NGOs and associations.",
+    "needs_desc": "See active needs for food, clothes, hygiene and more.",
+    "volunteer_desc": "Discover volunteer opportunities in your community.",
+    "dashboard_title": "Your dashboard",
+    "dashboard_title_role": "{role} dashboard",
+    "dashboard_desc": "Open your role-specific dashboard.",
+    "dashboard_desc_signed_out": "Sign in when you want to take action."
+  },
+  "institution_page": {
+    "not_found": "Institution not found",
+    "active_needs": "Active needs",
+    "back_to_map": "Back to the map"
   },
   "company": {
     "verification": {
@@ -176,26 +312,21 @@
     },
     "role_tile_title": "I represent a company",
     "role_tile_subtitle": "Company / CSR programme",
-
     "onboarding_title": "Company onboarding",
     "onboarding_intro": "Set up your DajSrce company profile in a few steps. You can always skip and finish later.",
-
     "step_identity": "Identity",
     "step_address": "Address",
     "step_brand": "Brand",
     "step_invite": "Invite team",
-
     "legal_name_label": "Legal company name",
     "display_name_label": "Display name (optional)",
     "oib_label": "OIB (Croatian tax ID)",
     "oib_hint": "11 digits. Will be checked against the public company registry.",
     "oib_invalid": "Invalid OIB — checksum does not match.",
     "oib_lookup_failed": "Could not reach the company registry — please fill in manually.",
-
     "address_label": "Address",
     "city_label": "City",
     "country_label": "Country",
-
     "logo_label": "Logo",
     "logo_hint": "Recommended: PNG or SVG, 512 × 512.",
     "brand_primary_label": "Primary colour",
@@ -203,13 +334,10 @@
     "size_class_label": "Company size",
     "prior_year_revenue_label": "Prior-year revenue (EUR)",
     "prior_year_revenue_hint": "Used to compute your deduction ceiling.",
-
     "invite_emails_label": "Colleague email addresses (comma-separated)",
     "invite_note": "We'll send each a one-time invite link valid for 14 days.",
-
     "create_cta": "Create company profile",
     "create_success": "Company profile created.",
-
     "dashboard_title": "Company dashboard",
     "dashboard_subtitle": "Coordinate giving, track impact — all in one place.",
     "metric_members": "Members",
@@ -217,44 +345,37 @@
     "metric_pledges_ytd": "Pledges this year",
     "metric_headroom": "Remaining headroom",
     "metric_headroom_hint": "Of prior-year revenue",
-
     "team_title": "Team",
     "team_invite_cta": "Send invite",
     "team_domain_verify_cta": "Verify domain",
     "team_empty": "No members yet. Invite your first teammate.",
     "team_invite_sent": "Invite ready. Copy the link and share it with your colleague.",
-
     "domain_title": "Domain verification",
     "domain_instructions": "Add this TXT record to your domain's DNS, then hit 'Verify'.",
     "domain_record_host": "Host",
     "domain_record_value": "Value",
     "domain_verify_success": "Domain verified.",
     "domain_verify_failed": "TXT record not yet visible. Try again in 5 minutes.",
-
     "campaigns_title": "Campaigns",
     "campaigns_new": "New campaign",
     "campaigns_empty": "No campaigns yet. Launch one to rally your team around a cause.",
-
+    "actions_recent_title": "Recent support actions",
+    "actions_open_confirmation": "Open confirmation",
     "settings_title": "Company settings",
     "settings_brand_section": "Branding",
     "settings_finance_section": "Finance & tax receipts",
     "settings_billing_section": "Subscription",
     "settings_match_ratio_label": "Match ratio (e.g. 1.0 = 1:1)",
     "settings_match_ratio_hint": "When an employee requests a match, the company auto-adds a matching pledge at this ratio.",
-
     "switcher_label": "Pick company",
     "switcher_multi": "Multiple companies",
-
     "pledge_on_behalf_label": "Pledge on behalf of company",
     "pledge_match_label": "Request company match",
     "pledge_match_hint": "The company will add a matching pledge if its match ratio is greater than zero.",
-
     "receipts_section_title": "Tax receipts",
     "receipts_section_hint": "Generate PDF and XML summaries for a fiscal year.",
-
     "exports_section_title": "ESG exports",
     "exports_section_hint": "Download a reporting ZIP with CSV, JSON, narrative PDF, and evidence, filtered by framework and period.",
-
     "csr_section_title": "CSR reports",
     "csr_section_hint": "Branded PDF and DOCX summary for a date range. Uses delivered/confirmed pledges with EUR in the window and company-linked volunteer hours.",
     "csr_generate": "Generate report",
@@ -272,7 +393,14 @@
     "public_company_download": "Download PDF",
     "public_company_hours": "Volunteer hours",
     "public_company_institutions": "Institutions supported",
-    "public_company_metrics_given": "Acknowledged giving"
+    "public_company_metrics_given": "Acknowledged giving",
+    "public_company_back": "Back to the map",
+    "csr_generated": "CSR report generated",
+    "campaign_created": "Campaign created",
+    "campaign_updated": "Campaign updated",
+    "domain_added": "Domain added",
+    "member_removed": "Member removed",
+    "verification_sent": "Verification email sent"
   },
   "export": {
     "framework": "Framework",
@@ -283,7 +411,8 @@
     "generating": "Generating…",
     "list_title": "Export history",
     "empty": "No exports yet.",
-    "download_zip": "Download ZIP"
+    "download_zip": "Download ZIP",
+    "generated": "Export generated"
   },
   "pledge": {
     "cta": "I can help",
@@ -311,7 +440,6 @@
     "volunteers_check_out": "Check out",
     "volunteers_in": "In",
     "volunteers_out": "Out",
-
     "pledges_title": "Pledges for your institution",
     "pledges_subtitle": "Mark goods as received and acknowledge delivery for donor tax records.",
     "pledges_empty": "No pledges yet.",
@@ -332,7 +460,8 @@
     "empty": "No receipts generated yet.",
     "download_pdf": "Download PDF",
     "download_xml": "Download XML",
-    "year_invalid": "Enter a valid year."
+    "year_invalid": "Enter a valid year.",
+    "generated": "Receipt generated"
   },
   "billing": {
     "checkout_sme_tax": "Upgrade to SME Tax",
@@ -405,7 +534,11 @@
     "routine": "Routine",
     "loading": "Loading institution needs",
     "error_loading": "We couldn't load the needs. Please try again.",
-    "empty": "No active needs at this time"
+    "empty": "No active needs at this time",
+    "empty_hint": "Your filters may be too narrow. Clear them or browse institutions on the map.",
+    "clear_filters": "Clear filters",
+    "empty_open_map": "Open the institution map",
+    "browse_needs": "Browse needs"
   },
   "need_card": {
     "urgent": "Urgent",
@@ -420,7 +553,10 @@
     "subtitle": "Join an event and make a difference",
     "loading": "Loading volunteer events",
     "error_loading": "We couldn't load volunteer events. Please try again.",
-    "empty": "No upcoming volunteer events. Check back soon!"
+    "empty": "No upcoming volunteer events. Check back soon!",
+    "empty_hint": "In the meantime you can help by donating, or find institutions on the map.",
+    "empty_browse_needs": "Browse needs",
+    "empty_open_map": "Open the map"
   },
   "volunteer_card": {
     "volunteers": "Volunteers",
@@ -511,7 +647,8 @@
     "back_results": "Back to results",
     "cluster_hint": "Zoom into a cluster to browse individual organisations. All active official records stay represented while the national view remains fast.",
     "empty": "No institutions match this area and filters.",
-    "bounded": "Showing a bounded set of results. Zoom in or refine filters to see a smaller area."
+    "bounded": "Showing a bounded set of results. Zoom in or refine filters to see a smaller area.",
+    "filters": "Filters"
   },
   "map_ui": {
     "distance": "Distance from you",
@@ -523,7 +660,9 @@
     "cluster_title": "{count} institutions. Zoom in to explore.",
     "cluster_alt": "Cluster of {count} institutions",
     "your_location": "Your location",
-    "map_aria": "Interactive institution map"
+    "map_aria": "Interactive institution map",
+    "zoom_in": "Zoom in",
+    "zoom_out": "Zoom out"
   },
   "demo": {
     "ngo_plans_title": "Plans for organisations",

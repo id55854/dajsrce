@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Heart, LogOut, MapPin, Menu, User, X } from "lucide-react";
+import { Bell, Heart, LogOut, MapPin, Menu as MenuIcon, User, X } from "lucide-react";
 import clsx from "clsx";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
@@ -12,6 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { CompanySwitcher, type CompanySwitcherItem } from "@/components/CompanySwitcher";
+import { Menu, buttonClasses, usePresence } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
 const navLinks = [
@@ -22,6 +23,9 @@ const navLinks = [
   { href: "/quick-start", labelKey: "nav.find_help" },
 ] as const;
 
+const ICON_BUTTON =
+  "relative inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-secondary transition-colors duration-150 hover:bg-surface-sunken hover:text-ink motion-safe:active:scale-[0.92] motion-safe:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
 function NavLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
   const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -31,111 +35,130 @@ function NavLink({ href, label }: { href: string; label: string }) {
       href={href}
       aria-current={active ? "page" : undefined}
       className={clsx(
-        "text-sm font-medium transition-colors hover:text-red-500",
-        active ? "text-red-500 underline underline-offset-4" : "text-gray-700 dark:text-gray-300"
+        "relative py-1 text-sm font-medium transition-colors duration-150",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+        active ? "text-brand" : "text-ink-secondary hover:text-ink"
       )}
     >
       {label}
+      {/* An underline drawn as a positioned rule instead of text-decoration, so
+          it sits clear of descenders and can animate independently. */}
+      <span
+        aria-hidden="true"
+        className={clsx(
+          "absolute -bottom-0.5 left-0 h-0.5 rounded-full bg-brand transition-[width] duration-250 ease-out",
+          active ? "w-full" : "w-0"
+        )}
+      />
     </Link>
   );
 }
 
 function NotificationPanel({
   id,
+  open,
   notifications,
   onMarkRead,
   onMarkAllRead,
   onClose,
+  triggerRef,
 }: {
   id: string;
+  open: boolean;
   notifications: Notification[];
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
   onClose: () => void;
+  triggerRef: React.RefObject<HTMLElement | null>;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const t = useT();
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [onClose]);
-
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <div
-      id={id}
-      ref={panelRef}
-      role="region"
-      aria-label={t("notifications.title")}
-      className="absolute right-0 top-full z-[60] mt-2 w-80 max-h-[70vh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900 dark:shadow-gray-950/50 sm:w-96"
-    >
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-          {t("notifications.title")} {unreadCount > 0 ? `(${unreadCount})` : ""}
-        </h3>
-        {unreadCount > 0 ? (
-          <button
-            type="button"
-            onClick={onMarkAllRead}
-            className="text-xs font-medium text-red-500 hover:text-red-600"
-          >
-            {t("notifications.mark_all_read")}
-          </button>
-        ) : null}
-      </div>
-
-      <div className="max-h-[60vh] overflow-y-auto">
-        {notifications.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500">
-            {t("notifications.empty")}
-          </p>
-        ) : (
-          notifications.map((n) => (
-            <div
-              key={n.id}
-              className={clsx(
-                "border-b border-gray-50 px-4 py-3 transition-colors dark:border-gray-800",
-                n.is_read ? "bg-white dark:bg-gray-900" : "bg-red-50/50 dark:bg-red-950/30"
-              )}
-            >
-              {n.link ? (
-                <Link
-                  href={n.link}
-                  onClick={() => {
-                    if (!n.is_read) onMarkRead(n.id);
-                    onClose();
-                  }}
-                  className="block"
-                >
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{n.title}</p>
-                  <p className="mt-0.5 text-xs text-gray-600 line-clamp-2 dark:text-gray-400">{n.body}</p>
-                  <p className="mt-1 text-xs text-gray-400">
-                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                  </p>
-                </Link>
-              ) : (
+    // The gutter wrapper gives the popover the page's horizontal inset while
+    // still letting it scale out of its own right edge.
+    <div className="pointer-events-none absolute inset-x-4 top-full sm:inset-x-6 lg:inset-x-8">
+      <div className="pointer-events-auto relative">
+        <Menu
+          open={open}
+          onClose={onClose}
+          align="top-right"
+          returnFocusRef={triggerRef}
+          role="region"
+          aria-label={t("notifications.title")}
+          className="max-h-[70dvh] w-80 sm:w-96"
+        >
+          <div id={id}>
+            <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
+              <h3 className="text-sm font-semibold text-ink">
+                {t("notifications.title")} {unreadCount > 0 ? `(${unreadCount})` : ""}
+              </h3>
+              {unreadCount > 0 ? (
                 <button
                   type="button"
-                  onClick={() => { if (!n.is_read) onMarkRead(n.id); }}
-                  className="block w-full text-left"
+                  onClick={onMarkAllRead}
+                  className="rounded-full px-2 py-1 text-xs font-semibold text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{n.title}</p>
-                  <p className="mt-0.5 text-xs text-gray-600 line-clamp-2 dark:text-gray-400">{n.body}</p>
-                  <p className="mt-1 text-xs text-gray-400">
-                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                  </p>
+                  {t("notifications.mark_all_read")}
                 </button>
+              ) : null}
+            </div>
+
+            <div className="max-h-[60dvh] overflow-y-auto overscroll-contain">
+              {notifications.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-ink-tertiary">
+                  {t("notifications.empty")}
+                </p>
+              ) : (
+                notifications.map((n) => {
+                  const body = (
+                    <>
+                      <p className="text-sm font-semibold text-ink">{n.title}</p>
+                      <p className="mt-0.5 line-clamp-2 text-sm text-ink-secondary">
+                        {n.body}
+                      </p>
+                      <p className="mt-1 text-xs text-ink-tertiary">
+                        {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                      </p>
+                    </>
+                  );
+                  return (
+                    <div
+                      key={n.id}
+                      className={clsx(
+                        "border-b border-border-subtle/60 transition-colors last:border-b-0",
+                        n.is_read ? "bg-transparent" : "bg-brand-soft/50"
+                      )}
+                    >
+                      {n.link ? (
+                        <Link
+                          href={n.link}
+                          onClick={() => {
+                            if (!n.is_read) onMarkRead(n.id);
+                            onClose();
+                          }}
+                          className="block px-4 py-3 transition-colors hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
+                        >
+                          {body}
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!n.is_read) onMarkRead(n.id);
+                          }}
+                          className="block w-full px-4 py-3 text-left transition-colors hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
+                        >
+                          {body}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
-          ))
-        )}
+          </div>
+        </Menu>
       </div>
     </div>
   );
@@ -152,6 +175,10 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const t = useT();
+  const mobileNav = usePresence(mobileOpen);
+  // Holds whichever bell opened the panel (there is a desktop and a mobile
+  // one), so the popover can ignore clicks on it and hand focus back on Escape.
+  const bellRef = useRef<HTMLElement | null>(null);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
@@ -282,19 +309,42 @@ export function Navbar() {
 
   const profileEmail = meProfile?.email || user?.email || undefined;
 
+  const notificationBadge =
+    unreadCount > 0 ? (
+      <span
+        className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold tabular-nums text-white"
+        aria-hidden="true"
+      >
+        {unreadCount > 99 ? "99+" : unreadCount}
+      </span>
+    ) : null;
+
+  const notificationLabel =
+    unreadCount > 0
+      ? t("notifications.unread_count", { count: unreadCount })
+      : t("notifications.title");
+
   return (
-    <header className="sticky top-0 z-50 bg-white shadow-sm dark:bg-gray-950 dark:shadow-gray-900/50">
+    <header
+      data-ui-material
+      className={clsx(
+        "sticky top-0 z-[var(--z-chrome)] border-b border-border-subtle",
+        // A translucent layer that content scrolls under, rather than an opaque
+        // strip that permanently consumes the top of the viewport.
+        "bg-chrome backdrop-blur-xl backdrop-saturate-150"
+      )}
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 rounded-xl py-1 pr-2 transition-opacity hover:opacity-90"
+          className="flex shrink-0 items-center gap-2 rounded-control py-1 pr-2 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
           onClick={() => setMobileOpen(false)}
         >
-          <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-500">
-            <MapPin className="absolute h-4 w-4 text-red-400" strokeWidth={2} />
-            <Heart className="relative h-5 w-5 fill-red-500 text-red-500" strokeWidth={2} />
+          <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand">
+            <MapPin className="absolute h-4 w-4 opacity-70" strokeWidth={2} aria-hidden="true" />
+            <Heart className="relative h-5 w-5 fill-brand text-brand" strokeWidth={2} aria-hidden="true" />
           </span>
-          <span className="text-xl font-semibold tracking-tight text-red-500">
+          <span className="text-xl font-semibold tracking-[-0.02em] text-brand">
             DajSrce
           </span>
         </Link>
@@ -305,7 +355,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-2 md:flex">
           <LocaleSwitcher />
           <ThemeToggle />
           {user && companies.length > 1 ? (
@@ -313,108 +363,107 @@ export function Navbar() {
           ) : null}
           {user ? (
             <>
-              <div className="relative">
-                <button
-                  type="button"
-                  onMouseDown={(event) => event.stopPropagation()}
-                  onClick={() => setPanelOpen((o) => !o)}
-                  className="relative inline-flex items-center rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                  aria-label={
-                    unreadCount > 0
-                      ? t("notifications.unread_count", { count: unreadCount })
-                      : t("notifications.title")
-                  }
-                  aria-expanded={panelOpen}
-                  aria-controls="notifications-panel"
-                >
-                  <Bell className="h-5 w-5" />
-                  {unreadCount > 0 ? (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white" aria-hidden="true">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  ) : null}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={(event) => {
+                  bellRef.current = event.currentTarget;
+                  setPanelOpen((o) => !o);
+                }}
+                className={ICON_BUTTON}
+                aria-label={notificationLabel}
+                aria-expanded={panelOpen}
+                aria-controls="notifications-panel"
+              >
+                <Bell className="h-5 w-5" aria-hidden="true" />
+                {notificationBadge}
+              </button>
               <Link
                 href="/dashboard"
                 title={profileEmail}
-                className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 dark:bg-red-950 dark:text-red-300"
+                className={buttonClasses({
+                  variant: "secondary",
+                  size: "sm",
+                  className: "max-w-40 bg-brand-soft text-brand-on-soft border-transparent hover:bg-brand-soft hover:brightness-95",
+                })}
               >
-                <User className="h-4 w-4" />
-                {displayName}
+                <User className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">{displayName}</span>
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                className={ICON_BUTTON}
+                aria-label={t("nav.sign_out")}
               >
-                <LogOut className="h-4 w-4" />
-                <span className="sr-only">{t("nav.sign_out")}</span>
+                <LogOut className="h-4 w-4" aria-hidden="true" />
               </button>
             </>
           ) : (
-            <Link
-              href="/auth/login"
-              className="inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
-            >
+            <Link href="/auth/login" className={buttonClasses({ size: "sm" })}>
               {t("nav.sign_in")}
             </Link>
           )}
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-1 md:hidden">
           <ThemeToggle />
           {user ? (
             <button
               type="button"
-              onMouseDown={(event) => event.stopPropagation()}
-              onClick={() => setPanelOpen((o) => !o)}
-              className="relative inline-flex items-center rounded-xl p-2 text-gray-700"
-              aria-label={
-                unreadCount > 0
-                  ? t("notifications.unread_count", { count: unreadCount })
-                  : t("notifications.title")
-              }
+              onClick={(event) => {
+                bellRef.current = event.currentTarget;
+                setPanelOpen((o) => !o);
+              }}
+              className={ICON_BUTTON}
+              aria-label={notificationLabel}
               aria-expanded={panelOpen}
               aria-controls="notifications-panel"
             >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 ? (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-bold text-white" aria-hidden="true">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              ) : null}
+              <Bell className="h-5 w-5" aria-hidden="true" />
+              {notificationBadge}
             </button>
           ) : null}
           <button
             type="button"
-            className="inline-flex rounded-xl p-2 text-gray-700 dark:text-gray-300"
+            className={ICON_BUTTON}
             aria-expanded={mobileOpen}
             aria-controls="mobile-nav"
             aria-label={mobileOpen ? t("nav.close_menu") : t("nav.open_menu")}
             onClick={() => setMobileOpen((o) => !o)}
           >
-            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {mobileOpen ? (
+              <X className="h-6 w-6" aria-hidden="true" />
+            ) : (
+              <MenuIcon className="h-6 w-6" aria-hidden="true" />
+            )}
           </button>
         </div>
       </div>
 
-      {panelOpen && user ? (
+      {user ? (
         <NotificationPanel
           id="notifications-panel"
+          open={panelOpen}
           notifications={notifications}
           onMarkRead={markRead}
           onMarkAllRead={markAllRead}
           onClose={() => setPanelOpen(false)}
+          triggerRef={bellRef}
         />
       ) : null}
 
-      {mobileOpen ? (
+      {mobileNav.present ? (
         <div
           id="mobile-nav"
-          className="border-t border-gray-100 bg-white px-4 py-4 shadow-inner dark:border-gray-800 dark:bg-gray-950 md:hidden"
+          data-ui-motion
+          data-state={mobileNav.state}
+          onAnimationEnd={mobileNav.onAnimationEnd}
+          className={clsx(
+            "origin-top border-t border-border-subtle bg-surface-overlay px-4 py-4 shadow-overlay md:hidden",
+            "data-[state=open]:animate-menu-in data-[state=closed]:animate-menu-out"
+          )}
         >
-          <nav className="flex flex-col gap-3" aria-label={t("nav.mobile_navigation")}>
+          <nav className="flex flex-col gap-1" aria-label={t("nav.mobile_navigation")}>
             {navLinks.map(({ href, labelKey }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
@@ -423,8 +472,12 @@ export function Navbar() {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={clsx(
-                    "rounded-xl px-3 py-2 text-base font-medium hover:bg-red-50",
-                    active ? "text-red-500 underline underline-offset-4" : "text-gray-800 dark:text-gray-200 dark:hover:bg-gray-800"
+                    "rounded-control px-3 py-3 text-base font-medium transition-colors",
+                    "motion-safe:active:scale-[0.98] motion-safe:transition-transform",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+                    active
+                      ? "bg-brand-soft text-brand-on-soft"
+                      : "text-ink hover:bg-surface-sunken"
                   )}
                   onClick={() => setMobileOpen(false)}
                 >
@@ -432,12 +485,21 @@ export function Navbar() {
                 </Link>
               );
             })}
+
+            <div className="my-2 h-px bg-border-subtle" />
+            <div className="px-1 pb-2">
+              <LocaleSwitcher />
+            </div>
+
             {user ? (
               <>
                 <Link
                   href="/dashboard"
                   title={profileEmail}
-                  className="rounded-xl px-3 py-2 text-base font-medium text-red-500 hover:bg-red-50 dark:hover:bg-gray-800"
+                  className={clsx(
+                    "rounded-control px-3 py-3 text-base font-medium text-brand transition-colors hover:bg-brand-soft",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  )}
                   onClick={() => setMobileOpen(false)}
                 >
                   {displayName}
@@ -448,7 +510,10 @@ export function Navbar() {
                     setMobileOpen(false);
                     handleLogout();
                   }}
-                  className="rounded-xl px-3 py-2 text-left text-base font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
+                  className={clsx(
+                    "rounded-control px-3 py-3 text-left text-base font-medium text-ink-secondary transition-colors hover:bg-surface-sunken",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  )}
                 >
                   {t("nav.sign_out")}
                 </button>
@@ -456,7 +521,7 @@ export function Navbar() {
             ) : (
               <Link
                 href="/auth/login"
-                className="mt-2 inline-flex items-center justify-center rounded-full border-2 border-red-500 px-5 py-2.5 text-sm font-semibold text-red-500"
+                className={buttonClasses({ fullWidth: true, className: "mt-2" })}
                 onClick={() => setMobileOpen(false)}
               >
                 {t("nav.sign_in")}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Clock, Heart, MapPin, PackageCheck } from "lucide-react";
@@ -10,6 +9,19 @@ import type { Pledge, Shipment } from "@/lib/types";
 import { DONATION_TYPES } from "@/lib/constants";
 import { useT } from "@/i18n/client";
 import type { AppRole } from "@/lib/auth/roles";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  PageShell,
+  SectionHeader,
+  Skeleton,
+  Stat,
+  buttonClasses,
+} from "@/components/ui";
+import type { BadgeTone } from "@/components/ui";
 
 type PledgeRow = Pledge & {
   need?: {
@@ -21,11 +33,12 @@ type PledgeRow = Pledge & {
   shipment?: Shipment | null;
 };
 
-const statusLabel: Record<string, string> = {
-  pledged: "Pledged",
-  delivered: "Delivered",
-  confirmed: "Confirmed",
-  cancelled: "Cancelled",
+/** The same status vocabulary the map surface uses (`YourPledgesSection`). */
+const STATUS: Record<string, { tone: BadgeTone; key: string }> = {
+  pledged: { tone: "warning", key: "your_pledges.status_pledged" },
+  delivered: { tone: "info", key: "your_pledges.status_delivered" },
+  confirmed: { tone: "success", key: "your_pledges.status_confirmed" },
+  cancelled: { tone: "neutral", key: "your_pledges.status_cancelled" },
 };
 
 function roleTranslationKey(role: AppRole): string {
@@ -38,90 +51,131 @@ function roleTranslationKey(role: AppRole): string {
 export function IndividualDashboardClient({ profile }: { profile: AuthProfile }) {
   const t = useT();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [pledges, setPledges] = useState<PledgeRow[]>([]);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/pledges", { credentials: "include" });
-        if (res.ok) {
-          const json = await res.json();
-          setPledges(json.pledges ?? []);
+        const json = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!res.ok) {
+          setLoadError(typeof json.error === "string" ? json.error : t("common.error_generic"));
+          return;
         }
+        setLoadError(null);
+        setPledges(json.pledges ?? []);
+      } catch {
+        if (!cancelled) setLoadError(t("common.error_generic"));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [reload, t]);
 
   const recent = pledges.slice(0, 8);
   const withShipment = pledges.filter((item) => item.shipment).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/60 to-white px-4 py-10 dark:from-gray-950 dark:to-gray-950">
-      <div className="mx-auto max-w-4xl space-y-10">
-        <header>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {t("dashboard_individual.title")}
-          </h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            {t("dashboard_individual.subtitle")}
-          </p>
-        </header>
+    <PageShell width="content">
+      <PageHeader
+        title={t("dashboard_individual.title")}
+        subtitle={t("dashboard_individual.subtitle")}
+        actions={
+          <Link href="/map" className={buttonClasses()}>
+            <MapPin className="h-4 w-4" aria-hidden="true" />
+            {t("dashboard_individual.find_places")}
+          </Link>
+        }
+      />
 
-        <section
-          className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
-          aria-labelledby="account-heading"
-        >
-          <h2
-            id="account-heading"
-            className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
-          >
-            {t("dashboard_individual.your_account")}
-          </h2>
-          <p className="mt-3 text-lg font-semibold text-gray-900 dark:text-gray-100">{profile.name}</p>
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+      <div className="space-y-8">
+        <Card padding="lg" aria-labelledby="account-heading">
+          <SectionHeader
+            title={
+              <span id="account-heading">{t("dashboard_individual.your_account")}</span>
+            }
+          />
+          <p className="text-lg font-semibold text-ink">{profile.name}</p>
+          <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <dt className="text-gray-500 dark:text-gray-400">{t("dashboard_individual.email_label")}</dt>
-              <dd className="mt-0.5 break-all text-gray-900 dark:text-gray-100">{profile.email || "—"}</dd>
+              <dt className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">
+                {t("dashboard_individual.email_label")}
+              </dt>
+              <dd className="mt-0.5 break-all text-base text-ink">{profile.email || "—"}</dd>
             </div>
             <div>
-              <dt className="text-gray-500 dark:text-gray-400">{t("dashboard_individual.role_label")}</dt>
-              <dd className="mt-0.5 text-gray-900 dark:text-gray-100">
-                {t(roleTranslationKey(profile.role))}
-              </dd>
+              <dt className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">
+                {t("dashboard_individual.role_label")}
+              </dt>
+              <dd className="mt-0.5 text-base text-ink">{t(roleTranslationKey(profile.role))}</dd>
             </div>
           </dl>
-        </section>
+        </Card>
 
         <section className="grid gap-4 sm:grid-cols-3">
-          <StatCard
-            icon={<Heart className="h-5 w-5" />}
+          <Stat
+            icon={<Heart className="h-4 w-4" aria-hidden="true" />}
             label={t("dashboard_individual.stat_donations")}
-            value={pledges.length}
+            value={loading ? <Skeleton className="h-8 w-12" /> : pledges.length}
           />
-          <StatCard
-            icon={<PackageCheck className="h-5 w-5" />}
+          <Stat
+            icon={<PackageCheck className="h-4 w-4" aria-hidden="true" />}
             label={t("dashboard_individual.stat_shipping")}
-            value={withShipment}
+            value={loading ? <Skeleton className="h-8 w-12" /> : withShipment}
           />
-          <StatCard
-            icon={<Clock className="h-5 w-5" />}
+          {/* This was a hardcoded `0` presented as a measurement. There is no
+              volunteer-hours query on this surface yet, so it shows an em-dash
+              in the muted tone rather than a fabricated figure. A localised
+              "not available yet" caption needs a translation key that does not
+              exist yet — see the handover note. */}
+          <Stat
+            icon={<Clock className="h-4 w-4" aria-hidden="true" />}
             label={t("dashboard_individual.stat_volunteer_hours")}
-            value={0}
+            tone="muted"
+            value="—"
           />
         </section>
 
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {t("dashboard_individual.donation_history")}
-          </h2>
+          <SectionHeader title={t("dashboard_individual.donation_history")} />
           {loading ? (
-            <p className="text-sm text-gray-500">{t("common.loading")}</p>
+            <ul className="space-y-3" aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-24 rounded-card" />
+              ))}
+            </ul>
+          ) : loadError ? (
+            <EmptyState
+              title={t("errors.generic_title")}
+              description={loadError}
+              action={
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setLoading(true);
+                    setReload((n) => n + 1);
+                  }}
+                >
+                  {t("errors.retry")}
+                </Button>
+              }
+            />
           ) : recent.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-gray-200 bg-white/80 px-6 py-10 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/80 dark:text-gray-400">
-              {t("dashboard_individual.no_actions")}
-            </p>
+            <EmptyState
+              title={t("dashboard_individual.no_actions")}
+              action={
+                <Link href="/map" className={buttonClasses({ variant: "secondary" })}>
+                  {t("dashboard_individual.find_places")}
+                </Link>
+              }
+            />
           ) : (
             <ul className="space-y-3">
               {recent.map((pl) => {
@@ -130,34 +184,31 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
                   ? DONATION_TYPES[need.donation_type as keyof typeof DONATION_TYPES]?.label ??
                     need.donation_type
                   : "";
-                const when = formatDistanceToNow(new Date(pl.created_at), {
-                  addSuffix: true,
-                });
+                const when = formatDistanceToNow(new Date(pl.created_at), { addSuffix: true });
+                const status = STATUS[pl.status] ?? STATUS.pledged!;
                 return (
                   <li
                     key={pl.id}
-                    className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                    className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-gray-900 dark:text-gray-100">
-                          {need?.title ?? "Need"}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-ink">{need?.title ?? "—"}</p>
+                        <p className="text-sm text-ink-secondary">
+                          {need?.institution?.name ?? "—"}
                         </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {need?.institution?.name ?? "Community support"}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{typeLabel}</p>
+                        <p className="mt-1 text-xs text-ink-tertiary">{typeLabel}</p>
                         {pl.shipment ? (
-                          <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                          <p className="mt-1 text-xs text-info">
                             {t("dashboard_individual.shipment_prefix")} {pl.shipment.status}
                           </p>
                         ) : null}
                       </div>
-                      <div className="text-right">
-                        <span className="inline-flex rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-400">
-                          {statusLabel[pl.status] ?? pl.status}
-                        </span>
-                        <p className="mt-1 text-xs text-gray-500">{when}</p>
+                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
+                        <Badge tone={status.tone}>{t(status.key)}</Badge>
+                        <time dateTime={pl.created_at} className="text-xs text-ink-tertiary">
+                          {when}
+                        </time>
                       </div>
                     </div>
                   </li>
@@ -166,35 +217,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
             </ul>
           )}
         </section>
-
-        <Link
-          href="/map"
-          className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-5 py-3 text-sm font-semibold text-white hover:bg-red-600"
-        >
-          <MapPin className="h-4 w-4" />
-          {t("dashboard_individual.find_places")}
-        </Link>
       </div>
-    </div>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100 dark:bg-gray-900 dark:ring-gray-800">
-      <div className="mb-3 flex items-center gap-2 text-red-500">
-        {icon}
-        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</span>
-      </div>
-      <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
-    </div>
+    </PageShell>
   );
 }

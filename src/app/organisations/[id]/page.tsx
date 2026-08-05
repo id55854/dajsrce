@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Building2, ExternalLink, Mail, MapPin } from "lucide-react";
+import { ArrowLeft, ExternalLink, Mail, MapPin } from "lucide-react";
 import { getLocale, getTranslator } from "@/i18n/server";
 import type { AssociationRegistryEntry } from "@/lib/association-registry";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import {
+  Badge,
+  Card,
+  PageHeader,
+  PageShell,
+  SectionHeader,
+  buttonClasses,
+  type BadgeTone,
+} from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -24,21 +33,25 @@ function safeHttpUrl(value: string | null): string | null {
   }
 }
 
-function statusClass(status: string) {
-  if (status === "AKTIVAN") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300";
-  if (status === "BRISAN") return "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
-  return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
+/** Same status→tone map as the directory listing. */
+function statusTone(status: string): BadgeTone {
+  if (status === "AKTIVAN") return "success";
+  if (status === "BRISAN") return "neutral";
+  return "warning";
 }
 
 function DetailField({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
     <div>
-      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</dt>
-      <dd className="mt-1 whitespace-pre-wrap text-sm leading-6 text-gray-900 dark:text-gray-100">{value}</dd>
+      <dt className="text-sm font-medium text-ink-tertiary">{label}</dt>
+      <dd className="mt-1 whitespace-pre-wrap text-base leading-6 text-ink">{value}</dd>
     </div>
   );
 }
+
+const LINK_CLASSES =
+  "rounded text-brand underline underline-offset-2 transition-colors hover:text-brand-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
 export default async function OrganisationDetailPage({
   params,
@@ -66,98 +79,118 @@ export default async function OrganisationDetailPage({
         : organisation.status;
 
   return (
-    <div className="bg-gray-50 py-8 dark:bg-gray-950 sm:py-12">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <Link href="/organisations" className="inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400">
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t("organisations.back_to_directory")}
-        </Link>
+    <PageShell width="wide">
+      <Link
+        href="/organisations"
+        className={buttonClasses({
+          variant: "ghost",
+          size: "sm",
+          className: "mb-4 -ml-4",
+        })}
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        {t("organisations.back_to_directory")}
+      </Link>
 
-        <article className="mt-5 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <header className="border-b border-gray-200 bg-gradient-to-br from-red-50 to-amber-50 p-6 dark:border-gray-800 dark:from-red-950/30 dark:to-amber-950/20 sm:p-8">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex max-w-3xl items-start gap-4">
-                <span className="rounded-2xl bg-white p-3 text-red-600 shadow-sm dark:bg-gray-900 dark:text-red-400">
-                  <Building2 className="h-7 w-7" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
-                    {t("organisations.official_record")}
-                  </p>
-                  <h1 className="mt-2 text-2xl font-bold leading-tight text-gray-950 dark:text-white sm:text-3xl">
-                    {organisation.name}
-                  </h1>
-                  {organisation.short_name ? <p className="mt-2 text-gray-600 dark:text-gray-300">{organisation.short_name}</p> : null}
-                </div>
-              </div>
-              <span className={`rounded-full px-3 py-1.5 text-sm font-semibold ${statusClass(organisation.status)}`}>
-                {statusLabel}
-              </span>
+      <PageHeader
+        eyebrow={t("organisations.official_record")}
+        title={organisation.name}
+        subtitle={organisation.short_name ?? undefined}
+        actions={<Badge tone={statusTone(organisation.status)}>{statusLabel}</Badge>}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
+        <div className="space-y-6">
+          <Card padding="lg">
+            <SectionHeader title={t("organisations.activity")} />
+            <dl className="space-y-5">
+              <DetailField label={t("organisations.goals")} value={organisation.goals} />
+              <DetailField label={t("organisations.target_groups")} value={organisation.target_groups} />
+              <DetailField label={t("organisations.activity_description")} value={organisation.activity_description} />
+              <DetailField label={t("organisations.economic_activities")} value={organisation.economic_activities} />
+            </dl>
+          </Card>
+
+          <Card padding="lg">
+            <SectionHeader title={t("organisations.names")} />
+            <dl className="grid gap-5 sm:grid-cols-2">
+              <DetailField label={t("organisations.other_names")} value={organisation.names_in_other_languages} />
+              <DetailField label={t("organisations.other_short_names")} value={organisation.short_names_in_other_languages} />
+            </dl>
+          </Card>
+        </div>
+
+        <aside className="space-y-6">
+          <Card>
+            <SectionHeader title={t("organisations.registry_identity")} />
+            <dl className="space-y-4">
+              <DetailField label="UDR_ID" value={organisation.id} />
+              <DetailField label="OIB" value={organisation.oib || t("organisations.missing_oib")} />
+              <DetailField label={t("organisations.registry_number")} value={organisation.registry_number} />
+              <DetailField label={t("organisations.form")} value={organisation.legal_form} />
+              <DetailField label={t("organisations.registered")} value={date(organisation.registered_on)} />
+              <DetailField label={t("organisations.founding_assembly")} value={date(organisation.founding_assembly_on)} />
+              <DetailField label={t("organisations.status_changed")} value={date(organisation.status_changed_on)} />
+            </dl>
+          </Card>
+
+          <Card>
+            <SectionHeader title={t("organisations.contact")} />
+            <div className="space-y-3 text-base text-ink">
+              {organisation.address ? (
+                <p className="flex gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                  <span>{organisation.address}</span>
+                </p>
+              ) : null}
+              {organisation.email ? (
+                <p className="flex gap-2">
+                  <Mail className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                  <a
+                    className={`break-all ${LINK_CLASSES}`}
+                    href={`mailto:${encodeURIComponent(organisation.email)}`}
+                  >
+                    {organisation.email}
+                  </a>
+                </p>
+              ) : null}
+              {website ? (
+                <p>
+                  <a
+                    className={`inline-flex items-center gap-1.5 break-all ${LINK_CLASSES}`}
+                    href={website}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {organisation.website}
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  </a>
+                </p>
+              ) : null}
+              {!organisation.address && !organisation.email && !website ? (
+                <p className="text-ink-secondary">{t("organisations.not_available")}</p>
+              ) : null}
             </div>
-          </header>
+          </Card>
 
-          <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-            <div className="space-y-8">
-              <section>
-                <h2 className="text-lg font-semibold">{t("organisations.activity")}</h2>
-                <dl className="mt-4 space-y-5">
-                  <DetailField label={t("organisations.goals")} value={organisation.goals} />
-                  <DetailField label={t("organisations.target_groups")} value={organisation.target_groups} />
-                  <DetailField label={t("organisations.activity_description")} value={organisation.activity_description} />
-                  <DetailField label={t("organisations.economic_activities")} value={organisation.economic_activities} />
-                </dl>
-              </section>
-
-              <section>
-                <h2 className="text-lg font-semibold">{t("organisations.names")}</h2>
-                <dl className="mt-4 grid gap-5 sm:grid-cols-2">
-                  <DetailField label={t("organisations.other_names")} value={organisation.names_in_other_languages} />
-                  <DetailField label={t("organisations.other_short_names")} value={organisation.short_names_in_other_languages} />
-                </dl>
-              </section>
-            </div>
-
-            <aside className="space-y-6">
-              <section className="rounded-2xl border border-gray-200 p-5 dark:border-gray-700">
-                <h2 className="font-semibold">{t("organisations.registry_identity")}</h2>
-                <dl className="mt-4 space-y-4">
-                  <DetailField label="UDR_ID" value={organisation.id} />
-                  <DetailField label="OIB" value={organisation.oib || t("organisations.missing_oib")} />
-                  <DetailField label={t("organisations.registry_number")} value={organisation.registry_number} />
-                  <DetailField label={t("organisations.form")} value={organisation.legal_form} />
-                  <DetailField label={t("organisations.registered")} value={date(organisation.registered_on)} />
-                  <DetailField label={t("organisations.founding_assembly")} value={date(organisation.founding_assembly_on)} />
-                  <DetailField label={t("organisations.status_changed")} value={date(organisation.status_changed_on)} />
-                </dl>
-              </section>
-
-              <section className="rounded-2xl border border-gray-200 p-5 dark:border-gray-700">
-                <h2 className="font-semibold">{t("organisations.contact")}</h2>
-                <div className="mt-4 space-y-3 text-sm">
-                  {organisation.address ? (
-                    <p className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden="true" /><span>{organisation.address}</span></p>
-                  ) : null}
-                  {organisation.email ? (
-                    <p className="flex gap-2"><Mail className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden="true" /><a className="break-all text-red-600 underline dark:text-red-400" href={`mailto:${encodeURIComponent(organisation.email)}`}>{organisation.email}</a></p>
-                  ) : null}
-                  {website ? (
-                    <p><a className="inline-flex items-center gap-1.5 break-all text-red-600 underline dark:text-red-400" href={website} target="_blank" rel="noreferrer">{organisation.website}<ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /></a></p>
-                  ) : null}
-                  {!organisation.address && !organisation.email && !website ? <p>{t("organisations.not_available")}</p> : null}
-                </div>
-              </section>
-
-              <section className="rounded-2xl bg-gray-100 p-5 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                <h2 className="font-semibold text-gray-950 dark:text-white">{t("organisations.source_details")}</h2>
-                <p className="mt-3">{organisation.source.publisher}</p>
-                <p className="mt-2">{t("organisations.license")}: {organisation.source.license}</p>
-                <a className="mt-3 inline-flex items-center gap-1.5 font-medium text-red-600 underline dark:text-red-400" href={organisation.source.dataset_url} target="_blank" rel="noreferrer">
-                  {organisation.source.dataset} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                </a>
-              </section>
-            </aside>
-          </div>
-        </article>
+          <Card padding="md" className="bg-surface-sunken shadow-none">
+            <SectionHeader title={t("organisations.source_details")} />
+            <p className="text-sm text-ink-secondary">{organisation.source.publisher}</p>
+            <p className="mt-2 text-sm text-ink-secondary">
+              {t("organisations.license")}: {organisation.source.license}
+            </p>
+            <a
+              className={`mt-3 inline-flex items-center gap-1.5 text-sm font-medium ${LINK_CLASSES}`}
+              href={organisation.source.dataset_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {organisation.source.dataset}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          </Card>
+        </aside>
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizeRole } from "@/lib/auth/roles";
 import { PrintConfirmationButton } from "@/components/PrintConfirmationButton";
+import { Badge, Card, PageHeader, PageShell } from "@/components/ui";
 
 export default async function CompanyConfirmationPage({
   params,
@@ -38,50 +40,48 @@ export default async function CompanyConfirmationPage({
   if (!action) notFound();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Legacy support record
-        </h1>
-        <PrintConfirmationButton />
-      </div>
-      <article className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900 print:shadow-none">
-        <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
-          DajSrce • Self-reported legacy record
-        </p>
-        <h2 className="mt-2 text-3xl font-semibold text-gray-900 dark:text-gray-100">
-          Historical company-submitted support entry
-        </h2>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+    <PageShell width="content">
+      <PageHeader
+        eyebrow="DajSrce"
+        title="Legacy support record"
+        subtitle="Historical company-submitted support entry."
+        actions={<PrintConfirmationButton />}
+      />
+
+      <Card padding="lg" className="print:border-0 print:shadow-none">
+        <Badge tone="warning" icon={<AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />}>
+          Self-reported — not independently verified
+        </Badge>
+
+        <dl className="mt-6 grid gap-5 sm:grid-cols-2">
           <Data label="Company" value={action.company_name} />
           <Data label="NGO" value={action.ngo_name} />
           <Data label="Donation/support type" value={action.support_type} />
           <Data label="Date" value={new Date(action.created_at).toLocaleDateString()} />
-          <Data label="Status" value="Self-reported — not independently verified" />
           <Data label="Delivery method" value={action.shipment_method} />
-        </div>
+        </dl>
+
         {action.note ? (
-          <div className="mt-6 rounded-xl bg-gray-50 p-4 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+          <div className="mt-6 rounded-control bg-surface-sunken p-4 text-sm leading-6 text-ink">
             {action.note}
           </div>
         ) : null}
-        <p className="mt-8 text-xs text-gray-500">
-          This legacy record was entered by the company and was not acknowledged by the
-          named NGO. It is not a donation receipt, tax document, or independently verified
-          evidence. Use acknowledged pledges and generated receipts for formal reporting.
+
+        <p className="mt-8 border-t border-border-subtle pt-6 text-sm leading-6 text-ink-tertiary">
+          This legacy record was entered by the company and was not acknowledged by the named
+          NGO. It is not a donation receipt, tax document, or independently verified evidence.
+          Use acknowledged pledges and generated receipts for formal reporting.
         </p>
-      </article>
-    </div>
+      </Card>
+    </PageShell>
   );
 }
 
-function Data({ label, value }: { label: string; value: string }) {
+function Data({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
-        {value}
-      </p>
+      <dt className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">{label}</dt>
+      <dd className="mt-1 text-base font-semibold text-ink">{value ?? "—"}</dd>
     </div>
   );
 }

@@ -1,13 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import clsx from "clsx";
 import { Need } from "@/lib/types";
 import type { InstitutionCategory } from "@/lib/types";
-import { DONATION_TYPES, getCategoryConfig } from "@/lib/constants";
+import {
+  CATEGORY_CONFIG,
+  DONATION_TYPES,
+  categoryVars,
+  getCategoryConfig,
+} from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
+import { Badge, Card, type BadgeTone } from "@/components/ui";
 import { PledgeButton, type PledgeSuccessPayload } from "./PledgeButton";
 import { DonationTypeIcon } from "@/components/DonationTypeIcon";
 
@@ -29,24 +36,25 @@ type NeedCardProps = {
   onPledgeSuccess?: (payload: PledgeSuccessPayload) => void;
 };
 
-const urgencyStyles = {
-  urgent: { key: "need_card.urgent", className: "bg-red-500 text-white" },
-  needed_soon: {
-    key: "need_card.needed_soon",
-    className: "bg-orange-500 text-white",
-  },
-  routine: {
-    key: "need_card.routine",
-    className: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
-  },
-} as const;
+/** One status→tone map, so urgency reads the same wherever a need appears. */
+const URGENCY: Record<Need["urgency"], { key: string; tone: BadgeTone }> = {
+  urgent: { key: "need_card.urgent", tone: "danger" },
+  needed_soon: { key: "need_card.needed_soon", tone: "warning" },
+  routine: { key: "need_card.routine", tone: "neutral" },
+};
 
 export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCardProps) {
   const t = useT();
   const { locale } = useLocale();
   const inst = need.institution;
   const cat = inst ? getCategoryConfig(inst.category) : null;
-  const urgency = urgencyStyles[need.urgency];
+  // `.category-chip` defaults `--cat` to the brand hue, so an unrecognised
+  // category (a row newer than this deploy) degrades instead of crashing.
+  const catStyle =
+    inst && inst.category in CATEGORY_CONFIG
+      ? categoryVars(inst.category)
+      : undefined;
+  const urgency = URGENCY[need.urgency];
   const needed = need.quantity_needed ?? 0;
   const pledged = need.quantity_pledged;
   const pct =
@@ -56,6 +64,7 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
         ? 100
         : 0;
   const fulfilled = needed > 0 && pct >= 100;
+  const mine = Boolean(myPledgedQty && myPledgedQty > 0);
 
   const posted = formatDistanceToNow(new Date(need.created_at), {
     addSuffix: true,
@@ -63,67 +72,75 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
   });
 
   return (
-    <article
+    <Card
+      as="article"
       className={clsx(
-        "rounded-xl border bg-white p-5 shadow-sm transition-colors dark:bg-gray-900",
-        myPledgedQty && myPledgedQty > 0
-          ? "border-emerald-300 ring-1 ring-emerald-200/70 dark:border-emerald-800 dark:ring-emerald-900/40"
-          : "border-gray-100 dark:border-gray-800"
+        "flex h-full flex-col",
+        mine && "border-success ring-1 ring-success/30"
       )}
     >
-      {inst && cat ? (
+      {inst ? (
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="font-medium text-gray-900 dark:text-gray-100">
-            {inst.name}
-          </span>
-          <span
-            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-            style={{ backgroundColor: cat.bgColor, color: cat.color }}
+          {/* The id was already in props; the name used to be a dead <span>. */}
+          <Link
+            href={`/institution/${inst.id}`}
+            className="rounded-control text-sm font-semibold text-ink underline-offset-2 transition-colors hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
           >
-            {locale === "hr" ? cat.labelHr : cat.label}
-          </span>
+            {inst.name}
+          </Link>
+          {cat ? (
+            <span
+              style={catStyle}
+              className="category-chip inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+            >
+              {locale === "hr" ? cat.labelHr : cat.label}
+            </span>
+          ) : null}
         </div>
       ) : null}
 
       <div className="mb-2 flex flex-wrap items-center gap-2">
         {fulfilled ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-0.5 text-xs font-semibold text-white">
-            <CheckCircle2 className="h-3 w-3" aria-hidden />
-            100%
-          </span>
-        ) : (
-          <span
-            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${urgency.className}`}
+          <Badge
+            tone="success"
+            icon={<CheckCircle2 className="h-3 w-3" aria-hidden="true" />}
           >
-            {t(urgency.key)}
-          </span>
+            100%
+          </Badge>
+        ) : (
+          <Badge tone={urgency.tone}>{t(urgency.key)}</Badge>
         )}
-        <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-          <DonationTypeIcon
-            type={need.donation_type}
-            className="h-3.5 w-3.5"
-          />
+        <Badge
+          icon={
+            <DonationTypeIcon
+              type={need.donation_type}
+              className="h-3.5 w-3.5"
+            />
+          }
+        >
           {locale === "hr"
             ? DONATION_TYPES[need.donation_type].labelHr
             : DONATION_TYPES[need.donation_type].label}
-        </span>
-        {myPledgedQty && myPledgedQty > 0 ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-            <CheckCircle2 className="h-3 w-3" aria-hidden />
+        </Badge>
+        {mine ? (
+          <Badge
+            tone="success"
+            icon={<CheckCircle2 className="h-3 w-3" aria-hidden="true" />}
+          >
             {t("your_pledges.you_pledged").replace("{qty}", String(myPledgedQty))}
-          </span>
+          </Badge>
         ) : null}
       </div>
 
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+      <h2 className="line-clamp-2 text-lg font-semibold leading-snug text-ink">
         {need.title}
       </h2>
-      <p className="mt-2 text-gray-600 line-clamp-3 dark:text-gray-400">
+      <p className="mt-2 line-clamp-3 text-base leading-6 text-ink-secondary">
         {need.description}
       </p>
 
       <div className="mt-4">
-        <div className="mb-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+        <div className="mb-1 flex justify-between text-sm text-ink-tertiary">
           <span>
             {t("need_card.pledged", {
               pledged,
@@ -133,7 +150,7 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
           <span>{needed > 0 ? `${pct}%` : ""}</span>
         </div>
         <div
-          className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+          className="h-2 overflow-hidden rounded-full bg-surface-sunken"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
@@ -141,22 +158,22 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
           aria-label={t("need_card.progress", { percent: pct })}
         >
           <div
-            className="h-full rounded-full bg-red-500 transition-all"
+            className="h-full rounded-full bg-brand transition-[width] duration-300 ease-out"
             style={{ width: `${needed > 0 ? pct : pledged > 0 ? 100 : 0}%` }}
           />
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
         <PledgeButton
           needId={need.id}
           needTitle={need.title}
           onPledgeSuccess={onPledgeSuccess}
         />
-        <time className="text-xs text-gray-400" dateTime={need.created_at}>
+        <time className="text-sm text-ink-tertiary" dateTime={need.created_at}>
           {t("need_card.posted", { time: posted })}
         </time>
       </div>
-    </article>
+    </Card>
   );
 }

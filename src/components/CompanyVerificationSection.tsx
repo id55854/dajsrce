@@ -6,7 +6,6 @@ import {
   BadgeCheck,
   CheckCircle2,
   Clock,
-  Loader2,
   Mail,
   RefreshCw,
   Search,
@@ -15,6 +14,17 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useT } from "@/i18n/client";
+import {
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  Field,
+  Input,
+  Skeleton,
+  buttonClasses,
+  useToast,
+} from "@/components/ui";
 
 type SudregSnapshot = {
   oib: string;
@@ -65,6 +75,7 @@ export function CompanyVerificationSection({
   companyDomain: string | null;
 }) {
   const t = useT();
+  const toast = useToast();
 
   const [statusLoading, setStatusLoading] = useState(true);
   const [status, setStatus] = useState<Status | null>(null);
@@ -72,12 +83,17 @@ export function CompanyVerificationSection({
   const [oib, setOib] = useState("");
   const [snapshot, setSnapshot] = useState<SudregSnapshot | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
+  // The component had three different error placements. Errors about a value
+  // the user typed now live on that field; every network *outcome* is a toast.
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const [emailChoice, setEmailChoice] = useState<string>("__manual__");
   const [emailManual, setEmailManual] = useState("");
   const [sendLoading, setSendLoading] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
+
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     setStatusLoading(true);
@@ -106,6 +122,15 @@ export function CompanyVerificationSection({
     !status.verification.confirmed_at &&
     new Date(status.verification.expires_at).getTime() > Date.now();
 
+  function reportFailure(detail?: unknown) {
+    toast({
+      tone: "error",
+      title: t("errors.generic_title"),
+      description:
+        typeof detail === "string" ? detail : t("company.verification.error_generic"),
+    });
+  }
+
   async function handleLookup() {
     setLookupError(null);
     setSnapshot(null);
@@ -128,9 +153,7 @@ export function CompanyVerificationSection({
         return;
       }
       setSnapshot(data.company as SudregSnapshot);
-      setEmailChoice(
-        (data.company as SudregSnapshot).emails?.[0] ?? "__manual__"
-      );
+      setEmailChoice((data.company as SudregSnapshot).emails?.[0] ?? "__manual__");
     } catch {
       setLookupError(t("company.verification.error_generic"));
     } finally {
@@ -140,13 +163,12 @@ export function CompanyVerificationSection({
 
   async function handleSend() {
     if (!snapshot) return;
-    const contact_email =
-      emailChoice === "__manual__" ? emailManual.trim() : emailChoice;
+    const contact_email = emailChoice === "__manual__" ? emailManual.trim() : emailChoice;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(contact_email)) {
-      setSendError(t("company.verification.error_generic"));
+      setEmailError(t("company.verification.error_generic"));
       return;
     }
-    setSendError(null);
+    setEmailError(null);
     setSendLoading(true);
     try {
       const res = await fetch(`/api/companies/${companyId}/verification/start`, {
@@ -157,25 +179,46 @@ export function CompanyVerificationSection({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setSendError(data?.error ?? t("company.verification.error_generic"));
+        reportFailure(data?.error);
         return;
       }
+      toast({
+        tone: "success",
+        title: t("company.verification.pending_title"),
+        description: contact_email,
+      });
       setSnapshot(null);
       setOib("");
       await fetchStatus();
     } catch {
-      setSendError(t("company.verification.error_generic"));
+      reportFailure();
     } finally {
       setSendLoading(false);
     }
   }
 
   async function handleCancel() {
-    await fetch(`/api/companies/${companyId}/verification`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    await fetchStatus();
+    setCancelLoading(true);
+    try {
+      // The result of this DELETE used to be discarded entirely, so a failed
+      // cancel looked identical to a successful one.
+      const res = await fetch(`/api/companies/${companyId}/verification`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        reportFailure(data?.error);
+        return;
+      }
+      setCancelOpen(false);
+      toast({ tone: "success", title: t("company.verification_sent") });
+      await fetchStatus();
+    } catch {
+      reportFailure();
+    } finally {
+      setCancelLoading(false);
+    }
   }
 
   const showDomainWarning = useMemo(() => {
@@ -189,32 +232,31 @@ export function CompanyVerificationSection({
 
   if (statusLoading) {
     return (
-      <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-        Loading…
-      </div>
+      <Card padding="lg" className="space-y-3" aria-busy="true">
+        <Skeleton className="h-5 w-48" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-11 w-64" />
+      </Card>
     );
   }
 
   return (
     <section className="space-y-4">
       <header className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+        <h2 className="text-lg font-semibold text-ink">
           {t("company.verification.section_title")}
         </h2>
         {verified ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-            <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+          <Badge tone="success" icon={<BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />}>
             {t("company.verification.verified_badge")}
-          </span>
+          </Badge>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-            <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
+          <Badge tone="neutral" icon={<ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />}>
             {t("company.verification.unverified_badge")}
-          </span>
+          </Badge>
         )}
       </header>
-      <p className="text-sm text-gray-600 dark:text-gray-400">
+      <p className="text-base leading-7 text-ink-secondary">
         {t("company.verification.section_intro")}
       </p>
 
@@ -222,68 +264,68 @@ export function CompanyVerificationSection({
         <VerifiedCard
           verifiedAt={status!.company_verified_at!}
           companySlug={companySlug}
-          onReverify={async () => {
+          onReverify={() => {
             // Reverification: just clear local snapshot — verified_at is preserved
             // until the new flow completes. The user can run the full 3 steps again.
             setSnapshot(null);
             setOib("");
             setEmailChoice("__manual__");
             setEmailManual("");
+            setLookupError(null);
+            setEmailError(null);
           }}
         />
       ) : null}
 
       {pending && status?.verification ? (
-        <PendingCard
-          v={status.verification}
-          onCancel={handleCancel}
-        />
+        <PendingCard v={status.verification} onCancel={() => setCancelOpen(true)} />
       ) : null}
 
       {/* Always show the run-flow form unless there's an active pending state. */}
       {!pending ? (
-        <div className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <Card padding="lg" className="space-y-6">
           {/* Step 1: OIB lookup */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="mb-3 text-sm font-semibold text-ink">
               {t("company.verification.step1_title")}
             </h3>
-            <label className="mt-3 block text-xs font-medium uppercase tracking-wide text-gray-500">
-              {t("company.verification.step1_oib_label")}
-            </label>
-            <div className="mt-1.5 flex flex-wrap gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={11}
-                value={oib}
-                onChange={(e) => setOib(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                placeholder={t("company.verification.step1_oib_placeholder")}
-                className="min-w-[12rem] flex-1 rounded-xl border border-gray-200 px-4 py-2.5 font-mono text-sm tracking-wider text-gray-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              />
-              <button
-                type="button"
-                onClick={handleLookup}
-                disabled={oib.length !== 11 || lookupLoading}
-                className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-600 disabled:opacity-50"
+            <div className="flex flex-wrap items-end gap-2">
+              <Field
+                label={t("company.verification.step1_oib_label")}
+                error={lookupError}
+                className="min-w-[12rem] flex-1"
               >
-                {lookupLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Search className="h-4 w-4" aria-hidden />
+                {(field) => (
+                  <Input
+                    {...field}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={11}
+                    value={oib}
+                    onChange={(e) => {
+                      setOib(e.target.value.replace(/\D/g, "").slice(0, 11));
+                      setLookupError(null);
+                    }}
+                    placeholder={t("company.verification.step1_oib_placeholder")}
+                    invalid={!!lookupError}
+                    className="font-mono tracking-wider"
+                  />
                 )}
+              </Field>
+              {/* Brand red, like every other primary action in the app — this
+                  was the one emerald "primary" button on the surface. */}
+              <Button
+                onClick={() => void handleLookup()}
+                disabled={oib.length !== 11}
+                loading={lookupLoading}
+                icon={<Search className="h-4 w-4" aria-hidden="true" />}
+              >
                 {lookupLoading
                   ? t("company.verification.step1_lookup_loading")
                   : t("company.verification.step1_lookup_btn")}
-              </button>
+              </Button>
             </div>
-            {lookupError ? (
-              <p className="mt-2 inline-flex items-center gap-1 text-sm text-red-600">
-                <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                {lookupError}
-              </p>
-            ) : null}
           </div>
 
           {/* Steps 2 & 3: visible only after a successful lookup */}
@@ -294,37 +336,68 @@ export function CompanyVerificationSection({
                 snapshot={snapshot}
                 emailChoice={emailChoice}
                 emailManual={emailManual}
-                onEmailChoice={setEmailChoice}
-                onEmailManual={setEmailManual}
+                emailError={emailError}
+                onEmailChoice={(value) => {
+                  setEmailChoice(value);
+                  setEmailError(null);
+                }}
+                onEmailManual={(value) => {
+                  setEmailManual(value);
+                  setEmailError(null);
+                }}
                 showDomainWarning={showDomainWarning}
               />
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                {sendError ? (
-                  <p className="inline-flex items-center gap-1 text-sm text-red-600">
-                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                    {sendError}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleSend}
-                  disabled={sendLoading}
-                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => void handleSend()}
+                  loading={sendLoading}
+                  icon={<Mail className="h-4 w-4" aria-hidden="true" />}
                 >
-                  {sendLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Mail className="h-4 w-4" aria-hidden />
-                  )}
                   {sendLoading
                     ? t("company.verification.step3_send_loading")
                     : t("company.verification.step3_send_btn")}
-                </button>
+                </Button>
               </div>
             </>
           ) : null}
-        </div>
+        </Card>
       ) : null}
+
+      {/* Cancelling a pending verification used to happen on a single click
+          with no confirmation and no error handling. */}
+      <Dialog
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        title={t("company.verification.pending_cancel")}
+        description={status?.verification?.contact_email ?? undefined}
+        closeLabel={t("common.close")}
+        footer={
+          <>
+            <Button
+              variant="danger"
+              onClick={() => void handleCancel()}
+              loading={cancelLoading}
+              data-dialog-initial-focus
+            >
+              {t("common.confirm")}
+            </Button>
+            <Button variant="secondary" onClick={() => setCancelOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-secondary">
+          {t("company.verification.pending_body")
+            .replace("{email}", status?.verification?.contact_email ?? "—")
+            .replace(
+              "{expires}",
+              status?.verification
+                ? new Date(status.verification.expires_at).toLocaleString()
+                : "—"
+            )}
+        </p>
+      </Dialog>
     </section>
   );
 }
@@ -340,78 +413,71 @@ function VerifiedCard({
 }) {
   const t = useT();
   return (
-    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+    <Card padding="lg" className="border-success/30 bg-success-soft">
       <div className="flex items-start gap-3">
-        <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+        <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-success" aria-hidden="true" />
         <div className="flex-1">
-          <h3 className="text-base font-semibold text-emerald-900 dark:text-emerald-100">
+          <h3 className="text-base font-semibold text-success-on-soft">
             {t("company.verification.verified_title")}
           </h3>
-          <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-200/90">
+          <p className="mt-1 text-sm text-success-on-soft/90">
             {t("company.verification.verified_body")}
           </p>
-          <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300/80">
-            {t("company.verification.verified_at")}{" "}
-            {new Date(verifiedAt).toLocaleString()}
+          <p className="mt-2 text-sm text-success-on-soft/80">
+            {t("company.verification.verified_at")} {new Date(verifiedAt).toLocaleString()}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             {companySlug ? (
               <a
                 href={`/company/${companySlug}`}
-                className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                className={buttonClasses({ variant: "secondary", size: "sm" })}
               >
                 {t("company.verification.go_to_company")}
               </a>
             ) : null}
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onReverify}
-              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+              icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
             >
-              <RefreshCw className="h-3 w-3" aria-hidden />
               {t("company.verification.reverify")}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
-function PendingCard({
-  v,
-  onCancel,
-}: {
-  v: Verification;
-  onCancel: () => void | Promise<void>;
-}) {
+function PendingCard({ v, onCancel }: { v: Verification; onCancel: () => void }) {
   const t = useT();
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900 dark:bg-amber-950/40">
+    <Card padding="lg" className="border-warning/30 bg-warning-soft">
       <div className="flex items-start gap-3">
-        <Clock className="mt-0.5 h-6 w-6 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+        <Clock className="mt-0.5 h-6 w-6 shrink-0 text-warning" aria-hidden="true" />
         <div className="flex-1">
-          <h3 className="text-base font-semibold text-amber-900 dark:text-amber-100">
+          <h3 className="text-base font-semibold text-warning-on-soft">
             {t("company.verification.pending_title")}
           </h3>
-          <p className="mt-1 text-sm text-amber-800 dark:text-amber-200/90">
+          <p className="mt-1 text-sm text-warning-on-soft/90">
             {t("company.verification.pending_body")
               .replace("{email}", v.contact_email)
               .replace("{expires}", new Date(v.expires_at).toLocaleString())}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void onCancel()}
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+          <div className="mt-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onCancel}
+              icon={<X className="h-3.5 w-3.5" aria-hidden="true" />}
             >
-              <X className="h-3 w-3" aria-hidden />
               {t("company.verification.pending_cancel")}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -419,47 +485,41 @@ function SnapshotCard({ snapshot }: { snapshot: SudregSnapshot }) {
   const t = useT();
   const active = snapshot.status === 1;
   return (
-    <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+    <div className="space-y-3 rounded-control border border-border-subtle bg-surface-sunken p-4">
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        <h3 className="text-sm font-semibold text-ink">
           {t("company.verification.step2_title")}
         </h3>
-        <span
-          className={clsx(
-            "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-            active
-              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
-              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-          )}
-        >
+        <Badge tone={active ? "success" : "danger"} size="sm">
           {active
             ? t("company.verification.step2_status_active")
             : t("company.verification.step2_status_inactive")}
-        </span>
+        </Badge>
       </div>
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-        <Field label={t("company.verification.step2_legal_name")} value={snapshot.legalName} />
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+        <DetailCell label={t("company.verification.step2_legal_name")} value={snapshot.legalName} />
         {snapshot.shortName ? (
-          <Field label={t("company.verification.step2_short_name")} value={snapshot.shortName} />
+          <DetailCell
+            label={t("company.verification.step2_short_name")}
+            value={snapshot.shortName}
+          />
         ) : null}
-        <Field label={t("company.verification.step2_legal_form")} value={snapshot.legalForm} />
-        <Field
+        <DetailCell label={t("company.verification.step2_legal_form")} value={snapshot.legalForm} />
+        <DetailCell
           label={t("company.verification.step2_address")}
           value={
-            [snapshot.street, snapshot.city, snapshot.county]
-              .filter(Boolean)
-              .join(", ") || null
+            [snapshot.street, snapshot.city, snapshot.county].filter(Boolean).join(", ") || null
           }
         />
-        <Field label="OIB" value={snapshot.oib} mono />
-        <Field label={t("company.verification.step2_mb")} value={snapshot.mb} mono />
-        <Field label={t("company.verification.step2_mbs")} value={snapshot.mbs} mono />
+        <DetailCell label="OIB" value={snapshot.oib} mono />
+        <DetailCell label={t("company.verification.step2_mb")} value={snapshot.mb} mono />
+        <DetailCell label={t("company.verification.step2_mbs")} value={snapshot.mbs} mono />
       </dl>
     </div>
   );
 }
 
-function Field({
+function DetailCell({
   label,
   value,
   mono,
@@ -470,17 +530,8 @@ function Field({
 }) {
   return (
     <div>
-      <dt className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
-        {label}
-      </dt>
-      <dd
-        className={clsx(
-          "text-gray-900 dark:text-gray-100",
-          mono && "font-mono"
-        )}
-      >
-        {value ?? "—"}
-      </dd>
+      <dt className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">{label}</dt>
+      <dd className={clsx("mt-0.5 text-sm text-ink", mono && "font-mono")}>{value ?? "—"}</dd>
     </div>
   );
 }
@@ -489,6 +540,7 @@ function EmailPicker({
   snapshot,
   emailChoice,
   emailManual,
+  emailError,
   onEmailChoice,
   onEmailManual,
   showDomainWarning,
@@ -496,64 +548,81 @@ function EmailPicker({
   snapshot: SudregSnapshot;
   emailChoice: string;
   emailManual: string;
+  emailError: string | null;
   onEmailChoice: (v: string) => void;
   onEmailManual: (v: string) => void;
   showDomainWarning: boolean;
 }) {
   const t = useT();
+  const optionClass =
+    "flex cursor-pointer items-center gap-3 rounded-control border border-border-subtle bg-surface-raised px-4 py-3 text-sm transition-colors has-[:checked]:border-brand has-[:checked]:bg-brand-soft";
+
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+      <h3 className="text-sm font-semibold text-ink">
         {t("company.verification.step3_title")}
       </h3>
-      <p className="mt-1 text-xs text-gray-500">
+      <p className="mt-1 text-sm text-ink-tertiary">
         {t("company.verification.step3_email_choose")}
       </p>
       <div className="mt-3 space-y-2">
         {snapshot.emails.map((e) => (
-          <label
-            key={e}
-            className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50 dark:border-gray-700 dark:bg-gray-800 dark:has-[:checked]:bg-emerald-950/40"
-          >
+          <label key={e} className={optionClass}>
             <input
               type="radio"
               name="verify-email"
               value={e}
               checked={emailChoice === e}
               onChange={(ev) => onEmailChoice(ev.target.value)}
-              className="h-4 w-4 accent-emerald-600"
+              className="h-4 w-4 accent-brand"
             />
-            <span className="font-mono text-gray-900 dark:text-gray-100">{e}</span>
+            <span className="font-mono text-ink">{e}</span>
           </label>
         ))}
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50 dark:border-gray-700 dark:bg-gray-800 dark:has-[:checked]:bg-emerald-950/40">
-          <input
-            type="radio"
-            name="verify-email"
-            value="__manual__"
-            checked={emailChoice === "__manual__"}
-            onChange={(ev) => onEmailChoice(ev.target.value)}
-            className="mt-1 h-4 w-4 accent-emerald-600"
-          />
-          <span className="flex-1">
-            <span className="block font-medium text-gray-900 dark:text-gray-100">
+        {/* The address input is a sibling of the radio's label, not a child of
+            it: a <label> inside a <label> is invalid and swallows clicks. */}
+        <div className={clsx(optionClass, "flex-col items-stretch")}>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="radio"
+              name="verify-email"
+              value="__manual__"
+              checked={emailChoice === "__manual__"}
+              onChange={(ev) => onEmailChoice(ev.target.value)}
+              className="h-4 w-4 accent-brand"
+            />
+            <span className="font-medium text-ink">
               {t("company.verification.step3_email_other")}
             </span>
-            <input
-              type="email"
-              value={emailManual}
-              onChange={(e) => onEmailManual(e.target.value)}
-              placeholder={t("company.verification.step3_email_placeholder")}
-              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900"
-            />
+          </label>
+          <div className="mt-2 pl-7">
+            <Field
+              label={
+                <span className="sr-only">
+                  {t("company.verification.step3_email_other")}
+                </span>
+              }
+              error={emailError}
+            >
+              {(field) => (
+                <Input
+                  {...field}
+                  type="email"
+                  value={emailManual}
+                  onChange={(e) => onEmailManual(e.target.value)}
+                  placeholder={t("company.verification.step3_email_placeholder")}
+                  invalid={!!emailError}
+                />
+              )}
+            </Field>
             {showDomainWarning ? (
-              <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400">
-                <AlertTriangle className="h-3 w-3" aria-hidden />
+              <p className="mt-2 inline-flex items-center gap-1 text-xs text-warning-on-soft">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                 {t("company.verification.email_warning_domain")}
-              </span>
+              </p>
             ) : null}
-          </span>
-        </label>
+          </div>
+        </div>
       </div>
     </div>
   );

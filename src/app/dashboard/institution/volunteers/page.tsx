@@ -3,8 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { ArrowLeft, Loader2, UserCheck, UserMinus } from "lucide-react";
+import { ArrowLeft, UserCheck, UserMinus } from "lucide-react";
 import { useT } from "@/i18n/client";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  PageShell,
+  Skeleton,
+  buttonClasses,
+  useToast,
+} from "@/components/ui";
 
 type SignupRow = {
   id: string;
@@ -19,6 +30,7 @@ type SignupRow = {
 
 export default function InstitutionVolunteersPage() {
   const t = useT();
+  const toast = useToast();
   const [signups, setSignups] = useState<SignupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +39,6 @@ export default function InstitutionVolunteersPage() {
   const [qrByEvent, setQrByEvent] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError(null);
     setAccessDenied(false);
     try {
@@ -67,37 +78,92 @@ export default function InstitutionVolunteersPage() {
     void load();
   }, [load]);
 
+  function patchRow(id: string, patch: Partial<SignupRow>) {
+    setSignups((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
+  function reportFailure(detail?: unknown, fallback?: string) {
+    toast({
+      tone: "error",
+      title: t("errors.generic_title"),
+      description:
+        typeof detail === "string" ? detail : fallback ?? t("common.error_generic"),
+    });
+  }
+
+  /**
+   * Optimistic in place. The previous version awaited a full `load()`, which
+   * also re-minted a check-in token and re-rendered every event's QR code on
+   * every single check-in — and reported failures through `alert()`.
+   */
   async function checkIn(signupId: string) {
+    const previous = signups.find((s) => s.id === signupId);
+    if (!previous) return;
     setBusy(signupId);
+    patchRow(signupId, { checked_in_at: new Date().toISOString() });
     try {
       const res = await fetch(`/api/volunteer-signups/${signupId}/check-in`, {
         method: "POST",
         credentials: "include",
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        alert(typeof j.error === "string" ? j.error : "Check-in failed");
+        patchRow(signupId, { checked_in_at: previous.checked_in_at });
+        reportFailure(data.error);
         return;
       }
-      await load();
+      patchRow(signupId, {
+        checked_in_at:
+          typeof data.checked_in_at === "string"
+            ? data.checked_in_at
+            : new Date().toISOString(),
+      });
+      toast({
+        tone: "success",
+        title: t("institution.volunteers_check_in"),
+        description: previous.volunteer.name,
+      });
+    } catch {
+      patchRow(signupId, { checked_in_at: previous.checked_in_at });
+      reportFailure();
     } finally {
       setBusy(null);
     }
   }
 
   async function checkOut(signupId: string) {
+    const previous = signups.find((s) => s.id === signupId);
+    if (!previous) return;
     setBusy(signupId);
+    patchRow(signupId, { checked_out_at: new Date().toISOString() });
     try {
       const res = await fetch(`/api/volunteer-signups/${signupId}/check-out`, {
         method: "POST",
         credentials: "include",
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        alert(typeof j.error === "string" ? j.error : "Check-out failed");
+        patchRow(signupId, { checked_out_at: previous.checked_out_at });
+        reportFailure(data.error);
         return;
       }
-      await load();
+      patchRow(signupId, {
+        checked_out_at:
+          typeof data.checked_out_at === "string"
+            ? data.checked_out_at
+            : new Date().toISOString(),
+      });
+      toast({
+        tone: "success",
+        title: t("institution.volunteers_check_out"),
+        description:
+          typeof data.hours === "number"
+            ? `${previous.volunteer.name} · ${data.hours} h`
+            : previous.volunteer.name,
+      });
+    } catch {
+      patchRow(signupId, { checked_out_at: previous.checked_out_at });
+      reportFailure();
     } finally {
       setBusy(null);
     }
@@ -111,61 +177,70 @@ export default function InstitutionVolunteersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/60 to-white px-4 py-10 dark:from-gray-950 dark:to-gray-950">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/dashboard/institution"
-            className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:underline"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            {t("institution.volunteers_back")}
-          </Link>
-        </div>
-        <header>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t("institution.volunteers_title")}</h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t("institution.volunteers_subtitle")}</p>
-        </header>
+    <PageShell width="wide">
+      <Link
+        href="/dashboard/institution"
+        className="mb-6 inline-flex items-center gap-2 rounded text-sm font-semibold text-brand transition-colors hover:text-brand-strong hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        {t("institution.volunteers_back")}
+      </Link>
 
-        {loading ? (
-          <p className="flex items-center gap-2 text-sm text-gray-500">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            {t("institution.volunteers_loading")}
+      <PageHeader
+        title={t("institution.volunteers_title")}
+        subtitle={t("institution.volunteers_subtitle")}
+      />
+
+      {loading ? (
+        <div className="space-y-4" aria-busy="true">
+          {[0, 1].map((i) => (
+            <Skeleton key={i} className="h-48 rounded-card" />
+          ))}
+        </div>
+      ) : accessDenied ? (
+        <Card padding="lg" className="border-warning/30 bg-warning-soft">
+          <h2 className="text-base font-semibold text-warning-on-soft">
+            {t("institution.volunteers_no_access_title")}
+          </h2>
+          <p className="mt-2 text-sm text-warning-on-soft/90">
+            {t("institution.volunteers_no_access_body")}
           </p>
-        ) : accessDenied ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm dark:border-amber-900 dark:bg-amber-950/30">
-            <h2 className="mb-2 text-base font-semibold text-amber-900 dark:text-amber-200">
-              {t("institution.volunteers_no_access_title")}
-            </h2>
-            <p className="mb-4 text-amber-800 dark:text-amber-300">
-              {t("institution.volunteers_no_access_body")}
-            </p>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+          <Link
+            href="/dashboard"
+            className={buttonClasses({ variant: "secondary", size: "sm", className: "mt-4" })}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("institution.volunteers_no_access_back")}
+          </Link>
+        </Card>
+      ) : error ? (
+        <EmptyState
+          title={t("errors.generic_title")}
+          description={error}
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setLoading(true);
+                void load();
+              }}
             >
-              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-              {t("institution.volunteers_no_access_back")}
-            </Link>
-          </div>
-        ) : error ? (
-          <p className="text-sm text-red-600">{error}</p>
-        ) : signups.length === 0 ? (
-          <p className="text-sm text-gray-600 dark:text-gray-400">{t("institution.volunteers_empty")}</p>
-        ) : (
-          Array.from(byEvent.entries()).map(([eventId, rows]) => {
+              {t("errors.retry")}
+            </Button>
+          }
+        />
+      ) : signups.length === 0 ? (
+        <EmptyState title={t("institution.volunteers_empty")} />
+      ) : (
+        <div className="space-y-6">
+          {Array.from(byEvent.entries()).map(([eventId, rows]) => {
             const ev = rows[0]?.event;
             return (
-              <section
-                key={eventId}
-                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900"
-              >
-                <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      {ev?.title ?? "Event"}
-                    </h2>
-                    <p className="text-xs text-gray-500">
+              <Card key={eventId} padding="none">
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border-subtle p-5">
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-semibold text-ink">{ev?.title ?? "—"}</h2>
+                    <p className="mt-1 text-sm text-ink-secondary">
                       {ev?.event_date} · {ev?.start_time}–{ev?.end_time}
                     </p>
                   </div>
@@ -173,52 +248,92 @@ export default function InstitutionVolunteersPage() {
                     <div className="text-center">
                       {/* Generated QR data URLs are already final-size assets. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={qrByEvent[eventId]} alt="" className="mx-auto rounded-lg border border-gray-200" />
-                      <p className="mt-1 text-[10px] text-gray-500">{t("institution.volunteers_qr_caption")}</p>
+                      <img
+                        src={qrByEvent[eventId]}
+                        alt=""
+                        className="mx-auto rounded-control border border-border-subtle"
+                      />
+                      <p className="mt-1 text-xs text-ink-tertiary">
+                        {t("institution.volunteers_qr_caption")}
+                      </p>
                     </div>
                   ) : null}
                 </div>
-                <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {rows.map((s) => (
-                    <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-gray-100">{s.volunteer.name}</p>
-                        <p className="text-xs text-gray-500">{s.volunteer.email}</p>
-                        <p className="text-xs text-gray-500">
-                          {t("institution.volunteers_in")}:{" "}
-                          {s.checked_in_at ? new Date(s.checked_in_at).toLocaleString() : "—"} ·{" "}
-                          {t("institution.volunteers_out")}:{" "}
-                          {s.checked_out_at ? new Date(s.checked_out_at).toLocaleString() : "—"}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          disabled={Boolean(s.checked_in_at) || Boolean(s.checked_out_at) || busy === s.id}
-                          onClick={() => void checkIn(s.id)}
-                          className="inline-flex items-center gap-1 rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 dark:border-emerald-900 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
-                        >
-                          <UserCheck className="h-3.5 w-3.5" aria-hidden />
-                          {t("institution.volunteers_check_in")}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!s.checked_in_at || Boolean(s.checked_out_at) || busy === s.id}
-                          onClick={() => void checkOut(s.id)}
-                          className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-                        >
-                          <UserMinus className="h-3.5 w-3.5" aria-hidden />
-                          {t("institution.volunteers_check_out")}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
+
+                <ul className="divide-y divide-border-subtle">
+                  {rows.map((s) => {
+                    const pending = busy === s.id;
+                    return (
+                      <li
+                        key={s.id}
+                        aria-busy={pending || undefined}
+                        className={`flex flex-col gap-3 p-5 transition-opacity sm:flex-row sm:items-center sm:justify-between ${
+                          pending ? "opacity-60" : ""
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-ink">{s.volunteer.name}</p>
+                          <p className="truncate text-sm text-ink-secondary">
+                            {s.volunteer.email}
+                          </p>
+                          <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                            <div>
+                              <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
+                                {t("institution.volunteers_in")}:{" "}
+                              </dt>
+                              <dd className="inline tabular-nums text-ink">
+                                {s.checked_in_at
+                                  ? new Date(s.checked_in_at).toLocaleString()
+                                  : "—"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
+                                {t("institution.volunteers_out")}:{" "}
+                              </dt>
+                              <dd className="inline tabular-nums text-ink">
+                                {s.checked_out_at
+                                  ? new Date(s.checked_out_at).toLocaleString()
+                                  : "—"}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          {s.checked_out_at ? (
+                            <Badge tone="success">{t("institution.volunteers_out")}</Badge>
+                          ) : null}
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={
+                              Boolean(s.checked_in_at) || Boolean(s.checked_out_at) || pending
+                            }
+                            onClick={() => void checkIn(s.id)}
+                            icon={<UserCheck className="h-3.5 w-3.5" aria-hidden="true" />}
+                          >
+                            {t("institution.volunteers_check_in")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={!s.checked_in_at || Boolean(s.checked_out_at) || pending}
+                            onClick={() => void checkOut(s.id)}
+                            icon={<UserMinus className="h-3.5 w-3.5" aria-hidden="true" />}
+                          >
+                            {t("institution.volunteers_check_out")}
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
-              </section>
+              </Card>
             );
-          })
-        )}
-      </div>
-    </div>
+          })}
+        </div>
+      )}
+    </PageShell>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, FileDown, Plus, TrendingUp } from "lucide-react";
+import { Building2, FileDown, Megaphone, Plus, TrendingUp } from "lucide-react";
 import { getCurrentUserProfile } from "@/lib/auth/server";
 import { listMyCompanies, resolveActiveCompany } from "@/lib/companies-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -9,6 +9,7 @@ import { getTranslator } from "@/i18n/server";
 import { CompanyReceiptsSection } from "@/components/CompanyReceiptsSection";
 import { CompanyExportsSection } from "@/components/CompanyExportsSection";
 import { CompanyCsrReportsSection } from "@/components/CompanyCsrReportsSection";
+import { Card, PageHeader, SectionHeader, Stat, buttonClasses } from "@/components/ui";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
@@ -85,159 +86,135 @@ export default async function CompanyDashboardPage({
   const t = await getTranslator();
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {t("company.dashboard_title")}
-          </h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            {t("company.dashboard_subtitle")}
-          </p>
-        </div>
-        <Link
-          href="/dashboard/company/new-action"
-          className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-600"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          {t("company.campaigns_new")}
-        </Link>
-      </header>
-
-      <section className="grid gap-4 md:grid-cols-4">
-        <Metric
-          icon={<Building2 className="h-4 w-4" />}
-          label={t("company.metric_members")}
-          value={totalMembers.toString()}
-        />
-        <Metric
-          icon={<TrendingUp className="h-4 w-4" />}
-          label={t("company.metric_pledges_ytd")}
-          value={pledgeCount.toString()}
-        />
-        <Metric
-          icon={<TrendingUp className="h-4 w-4" />}
-          label={t("company.metric_campaigns")}
-          value={activeCampaigns.toString()}
-        />
-        <Metric
-          icon={<FileDown className="h-4 w-4" />}
-          label={t("company.metric_headroom")}
-          value={formatEur(remaining)}
-          hint={`${t("tax.ceiling_hint", { pct: ceilingPct().toFixed(1) })} · ${consumed.toFixed(1)}% · ${formatEur(givenEur)} ack.`}
-          accent={headroom > 0 ? "ok" : "muted"}
-        />
-      </section>
-
-      <CompanyReceiptsSection
-        companyId={active.company.id}
-        memberRole={active.role}
-        subscriptionTier={active.company.subscription_tier}
-      />
-
-      <CompanyExportsSection
-        companyId={active.company.id}
-        memberRole={active.role}
-        subscriptionTier={active.company.subscription_tier}
-      />
-
-      <CompanyCsrReportsSection
-        companyId={active.company.id}
-        memberRole={active.role}
-        subscriptionTier={active.company.subscription_tier}
-      />
-
-      <section className="grid gap-6 md:grid-cols-2">
-        <Card title={t("company.campaigns_title")}>
-          {campaignsRes.data && campaignsRes.data.length > 0 ? (
-            <ul className="space-y-2">
-              {campaignsRes.data.map((c) => (
-                <li key={c.id} className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-gray-800 dark:text-gray-200">{c.name}</span>
-                  <Link
-                    href={`/dashboard/company/campaigns?cid=${active.company.id}&campaign=${c.id}`}
-                    className="text-xs font-semibold text-red-500 hover:underline"
-                  >
-                    {t("common.edit")}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-500 dark:text-gray-400">{t("company.campaigns_empty")}</p>
-          )}
+    <div>
+      <PageHeader
+        title={t("company.dashboard_title")}
+        subtitle={t("company.dashboard_subtitle")}
+        actions={
+          /* Was `/dashboard/company/new-action`, which now renders only a
+             retirement notice. The label is already "New campaign", so this
+             points at the live campaigns surface instead of a dead route. */
           <Link
             href={`/dashboard/company/campaigns?cid=${active.company.id}`}
-            className="mt-4 inline-block text-xs font-semibold text-red-500 hover:underline"
+            className={buttonClasses()}
           >
-            {t("company.campaigns_title")} →
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {t("company.campaigns_new")}
           </Link>
-        </Card>
+        }
+      />
 
-        <Card title="Recent support actions">
-          {recentActions.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              No logged actions yet. Use the <span className="font-medium">New action</span> button to record a corporate donation.
-            </p>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {recentActions.map((action) => (
-                <li key={action.id} className="flex items-center justify-between gap-2">
-                  <span className="truncate text-gray-800 dark:text-gray-200">{action.ngo_name}</span>
-                  <Link
-                    href={`/company/confirmations/${action.confirmation_slug}`}
-                    className="text-xs font-semibold text-red-500 hover:underline"
+      <div className="space-y-8">
+        {/* One `Stat` for all four figures: the four previous stat cards each had
+            their own radius, border, shadow and label typography. */}
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat
+            icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
+            label={t("company.metric_members")}
+            value={totalMembers}
+          />
+          <Stat
+            icon={<TrendingUp className="h-4 w-4" aria-hidden="true" />}
+            label={t("company.metric_pledges_ytd")}
+            value={pledgeCount}
+          />
+          <Stat
+            icon={<Megaphone className="h-4 w-4" aria-hidden="true" />}
+            label={t("company.metric_campaigns")}
+            value={activeCampaigns}
+          />
+          <Stat
+            icon={<FileDown className="h-4 w-4" aria-hidden="true" />}
+            label={t("company.metric_headroom")}
+            value={formatEur(remaining)}
+            tone={headroom > 0 ? "success" : "muted"}
+            hint={`${t("tax.ceiling_hint", { pct: ceilingPct().toFixed(1) })} · ${consumed.toFixed(1)}% · ${formatEur(givenEur)}`}
+          />
+        </section>
+
+        <CompanyReceiptsSection
+          companyId={active.company.id}
+          memberRole={active.role}
+          subscriptionTier={active.company.subscription_tier}
+        />
+
+        <CompanyExportsSection
+          companyId={active.company.id}
+          memberRole={active.role}
+          subscriptionTier={active.company.subscription_tier}
+        />
+
+        <CompanyCsrReportsSection
+          companyId={active.company.id}
+          memberRole={active.role}
+          subscriptionTier={active.company.subscription_tier}
+        />
+
+        <section className={`grid gap-4 ${recentActions.length > 0 ? "lg:grid-cols-2" : ""}`}>
+          <Card padding="lg">
+            <SectionHeader
+              title={t("company.campaigns_title")}
+              actions={
+                <Link
+                  href={`/dashboard/company/campaigns?cid=${active.company.id}`}
+                  className={buttonClasses({ variant: "ghost", size: "sm" })}
+                >
+                  {t("company.campaigns_title")} →
+                </Link>
+              }
+            />
+            {campaignsRes.data && campaignsRes.data.length > 0 ? (
+              <ul className="space-y-2">
+                {campaignsRes.data.map((c) => (
+                  <li
+                    key={c.id}
+                    className="flex items-center justify-between gap-3 rounded-control border border-border-subtle bg-surface-sunken px-4 py-3"
                   >
-                    Download
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </section>
-    </div>
-  );
-}
+                    <span className="min-w-0 truncate text-sm font-medium text-ink">
+                      {c.name}
+                    </span>
+                    <Link
+                      href={`/dashboard/company/campaigns?cid=${active.company.id}&campaign=${c.id}`}
+                      className={buttonClasses({ variant: "ghost", size: "sm" })}
+                    >
+                      {t("common.edit")}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-secondary">{t("company.campaigns_empty")}</p>
+            )}
+          </Card>
 
-function Metric({
-  icon,
-  label,
-  value,
-  hint,
-  accent = "default",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  hint?: string;
-  accent?: "default" | "ok" | "muted";
-}) {
-  return (
-    <div
-      className={`rounded-2xl border p-5 shadow-sm ${
-        accent === "ok"
-          ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
-          : accent === "muted"
-          ? "border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/70"
-          : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
-      }`}
-    >
-      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        <span className="text-red-500">{icon}</span>
-        {label}
+          {/* Legacy self-reported `company_actions`. The flow that created them
+              is retired (`/dashboard/company/new-action` is a notice page), so
+              this card is now read-only history and renders only when such rows
+              exist — the old empty state told users to press a button that no
+              longer works. */}
+          {recentActions.length > 0 ? (
+            <Card padding="lg">
+              <SectionHeader title={t("company.actions_recent_title")} />
+              <ul className="space-y-2">
+                {recentActions.map((action) => (
+                  <li
+                    key={action.id}
+                    className="flex items-center justify-between gap-3 rounded-control border border-border-subtle bg-surface-sunken px-4 py-3"
+                  >
+                    <span className="min-w-0 truncate text-sm text-ink">{action.ngo_name}</span>
+                    <Link
+                      href={`/company/confirmations/${action.confirmation_slug}`}
+                      className={buttonClasses({ variant: "ghost", size: "sm" })}
+                    >
+                      {t("company.actions_open_confirmation")}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+        </section>
       </div>
-      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p> : null}
-    </div>
-  );
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-      <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-      {children}
     </div>
   );
 }

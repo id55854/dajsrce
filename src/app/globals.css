@@ -2,6 +2,191 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ============================================================================
+   DESIGN TOKENS
+
+   Semantic values live as plain custom properties on :root / .dark, and are
+   exposed to Tailwind through `@theme inline` so the generated utilities emit
+   `var(--…)` instead of a resolved literal. That indirection is what lets a
+   single utility (`bg-surface`) flip with the theme class.
+
+   Add a token here rather than reaching for a raw palette shade in a
+   component: raw `red-*` / `gray-*` utilities still work, but every new
+   surface should be expressible in the vocabulary below.
+   ============================================================================ */
+
+:root {
+  /* --- brand ------------------------------------------------------------- */
+  --brand: #ef4444;            /* primary actions                            */
+  --brand-strong: #dc2626;     /* hover/active for primary                   */
+  --brand-soft: #fef2f2;       /* tinted surface behind brand content        */
+  --brand-on-soft: #b91c1c;    /* text/icon on a brand-soft surface          */
+
+  /* --- status ------------------------------------------------------------
+     `danger` is deliberately a deeper red than `brand` so an error never
+     reads as a call to action (and vice versa).                             */
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --success-on-soft: #047857;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --warning-on-soft: #b45309;
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --danger-on-soft: #991b1b;
+  --info: #2563eb;
+  --info-soft: #eff6ff;
+  --info-on-soft: #1d4ed8;
+
+  /* --- surfaces & ink ---------------------------------------------------- */
+  --surface: #ffffff;          /* page background                            */
+  --surface-raised: #ffffff;   /* cards sitting on the page                  */
+  --surface-sunken: #f9fafb;   /* wells, inset rows, secondary regions       */
+  --surface-overlay: #ffffff;  /* menus, sheets, dialogs                     */
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --ink: #111827;              /* primary text                               */
+  --ink-secondary: #4b5563;    /* supporting text                            */
+  --ink-tertiary: #6b7280;     /* captions, metadata                         */
+  --ink-inverse: #ffffff;
+
+  /* --- chrome ------------------------------------------------------------
+     Translucent chrome layers: content scrolls underneath these.            */
+  --chrome: rgb(255 255 255 / 0.75);
+  --scrim: rgb(0 0 0 / 0.45);
+
+  /* --- layout ------------------------------------------------------------ */
+  --nav-height: 4rem;          /* keep in sync with the Navbar's h-16        */
+
+  /* --- layering ----------------------------------------------------------
+     One ladder for the whole app. Leaflet's internal panes (200–700) are
+     contained by `isolation: isolate` on the map wrapper so they never need
+     to be out-bid with four-digit z-indexes.                                */
+  --z-base: 0;
+  --z-chrome: 40;      /* sticky navbar, floating map controls               */
+  --z-dropdown: 50;    /* menus, popovers, comboboxes                        */
+  --z-sheet: 60;       /* bottom sheets and their scrim                      */
+  --z-modal: 70;       /* dialogs and their scrim                            */
+  --z-toast: 80;       /* transient notifications, above everything          */
+}
+
+.dark {
+  --brand: #ef4444;
+  --brand-strong: #f87171;
+  --brand-soft: #450a0a;
+  --brand-on-soft: #fca5a5;
+
+  --success: #10b981;
+  --success-soft: #022c22;
+  --success-on-soft: #6ee7b7;
+  --warning: #f59e0b;
+  --warning-soft: #451a03;
+  --warning-on-soft: #fcd34d;
+  --danger: #ef4444;
+  --danger-soft: #450a0a;
+  --danger-on-soft: #fca5a5;
+  --info: #3b82f6;
+  --info-soft: #172554;
+  --info-on-soft: #93c5fd;
+
+  --surface: #030712;
+  --surface-raised: #111827;
+  --surface-sunken: #1f2937;
+  --surface-overlay: #111827;
+  --border: #1f2937;
+  --border-strong: #374151;
+  --ink: #f3f4f6;
+  --ink-secondary: #9ca3af;
+  --ink-tertiary: #6b7280;
+  --ink-inverse: #111827;
+
+  --chrome: rgb(3 7 18 / 0.75);
+  --scrim: rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-on-soft: var(--brand-on-soft);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-on-soft: var(--success-on-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-on-soft: var(--warning-on-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-on-soft: var(--danger-on-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-on-soft: var(--info-on-soft);
+
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-border-subtle: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-tertiary: var(--ink-tertiary);
+  --color-ink-inverse: var(--ink-inverse);
+  --color-chrome: var(--chrome);
+  --color-scrim: var(--scrim);
+}
+
+@theme {
+  /* --- radii -------------------------------------------------------------
+     Three steps plus `full`. Bigger surfaces get a bigger radius; a control
+     and the sheet it lives in should never share one.                       */
+  --radius-control: 0.75rem;
+  --radius-card: 1rem;
+  --radius-sheet: 1.5rem;
+
+  /* --- elevation ---------------------------------------------------------
+     One shadow per layer of the z-ladder, so a dropdown can never
+     out-shadow a modal.                                                     */
+  --shadow-raised: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-overlay: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-modal: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  /* --- motion ------------------------------------------------------------
+     `--ease-spring` is a sampled critically-damped spring: it settles
+     without overshoot, which is the correct default for UI that did not
+     arrive on a flick. Reserve `--ease-bounce` for momentum interactions
+     (a sheet released mid-drag), never for something that merely faded in.  */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring: linear(
+    0, 0.0033, 0.0261, 0.0796 12.9%, 0.2334, 0.4292 30.5%, 0.5254, 0.6144,
+    0.6927, 0.7623, 0.8221 55.6%, 0.8712, 0.9126, 0.9463 71.6%, 0.9723, 0.9909
+    85.4%, 1.0034, 1.0109 96.6%, 1.0143, 1.0148, 1.0136, 1.0114, 1
+  );
+  --ease-bounce: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 350ms;
+
+  /* --- overlay animations ------------------------------------------------
+     Paired enter/exit for every overlay type. Exits are faster than entrances
+     because a surface the user has dismissed should get out of the way.      */
+  --animate-fade-in: ui-fade-in 200ms var(--ease-out-quart) both;
+  --animate-fade-out: ui-fade-out 150ms var(--ease-out-quart) both;
+  --animate-dialog-in: ui-dialog-in 250ms var(--ease-spring) both;
+  --animate-dialog-out: ui-dialog-out 160ms var(--ease-out-quart) both;
+  --animate-menu-in: ui-menu-in 180ms var(--ease-out-quart) both;
+  --animate-menu-out: ui-menu-out 130ms var(--ease-out-quart) both;
+  --animate-sheet-in: ui-sheet-in 320ms var(--ease-spring) both;
+  --animate-sheet-out: ui-sheet-out 200ms var(--ease-out-quart) both;
+  --animate-toast-in: ui-toast-in 260ms var(--ease-spring) both;
+  --animate-toast-out: ui-toast-out 160ms var(--ease-out-quart) both;
+}
+
+/* ============================================================================
+   BASE
+   ============================================================================ */
+
 :root {
   --font-app-sans: "Noto Sans", system-ui, sans-serif;
 }
@@ -16,12 +201,170 @@ body {
   color-scheme: dark;
 }
 
+/* ============================================================================
+   CATEGORY COLOUR
+
+   Category hues are data (see CATEGORY_CONFIG), so they arrive as inline
+   values rather than utilities. Previously the raw light-mode tint was applied
+   directly, which rendered near-white chips on dark cards everywhere.
+
+   Instead, a component sets only the hue (`--cat`, via `categoryVars()`) and
+   these classes derive the tint and ink by mixing it against the *surface* and
+   *ink* tokens. Because those flip with the theme, the derived colours theme
+   themselves — no second palette to maintain.
+   ============================================================================ */
+
+.category-chip {
+  --cat: var(--brand);
+  background-color: color-mix(in oklab, var(--cat) 14%, var(--surface-raised));
+  color: color-mix(in oklab, var(--cat) 62%, var(--ink));
+}
+
+.category-tint {
+  --cat: var(--brand);
+  background-color: color-mix(in oklab, var(--cat) 12%, var(--surface-raised));
+}
+
+.category-accent {
+  --cat: var(--brand);
+  color: color-mix(in oklab, var(--cat) 78%, var(--ink));
+}
+
+/* ============================================================================
+   MOTION PRIMITIVES
+
+   Keyframes consumed by the overlay components in src/components/ui. Enter
+   and exit are mirrored so a surface always leaves the way it arrived.
+   ============================================================================ */
+
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ui-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Dialogs materialise from slightly small, anchored at their own centre. */
+@keyframes ui-dialog-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes ui-dialog-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.97); }
+}
+
+/* Menus scale from their trigger — set transform-origin at the call site. */
+@keyframes ui-menu-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-0.25rem); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes ui-menu-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.96) translateY(-0.25rem); }
+}
+
+/* Sheets enter and leave along the same axis they are anchored to. */
+@keyframes ui-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes ui-sheet-out {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+
+/* Markers are Leaflet divIcons whose transform is already used for the
+   teardrop rotation, so this fades only — never animate transform here. */
+@keyframes ui-marker-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ui-toast-in {
+  from { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ui-toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
+}
+
+/* ============================================================================
+   USER PREFERENCES
+
+   Honoured automatically, independent of the opt-in accessibility menu below.
+   Reduced motion means a gentler equivalent, not the absence of feedback:
+   opacity still changes so state transitions stay comprehensible, but nothing
+   travels, springs, or overshoots.
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep overlays legible: swap travel for a short cross-fade. */
+  [data-ui-motion] {
+    animation-duration: 120ms !important;
+    animation-name: ui-fade-in !important;
+  }
+  [data-ui-motion][data-state="closed"] {
+    animation-name: ui-fade-out !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --chrome: #ffffff;
+  }
+  .dark {
+    --chrome: #030712;
+  }
+  [data-ui-material] {
+    backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border: #6b7280;
+    --border-strong: #374151;
+    --ink-secondary: #374151;
+    --ink-tertiary: #4b5563;
+  }
+  .dark {
+    --border: #9ca3af;
+    --border-strong: #d1d5db;
+    --ink-secondary: #e5e7eb;
+    --ink-tertiary: #d1d5db;
+  }
+}
+
+/* ============================================================================
+   LEAFLET THEME PATCHES
+   Scoped overrides only — the project intentionally ships no global Leaflet CSS.
+   ============================================================================ */
+
 .dark .leaflet-popup-content-wrapper {
   background: #111827;
   color: #e5e7eb;
 }
 .dark .leaflet-popup-tip {
   background: #111827;
+}
+.dark .leaflet-popup-close-button {
+  color: #9ca3af !important;
+}
+.dark .leaflet-popup-close-button:hover {
+  color: #f3f4f6 !important;
 }
 .dark .leaflet-control-zoom a {
   background: #1f2937;
@@ -39,7 +382,7 @@ body {
   color: #9ca3af;
 }
 
-/* Hide scrollbar for filter bar */
+/* Hide scrollbar for horizontally scrolling chip rows */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -48,8 +391,25 @@ body {
   scrollbar-width: none;
 }
 
-/* ===== ACCESSIBILITY OVERRIDES ===== */
+/* ===== ACCESSIBILITY OVERRIDES =====
+   Opt-in overrides driven by AccessibilityMenu. These intentionally use
+   !important and attribute-substring selectors to override utility classes
+   already in the markup. As surfaces migrate to the token vocabulary above,
+   prefer overriding the tokens themselves (see .high-contrast) over adding
+   more class-name matching here. */
 
+.high-contrast {
+  --surface: #000;
+  --surface-raised: #000;
+  --surface-sunken: #000;
+  --surface-overlay: #000;
+  --border: #fff;
+  --border-strong: #fff;
+  --ink: #fff;
+  --ink-secondary: #e5e5e5;
+  --ink-tertiary: #e5e5e5;
+  --chrome: #000;
+}
 .high-contrast body {
   background-color: #000 !important;
   color: #fff !important;
@@ -154,16 +514,5 @@ body {
   scroll-behavior: auto !important;
 }
 
-@keyframes a11y-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.a11y-panel-enter {
-  animation: a11y-slide-up 0.2s ease-out;
-}
+/* The accessibility panel now uses the shared overlay animations, which give it
+   a matching exit — `a11y-slide-up` / `.a11y-panel-enter` were enter-only. */

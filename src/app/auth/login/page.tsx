@@ -3,64 +3,81 @@
 import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DM_Sans } from "next/font/google";
-import { Chrome, Heart } from "lucide-react";
+import { Chrome } from "lucide-react";
+import { Button, Field, Input } from "@/components/ui";
+import { useT } from "@/i18n/client";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  AUTH_NETWORK_ERROR,
+  AUTH_NOT_CONFIGURED,
+  authErrorKey,
+} from "../auth-validation";
+import {
+  AuthAlert,
+  AuthDivider,
+  AuthShell,
+  PasswordField,
+  authLinkClasses,
+  describedBy,
+} from "../auth-ui";
 
-const dmSans = DM_Sans({ subsets: ["latin"] });
+const FORM_ERROR_ID = "login-form-error";
 
 function LoginForm() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Errors are stored as translation keys, not rendered strings, so switching
+  // locale mid-session re-renders them in the new language.
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [credentialError, setCredentialError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  const next = searchParams.get("next");
+  const nextQuery = next ? `?next=${encodeURIComponent(next)}` : "";
+
   useEffect(() => {
     if (searchParams.get("error") === "auth_failed") {
-      setError("Sign in failed. Please try again.");
+      setErrorKey("auth.sign_in_failed");
     }
     if (!isSupabaseConfigured) {
-      setError(
-        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
-      );
+      setErrorKey(AUTH_NOT_CONFIGURED);
       return;
     }
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
-      const next = searchParams.get("next") || "/dashboard";
-      if (data.user) router.replace(next);
+      const target = searchParams.get("next") || "/dashboard";
+      if (data.user) router.replace(target);
     });
   }, [searchParams, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setErrorKey(null);
+    setCredentialError(false);
     if (!isSupabaseConfigured) {
-      setError(
-        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
-      );
+      setErrorKey(AUTH_NOT_CONFIGURED);
       return;
     }
     setLoading(true);
     const supabase = createClient();
-    let signError: Error | null = null;
+    let failure: string | null = null;
     try {
       const response = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      signError = response.error;
+      if (response.error) failure = authErrorKey(response.error);
     } catch {
-      signError = new Error(
-        "Unable to reach authentication service. Check Supabase URL/keys and network."
-      );
+      failure = AUTH_NETWORK_ERROR;
     }
     setLoading(false);
-    if (signError) {
-      setError(signError.message);
+    if (failure) {
+      setErrorKey(failure);
+      setCredentialError(true);
       return;
     }
     router.push(searchParams.get("next") || "/dashboard");
@@ -68,16 +85,15 @@ function LoginForm() {
   }
 
   async function handleGoogle() {
-    setError(null);
+    setErrorKey(null);
+    setCredentialError(false);
     if (!isSupabaseConfigured) {
-      setError(
-        "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
-      );
+      setErrorKey(AUTH_NOT_CONFIGURED);
       return;
     }
     setGoogleLoading(true);
     const supabase = createClient();
-    let oauthError: Error | null = null;
+    let failure: string | null = null;
     try {
       const response = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -85,128 +101,104 @@ function LoginForm() {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(searchParams.get("next") || "/dashboard")}`,
         },
       });
-      oauthError = response.error;
+      if (response.error) failure = authErrorKey(response.error);
     } catch {
-      oauthError = new Error(
-        "Unable to reach authentication service. Check Supabase URL/keys and network."
-      );
+      failure = AUTH_NETWORK_ERROR;
     }
     setGoogleLoading(false);
-    if (oauthError) setError(oauthError.message);
+    if (failure) setErrorKey(failure);
   }
 
   return (
-    <div className="rounded-2xl border border-red-100/80 bg-white/95 p-8 shadow-lg shadow-red-500/5 dark:border-gray-800 dark:bg-gray-900/95">
-      <div className="mb-8 flex flex-col items-center gap-2">
-        <div className="flex items-center gap-2 text-red-500">
-          <Heart className="h-9 w-9 fill-current" strokeWidth={1.5} />
-          <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-            DajSrce
-          </span>
-        </div>
-        <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-          Sign In
-        </h1>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error ? (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
-            {error}
-          </p>
+    <AuthShell
+      title={t("auth.sign_in_title")}
+      subtitle={t("auth.sign_in_subtitle")}
+      footer={
+        <>
+          {t("auth.no_account")}{" "}
+          <Link href={`/auth/register${nextQuery}`} className={authLinkClasses}>
+            {t("auth.sign_up_link")}
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {errorKey ? (
+          <AuthAlert id={FORM_ERROR_ID}>{t(errorKey)}</AuthAlert>
         ) : null}
 
-        <div>
-          <label
-            htmlFor="email"
-            className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none ring-red-500/20 transition-shadow focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="password"
-            className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none ring-red-500/20 transition-shadow focus:border-red-400 focus:ring-4 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-xl bg-red-500 py-3.5 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+        <Field
+          label={t("auth.email_label")}
+          required
+          requiredLabel={t("common.required")}
         >
-          {loading ? "Signing in…" : "Sign In"}
-        </button>
+          {(field) => (
+            <Input
+              {...field}
+              aria-describedby={describedBy(
+                field["aria-describedby"],
+                errorKey ? FORM_ERROR_ID : undefined
+              )}
+              aria-invalid={credentialError || field["aria-invalid"]}
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              invalid={credentialError}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          )}
+        </Field>
+
+        <PasswordField
+          label={t("auth.password_label")}
+          name="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={setPassword}
+          invalid={credentialError}
+          describedByExtra={errorKey ? FORM_ERROR_ID : undefined}
+        />
+
+        <div className="flex justify-end">
+          {/* No `next` here: the reset link arrives by email, so the original
+              destination cannot survive the round trip. */}
+          <Link
+            href="/auth/forgot-password"
+            className={`${authLinkClasses} text-sm`}
+          >
+            {t("auth.forgot_password")}
+          </Link>
+        </div>
+
+        <Button type="submit" size="lg" fullWidth loading={loading}>
+          {t("auth.sign_in_cta")}
+        </Button>
       </form>
 
-      <div className="relative my-8">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-200 dark:border-gray-700" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase tracking-wide">
-          <span className="bg-white px-3 text-gray-500 dark:bg-gray-900 dark:text-gray-500">
-            or
-          </span>
-        </div>
-      </div>
+      <AuthDivider label={t("auth.or")} />
 
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        size="lg"
+        fullWidth
+        loading={googleLoading}
         onClick={handleGoogle}
-        disabled={googleLoading}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3.5 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+        icon={
+          <Chrome className="h-5 w-5 text-brand" strokeWidth={2} aria-hidden="true" />
+        }
       >
-        <Chrome className="h-5 w-5 text-red-500" strokeWidth={2} />
-        {googleLoading ? "Loading…" : "Continue with Google"}
-      </button>
-
-      <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-        Don&apos;t have an account?{" "}
-        <Link
-          href={`/auth/register${searchParams.get("next") ? `?next=${encodeURIComponent(searchParams.get("next") as string)}` : ""}`}
-          className="font-semibold text-red-500 hover:text-red-600 hover:underline"
-        >
-          Sign Up
-        </Link>
-      </p>
-    </div>
+        {t("auth.continue_with_google")}
+      </Button>
+    </AuthShell>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div
-      className={`${dmSans.className} min-h-screen bg-gradient-to-b from-red-50/80 to-amber-50/40 px-4 py-12 dark:from-gray-950 dark:to-gray-950`}
-    >
-      <div className="mx-auto w-full max-w-md space-y-8">
-        <Suspense>
-          <LoginForm />
-        </Suspense>
-      </div>
-    </div>
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -1,9 +1,19 @@
 import type { Metadata } from "next";
 import { cache } from "react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { AlertTriangle, ArrowLeft, PackageSearch } from "lucide-react";
 import { InstitutionDetailPanel } from "@/components/InstitutionDetailPanel";
 import { NeedCard, type NeedCardNeed } from "@/components/NeedCard";
+import {
+  EmptyState,
+  PageShell,
+  SectionHeader,
+  buttonClasses,
+} from "@/components/ui";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { trustStatus, type PublicInstitutionDetail } from "@/lib/location-map";
+import { getTranslator } from "@/i18n/server";
 import type { DonationType, InstitutionCategory } from "@/lib/types";
 
 type DetailRpcRow = {
@@ -64,10 +74,21 @@ function toPublicDetail(row: DetailRpcRow): PublicInstitutionDetail {
   };
 }
 
+/**
+ * A missing row and a failed query are different outcomes: the first is a real
+ * 404, the second must not tell the visitor the institution does not exist.
+ */
+type InstitutionPageData =
+  | {
+      status: "ok";
+      institution: PublicInstitutionDetail;
+      needs: NeedCardNeed[];
+    }
+  | { status: "missing" }
+  | { status: "error" };
+
 const getInstitution = cache(
-  async (
-    id: string
-  ): Promise<{ institution: PublicInstitutionDetail | null; needs: NeedCardNeed[] }> => {
+  async (id: string): Promise<InstitutionPageData> => {
     try {
       const supabase = createPublicSupabaseClient();
       const { data, error } = await supabase.rpc("public_institution_detail_v1", {
@@ -76,7 +97,7 @@ const getInstitution = cache(
       if (error) throw new Error(`Institution detail query failed (${error.code})`);
 
       const row = ((data ?? []) as DetailRpcRow[])[0];
-      if (!row) return { institution: null, needs: [] };
+      if (!row) return { status: "missing" };
       const institution = toPublicDetail(row);
       const { data: needRows, error: needsError } = await supabase
         .from("needs")
@@ -99,6 +120,7 @@ const getInstitution = cache(
         city: institution.city,
       };
       return {
+        status: "ok",
         institution,
         needs: (needRows ?? []).map((need) => ({
           ...need,
@@ -110,7 +132,7 @@ const getInstitution = cache(
         institutionId: id,
         message: error instanceof Error ? error.message : "unknown",
       });
-      return { institution: null, needs: [] };
+      return { status: "error" };
     }
   }
 );
@@ -121,10 +143,15 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const { institution } = await getInstitution(id);
+  const data = await getInstitution(id);
 
-  if (!institution) return { title: "Ustanova | DajSrce" };
+  if (data.status === "missing") {
+    const t = await getTranslator();
+    return { title: `${t("institution_page.not_found")} | DajSrce` };
+  }
+  if (data.status === "error") return { title: "DajSrce" };
 
+  const { institution } = data;
   const description =
     institution.description.length > 160
       ? `${institution.description.slice(0, 157)}…`
@@ -141,29 +168,68 @@ export default async function InstitutionPublicPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { institution, needs } = await getInstitution(id);
+  const t = await getTranslator();
+  const data = await getInstitution(id);
 
-  if (!institution) {
+  // No such institution is a real 404; a failed query is not.
+  if (data.status === "missing") notFound();
+
+  // The page sits inside the layout's `min-h-dvh` flex column; declaring a
+  // second one here is what used to push the footer below the fold.
+  const backToMap = (
+    <Link
+      href="/map"
+      className={buttonClasses({
+        variant: "ghost",
+        size: "sm",
+        className: "-ml-4",
+      })}
+    >
+      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+      {t("institution_page.back_to_map")}
+    </Link>
+  );
+
+  if (data.status === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-red-50/60 to-white px-4">
-        <p className="text-center text-gray-600">Ustanova nije pronađena.</p>
-      </div>
+      <PageShell width="content">
+        <div role="alert">
+          <EmptyState
+            icon={<AlertTriangle className="h-10 w-10" aria-hidden="true" />}
+            title={t("map_page.detail_error")}
+            description={t("errors.generic_body")}
+            action={
+              <Link href="/map" className={buttonClasses({ variant: "secondary" })}>
+                {t("institution_page.back_to_map")}
+              </Link>
+            }
+          />
+        </div>
+      </PageShell>
     );
   }
 
+  const { institution, needs } = data;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/60 to-white px-4 py-10">
-      <div className="mx-auto max-w-3xl space-y-10">
+    <PageShell width="content">
+      <div className="space-y-6">
+        {backToMap}
+
         <InstitutionDetailPanel institution={institution} showCloseButton={false} />
 
-        <section>
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            Aktivne potrebe
-          </h2>
+        <section className="pt-4">
+          <SectionHeader title={t("institution_page.active_needs")} />
           {needs.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-gray-200 bg-white/80 px-6 py-10 text-center text-sm text-gray-600">
-              Trenutačno nema aktivnih potreba.
-            </p>
+            <EmptyState
+              icon={<PackageSearch className="h-10 w-10" aria-hidden="true" />}
+              title={t("needs_page.empty")}
+              action={
+                <Link href="/needs" className={buttonClasses({ variant: "secondary" })}>
+                  {t("needs_page.browse_needs")}
+                </Link>
+              }
+            />
           ) : (
             <ul className="space-y-4">
               {needs.map((need) => (
@@ -175,6 +241,6 @@ export default async function InstitutionPublicPage({
           )}
         </section>
       </div>
-    </div>
+    </PageShell>
   );
 }

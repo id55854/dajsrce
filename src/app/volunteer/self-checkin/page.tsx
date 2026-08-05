@@ -3,8 +3,17 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Loader2, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useT } from "@/i18n/client";
+import {
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  PageShell,
+  SkeletonText,
+  buttonClasses,
+} from "@/components/ui";
 
 function SelfCheckInInner() {
   const t = useT();
@@ -28,7 +37,9 @@ function SelfCheckInInner() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMessage(typeof data.error === "string" ? data.error : t("volunteer_self.error_generic"));
+        // The API's `error` field is an internal English string; the user gets
+        // the localized equivalent.
+        setMessage(t("volunteer_self.error_generic"));
         return;
       }
       setOk(true);
@@ -39,43 +50,69 @@ function SelfCheckInInner() {
   }
 
   if (!eventId || !token) {
-    return <p className="text-sm text-gray-600 dark:text-gray-400">{t("volunteer_self.missing_event")}</p>;
+    return (
+      <EmptyState
+        icon={<MapPin className="h-10 w-10" aria-hidden="true" />}
+        title={t("volunteer_self.missing_event")}
+        action={
+          <Link href="/volunteer" className={buttonClasses({ variant: "secondary" })}>
+            {t("volunteer_page.title")}
+          </Link>
+        }
+      />
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-600 dark:text-gray-400">{t("volunteer_self.intro")}</p>
-      <button
-        type="button"
+    <Card className="space-y-4">
+      <p className="text-base text-ink-secondary">{t("volunteer_self.intro")}</p>
+      <Button
         onClick={() => void confirm()}
-        disabled={loading || ok}
-        className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+        loading={loading}
+        disabled={ok}
+        fullWidth
+        icon={<MapPin className="h-4 w-4" aria-hidden="true" />}
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <MapPin className="h-4 w-4" aria-hidden />}
         {ok ? t("volunteer_self.done") : t("volunteer_self.button")}
-      </button>
+      </Button>
       {message ? (
-        <p className={`text-sm ${ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+        <p
+          role={ok ? "status" : "alert"}
+          className={
+            ok
+              ? "rounded-control bg-success-soft px-3 py-2 text-sm text-success-on-soft"
+              : "rounded-control bg-danger-soft px-3 py-2 text-sm text-danger-on-soft"
+          }
+        >
           {message}
         </p>
       ) : null}
-      <p className="text-xs text-gray-500">
-        <Link href="/auth/login" className="font-semibold text-red-600 hover:underline">
+      <p className="text-sm text-ink-tertiary">
+        <Link
+          href="/auth/login"
+          className="rounded font-semibold text-brand underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        >
           {t("volunteer_self.sign_in")}
         </Link>
       </p>
-    </div>
+    </Card>
   );
 }
 
 export default function VolunteerSelfCheckInPage() {
   const t = useT();
   return (
-    <div className="mx-auto max-w-md px-4 py-16">
-      <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">{t("volunteer_self.title")}</h1>
-      <Suspense fallback={<p className="text-sm text-gray-500">{t("common.loading")}</p>}>
+    <PageShell width="narrow">
+      <PageHeader title={t("volunteer_self.title")} />
+      <Suspense
+        fallback={
+          <Card>
+            <SkeletonText lines={3} />
+          </Card>
+        }
+      >
         <SelfCheckInInner />
       </Suspense>
-    </div>
+    </PageShell>
   );
 }

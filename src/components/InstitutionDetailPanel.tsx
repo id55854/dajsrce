@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ComponentType, CSSProperties, ReactNode } from "react";
 import type { Institution } from "@/lib/types";
 import type { PublicInstitutionDetail } from "@/lib/location-map";
 import { getCategoryConfig, DONATION_TYPES } from "@/lib/constants";
+import { Badge, Skeleton, buttonClasses } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/client";
 import {
   CheckCircle2,
@@ -64,6 +65,9 @@ export function InstitutionDetailPanel({
   const latitude = isPublicDetail ? institution.latitude : institution.lat;
   const longitude = isPublicDetail ? institution.longitude : institution.lng;
   const cat = getCategoryConfig(institution.category);
+  // Publish the category hue for `category-chip` to mix against the theme, via
+  // the fallback-safe config so an unrecognised category still gets a colour.
+  const categoryStyle = { "--cat": cat.color } as CSSProperties;
   const addressDisplay = isLocationHidden
     ? t("institution_detail.hidden_address", {
         area: approximateArea ?? institution.city ?? t("map_ui.approximate_area"),
@@ -75,23 +79,24 @@ export function InstitutionDetailPanel({
   const telHref = institution.phone
     ? `tel:${institution.phone.replace(/\s/g, "")}`
     : null;
+  const actionClasses = "min-w-[10rem] flex-1";
 
   return (
-    <div className="relative rounded-xl border border-gray-100 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900">
+    <div className="@container relative rounded-card border border-border-subtle bg-surface-raised shadow-raised">
       {showCloseButton ? (
         <button
           type="button"
           onClick={() => onClose?.()}
-          className="absolute right-3 top-3 z-10 rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          className="absolute right-2 top-2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-ink motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
           aria-label={t("institution_detail.close")}
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5" aria-hidden />
         </button>
       ) : null}
 
       <div>
         {isLocationHidden ? (
-          <div className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
+          <div className="rounded-t-card border-b border-border-subtle bg-warning-soft px-4 py-3 text-sm text-warning-on-soft">
             {t("institution_detail.hidden_notice")}
           </div>
         ) : null}
@@ -99,38 +104,35 @@ export function InstitutionDetailPanel({
         <div
           className={
             showCloseButton
-              ? "space-y-5 p-4 pr-12 sm:p-5 sm:pr-14"
+              ? "space-y-5 p-4 pr-14 sm:p-5 sm:pr-16"
               : "space-y-5 p-4 sm:p-5"
           }
         >
           <header className="space-y-3">
             <span
-              className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-              style={{
-                color: cat.color,
-                backgroundColor: cat.bgColor,
-              }}
+              className="category-chip inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+              style={categoryStyle}
             >
               {locale === "hr" ? cat.labelHr : cat.label}
             </span>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-[family-name:var(--font-dm-sans)] text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <h2 className="text-2xl font-bold leading-tight tracking-[-0.01em] text-ink">
                 {institution.name}
               </h2>
               {isVerified ? (
                 <CheckCircle2
-                  className="h-6 w-6 shrink-0 text-emerald-500"
+                  className="h-6 w-6 shrink-0 text-success"
                   aria-label={t("institution_detail.verified")}
                 />
               ) : null}
             </div>
           </header>
 
-          <p className="text-gray-700 dark:text-gray-300">
-            {institution.description}
-          </p>
+          <p className="text-ink-secondary">{institution.description}</p>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Keyed off the panel's own width, not the viewport: this panel is a
+              ~307px column on the map split and full width on the public page. */}
+          <div className="grid grid-cols-1 gap-4 @md:grid-cols-2">
             <InfoItem
               icon={MapPin}
               label={t("institution_detail.address")}
@@ -143,7 +145,7 @@ export function InstitutionDetailPanel({
                 institution.phone ? (
                   <a
                     href={telHref!}
-                    className="text-red-500 underline-offset-2 hover:underline"
+                    className="rounded text-brand underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   >
                     {institution.phone}
                   </a>
@@ -159,7 +161,7 @@ export function InstitutionDetailPanel({
                 institution.email ? (
                   <a
                     href={`mailto:${institution.email}`}
-                    className="text-red-500 underline-offset-2 hover:underline"
+                    className="rounded text-brand underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   >
                     {institution.email}
                   </a>
@@ -177,7 +179,7 @@ export function InstitutionDetailPanel({
                     href={normalizeWebsiteUrl(institution.website)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-red-500 underline-offset-2 hover:underline"
+                    className="rounded text-brand underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   >
                     {institution.website}
                   </a>
@@ -199,61 +201,66 @@ export function InstitutionDetailPanel({
           </div>
 
           <section>
-            <h3 className="mb-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="mb-2 text-sm font-semibold text-ink">
               {t("institution_detail.accepts")}
             </h3>
             <DonationBadges accepts={acceptsDonations} />
           </section>
 
           {institution.capacity ? (
-            <div className="flex items-start gap-3 rounded-xl bg-gray-50 p-3 dark:bg-gray-800">
-              <Users className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" />
+            <div className="flex items-start gap-3 rounded-card bg-surface-sunken p-3">
+              <Users className="mt-0.5 h-5 w-5 shrink-0 text-ink-tertiary" aria-hidden />
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <p className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">
                   {t("institution_detail.capacity")}
                 </p>
-                <p className="text-sm text-gray-800 dark:text-gray-200">
-                  {institution.capacity}
-                </p>
+                <p className="text-sm text-ink">{institution.capacity}</p>
               </div>
             </div>
           ) : null}
 
           {nearestZetStop ? (
-            <section className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 dark:border-gray-800 dark:bg-gray-800/80">
-              <h3 className="mb-2 flex items-center gap-2 font-[family-name:var(--font-dm-sans)] text-sm font-semibold text-gray-900 dark:text-gray-100">
-                <Train className="h-4 w-4 text-gray-600" />
+            <section className="rounded-card border border-border-subtle bg-surface-sunken p-4">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
+                <Train className="h-4 w-4 text-ink-tertiary" aria-hidden />
                 {t("institution_detail.nearby_stop")}
               </h3>
-              <p className="text-sm text-gray-800 dark:text-gray-200">
-                {nearestZetStop}
-              </p>
+              <p className="text-sm text-ink">{nearestZetStop}</p>
               {zetLines ? (
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                <p className="mt-1 text-sm text-ink-secondary">
                   {t("institution_detail.lines", { lines: zetLines })}
                 </p>
               ) : null}
             </section>
           ) : null}
 
+          {/* One primary action per surface. Directions is the action for a
+              place you can visit; when the address is protected, calling is the
+              only way in, so it takes the primary slot instead. */}
           <div className="flex flex-wrap gap-3 pt-1">
             {!isLocationHidden ? (
               <a
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex flex-1 min-w-[10rem] items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+                className={buttonClasses({
+                  variant: "primary",
+                  className: actionClasses,
+                })}
               >
-                <ExternalLink className="h-4 w-4" />
+                <ExternalLink className="h-4 w-4" aria-hidden />
                 {t("institution_detail.open_maps")}
               </a>
             ) : null}
             {institution.phone ? (
               <a
                 href={telHref!}
-                className="inline-flex flex-1 min-w-[10rem] items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                className={buttonClasses({
+                  variant: isLocationHidden ? "primary" : "secondary",
+                  className: actionClasses,
+                })}
               >
-                <Phone className="h-4 w-4" />
+                <Phone className="h-4 w-4" aria-hidden />
                 {t("institution_detail.call")}
               </a>
             ) : null}
@@ -264,25 +271,63 @@ export function InstitutionDetailPanel({
   );
 }
 
+/**
+ * Stands in for the real panel's structure — category chip, display heading,
+ * description, the six-field grid and two actions — rather than two grey bars.
+ */
+export function InstitutionDetailSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised sm:p-5"
+    >
+      <Skeleton className="h-6 w-32 rounded-full" />
+      <Skeleton className="mt-3 h-7 w-3/4" />
+      <div className="mt-4 space-y-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-11/12" />
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {Array.from({ length: 6 }, (_, index) => (
+          <div key={index} className="flex gap-3">
+            <Skeleton className="h-5 w-5 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-4 w-4/5" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Skeleton className="h-6 w-20 rounded-full" />
+        <Skeleton className="h-6 w-24 rounded-full" />
+      </div>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Skeleton className="h-11 min-w-[10rem] flex-1 rounded-full" />
+        <Skeleton className="h-11 min-w-[10rem] flex-1 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
 function InfoItem({
   icon: Icon,
   label,
   value,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   label: string;
   value: ReactNode;
 }) {
   return (
     <div className="flex gap-3">
-      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500" />
+      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-ink-tertiary" aria-hidden />
       <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <p className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">
           {label}
         </p>
-        <div className="break-words text-sm text-gray-800 dark:text-gray-200">
-          {value}
-        </div>
+        <div className="break-words text-sm text-ink">{value}</div>
       </div>
     </div>
   );
@@ -297,7 +342,7 @@ function DonationBadges({
   const { locale } = useLocale();
   if (!accepts || accepts.length === 0) {
     return (
-      <p className="text-sm italic text-gray-500 dark:text-gray-400">
+      <p className="text-sm italic text-ink-tertiary">
         {t("institution_detail.contact_accepts")}
       </p>
     );
@@ -308,12 +353,9 @@ function DonationBadges({
         const dt = DONATION_TYPES[type];
         if (!dt) return null;
         return (
-          <span
-            key={type}
-            className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400"
-          >
+          <Badge key={type} tone="brand">
             {locale === "hr" ? dt.labelHr : dt.label}
-          </span>
+          </Badge>
         );
       })}
     </div>

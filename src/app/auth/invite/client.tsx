@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Loader2, Mail } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Button, buttonClasses } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { createClient } from "@/lib/supabase/client";
+import { inviteErrorKey } from "../auth-validation";
+import { AuthAlert, AuthShell } from "../auth-ui";
 
 type State = "idle" | "loading" | "success" | "error" | "need_login";
 
@@ -15,7 +18,7 @@ export function AcceptInviteClient() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [state, setState] = useState<State>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,7 +36,7 @@ export function AcceptInviteClient() {
 
   async function acceptInvite() {
     setState("loading");
-    setError(null);
+    setErrorKey(null);
     try {
       const res = await fetch("/api/companies/invite/accept", {
         method: "POST",
@@ -43,7 +46,9 @@ export function AcceptInviteClient() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? t("common.error_generic"));
+        // The API answers in English; translate from its status code rather
+        // than echoing the response body.
+        setErrorKey(inviteErrorKey(res.status));
         setState("error");
         return;
       }
@@ -54,92 +59,80 @@ export function AcceptInviteClient() {
         router.push(`/dashboard/company?cid=${data.company_id}`);
       }, 1500);
     } catch {
-      setError(t("common.error_generic"));
+      setErrorKey("auth.error_network");
       setState("error");
     }
   }
 
   if (!token) {
     return (
-      <Shell>
-        <p className="text-sm text-red-600">Missing invite token.</p>
-      </Shell>
+      <AuthShell title={t("auth.invite_title")}>
+        <AuthAlert>{t("auth.invite_missing_token")}</AuthAlert>
+      </AuthShell>
     );
   }
 
   if (state === "need_login") {
+    const backHere = encodeURIComponent(`/auth/invite?token=${token}`);
     return (
-      <Shell>
-        <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-          Prijavite se kako biste prihvatili pozivnicu. Sign in to accept this invite.
-        </p>
-        <div className="flex gap-2">
+      <AuthShell
+        title={t("auth.invite_title")}
+        subtitle={t("auth.invite_need_login")}
+      >
+        {/* A grid, not a flex row: `buttonClasses` already sets `shrink-0`, so a
+            `flex-1` here would be a coin flip on Tailwind's declaration order. */}
+        <div className="grid gap-3 sm:grid-cols-2">
           <Link
-            href={`/auth/login?next=${encodeURIComponent(`/auth/invite?token=${token}`)}`}
-            className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+            href={`/auth/login?next=${backHere}`}
+            className={buttonClasses({ size: "lg" })}
           >
-            Sign in
+            {t("auth.sign_in_cta")}
           </Link>
           <Link
-            href={`/auth/register?next=${encodeURIComponent(`/auth/invite?token=${token}`)}`}
-            className="rounded-full border border-red-500 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-50"
+            href={`/auth/register?next=${backHere}`}
+            className={buttonClasses({ variant: "secondary", size: "lg" })}
           >
-            Create account
+            {t("auth.create_account")}
           </Link>
         </div>
-      </Shell>
+      </AuthShell>
     );
   }
 
   return (
-    <Shell>
+    <AuthShell
+      title={t("auth.invite_title")}
+      subtitle={state === "idle" ? t("auth.invite_subtitle") : undefined}
+    >
       {state === "loading" ? (
-        <p className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-          <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+        <p
+          role="status"
+          className="inline-flex items-center gap-2 text-base text-ink-secondary"
+        >
+          <Loader2 className="h-5 w-5 animate-spin text-brand" aria-hidden="true" />
+          {t("common.loading")}
         </p>
       ) : state === "idle" ? (
-        <div>
-          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            Review the invitation, then explicitly accept it for this signed-in account.
-          </p>
-          <button
-            type="button"
-            onClick={acceptInvite}
-            className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
-          >
-            Accept invitation
-          </button>
-        </div>
+        <Button size="lg" fullWidth onClick={acceptInvite}>
+          {t("auth.invite_accept")}
+        </Button>
       ) : state === "success" ? (
-        <div>
-          <p className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-            <Check className="h-4 w-4" /> Welcome aboard
-          </p>
+        <div className="space-y-3">
+          <AuthAlert tone="success">{t("auth.invite_accepted")}</AuthAlert>
           {companyId ? (
-            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-              Redirecting to your company dashboard…
+            <p role="status" className="text-base text-ink-secondary">
+              {t("auth.invite_redirecting")}
             </p>
           ) : null}
         </div>
       ) : (
-        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-300">
-          {error ?? t("common.error_generic")}
-        </p>
-      )}
-    </Shell>
-  );
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mx-auto max-w-md px-4 py-16">
-      <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
-          <Mail className="h-3.5 w-3.5" />
-          Company invitation
+        <div className="space-y-4">
+          <AuthAlert>{t(errorKey ?? "common.error_generic")}</AuthAlert>
+          <Button variant="secondary" size="lg" fullWidth onClick={acceptInvite}>
+            {t("errors.retry")}
+          </Button>
         </div>
-        {children}
-      </div>
-    </div>
+      )}
+    </AuthShell>
   );
 }
