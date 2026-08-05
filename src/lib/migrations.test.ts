@@ -18,6 +18,7 @@ const releaseMigrations = [
   "20260804223000_registry_compatibility_reconciliation.sql",
   "20260804230000_registry_storage_lifecycle.sql",
   "20260804233000_registry_count_fast_path.sql",
+  "20260805010000_active_registry_scope.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -124,7 +125,7 @@ describe("release migration contracts", () => {
     expect(sql.trim().endsWith("COMMIT;")).toBe(true);
   });
 
-  it("hosts the complete official register behind bounded public RPCs", async () => {
+  it("hosts official registry rows behind bounded public RPCs", async () => {
     const sql = await readFile(
       path.join(migrationsDirectory, "20260804190000_official_association_directory.sql"),
       "utf8"
@@ -140,7 +141,7 @@ describe("release migration contracts", () => {
     expect(sql).not.toMatch(/GRANT\s+SELECT\s+ON\s+public\.ngo_registry\s+TO\s+anon/i);
   });
 
-  it("publishes complete registry snapshots through one atomic membership pointer", async () => {
+  it("publishes registry snapshots through one atomic membership pointer", async () => {
     const sql = await readFile(
       path.join(migrationsDirectory, "20260804210000_registry_snapshot_memberships.sql"),
       "utf8"
@@ -208,5 +209,19 @@ describe("release migration contracts", () => {
     expect(sql).toMatch(/IF v_query IS NULL AND v_status IS NULL[\s\S]+registry_snapshot_facets/i);
     expect(sql).toMatch(/ELSE\s+SELECT count\(\*\) INTO v_total/i);
     expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.search_association_registry_v1[\s\S]+TO anon, authenticated, service_role/i);
+  });
+
+  it("enforces an active-only official registry and purges unpublished rows", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260805010000_active_registry_scope.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("mirror_scope IN ('complete', 'active')");
+    expect(sql).toContain("status IS DISTINCT FROM 'AKTIVAN'");
+    expect(sql).toContain("idx_ngo_registry_import_batch_udr_id");
+    expect(sql).toContain("purge_unpublished_registry_rows_batch");
+    expect(sql).toMatch(/NOT EXISTS \([\s\S]+registry_snapshot_memberships/i);
+    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.purge_unpublished_registry_rows_batch[\s\S]+TO service_role/i);
+    expect(sql).not.toMatch(/GRANT EXECUTE[\s\S]+TO anon/i);
   });
 });

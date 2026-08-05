@@ -31,6 +31,9 @@ assert.equal(
   Number(facets.total),
   "status facets must cover every published organisation"
 );
+assert.equal(facets.statuses.length, 1, "published registry must contain only active rows");
+assert.equal(facets.statuses[0].value, "AKTIVAN", "published status must be AKTIVAN");
+assert.equal(Number(facets.statuses[0].count), Number(facets.total));
 assert.match(facets.snapshot.source_file_hash, /^[a-f0-9]{64}$/);
 
 const { data: firstPage, error: firstPageError } = await timed("first_page_ms", () =>
@@ -88,7 +91,12 @@ const { data: publication, error: publicationError } = await supabaseAdmin
   .single();
 assert.ifError(publicationError);
 
-const [membershipResult, directoryResult, compatibilityResult] = await Promise.all([
+const [batchResult, membershipResult, directoryResult, canonicalResult, activeCanonicalResult] = await Promise.all([
+  supabaseAdmin
+    .from("registry_import_batches")
+    .select("mirror_scope, status, source_rows")
+    .eq("id", publication.current_batch_id)
+    .single(),
   supabaseAdmin
     .from("registry_snapshot_memberships")
     .select("udr_id", { count: "exact", head: true })
@@ -99,10 +107,17 @@ const [membershipResult, directoryResult, compatibilityResult] = await Promise.a
     .eq("batch_id", publication.current_batch_id),
   supabaseAdmin
     .from("ngo_registry")
+    .select("udr_id", { count: "exact", head: true }),
+  supabaseAdmin
+    .from("ngo_registry")
     .select("udr_id", { count: "exact", head: true })
-    .eq("source_present", true),
+    .eq("status", "AKTIVAN"),
 ]);
-for (const result of [membershipResult, directoryResult, compatibilityResult]) {
+assert.ifError(batchResult.error);
+assert.equal(batchResult.data.mirror_scope, "active");
+assert.equal(batchResult.data.status, "completed");
+assert.equal(Number(batchResult.data.source_rows), Number(facets.total));
+for (const result of [membershipResult, directoryResult, canonicalResult, activeCanonicalResult]) {
   assert.ifError(result.error);
   assert.equal(Number(result.count), Number(facets.total));
 }
@@ -121,6 +136,7 @@ console.log(JSON.stringify({
   ok: true,
   batch_id: publication.current_batch_id,
   total: Number(facets.total),
+  scope: "active",
   statuses: facets.statuses,
   timings,
   direct_table_access: "denied",

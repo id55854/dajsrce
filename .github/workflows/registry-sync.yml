@@ -38,9 +38,11 @@ jobs:
         run: |
           test -n "$NEXT_PUBLIC_SUPABASE_URL"
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
-      - name: Sync official CKAN snapshot
+      - name: Sync all active official associations
         shell: bash
         run: |
           args=(--batch-size 500)
           if [ "${{ inputs.force || false }}" = "true" ]; then args+=(--force); fi
           npm run registry:sync -- "${args[@]}"
+      - name: Verify active registry publication
+        run: npm run registry:verify

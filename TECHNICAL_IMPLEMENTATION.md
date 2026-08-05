@@ -142,26 +142,28 @@ User coordinates are stored only after explicit action. `location_notifications_
 
 ## 7. Registry pipeline
 
-The registry directory is a complete mirror of the official `data.gov.hr` CTS
-snapshot and remains intentionally separate from map publication. A row in the
-official register is not a DajSrce verification or donation-acceptance claim.
+The registry directory mirrors every active (`AKTIVAN`) association in the
+official `data.gov.hr` CTS snapshot and remains intentionally separate from map
+publication. Deleted, ceased and source-removed entities are purged after each
+successful publication. A row in the official register is not a DajSrce
+verification or donation-acceptance claim.
 
 - `registry:sync`: discovers the current CTS CSV through CKAN `package_show`, skips unchanged source metadata, streams a size-bounded temporary file and invokes the importer. GitHub Actions runs this twice daily.
 - `registry:import`: computes source SHA-256, validates source identity/dates, stages by source row and commits resumable batches. Every merge captures immutable batch membership plus a lean directory projection. The finalizer publishes in constant time by changing one snapshot pointer, and only when exact source counters reconcile and no row is invalid/unmerged.
 - `UDR_ID` is the canonical source identity because every official row has one. OIB is optional and non-unique in the source; missing/duplicated OIB is retained as a warning instead of dropping the organisation.
 - Processed staging payloads are deleted after their canonical columns and source hash are committed, preventing a second 100 MB copy from accumulating in PostgreSQL.
-- `/organisations` and `/api/v1/organisations` expose all current official rows through allow-listed RPCs with exact totals, Croatian collation, indexed search, filters, deterministic sort and bounded pagination. Base registry tables and derived geocodes remain private.
-- `registry:verify` checks public facets, every status count, Croatian ordering, first/deep pages, detail lookup, projection/membership/current-count agreement and anonymous denial of the canonical table.
+- `/organisations` and `/api/v1/organisations` expose all active official rows through allow-listed RPCs with exact totals, Croatian collation, indexed search, filters, deterministic sort and bounded pagination. Base registry tables and derived geocodes remain private.
+- `registry:verify` proves that the public snapshot, directory, membership and entire canonical table have the same count and that every row is `AKTIVAN`; it also checks Croatian ordering, first/deep pages, detail lookup and anonymous denial of the canonical table.
 - The compatibility reconciler aligns the legacy `source_present` flag after atomic publication in timeout-safe batches so geocoding, remapping and promotion see the same snapshot without delaying public cutover.
-- After publication, bounded cleanup removes non-current membership/directory projections. Canonical legacy trigram and ineffective city/form composites are absent so full snapshots retain safe storage headroom.
-- Unfiltered pages read their exact total from immutable snapshot facets instead of rescanning 71,057 rows, keeping cold deep-page requests below the API statement budget.
+- After publication, bounded cleanup removes non-current membership/directory projections and canonical rows outside the active snapshot. Canonical legacy trigram and ineffective city/form composites are absent so refreshes retain Free-tier storage headroom.
+- Unfiltered pages read their exact total from immutable snapshot facets instead of rescanning tens of thousands of rows, keeping cold deep-page requests below the API statement budget.
 - `registry:remap`: keyset-scans and sends bounded classifications to a set-based RPC.
 - Classification distinguishes eligibility, category candidates and donation candidates. Cultural, sports, equestrian, hobby and professional entity shapes cannot auto-publish from a broad keyword hit.
 - `registry:geocode`: durable pending/in-progress/succeeded/retryable/permanent state, capped attempts/backoff and Nominatim identification/rate limits.
 - `registry:promote`: one set-based transaction; only active, valid, strongly classified, street/exact-geocoded rows qualify. Curated content wins. Donation types remain unconfirmed until the organization explicitly confirms them.
 - Registry-to-institution promotion still requires a usable OIB plus the existing classification/geocode quality gate. Coverage is computed in the database without a client row cap.
 
-Migrations: `20260801170000_registry_pipeline.sql`, `20260804190000_official_association_directory.sql`, `20260804200000_registry_snapshot_reconciliation.sql`, `20260804203000_atomic_registry_snapshot_visibility.sql`, `20260804210000_registry_snapshot_memberships.sql`, `20260804213000_constant_time_registry_finalize.sql`, `20260804220000_registry_directory_projection.sql`, `20260804223000_registry_compatibility_reconciliation.sql`, `20260804230000_registry_storage_lifecycle.sql` and `20260804233000_registry_count_fast_path.sql`.
+Migrations: `20260801170000_registry_pipeline.sql`, `20260804190000_official_association_directory.sql`, `20260804200000_registry_snapshot_reconciliation.sql`, `20260804203000_atomic_registry_snapshot_visibility.sql`, `20260804210000_registry_snapshot_memberships.sql`, `20260804213000_constant_time_registry_finalize.sql`, `20260804220000_registry_directory_projection.sql`, `20260804223000_registry_compatibility_reconciliation.sql`, `20260804230000_registry_storage_lifecycle.sql`, `20260804233000_registry_count_fast_path.sql` and `20260805010000_active_registry_scope.sql`.
 
 ## 8. Environment contract
 
@@ -174,12 +176,11 @@ Required platform values:
 - `NEXT_PUBLIC_APP_URL` (HTTPS in production)
 - `CRON_SECRET` (32+ characters)
 
-The production Supabase organization is currently on the Free plan. The full
-snapshot plus temporary in-database rollback copy measured 398 MB after index
-consolidation; Free enters read-only mode at 500 MB. Remove the reproducible
-rollback `ngo_registry` copy after release verification and upgrade to Pro
-before enabling unattended twice-daily imports if guaranteed peak headroom is
-required.
+The production Supabase organization intentionally remains on the Free plan.
+Only the active official snapshot is retained, while processed staging,
+historical projections and inactive canonical rows are removed after a
+successful refresh. Monitor database size against the provider limit; an
+upgrade is not required for the current active-only operating model.
 
 Feature integrations require the matching Stripe, Resend and SudReg secrets. Public feature flags are presentation gates, never authorization controls.
 
@@ -202,11 +203,12 @@ Apply these new migrations in order before deploying the application commit:
 13. `20260804223000_registry_compatibility_reconciliation.sql`
 14. `20260804230000_registry_storage_lifecycle.sql`
 15. `20260804233000_registry_count_fast_path.sql`
+16. `20260805010000_active_registry_scope.sql`
 
 Mandatory release sequence:
 
 1. Take a database backup and record current migration history/policies/grants.
-2. Restore the backup into staging and apply all fifteen migrations there.
+2. Restore the backup into staging and apply all sixteen migrations there.
 3. Run RPC/RLS smoke tests for anonymous map/detail, signup/setup, NGO writes, pledges, volunteer tokens/checkout, tenant creation/invites/verification, Stripe retry, report generation and both cron routes.
 4. Run `npm ci`, `npm run check`, `npm audit`, `npm run build` and the map benchmark.
 5. Set production secrets/flags; configure authenticated POST schedulers.

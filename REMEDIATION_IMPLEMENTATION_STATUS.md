@@ -7,7 +7,7 @@
 
 ## Release verdict
 
-The repository-actionable release blockers and primary scalability defects are remediated in the current worktree. All fifteen new migrations and the complete official association snapshot have been applied to the production Supabase project before application deployment. A restored-staging rehearsal, off-site backup evidence, external schedulers, provider credentials, alert destinations and legal/privacy/accounting review remain explicit owner controls.
+The repository-actionable release blockers and primary scalability defects are remediated in the current worktree. All sixteen new migrations and the active official association snapshot have been applied to the production Supabase project before application deployment. A restored-staging rehearsal, off-site backup evidence, external schedulers, provider credentials, alert destinations and legal/privacy/accounting review remain explicit owner controls.
 
 The old schema/client combination is intentionally incompatible with the new security posture: broad direct table privileges were removed. Roll forward with the complete migration/application set.
 
@@ -23,8 +23,8 @@ The old schema/client combination is intentionally incompatible with the new sec
 | Public map objects | ~1,000 markers plus cards | <= 200 features, <= 60 result rows |
 | Dependency audit | 7 known production advisories | 0 known npm advisories at implementation time |
 | Map incremental raw bundle | no enforced budget | 269,176 bytes; CI budget 327,680 bytes |
-| Automated repository tests | no reliable gate | 93 tests across 17 files |
-| Official association directory | 43,748 active-only legacy rows | 71,057 official rows across all 3 statuses |
+| Automated repository tests | no reliable gate | 95 tests across 17 files |
+| Official association directory | 43,748 active-only legacy rows | 43,703 active official rows in the current CTS snapshot |
 | Directory public read | no complete public directory | 513 ms first page; 2,255 ms final page; 202 ms detail in production smoke |
 
 ## Finding disposition
@@ -75,13 +75,13 @@ The old schema/client combination is intentionally incompatible with the new sec
 | Finding | Disposition |
 |---|---|
 | DATA-01 | Versioned scored classification, candidate/reason fields, negative entity shapes and a review queue prevent broad-keyword auto-publication; donation acceptance remains unconfirmed until explicit confirmation. |
-| DATA-02 | The complete official register is keyed by unique `UDR_ID`; optional/duplicated OIB is retained with a warning rather than dropping 3,190+ official rows. Every one of the 20 CTS fields, source hash/resource/update timestamp and current-snapshot state is retained. Processed staging JSON is removed to control storage growth. |
+| DATA-02 | The active official register is keyed by unique `UDR_ID`; optional/duplicated OIB is retained with a warning instead of dropping an otherwise valid active row. Every one of the 20 CTS fields, source hash/resource/update timestamp and current-snapshot state is retained. Processed staging JSON and inactive canonical rows are removed to control storage growth. |
 | DATA-03 | CKAN discovery plus bounded streaming download, source hashes, UDR/OIB validation, source-row checkpoints, adaptive timeout bisection, resumable set-based merges and exact-count constant-time publication make imports idempotent and fail closed. A scheduled GitHub workflow skips unchanged snapshots. |
 | DATA-04 | Geocoding has durable state, attempt counts, retry time/backoff, permanent failure and a compliant rate/identity contract. |
 | DATA-05 | Remapping and promotion are bounded/set-based; curated records win; dry-run counts are calculated from the same candidate set. |
 | DATA-06 | Coverage is a database aggregate, not a capped client scan. |
 | DATA-07 | The duplicate locale migration was renamed to a unique timestamp; CI rejects duplicate versions. |
-| DATA-08 | The national directory uses immutable snapshot membership, a lean indexed projection, cached facets, bounded old-snapshot cleanup, server-side exact counts, Croatian collation, bounded pagination and allow-listed public RPCs. Production verification covers all 71,057 rows and denies anonymous base-table access. It shows every official status without treating registry presence as verification or donation eligibility. |
+| DATA-08 | The national directory uses immutable snapshot membership, a lean indexed projection, cached facets, bounded old-snapshot cleanup, server-side exact counts, Croatian collation, bounded pagination and allow-listed public RPCs. Production verification covers all 43,703 currently active rows, proves the canonical table contains nothing else and denies anonymous base-table access. Registry presence is not treated as verification or donation eligibility. |
 
 ### Architecture and operations
 
@@ -117,7 +117,7 @@ Do not describe production as remediated until the release owner records:
 
 - successful migration application and schema/grant diff on a restored staging clone;
 - Supabase CLI migration-history repair using the database password before adopting `db push`/Branching;
-- Free-plan capacity ownership: upgrade to Pro before unattended full refreshes, or explicitly accept/monitor the 500 MB ceiling;
+- Free-plan capacity ownership: monitor the provider ceiling while retaining only the active snapshot; upgrade only if measured growth later requires it;
 - passing anonymous/authenticated/service-role RLS and RPC smoke matrix;
 - a current production backup plus successful quarterly restore drill owner/date;
 - POST scheduler configuration for acknowledgement and notification workers;

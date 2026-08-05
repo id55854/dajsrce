@@ -58,6 +58,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 13. `20260804223000_registry_compatibility_reconciliation.sql`
 14. `20260804230000_registry_storage_lifecycle.sql`
 15. `20260804233000_registry_count_fast_path.sql`
+16. `20260805010000_active_registry_scope.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 
@@ -91,8 +92,9 @@ Receipt and CSR PDFs use complete static Noto Sans TTFs from `@expo-google-fonts
 - `npm run registry:sync -- --batch-size 500` (the importer automatically bisects timed-out ranges)
 - `npm run registry:import -- --csv <path>`
 - `npm run registry:verify`
+- `npm run registry:maintain`
 - `npm run registry:remap`
 - `npm run registry:geocode`
 - `npm run registry:promote -- --dry-run`
 
-`registry:sync` must mirror the complete CTS snapshot; `--active-only` and `--limit` are dry-run-only. `UDR_ID` is the official canonical key and OIB is optional source data. Publication is one pointer update over immutable batch membership/directory rows; the legacy `source_present` flag is reconciled afterward in timeout-safe batches for maintenance jobs. Configure GitHub Actions secrets `PRODUCTION_SUPABASE_URL` and `PRODUCTION_SUPABASE_SERVICE_ROLE_KEY` for scheduled sync. Run `registry:verify` after publication. Use dry-run/coverage before promotion. Nominatim requires a real identifying user agent/contact and <= 1 request/second. Never infer public donation acceptance from category defaults.
+`registry:sync` must mirror every `AKTIVAN` row in the CTS snapshot and purge canonical rows outside that active snapshot. Production imports require `--active-only`; `--limit` and `--zg` remain dry-run-only. `UDR_ID` is the official canonical key and OIB is optional source data, so optional-field warnings do not remove an otherwise valid active organisation. Publication is one pointer update over immutable batch membership/directory rows; the legacy `source_present` flag is reconciled and inactive canonical rows are deleted afterward in timeout-safe batches. Configure GitHub Actions secrets `PRODUCTION_SUPABASE_URL` and `PRODUCTION_SUPABASE_SERVICE_ROLE_KEY` for scheduled sync. The workflow runs `registry:verify` after every publication. Use dry-run/coverage before promotion. Nominatim requires a real identifying user agent/contact and <= 1 request/second. Never infer public donation acceptance from category defaults.

@@ -48,8 +48,8 @@ if (!Number.isFinite(LIMIT) && LIMIT !== Number.POSITIVE_INFINITY) {
   console.error("--limit must be a positive integer");
   process.exit(1);
 }
-if (!DRY_RUN && (ACTIVE_ONLY || Number.isFinite(LIMIT))) {
-  console.error("Production imports must consume the complete source. Use --active-only/--limit only with --dry-run.");
+if (!DRY_RUN && (!ACTIVE_ONLY || ONLY_ZG || Number.isFinite(LIMIT))) {
+  console.error("Production imports must consume every active official row. Use --active-only without --zg or --limit.");
   process.exit(1);
 }
 
@@ -169,6 +169,7 @@ if (!DRY_RUN) {
     source_url: process.env.REGISTRY_SOURCE_URL || null,
     source_metadata_modified: sourceMetadataModified,
     source_bytes: sourceBytes,
+    mirror_scope: "active",
     status: "running",
     completed_at: null,
     error: null,
@@ -182,6 +183,7 @@ console.log(`Batch: ${batchId} | resume after source row: ${resumeAfter} | dry-r
 
 let header = null;
 let sourceRowNumber = 0;
+let selectedSourceRows = 0;
 let examinedThisRun = 0;
 let staged = 0;
 let merged = 0;
@@ -258,6 +260,23 @@ async function flushBatch() {
   console.log(`  committed through source row ${lastRow.toLocaleString()} (merged ${merged.toLocaleString()}, invalid ${invalid.toLocaleString()})`);
 }
 
+async function refreshFacetsWithRetry() {
+  const maximumAttempts = 5;
+  for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+    const { data, error } = await supabaseAdmin.rpc(
+      "refresh_registry_snapshot_facets",
+      { p_batch_id: batchId }
+    );
+    if (!error) return data;
+    if (error.code !== "57014" || attempt === maximumAttempts) throw error;
+    console.warn(
+      `Facet refresh timed out (${attempt}/${maximumAttempts}); retrying with warmed database pages...`
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1_000 * attempt));
+  }
+  throw new Error("Registry facet refresh exhausted its retry budget");
+}
+
 try {
   for await (const csvRow of parseCsvStream(fs.createReadStream(CSV_PATH))) {
     if (!header) {
@@ -265,16 +284,18 @@ try {
       continue;
     }
     sourceRowNumber += 1;
+    const raw = Object.fromEntries(header.map((name, index) => [name, csvRow[index] ?? ""]));
+    const isSelected = (!ACTIVE_ONLY || (raw.STATUS || "").trim() === "AKTIVAN") &&
+      (!ONLY_ZG || (raw.ZUPANIJA || "").includes("Grad Zagreb"));
+    if (isSelected) selectedSourceRows += 1;
+
+    // Count the complete selected source even when resuming. Finalization uses
+    // this value to prove that every active row made it into the snapshot.
     if (sourceRowNumber <= resumeAfter) continue;
     if (examinedThisRun >= LIMIT) break;
     examinedThisRun += 1;
 
-    const raw = Object.fromEntries(header.map((name, index) => [name, csvRow[index] ?? ""]));
-    if (ACTIVE_ONLY && raw.STATUS !== "AKTIVAN") {
-      filtered += 1;
-      continue;
-    }
-    if (ONLY_ZG && !(raw.ZUPANIJA || "").includes("Grad Zagreb")) {
+    if (!isSelected) {
       filtered += 1;
       continue;
     }
@@ -301,42 +322,37 @@ try {
       .update({ rows_warning: warnings })
       .eq("id", batchId);
     if (warningError) throw warningError;
-    const { data: facetReport, error: facetError } = await supabaseAdmin.rpc(
-      "refresh_registry_snapshot_facets",
-      { p_batch_id: batchId }
-    );
-    if (facetError) throw facetError;
+    const facetReport = await refreshFacetsWithRetry();
     console.log(`Prepared directory facets: ${JSON.stringify(facetReport)}`);
     const { data: finalReport, error } = await supabaseAdmin.rpc(
       "finalize_registry_import_batch",
-      { p_batch_id: batchId, p_expected_source_rows: sourceRowNumber }
+      { p_batch_id: batchId, p_expected_source_rows: selectedSourceRows }
     );
     if (error) throw error;
     console.log(`Finalized mirror: ${JSON.stringify(finalReport)}`);
 
-    // Public visibility is already atomically switched by finalization. Keep the
-    // legacy flag used by maintenance scripts aligned in bounded best-effort
-    // batches; a failure here must not mark a published snapshot as failed.
+    // The active snapshot is now authoritative. Purge obsolete canonical rows
+    // first, while import_batch_id gives us a constant-time indexed candidate
+    // path. This also makes legacy visibility reconciliation a tiny operation.
     try {
-      let reconciled = { enabled: 0, disabled: 0, complete: false };
+      let purge = { deleted: 0, complete: false };
       do {
-        const { data, error: reconcileError } = await supabaseAdmin.rpc(
-          "reconcile_registry_source_presence_batch",
-          { p_batch_id: batchId, p_limit: 250 }
+        const { data, error: purgeError } = await supabaseAdmin.rpc(
+          "purge_unpublished_registry_rows_batch",
+          { p_limit: 500 }
         );
-        if (reconcileError) throw reconcileError;
-        reconciled = data;
-        if (!reconciled.complete) {
-          console.log(
-            `  reconciled legacy visibility (+${reconciled.enabled}, -${reconciled.disabled})`
-          );
+        if (purgeError) throw purgeError;
+        purge = data;
+        if (purge.deleted > 0) {
+          console.log(`  purged ${purge.deleted} canonical rows outside the active snapshot`);
         }
-      } while (!reconciled.complete);
-    } catch (reconcileError) {
-      console.warn(
-        "Published snapshot is healthy, but legacy source_present reconciliation must be retried:",
-        reconcileError instanceof Error ? reconcileError.message : reconcileError
+      } while (!purge.complete);
+    } catch (purgeError) {
+      console.error(
+        "Active snapshot was published, but inactive canonical-row purge failed:",
+        purgeError instanceof Error ? purgeError.message : purgeError
       );
+      process.exitCode = 1;
     }
 
     try {
@@ -344,7 +360,7 @@ try {
       do {
         const { data, error: cleanupError } = await supabaseAdmin.rpc(
           "cleanup_registry_snapshot_storage_batch",
-          { p_limit: 250 }
+          { p_limit: 500 }
         );
         if (cleanupError) throw cleanupError;
         cleanup = data;
@@ -359,6 +375,31 @@ try {
       console.warn(
         "Published snapshot is healthy, but old snapshot storage cleanup must be retried:",
         cleanupError instanceof Error ? cleanupError.message : cleanupError
+      );
+    }
+
+    // Public visibility is already atomically switched by finalization. Keep the
+    // legacy flag used by maintenance scripts aligned in bounded best-effort
+    // batches; a failure here must not mark a published snapshot as failed.
+    try {
+      let reconciled = { enabled: 0, disabled: 0, complete: false };
+      do {
+        const { data, error: reconcileError } = await supabaseAdmin.rpc(
+          "reconcile_registry_source_presence_batch",
+          { p_batch_id: batchId, p_limit: 500 }
+        );
+        if (reconcileError) throw reconcileError;
+        reconciled = data;
+        if (!reconciled.complete) {
+          console.log(
+            `  reconciled legacy visibility (+${reconciled.enabled}, -${reconciled.disabled})`
+          );
+        }
+      } while (!reconciled.complete);
+    } catch (reconcileError) {
+      console.warn(
+        "Published snapshot is healthy, but legacy source_present reconciliation must be retried:",
+        reconcileError instanceof Error ? reconcileError.message : reconcileError
       );
     }
   }
@@ -378,6 +419,7 @@ try {
 
 console.log("\n=== Registry import report ===");
 console.log(`Source rows examined : ${examinedThisRun.toLocaleString()}`);
+console.log(`Active source rows   : ${selectedSourceRows.toLocaleString()}`);
 console.log(`Filtered             : ${filtered.toLocaleString()}`);
 console.log(`Staged               : ${staged.toLocaleString()}`);
 console.log(`${DRY_RUN ? "Would merge" : "Merged"}          : ${merged.toLocaleString()}`);
