@@ -537,7 +537,7 @@ export default function Map({
     >
       <TileLayer
         key={dark ? "dark" : "light"}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> | Address points: <a href="https://geoportal.dgu.hr/services/atom/ad/xml">DGU INSPIRE Addresses</a> (2026-08-02)'
         url={dark ? DARK_TILES : LIGHT_TILES}
         subdomains="abcd"
       />

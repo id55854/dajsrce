@@ -47,7 +47,7 @@ const nationalParams = {
   p_limit: 150,
 };
 const { data: nationalRows, error: nationalError } = await publicClient.rpc(
-  "map_association_registry_v1",
+  "map_association_registry_v2",
   nationalParams
 );
 assert.ifError(nationalError);
@@ -61,25 +61,76 @@ assert.equal(
 );
 assert.equal(Number(nationalRows[0].total_features), nationalRows.length);
 
-const { data: registryOnly, error: registryOnlyError } = await supabaseAdmin
+const { count: dguExactCount, error: dguExactCountError } = await supabaseAdmin
+  .from("ngo_registry")
+  .select("udr_id", { count: "exact", head: true })
+  .eq("geocode_source", "dgu_inspire_addresses")
+  .eq("geocode_confidence", "exact");
+assert.ifError(dguExactCountError);
+assert.equal(dguExactCount, 39_414, "audited DGU exact-point count changed unexpectedly");
+
+const { data: exactRegistryOnly, error: exactRegistryOnlyError } = await supabaseAdmin
+  .from("registry_directory_entries")
+  .select("udr_id,address")
+  .eq("batch_id", publication.current_batch_id)
+  .is("institution_id", null)
+  .eq("map_precision", "exact")
+  .limit(1)
+  .single();
+assert.ifError(exactRegistryOnlyError);
+
+const { data: exactRows, error: exactError } = await publicClient.rpc(
+  "map_association_registry_v2",
+  { ...nationalParams, p_query: exactRegistryOnly.udr_id }
+);
+assert.ifError(exactError);
+const exactResult = exactRows.find((row) => row.registry_id === exactRegistryOnly.udr_id);
+assert.ok(exactResult, "exact registry ID search must expose the requested map record");
+assert.equal(exactResult.location_precision, "exact");
+assert.equal(exactResult.address, exactRegistryOnly.address);
+assert.equal(exactResult.approximate_area, null);
+
+const { data: approximateRegistryOnly, error: approximateRegistryOnlyError } = await supabaseAdmin
   .from("registry_directory_entries")
   .select("udr_id")
   .eq("batch_id", publication.current_batch_id)
   .is("institution_id", null)
+  .in("map_precision", ["city", "county"])
   .limit(1)
   .single();
-assert.ifError(registryOnlyError);
+assert.ifError(approximateRegistryOnlyError);
 
 const { data: searchRows, error: searchError } = await publicClient.rpc(
-  "map_association_registry_v1",
-  { ...nationalParams, p_query: registryOnly.udr_id }
+  "map_association_registry_v2",
+  { ...nationalParams, p_query: approximateRegistryOnly.udr_id }
 );
 assert.ifError(searchError);
-const registryResult = searchRows.find((row) => row.registry_id === registryOnly.udr_id);
+const registryResult = searchRows.find((row) => row.registry_id === approximateRegistryOnly.udr_id);
 assert.ok(registryResult, "registry ID search must expose the requested map record");
 assert.equal(registryResult.entity_type, "registry");
-assert.equal(registryResult.feature_id, `registry:${registryOnly.udr_id}`);
+assert.equal(registryResult.feature_id, `registry:${approximateRegistryOnly.udr_id}`);
 assert.ok(["city", "county"].includes(registryResult.location_precision));
+assert.equal(registryResult.address, null);
+
+const { data: hiddenDirectory, error: hiddenDirectoryError } = await supabaseAdmin
+  .from("registry_directory_entries")
+  .select("udr_id")
+  .eq("batch_id", publication.current_batch_id)
+  .eq("map_precision", "hidden")
+  .limit(1)
+  .maybeSingle();
+assert.ifError(hiddenDirectoryError);
+if (hiddenDirectory) {
+  const { data: hiddenRows, error: hiddenError } = await publicClient.rpc(
+    "map_association_registry_v2",
+    { ...nationalParams, p_query: hiddenDirectory.udr_id }
+  );
+  assert.ifError(hiddenError);
+  const hiddenResult = hiddenRows.find((row) => row.registry_id === hiddenDirectory.udr_id);
+  assert.ok(hiddenResult, "hidden registry link must remain represented on the map");
+  assert.equal(hiddenResult.location_precision, "hidden");
+  assert.equal(hiddenResult.address, null);
+}
 
 const { error: directProjectionError } = await publicClient
   .from("registry_directory_entries")
@@ -97,6 +148,9 @@ console.log(JSON.stringify({
     (sum, row) => sum + Number(row.member_count),
     0
   ),
-  registry_navigation_sample: registryOnly.udr_id,
+  dgu_exact_building_points: dguExactCount,
+  exact_registry_navigation_sample: exactRegistryOnly.udr_id,
+  approximate_registry_navigation_sample: approximateRegistryOnly.udr_id,
+  hidden_location_sample: hiddenDirectory?.udr_id ?? null,
   direct_table_access: "denied",
 }, null, 2));

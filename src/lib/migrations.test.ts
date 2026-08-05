@@ -20,6 +20,7 @@ const releaseMigrations = [
   "20260804233000_registry_count_fast_path.sql",
   "20260805010000_active_registry_scope.sql",
   "20260805160000_active_registry_map.sql",
+  "20260805180000_dgu_exact_address_geocoding.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -239,5 +240,20 @@ describe("release migration contracts", () => {
     expect(sql).toContain("s.matches <= effective_limit");
     expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.map_association_registry_v1[\s\S]+TO anon, authenticated, service_role/i);
     expect(sql).not.toMatch(/GRANT\s+SELECT\s+ON\s+public\.registry_location_centroids/i);
+  });
+
+  it("publishes only audited DGU building points as exact registry locations", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260805180000_dgu_exact_address_geocoding.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("registry_dgu_geocode_staging");
+    expect(sql).toContain("dgu_inspire_addresses");
+    expect(sql).toContain("geocode_confidence = 'exact'");
+    expect(sql).toContain("map_association_registry_v2");
+    expect(sql).toMatch(/p_limit < 1 OR p_limit > 500/i);
+    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.apply_registry_dgu_geocode_batch[\s\S]+TO service_role/i);
+    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.map_association_registry_v2[\s\S]+TO anon, authenticated, service_role/i);
+    expect(sql).not.toMatch(/GRANT\s+SELECT[\s\S]+registry_dgu_geocode_staging[\s\S]+TO\s+(?:anon|authenticated)/i);
   });
 });

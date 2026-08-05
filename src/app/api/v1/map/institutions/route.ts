@@ -63,7 +63,7 @@ function isMissingRpc(error: { code?: string; message?: string }): boolean {
   return (
     error.code === "PGRST202" ||
     error.code === "42883" ||
-    /map_association_registry_v1|could not find the function/i.test(error.message ?? "")
+    /map_association_registry_v[12]|could not find the function/i.test(error.message ?? "")
   );
 }
 
@@ -109,7 +109,7 @@ function rpcRowToFeature(row: RpcMapRow): PublicMapFeature | null {
 async function queryIndexedRpc(query: MapQuery) {
   const supabase = createPublicSupabaseClient();
   const [minLng, minLat, maxLng, maxLat] = query.bbox;
-  const { data, error } = await supabase.rpc("map_association_registry_v1", {
+  const parameters = {
     p_min_lng: minLng,
     p_min_lat: minLat,
     p_max_lng: maxLng,
@@ -121,7 +121,16 @@ async function queryIndexedRpc(query: MapQuery) {
     p_only_urgent: query.onlyUrgent,
     p_query: query.query,
     p_limit: query.limit,
-  });
+  };
+
+  let { data, error } = await supabase.rpc("map_association_registry_v2", parameters);
+
+  // Rolling deployments may briefly have the application or migration ahead
+  // of the other. v1 preserves complete map coverage until v2 is available;
+  // only the exact registry street-address enrichment is absent in that gap.
+  if (error && isMissingRpc(error)) {
+    ({ data, error } = await supabase.rpc("map_association_registry_v1", parameters));
+  }
 
   if (error) {
     if (isMissingRpc(error)) return null;

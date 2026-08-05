@@ -81,7 +81,22 @@ describe("GET /api/v1/map/institutions", () => {
     expect(JSON.stringify(payload)).not.toContain("phone");
     expect(JSON.stringify(payload)).not.toContain("email");
     expect(JSON.stringify(payload)).not.toContain("description");
-    expect(rpc).toHaveBeenCalledWith("map_association_registry_v1", expect.any(Object));
+    expect(rpc).toHaveBeenCalledWith("map_association_registry_v2", expect.any(Object));
+  });
+
+  it("falls back to the complete v1 map during a rolling database deployment", async () => {
+    rpc
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: "PGRST202", message: "map_association_registry_v2 was not found" },
+      })
+      .mockResolvedValueOnce({ data: [], error: null });
+
+    const response = await GET(new NextRequest(url));
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenNthCalledWith(1, "map_association_registry_v2", expect.any(Object));
+    expect(rpc).toHaveBeenNthCalledWith(2, "map_association_registry_v1", expect.any(Object));
   });
 
   it("honours If-None-Match with a stable semantic ETag", async () => {
