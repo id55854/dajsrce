@@ -200,8 +200,8 @@ function useCompactViewport(): boolean {
 function MapPageLoading() {
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row md:gap-6 md:px-8 md:pt-8 lg:px-10 lg:pt-10">
-        <Skeleton className="min-h-0 flex-1 rounded-none md:mb-8 md:h-auto md:w-[60%] md:rounded-sheet lg:mb-10" />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row md:gap-4 md:px-4 md:pt-4 lg:px-6 lg:pt-5">
+        <Skeleton className="min-h-0 flex-1 rounded-none md:mb-4 md:h-auto md:w-[60%] md:rounded-sheet lg:mb-5" />
         <div className="hidden min-h-0 flex-col gap-3 p-3 md:flex md:h-full md:w-[40%]">
           <Skeleton className="h-12 w-full rounded-card" />
           <Skeleton className="h-4 w-40" />
@@ -703,13 +703,15 @@ function MapSurface() {
     // peek detent on phones, and the page still never scrolls.
     <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface">
     {/* Bottom spacing lives on the map card, not the container, so the results
-        list on the right can scroll all the way down to the legal strip. */}
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row md:gap-6 md:px-8 md:pt-8 lg:px-10 lg:pt-10">
+        list on the right can scroll all the way down to the legal strip.
+        The inset is deliberately slim: it only has to read as a card against
+        the page, and every pixel it takes is one the map does not get. */}
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row md:gap-4 md:px-4 md:pt-4 lg:px-6 lg:pt-5">
       {/* The map is always mounted and always interactive: on phones the sheet
-          floats over it (full-bleed), on desktop it holds the left 60% as a
+          floats over it (full-bleed), on desktop it holds the left 62% as a
           rounded card inset from the page edges. `isolate` keeps Leaflet's
           internal pane z-indexes out of the app's ladder. */}
-      <div className="relative isolate min-h-0 min-w-0 flex-1 md:mb-8 md:h-auto md:w-[60%] md:overflow-hidden md:rounded-sheet md:shadow-raised lg:mb-10">
+      <div className="relative isolate min-h-0 min-w-0 flex-1 md:mb-4 md:h-auto md:w-[60%] md:overflow-hidden md:rounded-sheet md:shadow-raised lg:mb-5">
         <div className="h-full w-full">
           <Map
             features={features}

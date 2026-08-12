@@ -508,7 +508,16 @@ export function Navbar() {
               <Bell className="h-5 w-5" aria-hidden="true" />
               {notificationBadge}
             </button>
-          ) : null}
+          ) : (
+            // Signing in is the primary action for a visitor who has not, so it
+            // stays in the bar. Folding it into the dropdown put the one thing
+            // an anonymous visitor might want two clicks away, behind a control
+            // that gives no hint it is there. The dropdown still carries it, so
+            // the two do not compete.
+            <Link href="/auth/login" className={buttonClasses({ size: "sm" })}>
+              {t("nav.sign_in")}
+            </Link>
+          )}
           <NavMenu
             user={user}
             displayName={displayName}
