@@ -21,6 +21,11 @@ const releaseMigrations = [
   "20260805010000_active_registry_scope.sql",
   "20260805160000_active_registry_map.sql",
   "20260805180000_dgu_exact_address_geocoding.sql",
+  "20260812100000_map_coarse_clusters_city_directory.sql",
+  "20260812110000_cancel_pledges_and_signups.sql",
+  "20260812120000_institution_claims.sql",
+  "20260812130000_donor_offers.sql",
+  "20260812140000_engaged_association_directory.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -255,5 +260,117 @@ describe("release migration contracts", () => {
     expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.apply_registry_dgu_geocode_batch[\s\S]+TO service_role/i);
     expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.map_association_registry_v2[\s\S]+TO anon, authenticated, service_role/i);
     expect(sql).not.toMatch(/GRANT\s+SELECT[\s\S]+registry_dgu_geocode_staging[\s\S]+TO\s+(?:anon|authenticated)/i);
+  });
+
+  it("caps map clustering and keeps the city directory aggregate-only", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260812100000_map_coarse_clusters_city_directory.sql"),
+      "utf8"
+    );
+    // The whole point of the migration: a crowded viewport resolves into at
+    // most 6x6 groups instead of floor(sqrt(150)) = 12x12.
+    expect(sql).toMatch(/axis_cells := greatest\(1, least\(6,/i);
+    expect(sql).toContain("registry_map_cities_v1");
+    expect(sql).toContain("organisation_count");
+    // Aggregate rows only; no per-organisation identity or point escapes.
+    expect(sql).not.toMatch(/SELECT[^;]*\bd\.udr_id\b[^;]*FROM public\.registry_directory_entries[^;]*GROUP BY/i);
+    expect(sql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.registry_map_cities_v1[\s\S]+TO anon, authenticated, service_role/i
+    );
+    expect(sql).not.toMatch(/GRANT\s+SELECT\s+ON\s+public\.registry_location_centroids/i);
+  });
+
+  it("cancels pledges and signups without destroying evidence", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260812110000_cancel_pledges_and_signups.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("cancel_pledge_transaction");
+    expect(sql).toContain("cancel_volunteer_signup_transaction");
+    // Soft cancel only: volunteer_hours cascades from volunteer_signups, so a
+    // DELETE here would take the ESG evidence with it.
+    expect(sql).toContain("cancelled_at");
+    expect(sql).not.toMatch(/DELETE\s+FROM\s+public\.volunteer_signups/i);
+    expect(sql).toMatch(/checked_in_at IS NULL/i);
+    for (const functionName of [
+      "cancel_pledge_transaction",
+      "cancel_volunteer_signup_transaction",
+    ]) {
+      expect(sql).toMatch(
+        new RegExp(`REVOKE ALL ON FUNCTION public\\.${functionName}\\([^;]+FROM PUBLIC, anon, authenticated`, "i")
+      );
+      expect(sql).toMatch(
+        new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${functionName}\\([^;]+TO service_role`, "i")
+      );
+    }
+  });
+
+  it("makes an NGO account a reviewed claim, never a typed name", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260812120000_institution_claims.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("institution_claims");
+    expect(sql).toContain("request_institution_claim_transaction");
+    expect(sql).toContain("approve_institution_claim_transaction");
+    // The defect this migration exists to remove: onboarding used to insert an
+    // institution at a fabricated Zagreb point with a placeholder address.
+    // Checked against executable SQL only — the migration's own prose quotes
+    // the old values to explain what it is deleting.
+    const executable = sql.replace(/^\s*--.*$/gm, "");
+    expect(executable).not.toContain("45.8131");
+    expect(executable).not.toContain("Location withheld");
+    // Raw verification tokens are never stored, only their SHA-256 digest.
+    expect(sql).toMatch(/email_token_hash[\s\S]{0,200}\^\[0-9a-f\]\{64\}\$/i);
+    // Approval must link both sides or the map pin never flips to onboarded.
+    expect(sql).toMatch(/UPDATE public\.ngo_registry[\s\S]{0,400}institution_id/i);
+    expect(sql).toMatch(/UPDATE public\.registry_directory_entries[\s\S]{0,400}institution_id/i);
+    for (const functionName of [
+      "request_institution_claim_transaction",
+      "approve_institution_claim_transaction",
+      "confirm_institution_claim_email",
+    ]) {
+      expect(sql).toMatch(
+        new RegExp(`REVOKE ALL ON FUNCTION public\\.${functionName}\\([^;]+FROM PUBLIC, anon, authenticated`, "i")
+      );
+      expect(sql).toMatch(
+        new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${functionName}\\([^;]+TO service_role`, "i")
+      );
+    }
+  });
+
+  it("keeps donor offers coarse, private and service-only", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260812130000_donor_offers.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("donor_offers");
+    expect(sql).toContain("offer_claims");
+    expect(sql).toContain("coarse_lat");
+    expect(sql).toContain("coarse_lng");
+    // A private individual's exact home must not be storable at all.
+    expect(sql).not.toMatch(/CREATE TABLE[\s\S]*?public\.donor_offers[\s\S]*?\n\s*(?:exact_)?lat(?:itude)?\s/i);
+    expect(sql).not.toMatch(/GRANT[\s\S]*?\bON public\.donor_offers\b[\s\S]*?TO anon/i);
+    expect(sql).not.toMatch(/GRANT[\s\S]*?\bON public\.offer_claims\b[\s\S]*?TO anon/i);
+  });
+
+  it("lists engaged organisations without widening the register contract", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260812140000_engaged_association_directory.sql"),
+      "utf8"
+    );
+    expect(sql).toContain("engaged_association_directory_v1");
+    expect(sql).toMatch(/JOIN public\.institutions i ON i\.id = d\.institution_id/i);
+    expect(sql).toMatch(/greatest\(1, least\(coalesce\(p_page_size, 24\), 100\)\)/i);
+    // The register's own search keeps its eight-argument signature, so a
+    // rolling deploy never sees an ambiguous call. (It may be *named* here —
+    // the migration explains in prose why it is left alone — but it must not
+    // be redefined or dropped.)
+    expect(sql).not.toMatch(
+      /(?:CREATE OR REPLACE FUNCTION|DROP FUNCTION)[\s\S]{0,80}search_association_registry_v1/i
+    );
+    expect(sql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.engaged_association_directory_v1[\s\S]+TO anon, authenticated, service_role/i
+    );
   });
 });

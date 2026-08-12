@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
-import { Clock, Heart, MapPin, PackageCheck } from "lucide-react";
+import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { enUS, hr } from "date-fns/locale";
+import { CalendarHeart, Clock, Heart, MapPin, PackageCheck } from "lucide-react";
 import type { AuthProfile } from "@/lib/auth/profile";
 import type { Pledge, Shipment } from "@/lib/types";
 import { DONATION_TYPES } from "@/lib/constants";
-import { useT } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
+import { createClient } from "@/lib/supabase/client";
+import { CancelActionButton } from "@/components/YourPledgesSection";
 import type { AppRole } from "@/lib/auth/roles";
 import {
   Badge,
@@ -33,6 +36,43 @@ type PledgeRow = Pledge & {
   shipment?: Shipment | null;
 };
 
+/**
+ * The volunteer's own signups. Read directly under RLS ("Users can view own
+ * active signups") with an explicit column list and a hard cap, because this
+ * surface needs the signup id — the id the cancel endpoint is keyed by — and
+ * the event it belongs to, which the shared list endpoint does not project.
+ */
+type SignupEvent = {
+  id: string;
+  title: string;
+  event_date: string;
+  start_time: string | null;
+};
+
+type SignupRow = {
+  id: string;
+  event_id: string;
+  created_at: string;
+  checked_in_at: string | null;
+  checked_out_at: string | null;
+  event: SignupEvent | null;
+};
+
+const SIGNUP_LIMIT = 20;
+
+/**
+ * PostgREST answers a to-one embed with an object, but the untyped client
+ * models every embed as a list. Accept both rather than trusting one.
+ */
+function toSignupRow(
+  row: Omit<SignupRow, "event"> & { event: SignupEvent | SignupEvent[] | null }
+): SignupRow {
+  return {
+    ...row,
+    event: Array.isArray(row.event) ? row.event[0] ?? null : row.event,
+  };
+}
+
 /** The same status vocabulary the map surface uses (`YourPledgesSection`). */
 const STATUS: Record<string, { tone: BadgeTone; key: string }> = {
   pledged: { tone: "warning", key: "your_pledges.status_pledged" },
@@ -50,9 +90,14 @@ function roleTranslationKey(role: AppRole): string {
 
 export function IndividualDashboardClient({ profile }: { profile: AuthProfile }) {
   const t = useT();
+  const { locale } = useLocale();
+  const dateLocale = locale === "hr" ? hr : enUS;
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pledges, setPledges] = useState<PledgeRow[]>([]);
+  const [signups, setSignups] = useState<SignupRow[]>([]);
+  const [signupsLoading, setSignupsLoading] = useState(true);
+  const [signupsError, setSignupsError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
@@ -79,7 +124,40 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
     };
   }, [reload, t]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("volunteer_signups")
+          .select(
+            "id, event_id, created_at, checked_in_at, checked_out_at, event:volunteer_events(id, title, event_date, start_time)"
+          )
+          .eq("user_id", profile.id)
+          .order("created_at", { ascending: false })
+          .limit(SIGNUP_LIMIT);
+        if (cancelled) return;
+        if (error) {
+          setSignupsError(t("common.error_generic"));
+          return;
+        }
+        setSignupsError(null);
+        setSignups((data ?? []).map(toSignupRow));
+      } catch {
+        if (!cancelled) setSignupsError(t("common.error_generic"));
+      } finally {
+        if (!cancelled) setSignupsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.id, reload, t]);
+
   const recent = pledges.slice(0, 8);
+  // A withdrawn pledge is not a donation, so it must not inflate the count.
+  const active = pledges.filter((item) => item.status !== "cancelled").length;
   const withShipment = pledges.filter((item) => item.shipment).length;
 
   return (
@@ -123,7 +201,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
           <Stat
             icon={<Heart className="h-4 w-4" aria-hidden="true" />}
             label={t("dashboard_individual.stat_donations")}
-            value={loading ? <Skeleton className="h-8 w-12" /> : pledges.length}
+            value={loading ? <Skeleton className="h-8 w-12" /> : active}
           />
           <Stat
             icon={<PackageCheck className="h-4 w-4" aria-hidden="true" />}
@@ -211,6 +289,130 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
                         </time>
                       </div>
                     </div>
+                    {pl.status === "pledged" ? (
+                      <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
+                        <CancelActionButton
+                          endpoint={`/api/pledges/${pl.id}`}
+                          label={t("your_pledges.cancel")}
+                          title={t("your_pledges.cancel_title")}
+                          description={t("your_pledges.cancel_body", {
+                            title: need?.title ?? "",
+                          })}
+                          confirmLabel={t("your_pledges.cancel_confirm")}
+                          successTitle={t("your_pledges.cancel_success")}
+                          errorTitle={t("your_pledges.cancel_error")}
+                          conflictDescription={t("your_pledges.cancel_error_locked")}
+                          onCancelled={() =>
+                            setPledges((prev) =>
+                              prev.map((row) =>
+                                row.id === pl.id
+                                  ? { ...row, status: "cancelled" as const }
+                                  : row
+                              )
+                            )
+                          }
+                        />
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section>
+          <SectionHeader title={t("dashboard_individual.volunteer_signups")} />
+          {signupsLoading ? (
+            <ul className="space-y-3" aria-busy="true">
+              {[0, 1].map((i) => (
+                <Skeleton key={i} className="h-24 rounded-card" />
+              ))}
+            </ul>
+          ) : signupsError ? (
+            <div role="alert">
+              <EmptyState
+                title={t("errors.generic_title")}
+                description={signupsError}
+                action={
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setSignupsLoading(true);
+                      setReload((n) => n + 1);
+                    }}
+                  >
+                    {t("errors.retry")}
+                  </Button>
+                }
+              />
+            </div>
+          ) : signups.length === 0 ? (
+            <EmptyState
+              icon={<CalendarHeart className="h-10 w-10" aria-hidden="true" />}
+              title={t("dashboard_individual.no_volunteer_signups")}
+              action={
+                <Link href="/volunteer" className={buttonClasses({ variant: "secondary" })}>
+                  {t("dashboard_individual.find_volunteer_events")}
+                </Link>
+              }
+            />
+          ) : (
+            <ul className="space-y-3">
+              {signups.map((signup) => {
+                const attended = signup.checked_in_at !== null;
+                return (
+                  <li
+                    key={signup.id}
+                    className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-ink">
+                          {signup.event?.title ?? "—"}
+                        </p>
+                        {signup.event ? (
+                          <p className="text-sm text-ink-secondary">
+                            <time dateTime={signup.event.event_date}>
+                              {format(parseISO(signup.event.event_date), "PPP", {
+                                locale: dateLocale,
+                              })}
+                            </time>
+                            {signup.event.start_time ? ` · ${signup.event.start_time}` : ""}
+                          </p>
+                        ) : null}
+                      </div>
+                      {attended ? (
+                        <Badge tone="success">
+                          {t(
+                            signup.checked_out_at
+                              ? "volunteer_signup.completed"
+                              : "volunteer_signup.checked_in"
+                          )}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {attended ? null : (
+                      <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
+                        <CancelActionButton
+                          endpoint={`/api/volunteer-signups/${signup.id}`}
+                          label={t("volunteer_signup.cancel")}
+                          title={t("volunteer_signup.cancel_title")}
+                          description={t("volunteer_signup.cancel_body", {
+                            title: signup.event?.title ?? "",
+                          })}
+                          confirmLabel={t("volunteer_signup.cancel_confirm")}
+                          successTitle={t("volunteer_signup.cancel_success")}
+                          errorTitle={t("volunteer_signup.cancel_error")}
+                          conflictDescription={t("volunteer_signup.cancel_error_checked_in")}
+                          onCancelled={() =>
+                            setSignups((prev) =>
+                              prev.filter((row) => row.id !== signup.id)
+                            )
+                          }
+                        />
+                      </div>
+                    )}
                   </li>
                 );
               })}

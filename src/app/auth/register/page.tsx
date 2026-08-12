@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Building2, BriefcaseBusiness, Heart } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { evaluatePassword } from "@/lib/password-strength";
 import type { UserRole } from "@/lib/types";
 import {
   AUTH_NETWORK_ERROR,
@@ -49,13 +50,26 @@ function RegisterForm() {
   const nextParam = searchParams.get("next");
   const nextQuery = nextParam ? `?next=${encodeURIComponent(nextParam)}` : "";
 
-  const passwordTooShort =
-    password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  // The name and email already on the form are what makes the deny-list
+  // personal: a password built out of either is the first thing anyone guesses.
+  const strength = useMemo(
+    () =>
+      evaluatePassword(password, {
+        minLength: MIN_PASSWORD_LENGTH,
+        email,
+        name,
+      }),
+    [password, email, name]
+  );
+
   // Validate on blur, not on every keystroke, so the message does not fight
-  // the user while they are still typing.
+  // the user while they are still typing. The meter, which is advice rather
+  // than a verdict, updates live.
   const passwordError =
     fieldErrors.password ??
-    (passwordTouched && passwordTooShort ? "auth.password_too_short" : undefined);
+    (passwordTouched && password.length > 0
+      ? (strength.rejectionKey ?? undefined)
+      : undefined);
 
   function selectRole(next: UserRole) {
     setRole(next);
@@ -89,8 +103,10 @@ function RegisterForm() {
       return;
     }
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      setFieldErrors({ password: "auth.password_too_short" });
+    // Hard rules only: length and the deny-list. The strength score never
+    // blocks a submission on its own.
+    if (strength.rejectionKey) {
+      setFieldErrors({ password: strength.rejectionKey });
       setPasswordTouched(true);
       return;
     }
@@ -298,6 +314,7 @@ function RegisterForm() {
                   ? t(passwordError, { min: MIN_PASSWORD_LENGTH })
                   : undefined
               }
+              strength={password.length > 0 ? strength : null}
             />
 
             {role === "ngo" || role === "company" ? (

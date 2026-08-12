@@ -8,7 +8,9 @@ DajSrce is a nationwide Croatian donation, volunteering and company-impact platf
 
 Core domains:
 
-- public institution discovery through viewport-bounded map/detail APIs;
+- public institution discovery through viewport-bounded map/detail APIs, served at `/`;
+- one merged `/organisations` surface with four views (active, register, needs, help); `/needs` and `/quick-start` redirect into it;
+- citizen donation offers that verified organisations claim;
 - NGO needs, acknowledgement-backed pledges and opted-in nearby notifications;
 - volunteer events, capacity-safe signup, hashed QR check-in and idempotent checkout hours;
 - company tenants, members, campaigns, authoritative verification and subscriptions;
@@ -29,14 +31,20 @@ Core domains:
 10. Production fails closed. Local fixtures and demo billing are development-only and explicit.
 11. Security-definer functions use `pg_catalog` first, schema-qualified relations, explicit revoke/grant and the narrowest caller roles.
 12. Keep secrets, raw tokens and protected coordinates out of logs/client code. Use request IDs and structured event logs.
+13. An NGO account is a reviewed claim against an official `UDR_ID`, never a typed name. Nothing creates an institution from user input, and no institution is ever given a fabricated coordinate. Until a claim is approved an `ngo` profile has a null `institution_id` and cannot publish or receive.
+14. Donor offers store a coarse point and a city only — never a private individual's exact location — and contact details are released only after the author accepts a claim.
+15. Passwords are bcrypt-hashed by Supabase Auth and never seen by this application. Never encrypt a password. Strength rules apply to sign-up and password change only, never to sign-in.
 
 ## Current public performance contract
 
 - <= 200 map features per response; HTTP default 150.
 - <= 60 result rows in the DOM.
-- clusters below zoom 12; detail lazy-loaded.
+- the map is the home page (`/`); `/map` is a permanent redirect. The browser URL carries a compact `@lat,lng,zoom` and only non-default state, and nothing is fetched until Leaflet reports its first bounds.
+- `map_association_registry_v*` clusters when matches exceed the feature budget, on a grid capped at 6x6. Detail is lazy-loaded.
+- pin fill encodes registry / onboarded / verified, not category; category moves to a disc inside the pin.
 - AbortController plus stale-sequence protection on viewport changes.
 - ETag and CDN cache for public map/card responses.
+- `npm run perf:map:bundle` now weighs the chunks **exclusive** to the map route plus its dynamic imports (238,251 bytes against a 327,680 budget). It used to subtract only what the `/page` redirect loaded, so figures recorded before the map moved to `/` are not comparable. The script fails loudly if it measures nothing.
 - hidden locations use stable coarse `public_location`; filtering also uses that projection.
 
 Do not reintroduce root cookie access, global middleware matching, remote Google fonts, global Leaflet CSS, wildcard Lucide imports, automatic geolocation or global notification polling.
@@ -59,6 +67,13 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 14. `20260804230000_registry_storage_lifecycle.sql`
 15. `20260804233000_registry_count_fast_path.sql`
 16. `20260805010000_active_registry_scope.sql`
+17. `20260805160000_active_registry_map.sql`
+18. `20260805180000_dgu_exact_address_geocoding.sql`
+19. `20260812100000_map_coarse_clusters_city_directory.sql`
+20. `20260812110000_cancel_pledges_and_signups.sql`
+21. `20260812120000_institution_claims.sql`
+22. `20260812130000_donor_offers.sql`
+23. `20260812140000_engaged_association_directory.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 

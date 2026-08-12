@@ -37,13 +37,13 @@ export default async function Hub() {
       <PageHeader title={t("hub.title")} subtitle={t("hub.subtitle")} />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <HomeCard
-          href="/map"
+          href="/"
           title={t("nav.map")}
           desc={t("hub.map_desc")}
           icon={<MapPin className="h-5 w-5" aria-hidden />}
         />
         <HomeCard
-          href="/needs"
+          href="/organisations?view=needs"
           title={t("nav.needs")}
           desc={t("hub.needs_desc")}
           icon={<PackageSearch className="h-5 w-5" aria-hidden />}

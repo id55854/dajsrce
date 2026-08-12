@@ -165,6 +165,81 @@ export function parseAssociationDirectoryQuery(
   return { query, status, county, city, form, sort, page, pageSize };
 }
 
+/**
+ * The engaged subset: organisations from the official register that also have
+ * an account here, optionally narrowed to those with something open.
+ *
+ * Kept as its own query rather than extra flags on the register search,
+ * because the two answer different questions — "does this association exist"
+ * versus "who can I help right now" — and the register's contract states that
+ * presence in it is not organisational confirmation.
+ */
+export type EngagedDirectoryQuery = {
+  query: string | null;
+  county: string | null;
+  city: string | null;
+  onlyWithNeeds: boolean;
+  onlyVerified: boolean;
+  page: number;
+  pageSize: number;
+};
+
+export type EngagedAssociationItem = AssociationDirectoryItem & {
+  institution_id: string;
+  is_verified: boolean;
+  accepts_donations: string[];
+  open_needs: number;
+  urgent_needs: number;
+};
+
+export type EngagedDirectoryResponse = {
+  version: typeof ASSOCIATION_DIRECTORY_API_VERSION;
+  items: EngagedAssociationItem[];
+  meta: { total: number; page: number; pageSize: number; pageCount: number };
+};
+
+function optionalBoolean(params: URLSearchParams, name: string, issues: string[]): boolean {
+  const raw = params.get(name);
+  if (raw == null || raw === "" || raw === "false" || raw === "0") return false;
+  if (raw === "true" || raw === "1") return true;
+  issues.push(`${name} must be true or false`);
+  return false;
+}
+
+export function parseEngagedDirectoryQuery(params: URLSearchParams): EngagedDirectoryQuery {
+  const issues: string[] = [];
+  const query = optionalText(params, "q", 100, issues);
+  if (query && query.length < 2) issues.push("q must contain at least 2 characters");
+  const county = optionalText(params, "county", 100, issues);
+  const city = optionalText(params, "city", 150, issues);
+  const onlyWithNeeds = optionalBoolean(params, "withNeeds", issues);
+  const onlyVerified = optionalBoolean(params, "verified", issues);
+  const page = positiveInteger(params.get("page"), 1, 1, 10_000, "page", issues);
+  const pageSize = positiveInteger(
+    params.get("pageSize"),
+    ASSOCIATION_DIRECTORY_DEFAULT_PAGE_SIZE,
+    1,
+    ASSOCIATION_DIRECTORY_MAX_PAGE_SIZE,
+    "pageSize",
+    issues
+  );
+
+  if (issues.length > 0) throw new AssociationDirectoryQueryError(issues);
+  return { query, county, city, onlyWithNeeds, onlyVerified, page, pageSize };
+}
+
+export function engagedDirectoryRpcArgs(query: EngagedDirectoryQuery) {
+  return {
+    p_query: query.query,
+    p_county: query.county,
+    p_city: query.city,
+    p_only_with_needs: query.onlyWithNeeds,
+    p_only_verified: query.onlyVerified,
+    p_page: query.page,
+    p_page_size: query.pageSize,
+  };
+}
+
 export function associationDirectoryRpcArgs(query: AssociationDirectoryQuery) {
   return {
     p_query: query.query,

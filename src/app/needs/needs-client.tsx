@@ -19,8 +19,6 @@ import {
   Button,
   Card,
   EmptyState,
-  PageHeader,
-  PageShell,
   Skeleton,
   SkeletonText,
   buttonClasses,
@@ -211,12 +209,9 @@ export function NeedsClient() {
   const coldLoad = loading && !settled;
 
   return (
-    <PageShell>
-      <PageHeader
-        title={t("needs_page.title")}
-        subtitle={t("needs_page.subtitle")}
-      />
-
+    // The page shell and title belong to the merged Associations page; this
+    // is one view inside it.
+    <>
       <YourPledgesSection
         loggedIn={loggedIn === true}
         loading={pledgesLoading}
@@ -315,7 +310,7 @@ export function NeedsClient() {
                   {t("needs_page.clear_filters")}
                 </Button>
               ) : null}
-              <Link href="/map" className={buttonClasses({ variant: "secondary" })}>
+              <Link href="/" className={buttonClasses({ variant: "secondary" })}>
                 {t("needs_page.empty_open_map")}
               </Link>
             </div>
@@ -339,6 +334,6 @@ export function NeedsClient() {
           ))}
         </div>
       )}
-    </PageShell>
+    </>
   );
 }

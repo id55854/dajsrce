@@ -40,7 +40,9 @@ describe("public UI accessibility contracts", () => {
   });
 
   it("keeps map search exposed as an expandable combobox", () => {
-    const mapPage = source("src/app/map/page.tsx");
+    // The map is the home page now; `src/app/map/page.tsx` is only the
+    // permanent redirect that keeps older links working.
+    const mapPage = source("src/app/map/map-experience.tsx");
     expect(mapPage).toContain('role="combobox"');
     expect(mapPage).toContain('aria-autocomplete="list"');
     expect(mapPage).toContain('role="listbox"');

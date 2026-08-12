@@ -239,11 +239,11 @@ export function VolunteerClient() {
           description={t("volunteer_page.empty_hint")}
           action={
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <Link href="/needs" className={buttonClasses()}>
+              <Link href="/organisations?view=needs" className={buttonClasses()}>
                 {t("volunteer_page.empty_browse_needs")}
               </Link>
               <Link
-                href="/map"
+                href="/"
                 className={buttonClasses({ variant: "secondary" })}
               >
                 {t("volunteer_page.empty_open_map")}

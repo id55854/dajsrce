@@ -15,18 +15,17 @@ import {
 import L from "leaflet";
 import { Minus, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type {
-  MapBounds,
-  PublicMapCluster,
-  PublicMapFeature,
-  PublicMapInstitution,
+import {
+  PIN_STATUS_FILL,
+  pinStatus,
+  type MapBounds,
+  type MapPinStatus,
+  type PublicMapCluster,
+  type PublicMapFeature,
+  type PublicMapInstitution,
 } from "@/lib/location-map";
 import type { DonationType, InstitutionCategory } from "@/lib/types";
-import {
-  CATEGORY_CONFIG,
-  FALLBACK_CATEGORY_CONFIG,
-  getCategoryConfig,
-} from "@/lib/constants";
+import { getCategoryConfig } from "@/lib/constants";
 import { useLocale, useT } from "@/i18n/client";
 
 const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
@@ -88,12 +87,17 @@ function markerHtml({
   selected = false,
   label,
   urgent = false,
+  dot,
+  verified = false,
 }: {
   fill: string;
   size: number;
   selected?: boolean;
   label?: string;
   urgent?: boolean;
+  /** Category colour, drawn as a disc inside the pin. See `MapPinStatus`. */
+  dot?: string;
+  verified?: boolean;
 }): string {
   const ring = selected
     ? `0 0 0 3px var(--ink), 0 0 0 7px color-mix(in oklab, ${fill} 45%, transparent), `
@@ -103,27 +107,66 @@ function markerHtml({
         size >= 48 ? 14 : 12
       }px/1 var(--font-app-sans);color:#fff;">${label}</span>`
     : "";
+  // The category disc sits in the pin's optical centre, which is above the
+  // midpoint because the silhouette tapers to a point at the bottom.
+  const categoryDot = dot
+    ? `<span style="position:absolute;left:50%;top:${Math.round(size * 0.38)}px;width:${Math.round(
+        size * 0.31
+      )}px;height:${Math.round(
+        size * 0.31
+      )}px;margin-left:-${Math.round(size * 0.155)}px;margin-top:-${Math.round(
+        size * 0.155
+      )}px;border-radius:9999px;background:${dot};box-shadow:0 0 0 1.5px color-mix(in oklab, var(--surface-raised) 80%, transparent);"></span>`
+    : "";
   const flag = urgent
     ? `<span style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-radius:9999px;background:var(--warning);border:2px solid var(--surface-raised);"></span>`
     : "";
+  // Verified organisations carry a filled check-mark disc. Shape as well as
+  // colour, so the distinction survives a monochrome or colour-blind reading.
+  const check = verified
+    ? `<span style="position:absolute;right:-3px;bottom:2px;width:14px;height:14px;border-radius:9999px;background:var(--success);border:2px solid var(--surface-raised);display:flex;align-items:center;justify-content:center;">
+        <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </span>`
+    : "";
   return `<div style="position:relative;width:${size}px;height:${size}px;${MARKER_ENTER}">
     <div style="position:absolute;inset:0;background:${fill};border:3px solid var(--surface-raised);border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:${ring}0 2px 6px rgba(0,0,0,.35);"></div>
-    ${count}${flag}
+    ${count}${categoryDot}${flag}${check}
   </div>`;
 }
 
-export function createCategoryIcon(
-  color: string,
-  size: number = 32,
-  selected = false
+/**
+ * Icons are pure functions of (status, category, selected) and are built from
+ * theme tokens, so one cache serves every marker and survives a theme flip
+ * without a rebuild.
+ */
+// A plain record rather than a `Map`, because this module's own default export
+// is named `Map` and shadows the global.
+const ICON_CACHE: Record<string, L.DivIcon> = {};
+
+function institutionIcon(
+  status: MapPinStatus,
+  category: string,
+  selected: boolean
 ): L.DivIcon {
-  const pinSize = selected ? Math.round(size * 1.35) : size;
-  return L.divIcon({
+  const key = `${status}|${category}|${selected}`;
+  const cached = ICON_CACHE[key];
+  if (cached) return cached;
+
+  const size = selected ? Math.round(32 * 1.35) : 32;
+  const icon = L.divIcon({
     className: selected ? "dajsrce-pin dajsrce-pin-selected" : "dajsrce-pin",
-    html: markerHtml({ fill: color, size: pinSize, selected }),
-    iconSize: [pinSize, pinSize],
-    iconAnchor: [pinSize / 2, pinSize],
+    html: markerHtml({
+      fill: PIN_STATUS_FILL[status],
+      size,
+      selected,
+      dot: getCategoryConfig(category).color,
+      verified: status === "verified",
+    }),
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
   });
+  ICON_CACHE[key] = icon;
+  return icon;
 }
 
 function createClusterIcon(count: number, urgent: boolean): L.DivIcon {
@@ -156,19 +199,6 @@ function createUserLocationIcon(): L.DivIcon {
     iconSize: [18, 18],
     iconAnchor: [9, 9],
   });
-}
-
-function buildIcons(selected = false) {
-  const icons = {} as Record<string, L.DivIcon>;
-  for (const key of Object.keys(CATEGORY_CONFIG) as InstitutionCategory[]) {
-    icons[key] = createCategoryIcon(CATEGORY_CONFIG[key].color, 32, selected);
-  }
-  icons.__fallback__ = createCategoryIcon(
-    FALLBACK_CATEGORY_CONFIG.color,
-    32,
-    selected
-  );
-  return icons;
 }
 
 function currentViewport(map: L.Map): MapViewport {
@@ -378,20 +408,22 @@ function ClusterMarker({ cluster }: { cluster: PublicMapCluster }) {
 
 function InstitutionLayer({
   institution,
-  icon,
   isSelected,
   onSelect,
 }: {
   institution: PublicMapInstitution;
-  icon: L.DivIcon;
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
   const t = useT();
   const { locale } = useLocale();
   const category = getCategoryConfig(institution.category);
+  const status = pinStatus(institution);
+  const icon = institutionIcon(status, institution.category, isSelected);
   const position: [number, number] = [institution.latitude, institution.longitude];
   const categoryLabel = locale === "hr" ? category.labelHr : category.label;
+  // Fill is a colour, so the same distinction has to reach a screen reader.
+  const statusLabel = t(`map_ui.status_${status}`);
   const isApproximateRegistryLocation =
     institution.entityType === "registry" &&
     (institution.locationPrecision === "city" ||
@@ -407,7 +439,7 @@ function InstitutionLayer({
         center={position}
         radius={2200}
         pathOptions={{
-          color: category.color,
+          color: PIN_STATUS_FILL[status],
           fillColor: category.color,
           fillOpacity: isSelected ? 0.32 : 0.18,
           weight: isSelected ? 4 : 2,
@@ -417,7 +449,9 @@ function InstitutionLayer({
         <Popup>
           <div className="text-sm">
             <p className="font-semibold text-ink">{institution.name}</p>
-            <p className="text-ink-secondary">{categoryLabel}</p>
+            <p className="text-ink-secondary">
+              {categoryLabel} · {statusLabel}
+            </p>
             <p className="mt-2 text-xs text-ink-secondary">
               {t("map_ui.hidden_safety")}
             </p>
@@ -436,10 +470,10 @@ function InstitutionLayer({
       // with the marker's own accessible name now that the popup is gone.
       title={
         isApproximateRegistryLocation
-          ? `${institution.name} — ${t("map_ui.registry_approximate")}`
-          : institution.name
+          ? `${institution.name} — ${statusLabel} — ${t("map_ui.registry_approximate")}`
+          : `${institution.name} — ${statusLabel}`
       }
-      alt={`${institution.name}, ${categoryLabel}`}
+      alt={`${institution.name}, ${categoryLabel}, ${statusLabel}`}
       eventHandlers={{ click: () => onSelect(institution.id) }}
     />
   );
@@ -504,10 +538,8 @@ export default function Map({
   const t = useT();
   const dark = useDarkMode();
   const compact = useCompactViewport();
-  // Icons are token-driven, so a theme flip no longer remounts the entire
-  // marker set — only the tile layer changes.
-  const icons = useMemo(() => buildIcons(), []);
-  const selectedIcons = useMemo(() => buildIcons(true), []);
+  // Icons are token-driven and cached by (status, category, selected), so a
+  // theme flip no longer remounts the marker set — only the tile layer changes.
   const userIcon = useMemo(() => createUserLocationIcon(), []);
   const institutions = useMemo(
     () =>
@@ -560,14 +592,11 @@ export default function Map({
         if (feature.kind === "cluster") {
           return <ClusterMarker key={feature.id} cluster={feature} />;
         }
-        const isSelected = feature.id === selectedId;
-        const iconSet = isSelected ? selectedIcons : icons;
         return (
           <InstitutionLayer
             key={feature.id}
             institution={feature}
-            icon={iconSet[feature.category] ?? iconSet.__fallback__}
-            isSelected={isSelected}
+            isSelected={feature.id === selectedId}
             onSelect={onSelect}
           />
         );

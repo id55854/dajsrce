@@ -9,8 +9,20 @@
  * the error in the new language.
  */
 
-/** Shared by register and the password-reset update form. */
-export const MIN_PASSWORD_LENGTH = 6;
+/**
+ * Minimum length for *choosing* a password — sign-up and the password-reset
+ * update form, which both import this constant so the number lives in one
+ * place.
+ *
+ * Deliberately not imported by `/auth/login`: raising the floor must never
+ * lock an existing account out of signing in with the password it already
+ * has. Supabase's own `Auth > Providers > Email > Minimum password length`
+ * setting is the server-side half of this rule and has to be raised to match;
+ * until it is, GoTrue answers `weak_password`, which `authErrorKey` already
+ * maps onto the same message family as the client-side rules in
+ * `@/lib/password-strength`.
+ */
+export const MIN_PASSWORD_LENGTH = 12;
 
 export const AUTH_NOT_CONFIGURED = "auth.error_not_configured";
 export const AUTH_NETWORK_ERROR = "auth.error_network";

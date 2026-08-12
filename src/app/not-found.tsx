@@ -15,7 +15,7 @@ export default async function NotFound() {
         {t("errors.not_found_title")}
       </h1>
       <p className="text-base text-ink-secondary">{t("errors.not_found_body")}</p>
-      <Link href="/map" className={buttonClasses({ className: "mt-2" })}>
+      <Link href="/" className={buttonClasses({ className: "mt-2" })}>
         {t("errors.go_to_map")}
       </Link>
     </div>

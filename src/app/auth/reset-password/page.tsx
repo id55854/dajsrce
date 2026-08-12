@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { Button, buttonClasses, useToast } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { evaluatePassword } from "@/lib/password-strength";
 import {
   AUTH_NETWORK_ERROR,
   AUTH_NOT_CONFIGURED,
@@ -31,6 +32,9 @@ export default function ResetPasswordPage() {
   const [confirmation, setConfirmation] = useState("");
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmationTouched, setConfirmationTouched] = useState(false);
+  // There is no email field on this form, so the recovery session supplies the
+  // address the deny-list needs. It never leaves the browser.
+  const [accountEmail, setAccountEmail] = useState("");
   const [formErrorKey, setFormErrorKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -50,12 +54,15 @@ export default function ResetPasswordPage() {
     // browser client finish its own code exchange.
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (active && session) setStage("ready");
+        if (!active || !session) return;
+        setAccountEmail(session.user.email ?? "");
+        setStage("ready");
       }
     );
 
     void supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
+      setAccountEmail(data.session?.user.email ?? "");
       setStage(data.session ? "ready" : "invalid");
     });
 
@@ -65,12 +72,21 @@ export default function ResetPasswordPage() {
     };
   }, []);
 
-  const tooShort =
-    password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const strength = useMemo(
+    () =>
+      evaluatePassword(password, {
+        minLength: MIN_PASSWORD_LENGTH,
+        email: accountEmail,
+      }),
+    [password, accountEmail]
+  );
+
   const mismatch = confirmation.length > 0 && confirmation !== password;
 
   const passwordError =
-    passwordTouched && tooShort ? "auth.password_too_short" : undefined;
+    passwordTouched && password.length > 0
+      ? (strength.rejectionKey ?? undefined)
+      : undefined;
   const confirmationError =
     confirmationTouched && mismatch ? "auth.reset_mismatch" : undefined;
 
@@ -78,7 +94,8 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setFormErrorKey(null);
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    // Hard rules only — the strength score is advice, not a gate.
+    if (strength.rejectionKey) {
       setPasswordTouched(true);
       return;
     }
@@ -193,6 +210,7 @@ export default function ResetPasswordPage() {
               : undefined
           }
           describedByExtra={formErrorKey ? FORM_ERROR_ID : undefined}
+          strength={password.length > 0 ? strength : null}
         />
 
         <PasswordField

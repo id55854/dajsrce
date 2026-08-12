@@ -11,6 +11,70 @@ export const MAP_LIST_RENDER_LIMIT = 60;
 export const MAP_QUERY_MAX_LENGTH = 80;
 export const MAP_QUERY_MAX_RAW_LENGTH = 256;
 export const MAP_BBOX_MAX_AREA = 180;
+export const MAP_CITY_LIMIT = 40;
+export const MAP_CITY_LIMIT_MAX = 100;
+export const MAP_CITY_QUERY_MAX_LENGTH = 80;
+
+/**
+ * The zoom the city picker lands on: close enough that a city resolves into
+ * individual pins rather than one bubble, wide enough to hold a whole small
+ * town in view.
+ */
+export const MAP_CITY_ZOOM = 12;
+/** Where "near me" lands — roughly a 2–3 km radius around the visitor. */
+export const MAP_NEARBY_ZOOM = 13;
+
+/** One aggregate row of the public city directory. Never row-level data. */
+export type PublicMapCity = {
+  city: string;
+  county: string;
+  latitude: number;
+  longitude: number;
+  organisationCount: number;
+};
+
+export type PublicMapCitiesResponse = { cities: PublicMapCity[] };
+
+/**
+ * What a map pin's fill means.
+ *
+ * The map draws the whole official register — 43,000+ associations — of which
+ * only a small share have an account here. Colouring every pin by category
+ * made those two populations indistinguishable, so a visitor could tap forty
+ * pins before finding one that can actually receive anything.
+ *
+ * Fill now carries that distinction and the category moves to a disc inside
+ * the pin, so both signals survive:
+ *
+ * - `registry` — in the official register, no account here. Muted.
+ * - `onboarded` — has an account and can publish needs. Brand.
+ * - `verified` — account plus a completed identity check. Brand plus a check.
+ *
+ * This deliberately reinforces the rule that presence in the register is
+ * neither organisational confirmation nor evidence that an organisation
+ * accepts donations.
+ *
+ * These live here rather than beside the marker code so the legend can render
+ * them without pulling Leaflet into the initial bundle.
+ */
+export type MapPinStatus = "registry" | "onboarded" | "verified";
+
+export const MAP_PIN_STATUSES: readonly MapPinStatus[] = [
+  "verified",
+  "onboarded",
+  "registry",
+];
+
+export const PIN_STATUS_FILL: Record<MapPinStatus, string> = {
+  registry: "var(--ink-tertiary)",
+  onboarded: "var(--brand)",
+  verified: "var(--brand-strong)",
+};
+
+export function pinStatus(institution: PublicMapInstitution): MapPinStatus {
+  if (institution.entityType !== "institution") return "registry";
+  return institution.isVerified ? "verified" : "onboarded";
+}
 
 export function maxBboxAreaForZoom(zoom: number): number {
   return MAP_BBOX_MAX_AREA / Math.pow(2, Math.max(0, zoom - 6));
@@ -272,6 +336,112 @@ export function buildMapQueryString(query: MapQuery): string {
   if (query.onlyUrgent) params.set("onlyUrgent", "true");
   if (query.query) params.set("q", query.query);
   return params.toString();
+}
+
+/**
+ * The map lives at `/`, so its address bar is the site's front door. What the
+ * API needs (a five-decimal bbox, an explicit zoom and an explicit limit) is
+ * not what a shareable URL should carry, and writing all of it on every pan
+ * turned `dajsrce.hr` into a 120-character query string before the visitor had
+ * done anything.
+ *
+ * The browser URL therefore carries a single compact `@lat,lng,zoom` triple and
+ * only the state the visitor actually chose. Nothing is written at all while
+ * the view is still the default one, so the front door stays clean. This is a
+ * presentation concern only: `buildMapQueryString` above remains the sole
+ * source of the API request and its validation contract is untouched.
+ */
+const VIEW_PARAM = "@";
+/** ~11 m at Croatian latitudes: finer than any zoom level can resolve. */
+const VIEW_PRECISION = 4;
+
+export function mapViewIsDefault(center: [number, number], zoom: number): boolean {
+  const [latitude, longitude] = center;
+  const [defaultLat, defaultLng] = CROATIA_INITIAL_VIEW.center;
+  return (
+    zoom === CROATIA_INITIAL_VIEW.zoom &&
+    Math.abs(latitude - defaultLat) < 0.01 &&
+    Math.abs(longitude - defaultLng) < 0.01
+  );
+}
+
+export function buildBrowserMapParams({
+  center,
+  zoom,
+  filters,
+  query,
+  selectedId,
+}: {
+  center: [number, number];
+  zoom: number;
+  filters: Pick<MapQuery, "categories" | "donationType" | "onlyZagreb" | "onlyUrgent">;
+  query: string | null;
+  selectedId: string | null;
+}): URLSearchParams {
+  const params = new URLSearchParams();
+  if (!mapViewIsDefault(center, zoom)) {
+    params.set(
+      VIEW_PARAM,
+      `${center[0].toFixed(VIEW_PRECISION)},${center[1].toFixed(VIEW_PRECISION)},${zoom}`
+    );
+  }
+  if (filters.categories.length > 0) {
+    params.set("categories", [...filters.categories].sort().join(","));
+  }
+  if (filters.donationType) params.set("donationType", filters.donationType);
+  if (filters.onlyZagreb) params.set("onlyZagreb", "true");
+  if (filters.onlyUrgent) params.set("onlyUrgent", "true");
+  if (query) params.set("q", query);
+  if (selectedId) params.set("institution", selectedId);
+  return params;
+}
+
+/**
+ * Reads `@lat,lng,zoom`, and still accepts the older `bbox`+`zoom` pair so that
+ * links shared before this change keep resolving to the same place.
+ */
+export function parseBrowserMapView(
+  searchParams: URLSearchParams
+): { center: [number, number]; zoom: number } {
+  const compact = searchParams.get(VIEW_PARAM);
+  if (compact && compact.length <= 40) {
+    const [latitude, longitude, zoom] = compact.split(",").map(finiteNumber);
+    if (
+      latitude != null &&
+      longitude != null &&
+      zoom != null &&
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180 &&
+      Number.isInteger(zoom) &&
+      zoom >= 6 &&
+      zoom <= 19
+    ) {
+      return { center: [latitude, longitude], zoom };
+    }
+  }
+
+  const legacyBbox = (searchParams.get("bbox") ?? "").split(",").map(finiteNumber);
+  const legacyZoom = finiteNumber(searchParams.get("zoom"));
+  if (
+    legacyBbox.length === 4 &&
+    legacyBbox.every((value) => value != null) &&
+    legacyZoom != null &&
+    Number.isInteger(legacyZoom) &&
+    legacyZoom >= 6 &&
+    legacyZoom <= 19
+  ) {
+    const [minLng, minLat, maxLng, maxLat] = legacyBbox as [number, number, number, number];
+    if (minLng < maxLng && minLat < maxLat) {
+      return {
+        center: [(minLat + maxLat) / 2, (minLng + maxLng) / 2],
+        zoom: legacyZoom,
+      };
+    }
+  }
+
+  return { center: CROATIA_INITIAL_VIEW.center, zoom: CROATIA_INITIAL_VIEW.zoom };
 }
 
 function stableHash(value: string): number {

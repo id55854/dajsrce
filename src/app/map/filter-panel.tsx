@@ -3,6 +3,7 @@
 import { useId, useRef } from "react";
 import { Button, usePresence } from "@/components/ui";
 import { FilterBar } from "@/components/FilterBar";
+import { MapPinLegend } from "./pin-legend";
 import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { useT } from "@/i18n/client";
 import type { MapFilters } from "@/components/Map";
@@ -68,6 +69,10 @@ export function MapFilterPanel({
         </h2>
 
         <FilterBar filters={filters} onChange={onChange} />
+
+        <div className="mt-4">
+          <MapPinLegend />
+        </div>
 
         <div className="mt-4 flex gap-2">
           <Button variant="secondary" size="md" fullWidth onClick={onClear}>

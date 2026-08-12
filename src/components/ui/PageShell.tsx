@@ -81,11 +81,17 @@ export function PageHeader({
 
 /** Section heading inside a page. Weight carries the step down from `h1`. */
 export function SectionHeader({
+  id,
   title,
   description,
   actions,
   className,
 }: {
+  /**
+   * Placed on the `h2`, so a wrapping `<section>` can name itself with
+   * `aria-labelledby` instead of repeating the title in an `aria-label`.
+   */
+  id?: string;
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
@@ -96,7 +102,9 @@ export function SectionHeader({
       className={clsx("mb-4 flex items-end justify-between gap-4", className)}
     >
       <div className="min-w-0">
-        <h2 className="text-lg font-semibold text-ink">{title}</h2>
+        <h2 id={id} className="text-lg font-semibold text-ink">
+          {title}
+        </h2>
         {description ? (
           <p className="mt-1 text-sm text-ink-secondary">{description}</p>
         ) : null}

@@ -416,7 +416,7 @@ export default function InstitutionDashboardPage() {
 
         <div>
           <Link
-            href="/map"
+            href="/"
             className={buttonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}
           >
             <MapPin className="h-5 w-5" aria-hidden="true" />

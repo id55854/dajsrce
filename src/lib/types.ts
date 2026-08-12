@@ -422,3 +422,57 @@ export interface CompanySubscriptionRow {
   created_at: string;
   updated_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// Citizen donation offers — an individual publishes what they can give and a
+// verified organisation claims it. The wire shapes and validators live in
+// `src/lib/offers.ts`; these mirror the database rows.
+// ---------------------------------------------------------------------------
+
+export type DonorOfferStatus =
+  | "open"
+  | "claimed"
+  | "withdrawn"
+  | "fulfilled"
+  | "expired";
+
+export type OfferClaimStatus =
+  | "requested"
+  | "accepted"
+  | "declined"
+  | "withdrawn";
+
+/**
+ * A private individual's offer. There is deliberately no exact coordinate and
+ * no address: `city` plus a server-computed, grid-snapped point is the finest
+ * location this domain ever stores about a person.
+ */
+export interface DonorOffer {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  donation_type: DonationType;
+  quantity: number;
+  unit: string | null;
+  city: string;
+  coarse_lat: number | null;
+  coarse_lng: number | null;
+  available_until: string | null;
+  status: DonorOfferStatus;
+  claimed_institution_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OfferClaim {
+  id: string;
+  offer_id: string;
+  institution_id: string;
+  /** Server-only: the requesting staff member is never part of a read surface. */
+  claimed_by: string;
+  status: OfferClaimStatus;
+  message: string | null;
+  created_at: string;
+  responded_at: string | null;
+}

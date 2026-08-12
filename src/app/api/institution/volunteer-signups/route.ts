@@ -39,10 +39,14 @@ export async function GET() {
     return NextResponse.json({ events: [], signups: [] });
   }
 
+  // Cancelled signups are kept as rows (deleting one would cascade away its
+  // volunteer-hours evidence), but they are not attendance: an organiser
+  // reading this list must not see people who withdrew.
   const { data: signups, error: sErr } = await supabase
     .from("volunteer_signups")
     .select("id, user_id, event_id, checked_in_at, checked_out_at, company_id")
     .in("event_id", eventIds)
+    .is("cancelled_at", null)
     .order("id", { ascending: false });
 
   if (sErr) {

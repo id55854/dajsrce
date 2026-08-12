@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Heart, Loader2 } from "lucide-react";
-import { Button, Field, Input } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { InstitutionClaimSetup } from "@/components/InstitutionClaimSetup";
 import { useT } from "@/i18n/client";
 import { normalizeRole } from "@/lib/auth/roles";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -21,11 +22,9 @@ export default function SetupPage() {
   const t = useT();
   const router = useRouter();
   const [role, setRole] = useState<UserRole | null>(null);
-  const [institutionName, setInstitutionName] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [formErrorKey, setFormErrorKey] = useState<string | null>(null);
-  const [nameErrorKey, setNameErrorKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -57,7 +56,10 @@ export default function SetupPage() {
         router.replace("/dashboard");
         return;
       }
+      // An NGO account with no institution has not finished onboarding: it is
+      // waiting on a claim against the official register.
       if (r === "ngo" && !profile?.institution_id) {
+        setRole("ngo");
         setChecking(false);
         return;
       }
@@ -77,27 +79,43 @@ export default function SetupPage() {
   function selectRole(next: UserRole) {
     setRole(next);
     setFormErrorKey(null);
-    setNameErrorKey(null);
   }
 
-  async function handleSubmit() {
-    setNameErrorKey(null);
+  /**
+   * Grants the unlinked `ngo` role. It creates no institution: publishing an
+   * organisation requires an approved claim against the official register.
+   */
+  const ensureNgoRole = useCallback(async () => {
+    if (!isSupabaseConfigured) throw new Error(AUTH_NOT_CONFIGURED);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error(AUTH_NOT_AUTHENTICATED);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (normalizeRole(profile?.role) !== "ngo") {
+      const { error } = await supabase.rpc("complete_profile_setup", {
+        p_role: "ngo",
+        p_institution_name: null,
+      });
+      if (error) throw error;
+    }
+    await supabase.auth.updateUser({ data: { role: "ngo" } });
+  }, []);
+
+  async function completeIndividualSetup() {
     if (!isSupabaseConfigured) {
       setFormErrorKey(AUTH_NOT_CONFIGURED);
       return;
     }
-    if (!role) {
-      setFormErrorKey("auth.role_required");
-      return;
-    }
-    if (role === "ngo" && !institutionName.trim()) {
-      setNameErrorKey("auth.ngo_name_required");
-      return;
-    }
-
     setLoading(true);
     setFormErrorKey(null);
-
     try {
       const supabase = createClient();
       const {
@@ -110,19 +128,13 @@ export default function SetupPage() {
       }
 
       const { error: setupErr } = await supabase.rpc("complete_profile_setup", {
-        p_role: role,
-        p_institution_name: role === "ngo" ? institutionName.trim() : null,
+        p_role: "individual",
+        p_institution_name: null,
       });
-
       if (setupErr) throw setupErr;
 
-      const meta: Record<string, string | boolean> = { role };
-      if (role === "individual") {
-        meta.setup_completed = true;
-      }
-
       await supabase.auth.updateUser({
-        data: meta,
+        data: { role: "individual", setup_completed: true },
       });
 
       router.replace("/dashboard");
@@ -183,37 +195,21 @@ export default function SetupPage() {
         </div>
 
         {role === "ngo" ? (
-          <Field
-            label={t("auth.ngo_name_label")}
-            required
-            requiredLabel={t("common.required")}
-            error={nameErrorKey ? t(nameErrorKey) : undefined}
+          <InstitutionClaimSetup
+            ensureNgoRole={ensureNgoRole}
+            onApproved={() => router.replace("/dashboard")}
+          />
+        ) : (
+          <Button
+            size="lg"
+            fullWidth
+            loading={loading}
+            disabled={role !== "individual"}
+            onClick={() => void completeIndividualSetup()}
           >
-            {(field) => (
-              <Input
-                {...field}
-                name="ngo-name"
-                type="text"
-                autoComplete="organization"
-                required
-                invalid={Boolean(nameErrorKey)}
-                placeholder={t("auth.ngo_name_placeholder")}
-                value={institutionName}
-                onChange={(e) => setInstitutionName(e.target.value)}
-              />
-            )}
-          </Field>
-        ) : null}
-
-        <Button
-          size="lg"
-          fullWidth
-          loading={loading}
-          disabled={!role}
-          onClick={handleSubmit}
-        >
-          {t("common.continue")}
-        </Button>
+            {t("common.continue")}
+          </Button>
+        )}
       </div>
     </AuthShell>
   );

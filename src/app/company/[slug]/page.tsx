@@ -102,7 +102,7 @@ export default async function PublicCompanyPage({ params }: Props) {
     // inside it is what pushed the footer below the fold on every visit.
     <PageShell width="content">
       <Link
-        href="/map"
+        href="/"
         className={buttonClasses({
           variant: "ghost",
           size: "sm",

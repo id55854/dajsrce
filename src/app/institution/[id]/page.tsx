@@ -178,7 +178,7 @@ export default async function InstitutionPublicPage({
   // second one here is what used to push the footer below the fold.
   const backToMap = (
     <Link
-      href="/map"
+      href="/"
       className={buttonClasses({
         variant: "ghost",
         size: "sm",
@@ -199,7 +199,7 @@ export default async function InstitutionPublicPage({
             title={t("map_page.detail_error")}
             description={t("errors.generic_body")}
             action={
-              <Link href="/map" className={buttonClasses({ variant: "secondary" })}>
+              <Link href="/" className={buttonClasses({ variant: "secondary" })}>
                 {t("institution_page.back_to_map")}
               </Link>
             }
@@ -225,7 +225,7 @@ export default async function InstitutionPublicPage({
               icon={<PackageSearch className="h-10 w-10" aria-hidden="true" />}
               title={t("needs_page.empty")}
               action={
-                <Link href="/needs" className={buttonClasses({ variant: "secondary" })}>
+                <Link href="/organisations?view=needs" className={buttonClasses({ variant: "secondary" })}>
                   {t("needs_page.browse_needs")}
                 </Link>
               }
