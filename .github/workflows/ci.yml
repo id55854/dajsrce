@@ -24,8 +24,8 @@ jobs:
       CRON_SECRET: ci-only-cron-secret-at-least-32-characters
       ALLOW_DEMO_BILLING: "false"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
