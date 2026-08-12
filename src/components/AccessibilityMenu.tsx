@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  X,
+  ChevronLeft,
   RotateCcw,
   Type,
   Contrast,
@@ -13,10 +13,10 @@ import {
   Link as LinkIcon,
   Palette,
 } from "lucide-react";
-import { usePresence } from "@/components/ui";
+import { Menu } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
-function A11yIcon({ className }: { className?: string }) {
+export function A11yIcon({ className }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -77,7 +77,6 @@ function applySettings(s: A11ySettings) {
   for (const [key, cls] of Object.entries(CLASS_MAP)) {
     root.classList.toggle(cls, s[key as keyof A11ySettings] as boolean);
   }
-
 }
 
 function clearSettings() {
@@ -117,15 +116,15 @@ function Toggle({
   );
 }
 
-export function AccessibilityMenu() {
+/**
+ * The accessibility settings surface, without a trigger or popover of its own,
+ * so it can live inside any dropdown: the combined navbar menu on desktop, the
+ * standalone icon button on phones. Settings behaviour (localStorage + root
+ * classes) is unchanged from the old floating panel.
+ */
+export function AccessibilityPanel({ onBack }: { onBack?: () => void }) {
   const t = useT();
-  const [isOpen, setIsOpen] = useState(false);
   const [settings, setSettings] = useState<A11ySettings>(DEFAULTS);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  // Symmetric enter/exit: the panel used to slide up on open and then
-  // vanish in a single frame on close.
-  const panel = usePresence(isOpen);
 
   useEffect(() => {
     try {
@@ -144,11 +143,6 @@ export function AccessibilityMenu() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {}
-  }, []);
-
-  const close = useCallback(() => {
-    setIsOpen(false);
-    requestAnimationFrame(() => toggleRef.current?.focus());
   }, []);
 
   const resetAll = useCallback(() => {
@@ -182,42 +176,6 @@ export function AccessibilityMenu() {
     persist({ ...settings, fontSize: 100 });
   }, [settings, persist]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const panel = panelRef.current;
-    if (!panel) return;
-
-    const focusable = panel.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    first?.focus();
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setIsOpen(false);
-        toggleRef.current?.focus();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault();
-          last?.focus();
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault();
-          first?.focus();
-        }
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
-
   const features: {
     key: keyof A11ySettings;
     label: string;
@@ -234,128 +192,128 @@ export function AccessibilityMenu() {
 
   return (
     <>
-      {/* The panel traps focus, so it is a modal task and earns a dimming
-          scrim — previously the overlay was fully transparent. */}
-      {panel.present ? (
-        <div
-          data-ui-motion
-          data-state={panel.state}
-          className="fixed inset-0 z-[var(--z-modal)] bg-scrim data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out"
-          onClick={close}
-          aria-hidden
-        />
-      ) : null}
+      <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-3">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label={t("common.back")}
+            className="-ml-2 inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+          </button>
+        ) : null}
+        <A11yIcon className="h-5 w-5 text-brand" aria-hidden="true" />
+        <span className="text-sm font-semibold text-ink">{t("a11y.title")}</span>
+      </div>
 
-      {panel.present ? (
-        <div
-          ref={panelRef}
-          role="dialog"
-          aria-label={t("a11y.dialog_label")}
-          aria-modal="true"
-          data-ui-motion
-          data-state={panel.state}
-          onAnimationEnd={panel.onAnimationEnd}
-          className="fixed bottom-20 left-4 z-[var(--z-modal)] w-80 origin-bottom-left rounded-card border border-border-subtle bg-surface-overlay shadow-modal data-[state=open]:animate-menu-in data-[state=closed]:animate-menu-out"
-        >
-          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
-            <div className="flex items-center gap-2">
-              <A11yIcon className="h-5 w-5 text-brand" aria-hidden="true" />
-              <span className="text-sm font-semibold text-ink">
-                {t("a11y.title")}
-              </span>
-            </div>
+      <div className="max-h-[60dvh] space-y-1 overflow-y-auto overscroll-contain p-3">
+        <div className="flex items-center justify-between rounded-control px-2 py-2">
+          <div className="flex items-center gap-3">
+            <Eye className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
+            <span className="text-sm font-medium text-ink">
+              {t("a11y.text_size")}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={close}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-safe:active:scale-[0.92]"
-              aria-label={t("a11y.close")}
+              onClick={() => adjustFontSize(-10)}
+              disabled={settings.fontSize <= 90}
+              aria-label={t("a11y.decrease_text")}
+              className={STEPPER_BUTTON}
             >
-              <X className="h-5 w-5" aria-hidden="true" />
+              A-
             </button>
-          </div>
-
-          <div className="max-h-[70dvh] space-y-1 overflow-y-auto overscroll-contain p-4">
-            <div className="flex items-center justify-between rounded-control px-2 py-2">
-              <div className="flex items-center gap-3">
-                <Eye className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
-                <span className="text-sm font-medium text-ink">
-                  {t("a11y.text_size")}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => adjustFontSize(-10)}
-                  disabled={settings.fontSize <= 90}
-                  aria-label={t("a11y.decrease_text")}
-                  className={STEPPER_BUTTON}
-                >
-                  A-
-                </button>
-                <button
-                  type="button"
-                  onClick={resetFontSize}
-                  aria-label={t("a11y.reset_text")}
-                  className="inline-flex h-10 min-w-12 items-center justify-center rounded-full text-xs font-bold tabular-nums text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-safe:active:scale-[0.95]"
-                >
-                  {settings.fontSize}%
-                </button>
-                <button
-                  type="button"
-                  onClick={() => adjustFontSize(10)}
-                  disabled={settings.fontSize >= 150}
-                  aria-label={t("a11y.increase_text")}
-                  className={STEPPER_BUTTON}
-                >
-                  A+
-                </button>
-              </div>
-            </div>
-
-            {features.map(({ key, label, icon }) => (
-              <div
-                key={key}
-                className="flex items-center justify-between rounded-control px-2 py-2"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-ink-tertiary" aria-hidden="true">{icon}</span>
-                  <span className="text-sm font-medium text-ink">
-                    {label}
-                  </span>
-                </div>
-                <Toggle
-                  checked={settings[key] as boolean}
-                  onChange={() => toggleSetting(key)}
-                  label={label}
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-border-subtle p-4">
             <button
               type="button"
-              onClick={resetAll}
-              aria-label={t("a11y.reset_all")}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border-subtle text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-safe:active:scale-[0.97]"
+              onClick={resetFontSize}
+              aria-label={t("a11y.reset_text")}
+              className="inline-flex h-10 min-w-12 items-center justify-center rounded-full text-xs font-bold tabular-nums text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-safe:active:scale-[0.95]"
             >
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              {t("a11y.reset_all")}
+              {settings.fontSize}%
+            </button>
+            <button
+              type="button"
+              onClick={() => adjustFontSize(10)}
+              disabled={settings.fontSize >= 150}
+              aria-label={t("a11y.increase_text")}
+              className={STEPPER_BUTTON}
+            >
+              A+
             </button>
           </div>
         </div>
-      ) : null}
 
-      <button
-        ref={toggleRef}
-        type="button"
-        onClick={() => setIsOpen((o) => !o)}
-        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-[var(--z-chrome)] flex h-14 w-14 items-center justify-center rounded-full bg-brand text-white shadow-overlay transition-transform duration-150 ease-out hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-safe:active:scale-[0.94]"
-        aria-label={t("a11y.open")}
-        aria-expanded={isOpen}
-      >
-        <A11yIcon className="h-7 w-7" aria-hidden="true" />
-      </button>
+        {features.map(({ key, label, icon }) => (
+          <div
+            key={key}
+            className="flex items-center justify-between rounded-control px-2 py-2"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-ink-tertiary" aria-hidden="true">{icon}</span>
+              <span className="text-sm font-medium text-ink">
+                {label}
+              </span>
+            </div>
+            <Toggle
+              checked={settings[key] as boolean}
+              onChange={() => toggleSetting(key)}
+              label={label}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t border-border-subtle p-3">
+        <button
+          type="button"
+          onClick={resetAll}
+          aria-label={t("a11y.reset_all")}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border-subtle text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-safe:active:scale-[0.97]"
+        >
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+          {t("a11y.reset_all")}
+        </button>
+      </div>
     </>
+  );
+}
+
+/**
+ * Standalone accessibility dropdown — an icon button that opens the panel.
+ * Used on phones, where the combined navbar menu does not exist.
+ */
+export function AccessibilityMenu() {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-secondary transition-colors duration-150 hover:bg-surface-sunken hover:text-ink motion-safe:active:scale-[0.92] motion-safe:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        aria-label={t("a11y.open")}
+        aria-expanded={open}
+        aria-haspopup="true"
+      >
+        <A11yIcon className="h-5 w-5" aria-hidden="true" />
+      </button>
+
+      <Menu
+        open={open}
+        onClose={() => setOpen(false)}
+        align="top-right"
+        returnFocusRef={triggerRef}
+        role="region"
+        aria-label={t("a11y.dialog_label")}
+        className="w-80 max-w-[calc(100vw-2rem)]"
+      >
+        <AccessibilityPanel />
+      </Menu>
+    </div>
   );
 }

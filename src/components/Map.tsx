@@ -9,6 +9,7 @@ import {
   Marker,
   Popup,
   TileLayer,
+  Tooltip,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -169,8 +170,12 @@ function institutionIcon(
   return icon;
 }
 
+function clusterIconSize(count: number): number {
+  return count >= 100 ? 48 : count >= 10 ? 42 : 36;
+}
+
 function createClusterIcon(count: number, urgent: boolean): L.DivIcon {
-  const size = count >= 100 ? 48 : count >= 10 ? 42 : 36;
+  const size = clusterIconSize(count);
   return L.divIcon({
     className: "dajsrce-pin dajsrce-cluster",
     html: markerHtml({
@@ -399,10 +404,23 @@ function ClusterMarker({ cluster }: { cluster: PublicMapCluster }) {
     <Marker
       position={[cluster.latitude, cluster.longitude]}
       icon={icon}
-      title={t("map_ui.cluster_title", { count: cluster.count })}
+      // The accessible name stays on `alt`; the tooltip below is a hover
+      // affordance only, so removing the native `title` costs nothing to a
+      // screen reader.
       alt={t("map_ui.cluster_alt", { count: cluster.count })}
       eventHandlers={{ click: () => fitFeatureBounds(map, cluster.bounds) }}
-    />
+    >
+      {/* A styled Leaflet tooltip instead of the browser's native `title`
+          bubble, so the hover hint matches the app's chrome. */}
+      <Tooltip
+        direction="top"
+        offset={[0, -(clusterIconSize(cluster.count) + 6)]}
+        opacity={1}
+        className="dajsrce-tooltip"
+      >
+        {t("map_ui.cluster_title", { count: cluster.count })}
+      </Tooltip>
+    </Marker>
   );
 }
 

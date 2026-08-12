@@ -3,13 +3,27 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Heart, LogOut, MapPin, Menu as MenuIcon, User, X } from "lucide-react";
+import {
+  Bell,
+  ChevronRight,
+  Heart,
+  LogOut,
+  MapPin,
+  Menu as MenuIcon,
+  User,
+  X,
+} from "lucide-react";
 import clsx from "clsx";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 import type { Notification } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  A11yIcon,
+  AccessibilityMenu,
+  AccessibilityPanel,
+} from "@/components/AccessibilityMenu";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { CompanySwitcher, type CompanySwitcherItem } from "@/components/CompanySwitcher";
 import { Menu, buttonClasses, usePresence } from "@/components/ui";
@@ -83,7 +97,7 @@ function NotificationPanel({
   return (
     // The gutter wrapper gives the popover the page's horizontal inset while
     // still letting it scale out of its own right edge.
-    <div className="pointer-events-none absolute inset-x-4 top-full sm:inset-x-6 lg:inset-x-8">
+    <div className="pointer-events-none absolute inset-x-4 top-full sm:inset-x-6 lg:inset-x-10">
       <div className="pointer-events-auto relative">
         <Menu
           open={open}
@@ -166,6 +180,110 @@ function NotificationPanel({
           </div>
         </Menu>
       </div>
+    </div>
+  );
+}
+
+const MENU_ITEM =
+  "flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-ink transition-colors hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand";
+
+/**
+ * The combined navbar dropdown (the Airbnb-style round menu button): one place
+ * for accessibility settings and the account actions. "Pristupačnost" swaps the
+ * dropdown's content to the settings panel in place; the back chevron returns
+ * to the item list.
+ */
+function NavMenu({
+  user,
+  displayName,
+  profileEmail,
+  onLogout,
+}: {
+  user: SupaUser | null;
+  displayName: string;
+  profileEmail?: string;
+  onLogout: () => void;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"main" | "a11y">("main");
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setView("main");
+  }, []);
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => {
+          setView("main");
+          setOpen((o) => !o);
+        }}
+        aria-label={t("nav.open_menu")}
+        aria-expanded={open}
+        aria-haspopup="true"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle/60 bg-surface-raised text-ink shadow-raised transition-[box-shadow,transform] duration-150 ease-out hover:shadow-overlay motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      >
+        <MenuIcon className="h-4 w-4" aria-hidden="true" />
+      </button>
+
+      <Menu
+        open={open}
+        onClose={close}
+        align="top-right"
+        returnFocusRef={triggerRef}
+        role="region"
+        aria-label={t("nav.open_menu")}
+        className={view === "a11y" ? "w-80 max-w-[calc(100vw-2rem)]" : "w-64"}
+      >
+        {view === "a11y" ? (
+          <AccessibilityPanel onBack={() => setView("main")} />
+        ) : (
+          <div className="py-2">
+            <button type="button" onClick={() => setView("a11y")} className={MENU_ITEM}>
+              <A11yIcon className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
+              <span className="flex-1">{t("a11y.title")}</span>
+              <ChevronRight className="h-4 w-4 text-ink-tertiary" aria-hidden="true" />
+            </button>
+
+            <div className="my-2 h-px bg-border-subtle" />
+
+            {user ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  title={profileEmail}
+                  onClick={close}
+                  className={MENU_ITEM}
+                >
+                  <User className="h-5 w-5 shrink-0 text-ink-tertiary" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 truncate">{displayName}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    close();
+                    onLogout();
+                  }}
+                  className={MENU_ITEM}
+                >
+                  <LogOut className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
+                  {t("nav.sign_out")}
+                </button>
+              </>
+            ) : (
+              <Link href="/auth/login" onClick={close} className={MENU_ITEM}>
+                <User className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
+                {t("nav.sign_in")}
+              </Link>
+            )}
+          </div>
+        )}
+      </Menu>
     </div>
   );
 }
@@ -340,7 +458,9 @@ export function Navbar() {
         "bg-chrome backdrop-blur-xl backdrop-saturate-150"
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      {/* Full-bleed bar: the logo anchors the far left and the actions the far
+          right, instead of everything gathering in a centered max-w column. */}
+      <div className="relative flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-10">
         <Link
           href="/"
           className="flex shrink-0 items-center gap-2 rounded-control py-1 pr-2 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
@@ -355,7 +475,13 @@ export function Navbar() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex" aria-label={t("nav.main_navigation")}>
+        {/* Centred on the screen, not between its siblings, so the middle link
+            sits on the viewport's midline regardless of how wide the logo and
+            the action group are. */}
+        <nav
+          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-8 md:flex"
+          aria-label={t("nav.main_navigation")}
+        >
           {navLinks.map(({ href, labelKey }) => (
             <NavLink key={href} href={href} label={t(labelKey)} />
           ))}
@@ -368,51 +494,32 @@ export function Navbar() {
             <CompanySwitcher items={companies} activeId={activeCompanyId} />
           ) : null}
           {user ? (
-            <>
-              <button
-                type="button"
-                onClick={(event) => {
-                  bellRef.current = event.currentTarget;
-                  setPanelOpen((o) => !o);
-                }}
-                className={ICON_BUTTON}
-                aria-label={notificationLabel}
-                aria-expanded={panelOpen}
-                aria-controls="notifications-panel"
-              >
-                <Bell className="h-5 w-5" aria-hidden="true" />
-                {notificationBadge}
-              </button>
-              <Link
-                href="/dashboard"
-                title={profileEmail}
-                className={buttonClasses({
-                  variant: "secondary",
-                  size: "sm",
-                  className: "max-w-40 bg-brand-soft text-brand-on-soft border-transparent hover:bg-brand-soft hover:brightness-95",
-                })}
-              >
-                <User className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="truncate">{displayName}</span>
-              </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className={ICON_BUTTON}
-                aria-label={t("nav.sign_out")}
-              >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </>
-          ) : (
-            <Link href="/auth/login" className={buttonClasses({ size: "sm" })}>
-              {t("nav.sign_in")}
-            </Link>
-          )}
+            <button
+              type="button"
+              onClick={(event) => {
+                bellRef.current = event.currentTarget;
+                setPanelOpen((o) => !o);
+              }}
+              className={ICON_BUTTON}
+              aria-label={notificationLabel}
+              aria-expanded={panelOpen}
+              aria-controls="notifications-panel"
+            >
+              <Bell className="h-5 w-5" aria-hidden="true" />
+              {notificationBadge}
+            </button>
+          ) : null}
+          <NavMenu
+            user={user}
+            displayName={displayName}
+            profileEmail={profileEmail}
+            onLogout={handleLogout}
+          />
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
           <ThemeToggle />
+          <AccessibilityMenu />
           {user ? (
             <button
               type="button"
