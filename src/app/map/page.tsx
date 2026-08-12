@@ -145,10 +145,10 @@ function useCompactViewport(): boolean {
 
 function MapPageLoading() {
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface md:flex-row">
-      <Skeleton className="min-h-0 flex-1 rounded-none md:h-full md:w-[60%]" />
-      <div className="hidden min-h-0 flex-col gap-3 border-l border-border-subtle p-3 md:flex md:h-full md:w-[40%]">
-        <Skeleton className="h-9 w-full rounded-full" />
+    <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface md:flex-row md:gap-6 md:px-8 md:pt-8 lg:px-10 lg:pt-10">
+      <Skeleton className="min-h-0 flex-1 rounded-none md:h-auto md:w-[60%] md:rounded-sheet md:mb-8 lg:mb-10" />
+      <div className="hidden min-h-0 flex-col gap-3 p-3 md:flex md:h-full md:w-[40%]">
+        <Skeleton className="h-12 w-full rounded-card" />
         <Skeleton className="h-4 w-40" />
         <div className="min-h-0 flex-1 space-y-3 overflow-hidden">
           <Skeleton className="h-28 rounded-card" />
@@ -591,11 +591,14 @@ function MapExperience() {
   );
 
   return (
-    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface md:flex-row">
+    // Bottom padding lives on the map card, not the container, so the results
+    // list on the right can scroll all the way to the screen's bottom edge.
+    <div className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface md:flex-row md:gap-6 md:px-8 md:pt-8 lg:px-10 lg:pt-10">
       {/* The map is always mounted and always interactive: on phones the sheet
-          floats over it, on desktop it holds the left 60%. `isolate` keeps
-          Leaflet's internal pane z-indexes out of the app's ladder. */}
-      <div className="relative isolate min-h-0 min-w-0 flex-1 md:h-full md:w-[60%]">
+          floats over it (full-bleed), on desktop it holds the left 60% as a
+          rounded card inset from the page edges. `isolate` keeps Leaflet's
+          internal pane z-indexes out of the app's ladder. */}
+      <div className="relative isolate min-h-0 min-w-0 flex-1 md:h-auto md:w-[60%] md:overflow-hidden md:rounded-sheet md:shadow-raised md:mb-8 lg:mb-10">
         <div className="h-full w-full">
           <Map
             features={features}
@@ -608,20 +611,6 @@ function MapExperience() {
             command={mapCommand}
           />
         </div>
-
-        {/* Desktop search floats over live tiles as material; on phones the same
-            field lives in the sheet header instead, reachable at every detent. */}
-        <MapSearchField
-          idPrefix="map-search"
-          tone="floating"
-          className="absolute left-1/2 top-3 z-[var(--z-dropdown)] hidden w-[calc(100%-11rem)] max-w-[28rem] -translate-x-1/2 md:block"
-          value={searchQuery}
-          onValueChange={setSearchQuery}
-          onClear={clearSearch}
-          hits={searchHits}
-          pending={searchPending}
-          onSelect={onSelect}
-        />
 
         {refreshing ? (
           <div
@@ -752,8 +741,21 @@ function MapExperience() {
 
       {/* Desktop: the split stays, but the detail slides in over the list rather
           than replacing it, so scroll position and the clicked card survive. */}
-      <aside className="hidden min-h-0 flex-col border-l border-border-subtle bg-surface md:flex md:h-full md:w-[40%]">
-        <div className="shrink-0 border-b border-border-subtle px-3 py-3">
+      <aside className="hidden min-h-0 flex-col bg-surface md:flex md:h-full md:w-[40%]">
+        <div className="shrink-0 px-3 py-3">
+          {/* Desktop search lives above the category row; on phones the same
+              field lives in the sheet header instead, reachable at every detent. */}
+          <MapSearchField
+            idPrefix="map-search"
+            tone="inline"
+            className="mb-3"
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            onClear={clearSearch}
+            hits={searchHits}
+            pending={searchPending}
+            onSelect={onSelect}
+          />
           <FilterBar filters={filters} onChange={setFilters} />
           <div className="mt-2">{resultsMeta}</div>
         </div>
@@ -1009,11 +1011,15 @@ function MapSearchField({
             placeholder={t("map_page.search_placeholder")}
             data-ui-material={tone === "floating" ? "" : undefined}
             className={clsx(
-              "h-11 w-full rounded-full border border-border-subtle pl-10 pr-12 text-sm text-ink outline-none",
+              // The reference format: a soft filled rounded rectangle rather
+              // than a bordered pill. The fill carries the shape; the border
+              // only appears as the brand focus ring.
+              "h-12 w-full rounded-card border border-transparent pl-10 pr-12 text-sm text-ink outline-none",
+              "transition-[background-color,border-color,box-shadow] duration-150 ease-out",
               "placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand",
               tone === "floating"
                 ? "bg-chrome shadow-overlay backdrop-blur-xl"
-                : "bg-surface-raised shadow-raised"
+                : "bg-surface-sunken focus-visible:bg-surface-raised"
             )}
             aria-label={t("map_page.search_aria")}
             role="combobox"

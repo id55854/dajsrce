@@ -4,7 +4,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { AccessibilityMenu } from "@/components/AccessibilityMenu";
 import { ToastProvider } from "@/components/ui";
 import { LocaleProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
@@ -93,7 +92,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <main className="flex-1">{children}</main>
               <Footer />
             </div>
-            <AccessibilityMenu />
           </ToastProvider>
         </LocaleProvider>
       </body>

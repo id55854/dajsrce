@@ -161,11 +161,10 @@ function ClusterRowButton({
     <button
       type="button"
       onClick={onActivate}
-      title={t("map_ui.cluster_title", { count: cluster.count })}
       className={clsx(
-        "flex w-full items-center gap-3 rounded-card border border-border-subtle bg-surface-raised p-3 text-left shadow-raised",
+        "flex w-full items-center gap-3 rounded-card border border-border-subtle/60 bg-surface-raised p-3 text-left shadow-raised",
         "transition-[box-shadow,transform,border-color] duration-150 ease-out",
-        "hover:border-border-strong hover:shadow-overlay motion-safe:active:scale-[0.99]",
+        "hover:border-border-subtle hover:shadow-overlay motion-safe:active:scale-[0.99]",
         "ring-offset-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       )}
     >

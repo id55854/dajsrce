@@ -85,11 +85,11 @@ export function InstitutionCard({
       className={clsx(
         "w-full rounded-card border bg-surface-raised p-4 text-left shadow-raised",
         "transition-[box-shadow,transform,border-color] duration-150 ease-out",
-        "hover:border-border-strong hover:shadow-overlay motion-safe:active:scale-[0.99]",
+        "hover:border-border-subtle hover:shadow-overlay motion-safe:active:scale-[0.99]",
         "ring-offset-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
         isSelected
           ? "border-brand ring-2 ring-brand ring-offset-2"
-          : "border-border-subtle"
+          : "border-border-subtle/60"
       )}
     >
       <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
@@ -179,7 +179,7 @@ export function InstitutionCardSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised"
+      className="rounded-card border border-border-subtle/60 bg-surface-raised p-4 shadow-raised"
     >
       <div className="mb-2 flex items-start justify-between gap-2">
         <Skeleton className="h-5 w-28 rounded-full" />
