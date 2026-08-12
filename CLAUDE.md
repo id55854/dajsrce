@@ -86,6 +86,10 @@ Required in production: Supabase URL/anon/service keys, HTTPS app URL and a 32+ 
 
 Both use `Authorization: Bearer <CRON_SECRET>`. Vercel's GET-only cron stays disabled. `ALLOW_DEMO_BILLING` and `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
 
+Institution-claim review needs `SUPABASE_SERVICE_ROLE_KEY`; the mailbox challenge additionally needs `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. A delivery failure is logged and never counts as verification.
+
+Two Supabase Auth settings are still unset and cannot be fixed in code — the client rules they mirror are bypassable by calling the Auth API directly. See `docs/AUTH_PASSWORD_OPERATIONS.md` for the exact paths and the release checklist: minimum password length raised to 12, and Leaked Password Protection enabled. MFA is documented there as a prerequisite toggle plus unbuilt enrolment/`aal2` work; do not record it as done.
+
 Before release, restore a production backup into staging, apply migrations, exercise RLS/RPC flows, run the full check/build/audit and monitor failed Stripe events, dead notification jobs and failed artifacts. See the complete runbook in `TECHNICAL_IMPLEMENTATION.md`.
 
 ## Repository workflow
