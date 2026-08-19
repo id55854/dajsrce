@@ -35,6 +35,7 @@ import { MapPinLegend } from "./pin-legend";
 import { ResultsList, type ClusterRow, type InstitutionRow } from "./results-list";
 import { useLocale, useT } from "@/i18n/client";
 import {
+  CROATIA_INITIAL_VIEW,
   MAP_CITY_ZOOM,
   MAP_FEATURE_LIMIT,
   MAP_LIST_RENDER_LIMIT,
@@ -334,6 +335,17 @@ function MapSurface() {
     }),
     [filters, settledSearch, viewport]
   );
+  const apiMapQuery = useMemo<MapQuery>(
+    () =>
+      mapQuery.query
+        ? {
+            ...mapQuery,
+            bbox: CROATIA_INITIAL_VIEW.bbox,
+            zoom: CROATIA_INITIAL_VIEW.zoom,
+          }
+        : mapQuery,
+    [mapQuery]
+  );
 
   // Pan/zoom/filter/search stay on replaceState (they must not spam history).
   // Opening a selection pushes exactly one entry so Back closes the detail panel.
@@ -415,7 +427,7 @@ function MapSurface() {
     (async () => {
       try {
         const response = await fetch(
-          `/api/v1/map/institutions?${buildMapQueryString(mapQuery)}`,
+          `/api/v1/map/institutions?${buildMapQueryString(apiMapQuery)}`,
           { signal: controller.signal }
         );
         const result = (await response.json()) as PublicMapResponse & {
@@ -441,7 +453,7 @@ function MapSurface() {
     return () => controller.abort();
     // retryToken intentionally retries the same normalized query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapQuery, retryToken, viewportReady]);
+  }, [apiMapQuery, retryToken, viewportReady]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -667,6 +679,7 @@ function MapSurface() {
       totalMatches={meta.totalMatches}
       listCount={listCount}
       showTruncation={showTruncation}
+      searchActive={Boolean(settledSearch)}
       locale={locale}
       onZoomIn={() => zoomBy(1)}
     />
@@ -943,6 +956,7 @@ function ResultsMeta({
   totalMatches,
   listCount,
   showTruncation,
+  searchActive,
   locale,
   onZoomIn,
 }: {
@@ -952,6 +966,7 @@ function ResultsMeta({
   totalMatches: number;
   listCount: number;
   showTruncation: boolean;
+  searchActive: boolean;
   locale: string;
   onZoomIn: () => void;
 }) {
@@ -964,7 +979,9 @@ function ResultsMeta({
         <p aria-live="polite" className="min-w-0 truncate">
           {loading
             ? t("map_page.loading")
-            : mode === "clusters"
+            : searchActive
+              ? t("map_page.search_count", { count })
+              : mode === "clusters"
               ? t("map_page.clusters_count", { count })
               : t("map_page.area_count", { count })}
         </p>

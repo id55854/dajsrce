@@ -30,6 +30,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: copy.title,
     description: copy.description,
+    icons: {
+      icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+      shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+      apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    },
   };
 }
 

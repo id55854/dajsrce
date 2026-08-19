@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Bell,
   ChevronRight,
@@ -38,17 +38,35 @@ import { useT } from "@/i18n/client";
 const navLinks = [
   { href: "/", labelKey: "nav.map" },
   { href: "/organisations", labelKey: "nav.organisations" },
+  { href: "/organisations?view=needs", labelKey: "nav.needs" },
+  { href: "/organisations?view=help", labelKey: "nav.find_help" },
   { href: "/volunteer", labelKey: "nav.volunteer" },
   { href: "/offers", labelKey: "nav.offers" },
   { href: "/o-nama", labelKey: "nav.about" },
 ] as const;
+
+function isNavLinkActive(
+  href: string,
+  pathname: string,
+  currentView: string | null
+): boolean {
+  const [hrefPath, hrefSearch = ""] = href.split("?");
+  const hrefView = new URLSearchParams(hrefSearch).get("view");
+  if (hrefView) return pathname === hrefPath && currentView === hrefView;
+  if (hrefPath === "/organisations") {
+    return (pathname === hrefPath || pathname.startsWith(`${hrefPath}/`)) && !currentView;
+  }
+  return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
+}
 
 const ICON_BUTTON =
   "relative inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-secondary transition-colors duration-150 hover:bg-surface-sunken hover:text-ink motion-safe:active:scale-[0.92] motion-safe:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
 function NavLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
-  const active = pathname === href || pathname.startsWith(`${href}/`);
+  const searchParams = useSearchParams();
+  const currentView = searchParams.get("view");
+  const active = isNavLinkActive(href, pathname, currentView);
 
   return (
     <Link
@@ -297,6 +315,8 @@ export function Navbar() {
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   const [meProfile, setMeProfile] = useState<{ name: string; email: string } | null>(null);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentView = searchParams.get("view");
   const router = useRouter();
   const t = useT();
   const mobileNav = usePresence(mobileOpen);
@@ -479,7 +499,7 @@ export function Navbar() {
             sits on the viewport's midline regardless of how wide the logo and
             the action group are. */}
         <nav
-          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-8 md:flex"
+          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-5 lg:flex xl:gap-8"
           aria-label={t("nav.main_navigation")}
         >
           {navLinks.map(({ href, labelKey }) => (
@@ -487,7 +507,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <LocaleSwitcher />
           <ThemeToggle />
           {user && companies.length > 1 ? (
@@ -526,7 +546,7 @@ export function Navbar() {
           />
         </div>
 
-        <div className="flex items-center gap-1 md:hidden">
+        <div className="flex items-center gap-1 lg:hidden">
           <ThemeToggle />
           <AccessibilityMenu />
           {user ? (
@@ -581,13 +601,13 @@ export function Navbar() {
           data-state={mobileNav.state}
           onAnimationEnd={mobileNav.onAnimationEnd}
           className={clsx(
-            "origin-top border-t border-border-subtle bg-surface-overlay px-4 py-4 shadow-overlay md:hidden",
+            "origin-top border-t border-border-subtle bg-surface-overlay px-4 py-4 shadow-overlay lg:hidden",
             "data-[state=open]:animate-menu-in data-[state=closed]:animate-menu-out"
           )}
         >
           <nav className="flex flex-col gap-1" aria-label={t("nav.mobile_navigation")}>
             {navLinks.map(({ href, labelKey }) => {
-              const active = pathname === href || pathname.startsWith(`${href}/`);
+              const active = isNavLinkActive(href, pathname, currentView);
               return (
                 <Link
                   key={href}

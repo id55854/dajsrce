@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useId, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import clsx from "clsx";
 import { useDialogFocus } from "@/lib/use-dialog-focus";
@@ -45,11 +46,11 @@ export function Dialog({
 
   useDialogFocus({ open, dialogRef: panelRef, onClose });
 
-  if (!present) return null;
+  if (!present || typeof document === "undefined") return null;
 
   const asSheet = variant === "sheet-on-mobile";
 
-  return (
+  return createPortal(
     <div
       data-ui-motion
       data-state={state}
@@ -104,6 +105,7 @@ export function Dialog({
         {children ? <div className="mt-4">{children}</div> : null}
         {footer ? <div className="mt-6 flex gap-3">{footer}</div> : null}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
