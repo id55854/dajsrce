@@ -10,6 +10,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: pledgeId } = await params;
+  if (!UUID.test(pledgeId)) {
+    return NextResponse.json({ error: "Invalid pledge id" }, { status: 400 });
+  }
+
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },

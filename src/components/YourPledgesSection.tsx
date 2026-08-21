@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight, Heart, PackageCheck, X } from "lucide-react";
 import { useT } from "@/i18n/client";
@@ -39,36 +39,47 @@ const STATUS: Record<YourPledgeRow["status"], { tone: BadgeTone; key: string }> 
 const VISIBLE_LIMIT = 6;
 
 /**
- * Confirm-then-DELETE affordance shared by every "withdraw what I promised"
- * control (pledges here, volunteer signups on the individual dashboard).
+ * Confirm-then-write affordance shared by every irreversible control over a
+ * promise: withdrawing one (pledges here, volunteer signups on the individual
+ * dashboard) and declaring one handed over.
  *
- * It reports both outcomes through the toast channel — a cancellation that
- * silently does nothing is the failure mode this replaces — and never assumes
- * success: the server owns the refusal (delivered/confirmed pledge, volunteer
- * already checked in) and answers 409, which surfaces as `conflictDescription`.
+ * It reports both outcomes through the toast channel — an action that silently
+ * does nothing is the failure mode this replaces — and never assumes success:
+ * the server owns the refusal (delivered/confirmed pledge, volunteer already
+ * checked in) and answers 409, which surfaces as `conflictDescription`.
  */
-export function CancelActionButton({
+function ConfirmActionButton({
   endpoint,
+  method,
+  body,
+  icon,
+  variant,
   label,
   title,
   description,
   confirmLabel,
+  confirmVariant,
   successTitle,
   errorTitle,
   conflictDescription,
-  onCancelled,
+  onDone,
 }: {
-  /** DELETE target, e.g. `/api/pledges/<id>`. */
+  /** Write target, e.g. `/api/pledges/<id>`. */
   endpoint: string;
+  method: "DELETE" | "PATCH";
+  body?: unknown;
+  icon: ReactNode;
+  variant: "ghost" | "secondary";
   label: string;
   title: string;
   description: string;
   confirmLabel: string;
+  confirmVariant: "danger" | "primary";
   successTitle: string;
   errorTitle: string;
   /** Why the server refused when the row has already become evidence. */
   conflictDescription: string;
-  onCancelled: () => void;
+  onDone: () => void;
 }) {
   const t = useT();
   const toast = useToast();
@@ -78,7 +89,16 @@ export function CancelActionButton({
   async function confirm() {
     setBusy(true);
     try {
-      const res = await fetch(endpoint, { method: "DELETE", credentials: "include" });
+      const res = await fetch(endpoint, {
+        method,
+        credentials: "include",
+        ...(body === undefined
+          ? {}
+          : {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            }),
+      });
       if (!res.ok) {
         toast({
           tone: "error",
@@ -89,7 +109,7 @@ export function CancelActionButton({
         return;
       }
       toast({ tone: "success", title: successTitle });
-      onCancelled();
+      onDone();
     } catch {
       toast({
         tone: "error",
@@ -105,11 +125,7 @@ export function CancelActionButton({
   return (
     <>
       {/* Default size: 44px, the minimum comfortable touch target. */}
-      <Button
-        variant="ghost"
-        icon={<X className="h-4 w-4" aria-hidden="true" />}
-        onClick={() => setOpen(true)}
-      >
+      <Button variant={variant} icon={icon} onClick={() => setOpen(true)}>
         {label}
       </Button>
       <Dialog
@@ -124,7 +140,7 @@ export function CancelActionButton({
         footer={
           <>
             <Button
-              variant="danger"
+              variant={confirmVariant}
               fullWidth
               loading={busy}
               onClick={confirm}
@@ -147,6 +163,53 @@ export function CancelActionButton({
   );
 }
 
+/** Withdraw a promise that is still only a promise. */
+export function CancelActionButton(
+  props: Omit<
+    Parameters<typeof ConfirmActionButton>[0],
+    "method" | "body" | "icon" | "variant" | "confirmVariant" | "onDone"
+  > & { onCancelled: () => void }
+) {
+  const { onCancelled, ...rest } = props;
+  return (
+    <ConfirmActionButton
+      {...rest}
+      method="DELETE"
+      icon={<X className="h-4 w-4" aria-hidden="true" />}
+      variant="ghost"
+      confirmVariant="danger"
+      onDone={onCancelled}
+    />
+  );
+}
+
+/**
+ * The donor says they handed the goods over.
+ *
+ * This is the donor's account of events, not evidence: only the recipient's
+ * acknowledgement makes a donation confirmed, and the status vocabulary keeps
+ * `delivered` and `confirmed` apart for exactly that reason.
+ */
+export function MarkDeliveredButton(
+  props: Omit<
+    Parameters<typeof ConfirmActionButton>[0],
+    "method" | "body" | "icon" | "variant" | "confirmVariant" | "onDone"
+  > & { onDelivered: () => void }
+) {
+  const { onDelivered, ...rest } = props;
+  return (
+    <ConfirmActionButton
+      {...rest}
+      method="PATCH"
+      body={{ status: "delivered" }}
+      icon={<PackageCheck className="h-4 w-4" aria-hidden="true" />}
+      variant="secondary"
+      confirmVariant="primary"
+      onDone={onDelivered}
+    />
+  );
+}
+
 export function YourPledgesSection({
   loggedIn,
   loading,
@@ -164,6 +227,10 @@ export function YourPledgesSection({
   // rather than mutated in place — the card keeps rendering with the
   // `cancelled` tone instead of vanishing under the reader.
   const [cancelledIds, setCancelledIds] = useState<Set<string>>(() => new Set());
+  // Same reason as `cancelledIds`: the list belongs to the parent, so a row
+  // that has just been handed over is remembered here and re-rendered with the
+  // `delivered` tone rather than snapping back to `pledged`.
+  const [deliveredIds, setDeliveredIds] = useState<Set<string>>(() => new Set());
 
   if (!loggedIn) {
     return (
@@ -212,7 +279,11 @@ export function YourPledgesSection({
     >
       <ul className="flex snap-x gap-3 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible" role="list">
         {visible.map((p) => {
-          const state = cancelledIds.has(p.id) ? "cancelled" : p.status;
+          const state = cancelledIds.has(p.id)
+            ? "cancelled"
+            : deliveredIds.has(p.id)
+              ? "delivered"
+              : p.status;
           const status = STATUS[state] ?? STATUS.pledged;
           return (
             <li key={p.id} className="w-72 shrink-0 snap-start md:max-w-xs">
@@ -262,7 +333,22 @@ export function YourPledgesSection({
                   ) : null}
                 </dl>
                 {state === "pledged" ? (
-                  <div className="mt-auto flex justify-end pt-3">
+                  <div className="mt-auto flex flex-wrap justify-end gap-2 pt-3">
+                    <MarkDeliveredButton
+                      endpoint={`/api/pledges/${p.id}`}
+                      label={t("your_pledges.deliver")}
+                      title={t("your_pledges.deliver_title")}
+                      description={t("your_pledges.deliver_body", {
+                        title: p.need?.title ?? "",
+                      })}
+                      confirmLabel={t("your_pledges.deliver_confirm")}
+                      successTitle={t("your_pledges.deliver_success")}
+                      errorTitle={t("your_pledges.deliver_error")}
+                      conflictDescription={t("your_pledges.deliver_error_locked")}
+                      onDelivered={() =>
+                        setDeliveredIds((prev) => new Set(prev).add(p.id))
+                      }
+                    />
                     <CancelActionButton
                       endpoint={`/api/pledges/${p.id}`}
                       label={t("your_pledges.cancel")}

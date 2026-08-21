@@ -247,7 +247,14 @@
     "cancel_confirm": "Da, otkaži obećanje",
     "cancel_success": "Obećanje je otkazano",
     "cancel_error": "Obećanje nije otkazano",
-    "cancel_error_locked": "Dostavljena i potvrđena obećanja više se ne mogu otkazati."
+    "cancel_error_locked": "Dostavljena i potvrđena obećanja više se ne mogu otkazati.",
+    "deliver": "Označi kao odrađeno",
+    "deliver_title": "Označiti obećanje kao odrađeno?",
+    "deliver_body": "Potvrdite da ste pomoć iz obećanja „{title}” predali udruzi. Udruga je zatim potvrđuje sa svoje strane.",
+    "deliver_confirm": "Da, predao/la sam",
+    "deliver_success": "Obećanje je označeno kao odrađeno",
+    "deliver_error": "Obećanje nije označeno kao odrađeno",
+    "deliver_error_locked": "Otkazana i već potvrđena obećanja ne mogu se označiti kao odrađena."
   },
   "quick_start": {
     "page_title": "Pronađite NGO za pomoć",

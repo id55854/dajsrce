@@ -54,6 +54,35 @@ describe("design token layer", () => {
     }
   });
 
+  it("keeps the layering ladder single, ordered and free of four-digit escapes", () => {
+    const css = source(GLOBALS);
+    // One ladder for the whole app. Leaflet's panes (200-700) are contained by
+    // `isolation: isolate` on the map wrapper, and Dialog portals to
+    // document.body, so nothing here has to out-bid them. A four-digit value
+    // is the symptom of someone fixing a stacking bug by escalation instead;
+    // it worked, it silently abandoned the ladder, and no test noticed.
+    const ladder = ["base", "chrome", "dropdown", "sheet", "modal", "toast"];
+    const values = ladder.map((name) => {
+      const raw = new RegExp(`--z-${name}:\\s*([0-9]+)\\s*;`).exec(css)?.[1];
+      expect(raw, `--z-${name} is missing or not a plain integer`).toBeTruthy();
+      return Number(raw);
+    });
+
+    for (let i = 1; i < values.length; i += 1) {
+      expect(
+        values[i],
+        `--z-${ladder[i]} (${values[i]}) must sit above --z-${ladder[i - 1]} (${values[i - 1]})`
+      ).toBeGreaterThan(values[i - 1]);
+    }
+
+    for (const [index, value] of values.entries()) {
+      expect(
+        value,
+        `--z-${ladder[index]} is ${value}: the ladder stays below 1000, and a stacking bug is fixed by portalling or isolating, not by out-bidding`
+      ).toBeLessThan(1000);
+    }
+  });
+
   it("overrides the theme-dependent tokens for dark mode", () => {
     const css = source(GLOBALS);
     const darkBlock = css.slice(css.indexOf(".dark {"));

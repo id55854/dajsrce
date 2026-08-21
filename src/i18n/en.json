@@ -247,7 +247,14 @@
     "cancel_confirm": "Yes, cancel pledge",
     "cancel_success": "Pledge cancelled",
     "cancel_error": "Pledge was not cancelled",
-    "cancel_error_locked": "Delivered and confirmed pledges can no longer be cancelled."
+    "cancel_error_locked": "Delivered and confirmed pledges can no longer be cancelled.",
+    "deliver": "Mark as handed over",
+    "deliver_title": "Mark this pledge as handed over?",
+    "deliver_body": "Confirm that you handed the help from \u201c{title}\u201d to the organisation. The organisation then confirms it from their side.",
+    "deliver_confirm": "Yes, I handed it over",
+    "deliver_success": "Pledge marked as handed over",
+    "deliver_error": "The pledge was not marked as handed over",
+    "deliver_error_locked": "Cancelled and already confirmed pledges cannot be marked as handed over."
   },
   "quick_start": {
     "page_title": "Find NGOs to help",
