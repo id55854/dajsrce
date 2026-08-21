@@ -14,8 +14,9 @@ describe("public UI accessibility contracts", () => {
     // components these assertions point at.
     const needsPage = source("src/app/needs/needs-client.tsx");
     expect(filterBar).toContain("aria-pressed={on}");
-    expect(filterBar).toContain("aria-pressed={filters.onlyZagreb}");
-    expect(filterBar).toContain("aria-pressed={filters.onlyUrgent}");
+    // The Zagreb-only/urgent-only chips were deliberately removed from this
+    // bar (the onboarded chip moved to the front instead) — see FilterBar.tsx.
+    expect(filterBar).toContain("aria-pressed={filters.onlyOnboarded}");
     expect(needsPage).toContain("aria-pressed={donationType === \"all\"}");
   });
 
