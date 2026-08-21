@@ -126,6 +126,18 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         )}
       >
+        <FilterChip
+          aria-pressed={filters.onlyOnboarded}
+          onClick={() => onChange({ ...filters, onlyOnboarded: !filters.onlyOnboarded })}
+        >
+          {t("filters.onboarded_only")}
+        </FilterChip>
+
+        <div
+          className="mx-1 h-8 w-px shrink-0 self-center bg-border-subtle"
+          aria-hidden
+        />
+
         <GroupLabel>{t("filters.category")}</GroupLabel>
         {CATEGORY_KEYS.map((cat) => {
           const cfg = CATEGORY_CONFIG[cat];
@@ -168,45 +180,6 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
             </FilterChip>
           );
         })}
-
-        <div
-          className="mx-1 h-8 w-px shrink-0 self-center bg-border-subtle"
-          aria-hidden
-        />
-
-        <FilterChip
-          aria-pressed={filters.onlyOnboarded}
-          onClick={() => onChange({ ...filters, onlyOnboarded: !filters.onlyOnboarded })}
-        >
-          {t("filters.onboarded_only")}
-        </FilterChip>
-
-        <FilterChip
-          aria-pressed={filters.onlyZagreb}
-          onClick={() => onChange({ ...filters, onlyZagreb: !filters.onlyZagreb })}
-        >
-          {filters.onlyZagreb
-            ? t("filters.zagreb_only")
-            : t("filters.all_croatia")}
-        </FilterChip>
-
-        <FilterChip
-          aria-pressed={filters.onlyUrgent}
-          onClick={() => onChange({ ...filters, onlyUrgent: !filters.onlyUrgent })}
-        >
-          {t("filters.urgent_only")}
-        </FilterChip>
-
-        {/* Most of the register is sports, culture and hobby associations that
-            nobody comes here to find. This chip is on by default; turning it
-            off widens the map to every registered association, including the
-            ones the classifier could not place. */}
-        <FilterChip
-          aria-pressed={filters.onlySocial}
-          onClick={() => onChange({ ...filters, onlySocial: !filters.onlySocial })}
-        >
-          {filters.onlySocial ? t("filters.social_only") : t("filters.all_associations")}
-        </FilterChip>
       </div>
     </div>
   );
