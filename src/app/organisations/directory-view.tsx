@@ -103,7 +103,11 @@ function AssociationCard({ item }: { item: AssociationDirectoryItem }) {
         {/* UDR_ID stays on the record (it's the link target below and the
             claim key) but isn't shown here — it's an internal registry
             identifier, not something a visitor needs to read off the card. */}
-        <Badge tone={statusTone(item.status)}>
+        {/* `self-start`: the old wrapper this replaced had `items-start` on
+            its own flex row; without it the badge is a direct child of the
+            card's `flex-col` and stretches to the full card width under the
+            default `align-items: stretch`, turning the pill into a bar. */}
+        <Badge tone={statusTone(item.status)} className="self-start">
           {statusLabel(item.status, t)}
         </Badge>
         {/* Registry names routinely run past 100 characters in a fixed-width

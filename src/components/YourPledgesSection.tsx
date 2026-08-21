@@ -39,11 +39,15 @@ const STATUS: Record<YourPledgeRow["status"], { tone: BadgeTone; key: string }> 
 
 const VISIBLE_LIMIT = 6;
 
-/** Status filter chips, in the same order the lifecycle usually runs. */
+/**
+ * Status filter chips, in the same order the lifecycle usually runs.
+ * `confirmed` is left off the filter row by design — a confirmed pledge
+ * still shows (and badges as such) under "Sve", it just isn't a state
+ * worth a dedicated filter here.
+ */
 const STATUS_FILTERS: readonly YourPledgeRow["status"][] = [
   "pledged",
   "delivered",
-  "confirmed",
   "cancelled",
 ];
 
