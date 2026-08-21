@@ -29,6 +29,7 @@ const releaseMigrations = [
   "20260821120000_map_onboarded_filter_and_multiterm_search.sql",
   "20260821130000_map_onboarded_requires_account.sql",
   "20260821140000_engaged_directory_requires_account.sql",
+  "20260821150000_register_classified_only_default.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -452,5 +453,35 @@ describe("release migration contracts", () => {
     // Same signature as before: no overload to drop, no grants to restate.
     expect(sql).not.toContain("DROP FUNCTION");
     expect(sql).not.toContain("GRANT EXECUTE");
+  });
+
+  it("gives the register a classified-only mode matching the map's default", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260821150000_register_classified_only_default.sql"),
+      "utf8"
+    );
+    // An added argument means the previous arity has to go, same reasoning
+    // as the map's own onboarded-filter migration.
+    expect(sql).toContain(
+      "DROP FUNCTION IF EXISTS public.search_association_registry_v1(text, text, text, text, text, text, integer, integer)"
+    );
+    expect(sql).toContain(
+      "CREATE OR REPLACE FUNCTION public.search_association_registry_v1(p_query text"
+    );
+    expect(sql).toContain("p_page_size integer DEFAULT 24, p_classified_only boolean DEFAULT false)");
+    // The immutable-facets fast path is the whole register's count; it must
+    // not answer for a classified-only request.
+    expect(sql).toContain(
+      "AND v_city IS NULL AND v_form IS NULL AND NOT p_classified_only THEN"
+    );
+    expect(sql).toContain("AND (NOT p_classified_only OR d.category <> 'association')");
+    expect(sql).toContain("AND (NOT $9 OR d.category <> 'association')");
+    expect(sql).toContain(
+      "USING v_batch_id, v_terms, v_status, v_county, v_city, v_form, p_page_size, (p_page - 1) * p_page_size, p_classified_only;"
+    );
+    // Public read stays readable by the anonymous role on the new signature.
+    expect(sql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.search_association_registry_v1\(text, text, text, text, text, text, integer, integer, boolean\) TO anon, authenticated, service_role/
+    );
   });
 });

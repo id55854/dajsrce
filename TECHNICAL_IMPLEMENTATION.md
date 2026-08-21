@@ -214,11 +214,12 @@ Apply these new migrations in order before deploying the application commit:
 24. `20260821120000_map_onboarded_filter_and_multiterm_search.sql`
 25. `20260821130000_map_onboarded_requires_account.sql`
 26. `20260821140000_engaged_directory_requires_account.sql`
+27. `20260821150000_register_classified_only_default.sql`
 
 Mandatory release sequence:
 
 1. Take a database backup and record current migration history/policies/grants.
-2. Restore the backup into staging and apply all twenty-six migrations there.
+2. Restore the backup into staging and apply all twenty-seven migrations there.
 3. Run RPC/RLS smoke tests for anonymous map/detail, signup/setup, NGO writes, pledges, volunteer tokens/checkout, tenant creation/invites/verification, Stripe retry, report generation and both cron routes.
 4. Run `npm ci`, `npm run check`, `npm audit`, `npm run build` and the map benchmark.
 5. Set production secrets/flags; configure authenticated POST schedulers.

@@ -78,6 +78,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 24. `20260821120000_map_onboarded_filter_and_multiterm_search.sql`
 25. `20260821130000_map_onboarded_requires_account.sql`
 26. `20260821140000_engaged_directory_requires_account.sql`
+27. `20260821150000_register_classified_only_default.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 
