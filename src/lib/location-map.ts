@@ -57,6 +57,21 @@ export type PublicMapCitiesResponse = { cities: PublicMapCity[] };
  * These live here rather than beside the marker code so the legend can render
  * them without pulling Leaflet into the initial bundle.
  */
+/**
+ * A map feature that has no account here is identified by its official
+ * register key rather than an institution UUID, and `map_association_registry_v*`
+ * emits it as `'registry:' || udr_id`. Detail lookups have to split it back
+ * apart, and they must do so from a URL alone, so the prefix is shared rather
+ * than spelled out at each call site.
+ */
+export const REGISTRY_ID_PREFIX = "registry:";
+
+export function splitRegistryFeatureId(featureId: string): string | null {
+  return featureId.startsWith(REGISTRY_ID_PREFIX)
+    ? featureId.slice(REGISTRY_ID_PREFIX.length)
+    : null;
+}
+
 export type MapPinStatus = "registry" | "onboarded" | "verified";
 
 export const MAP_PIN_STATUSES: readonly MapPinStatus[] = [

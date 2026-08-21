@@ -714,6 +714,8 @@
     "search_count": "{count} matching organisations across Croatia",
     "retry": "Retry",
     "back_results": "Back to results",
+    "open_full_record": "Open the full register record",
+    "registry_notice": "An entry in the official register of associations. It does not mean the organisation is verified on DajSrce or that it accepts donations.",
     "cluster_hint": "Zoom into a cluster to browse individual organisations. All active official records stay represented while the national view remains fast.",
     "empty": "No institutions match this area and filters.",
     "bounded": "Showing a bounded set of results. Zoom in or refine filters to see a smaller area.",

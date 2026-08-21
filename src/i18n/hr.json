@@ -714,6 +714,8 @@
     "search_count": "{count} pronađenih udruga u cijeloj Hrvatskoj",
     "retry": "Pokušaj ponovno",
     "back_results": "Natrag na rezultate",
+    "open_full_record": "Otvori cijeli zapis u registru",
+    "registry_notice": "Zapis u službenom Registru udruga. To ne znači da je udruga provjerena na DajSrcu niti da prima donacije.",
     "cluster_hint": "Povećajte grupu kako biste pregledali pojedinačne udruge. Svi aktivni službeni zapisi ostaju prikazani, a nacionalni prikaz ostaje brz.",
     "empty": "Nijedna ustanova ne odgovara ovom području i filtrima.",
     "bounded": "Prikazan je ograničen skup rezultata. Povećajte kartu ili suzite filtre.",

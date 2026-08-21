@@ -9,7 +9,24 @@ import {
   InstitutionDetailSkeleton,
 } from "@/components/InstitutionDetailPanel";
 import { useT } from "@/i18n/client";
+import type { AssociationRegistryEntry } from "@/lib/association-registry";
 import type { PublicInstitutionDetail } from "@/lib/location-map";
+import { RegistryDetailPanel } from "./registry-detail-panel";
+
+/**
+ * A pin is either an onboarded institution or a row of the official register,
+ * and the two carry different facts from different RPCs. The panel takes the
+ * discriminated pair rather than one nullable field per kind, so a stale value
+ * of the other kind cannot survive a selection change.
+ */
+export type MapDetail =
+  | { kind: "institution"; institution: PublicInstitutionDetail }
+  | { kind: "registry"; organisation: AssociationRegistryEntry };
+
+export function mapDetailName(detail: MapDetail | null): string | null {
+  if (!detail) return null;
+  return detail.kind === "institution" ? detail.institution.name : detail.organisation.name;
+}
 
 export type DetailOverlayProps = {
   open: boolean;
@@ -19,7 +36,7 @@ export type DetailOverlayProps = {
    * `inline` sits in the mobile sheet's own scroll region.
    */
   variant: "overlay" | "inline";
-  institution: PublicInstitutionDetail | null;
+  detail: MapDetail | null;
   loading: boolean;
   error: string | null;
   onClose: () => void;
@@ -39,7 +56,7 @@ export type DetailOverlayProps = {
 export function DetailOverlay({
   open,
   variant,
-  institution,
+  detail,
   loading,
   error,
   onClose,
@@ -89,7 +106,7 @@ export function DetailOverlay({
     <div
       ref={panelRef}
       role="dialog"
-      aria-label={institution?.name ?? t("map_page.loading")}
+      aria-label={mapDetailName(detail) ?? t("map_page.loading")}
       tabIndex={-1}
       data-ui-motion
       data-state={state}
@@ -131,8 +148,10 @@ export function DetailOverlay({
       >
         {loading ? (
           <InstitutionDetailSkeleton />
-        ) : institution ? (
-          <InstitutionDetailPanel institution={institution} showCloseButton={false} />
+        ) : detail?.kind === "institution" ? (
+          <InstitutionDetailPanel institution={detail.institution} showCloseButton={false} />
+        ) : detail?.kind === "registry" ? (
+          <RegistryDetailPanel organisation={detail.organisation} />
         ) : (
           <div
             role="alert"

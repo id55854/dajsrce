@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import clsx from "clsx";
 import {
   AlertTriangle,
@@ -28,12 +28,13 @@ import type { MapCommand, MapFilters, MapViewport } from "@/components/Map";
 import { FilterBar } from "@/components/FilterBar";
 import { MapLegalStrip } from "@/components/Footer";
 import { Button, Menu, Sheet, Skeleton } from "@/components/ui";
-import { DetailOverlay } from "./detail-overlay";
+import { DetailOverlay, type MapDetail } from "./detail-overlay";
 import { MapFilterPanel } from "./filter-panel";
 import { useMapStartPrompt } from "./use-map-start";
 import { MapPinLegend } from "./pin-legend";
 import { ResultsList, type ClusterRow, type InstitutionRow } from "./results-list";
 import { useLocale, useT } from "@/i18n/client";
+import type { AssociationRegistryEntry } from "@/lib/association-registry";
 import {
   CROATIA_INITIAL_VIEW,
   MAP_CITY_ZOOM,
@@ -46,6 +47,7 @@ import {
   maxBboxAreaForZoom,
   parseBrowserMapView,
   parseMapQuery,
+  splitRegistryFeatureId,
   type MapBounds,
   type MapQuery,
   type PublicInstitutionDetail,
@@ -234,7 +236,6 @@ function MapSurface() {
   const t = useT();
   const { locale } = useLocale();
   const compact = useCompactViewport();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const initial = useMemo(
     () => initialState(new URLSearchParams(searchParams.toString())),
@@ -257,7 +258,7 @@ function MapSurface() {
   const [features, setFeatures] = useState<PublicMapFeature[]>([]);
   const [meta, setMeta] = useState<MapMeta>(defaultMeta);
   const [selectedId, setSelectedId] = useState<string | null>(initial.selectedId);
-  const [selectedDetail, setSelectedDetail] = useState<PublicInstitutionDetail | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<MapDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -468,19 +469,31 @@ function MapSurface() {
     setDetailError(null);
     setDetailLoading(true);
 
+    const registryId = splitRegistryFeatureId(selectedId);
+
     (async () => {
       try {
-        const response = await fetch(`/api/v1/institutions/${selectedId}`, {
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          registryId
+            ? `/api/v1/organisations/${encodeURIComponent(registryId)}`
+            : `/api/v1/institutions/${selectedId}`,
+          { signal: controller.signal }
+        );
         const result = (await response.json()) as {
           institution?: PublicInstitutionDetail;
+          organisation?: AssociationRegistryEntry;
           error?: string;
         };
-        if (!response.ok || !result.institution) {
-          throw new Error("map_page.detail_error");
-        }
-        if (!controller.signal.aborted) setSelectedDetail(result.institution);
+        if (!response.ok) throw new Error("map_page.detail_error");
+        const next: MapDetail | null = registryId
+          ? result.organisation
+            ? { kind: "registry", organisation: result.organisation }
+            : null
+          : result.institution
+            ? { kind: "institution", institution: result.institution }
+            : null;
+        if (!next) throw new Error("map_page.detail_error");
+        if (!controller.signal.aborted) setSelectedDetail(next);
       } catch (error) {
         if (!controller.signal.aborted) {
           setDetailError(error instanceof Error ? error.message : "map_page.detail_error");
@@ -638,19 +651,16 @@ function MapSurface() {
     [nextCommandToken, resolveStart]
   );
 
-  const onSelect = useCallback(
-    (id: string) => {
-      if (id.startsWith("registry:")) {
-        router.push(`/organisations/${encodeURIComponent(id.slice("registry:".length))}`);
-        return;
-      }
-      setSelectedId(id);
-      // Open the sheet far enough that the detail is readable while the map
-      // stays visible above it.
-      setSheetDetent((current) => Math.max(current, SHEET_MIDDLE));
-    },
-    [router]
-  );
+  const onSelect = useCallback((id: string) => {
+    // Register pins used to navigate to `/organisations/[id]`, which replaced
+    // the map and the result list with a full page. Every kind of pin now
+    // opens the same side panel, and the full record stays one click away
+    // inside it.
+    setSelectedId(id);
+    // Open the sheet far enough that the detail is readable while the map
+    // stays visible above it.
+    setSheetDetent((current) => Math.max(current, SHEET_MIDDLE));
+  }, []);
 
   const closeDetail = useCallback(() => setSelectedId(null), []);
 
@@ -863,7 +873,7 @@ function MapSurface() {
             <DetailOverlay
               open={detailOpen && compact}
               variant="inline"
-              institution={selectedDetail}
+              detail={selectedDetail}
               loading={detailLoading}
               error={detailError}
               onClose={closeDetail}
@@ -936,7 +946,7 @@ function MapSurface() {
           <DetailOverlay
             open={detailOpen && !compact}
             variant="overlay"
-            institution={selectedDetail}
+            detail={selectedDetail}
             loading={detailLoading}
             error={detailError}
             onClose={closeDetail}
