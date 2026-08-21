@@ -8,6 +8,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  HeartHandshake,
   MapPin,
   Search,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { useLocale, useT } from "@/i18n/client";
 import type {
   AssociationDirectoryItem,
   AssociationDirectoryResponse,
+  EngagedDirectoryResponse,
 } from "@/lib/association-registry";
 import {
   Badge,
@@ -30,6 +32,15 @@ import {
 } from "@/components/ui";
 
 /** One status→tone map, shared with the detail page's treatment. */
+/**
+ * Both listings render the same cards and the same pager. Only the register
+ * computes facets, so the shared shape carries just items and meta.
+ */
+type DirectoryListing = {
+  items: AssociationDirectoryItem[];
+  meta: { total: number; page: number; pageSize: number; pageCount: number };
+};
+
 function statusTone(status: string): BadgeTone {
   if (status === "AKTIVAN") return "success";
   if (status === "BRISAN") return "neutral";
@@ -171,10 +182,15 @@ function DirectoryExperience() {
   const stableQuery = searchParams.toString();
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "");
   const [cityInput, setCityInput] = useState(searchParams.get("city") || "");
-  const [data, setData] = useState<AssociationDirectoryResponse | null>(null);
+  const [data, setData] = useState<DirectoryListing | null>(null);
+  // Facets describe the whole register. The onboarded listing does not compute
+  // them, so the last set is kept and reused rather than emptying the selects
+  // every time the toggle is flipped.
+  const [facets, setFacets] = useState<AssociationDirectoryResponse["facets"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const onlyOnboarded = searchParams.get("onboarded") === "1";
 
   useEffect(() => {
     setSearchInput(searchParams.get("q") || "");
@@ -185,14 +201,22 @@ function DirectoryExperience() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    fetch(`/api/v1/organisations${stableQuery ? `?${stableQuery}` : ""}`, {
-      signal: controller.signal,
-    })
+    fetch(
+      `/api/v1/organisations${onlyOnboarded ? "/engaged" : ""}${
+        stableQuery ? `?${stableQuery}` : ""
+      }`,
+      { signal: controller.signal }
+    )
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json() as Promise<AssociationDirectoryResponse>;
+        return response.json() as Promise<
+          AssociationDirectoryResponse | EngagedDirectoryResponse
+        >;
       })
-      .then(setData)
+      .then((response) => {
+        setData({ items: response.items, meta: response.meta });
+        if ("facets" in response) setFacets(response.facets);
+      })
       .catch((fetchError) => {
         if (fetchError instanceof DOMException && fetchError.name === "AbortError") return;
         setError(t("organisations.error"));
@@ -201,7 +225,7 @@ function DirectoryExperience() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [stableQuery, retry, t]);
+  }, [stableQuery, retry, t, onlyOnboarded]);
 
   function updateParams(changes: Record<string, string | null>, resetPage = true) {
     const params = new URLSearchParams(stableQuery);
@@ -232,9 +256,9 @@ function DirectoryExperience() {
     return new Intl.NumberFormat(locale).format(data.meta.total);
   }, [data, locale]);
 
-  const snapshotDate = data?.facets.snapshot?.metadata_modified
+  const snapshotDate = facets?.snapshot?.metadata_modified
     ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" })
-      .format(new Date(data.facets.snapshot.metadata_modified))
+      .format(new Date(facets.snapshot.metadata_modified))
     : null;
 
   const filtersActive = stableQuery.length > 0;
@@ -298,22 +322,6 @@ function DirectoryExperience() {
           </div>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label={t("organisations.status")}>
-              {(props) => (
-                <Select
-                  {...props}
-                  value={searchParams.get("status") || ""}
-                  onChange={(event) => updateParams({ status: event.target.value || null })}
-                >
-                  <option value="">{t("organisations.all_statuses")}</option>
-                  {(data?.facets.statuses || []).map((facet) => (
-                    <option key={facet.value} value={facet.value}>
-                      {statusLabel(facet.value, t)} ({facet.count})
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
             <Field label={t("organisations.county")}>
               {(props) => (
                 <Select
@@ -322,7 +330,7 @@ function DirectoryExperience() {
                   onChange={(event) => updateParams({ county: event.target.value || null })}
                 >
                   <option value="">{t("organisations.all_counties")}</option>
-                  {(data?.facets.counties || []).map((facet) => (
+                  {(facets?.counties || []).map((facet) => (
                     <option key={facet.value} value={facet.value}>
                       {facet.value} ({facet.count})
                     </option>
@@ -330,6 +338,7 @@ function DirectoryExperience() {
                 </Select>
               )}
             </Field>
+            {onlyOnboarded ? null : (
             <Field label={t("organisations.form")}>
               {(props) => (
                 <Select
@@ -338,7 +347,7 @@ function DirectoryExperience() {
                   onChange={(event) => updateParams({ form: event.target.value || null })}
                 >
                   <option value="">{t("organisations.all_forms")}</option>
-                  {(data?.facets.forms || []).map((facet) => (
+                  {(facets?.forms || []).map((facet) => (
                     <option key={facet.value} value={facet.value}>
                       {facet.value} ({facet.count})
                     </option>
@@ -346,6 +355,8 @@ function DirectoryExperience() {
                 </Select>
               )}
             </Field>
+            )}
+            {onlyOnboarded ? null : (
             <Field label={t("organisations.sort")}>
               {(props) => (
                 <Select
@@ -365,6 +376,35 @@ function DirectoryExperience() {
                 </Select>
               )}
             </Field>
+            )}
+          </div>
+          {/* The register is the national list; most of it is not reachable
+              here. This narrows it to the organisations that actually hold an
+              account, which is a different query rather than a client-side
+              filter, so the count and the pager stay truthful. */}
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border-subtle pt-4">
+            <button
+              type="button"
+              aria-pressed={onlyOnboarded}
+              onClick={() => updateParams({ onboarded: onlyOnboarded ? null : "1" })}
+              className={clsx(
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+                onlyOnboarded
+                  ? "border-brand bg-brand text-white"
+                  : "border-border-subtle text-ink-secondary hover:bg-surface-sunken hover:text-ink"
+              )}
+            >
+              <HeartHandshake className="h-4 w-4" aria-hidden />
+              {t("organisations.only_onboarded")}
+            </button>
+            <p className="text-sm text-ink-tertiary">
+              {t(
+                onlyOnboarded
+                  ? "organisations.only_onboarded_on"
+                  : "organisations.only_onboarded_off"
+              )}
+            </p>
           </div>
         </form>
       </Card>

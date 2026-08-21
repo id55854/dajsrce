@@ -47,6 +47,7 @@ import {
   maxBboxAreaForZoom,
   parseBrowserMapView,
   parseMapQuery,
+  SOCIAL_MAP_CATEGORIES,
   splitRegistryFeatureId,
   type MapBounds,
   type MapQuery,
@@ -82,6 +83,11 @@ const DEFAULT_FILTERS: MapFilters = {
   donationType: null,
   onlyZagreb: false,
   onlyUrgent: false,
+  onlyOnboarded: false,
+  // On by default: the register is mostly sports, culture and hobby
+  // associations, and a first-time visitor looking for somewhere to help
+  // should not have to filter those out before the map means anything.
+  onlySocial: true,
 };
 
 /**
@@ -163,6 +169,8 @@ function initialState(searchParams: URLSearchParams): {
         donationType: parsed.donationType,
         onlyZagreb: parsed.onlyZagreb,
         onlyUrgent: parsed.onlyUrgent,
+        onlyOnboarded: parsed.onlyOnboarded,
+        onlySocial: params.get("social") !== "0",
       },
       search: params.get("q") ?? "",
       selectedId: params.get("institution"),
@@ -331,22 +339,30 @@ function MapSurface() {
       donationType: filters.donationType,
       onlyZagreb: filters.onlyZagreb,
       onlyUrgent: filters.onlyUrgent,
+      onlyOnboarded: filters.onlyOnboarded,
       query: settledSearch || null,
       limit: MAP_FEATURE_LIMIT,
     }),
     [filters, settledSearch, viewport]
   );
-  const apiMapQuery = useMemo<MapQuery>(
-    () =>
-      mapQuery.query
-        ? {
-            ...mapQuery,
-            bbox: CROATIA_INITIAL_VIEW.bbox,
-            zoom: CROATIA_INITIAL_VIEW.zoom,
-          }
-        : mapQuery,
-    [mapQuery]
-  );
+  // `mapQuery` is what the URL describes; this is what the API is asked. The
+  // two differ in two places, and both differences are deliberately kept out
+  // of the address bar: a search covers the whole country regardless of the
+  // viewport, and "social only" expands into the twelve real categories rather
+  // than writing all twelve into the URL.
+  const apiMapQuery = useMemo<MapQuery>(() => {
+    const withCategories =
+      mapQuery.categories.length === 0 && filters.onlySocial
+        ? { ...mapQuery, categories: SOCIAL_MAP_CATEGORIES }
+        : mapQuery;
+    return withCategories.query
+      ? {
+          ...withCategories,
+          bbox: CROATIA_INITIAL_VIEW.bbox,
+          zoom: CROATIA_INITIAL_VIEW.zoom,
+        }
+      : withCategories;
+  }, [mapQuery, filters.onlySocial]);
 
   // Pan/zoom/filter/search stay on replaceState (they must not spam history).
   // Opening a selection pushes exactly one entry so Back closes the detail panel.
@@ -356,7 +372,7 @@ function MapSurface() {
     const query = buildBrowserMapParams({
       center: [(minLat + maxLat) / 2, (minLng + maxLng) / 2],
       zoom: mapQuery.zoom,
-      filters: mapQuery,
+      filters: { ...mapQuery, onlySocial: filters.onlySocial },
       query: mapQuery.query,
       // The selection is appended below, because `querySyncRef` has to hold the
       // view *without* it for the popstate repair.
@@ -392,7 +408,7 @@ function MapSurface() {
       return;
     }
     window.history.replaceState(window.history.state, "", url);
-  }, [mapQuery, selectedId]);
+  }, [mapQuery, selectedId, filters.onlySocial]);
 
   // Browser Back/Forward drives the selection, so Back closes the detail panel
   // instead of leaving the app.

@@ -8,6 +8,7 @@ import {
   normalizeMapSearch,
   parseMapQuery,
   projectHiddenLocation,
+  SOCIAL_MAP_CATEGORIES,
   type PublicMapResponse,
 } from "@/lib/location-map";
 
@@ -18,12 +19,24 @@ function validParams() {
   });
 }
 
+describe("social category shortcut", () => {
+  it("covers every category except the catch-all, and fits the RPC cap", () => {
+    // `map_association_registry_v*` raises on more than twelve categories, and
+    // the shortcut sends all of them at once, so the cap is a real boundary
+    // rather than a guideline.
+    expect(SOCIAL_MAP_CATEGORIES).toHaveLength(12);
+    expect(SOCIAL_MAP_CATEGORIES).not.toContain("association");
+    expect(new Set(SOCIAL_MAP_CATEGORIES).size).toBe(SOCIAL_MAP_CATEGORIES.length);
+  });
+});
+
 describe("map query contract", () => {
   it("normalizes, validates and bounds a public map query", () => {
     const params = validParams();
     params.set("categories", "soup_kitchen,caritas,soup_kitchen");
     params.set("donationType", "food");
     params.set("onlyUrgent", "true");
+    params.set("onlyOnboarded", "true");
     params.set("q", "  Pučka%__ KUHINJA  ");
 
     expect(parseMapQuery(params)).toEqual({
@@ -33,6 +46,7 @@ describe("map query contract", () => {
       donationType: "food",
       onlyZagreb: false,
       onlyUrgent: true,
+      onlyOnboarded: true,
       query: "pučka kuhinja",
       limit: MAP_FEATURE_LIMIT,
     });

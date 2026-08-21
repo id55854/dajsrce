@@ -211,11 +211,12 @@ Apply these new migrations in order before deploying the application commit:
 21. `20260812120000_institution_claims.sql`
 22. `20260812130000_donor_offers.sql`
 23. `20260812140000_engaged_association_directory.sql`
+24. `20260821120000_map_onboarded_filter_and_multiterm_search.sql`
 
 Mandatory release sequence:
 
 1. Take a database backup and record current migration history/policies/grants.
-2. Restore the backup into staging and apply all twenty-three migrations there.
+2. Restore the backup into staging and apply all twenty-four migrations there.
 3. Run RPC/RLS smoke tests for anonymous map/detail, signup/setup, NGO writes, pledges, volunteer tokens/checkout, tenant creation/invites/verification, Stripe retry, report generation and both cron routes.
 4. Run `npm ci`, `npm run check`, `npm audit`, `npm run build` and the map benchmark.
 5. Set production secrets/flags; configure authenticated POST schedulers.

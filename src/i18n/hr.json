@@ -62,18 +62,19 @@
   },
   "organisations_page": {
     "title": "Udruge",
-    "subtitle_register": "Sve udruge upisane u službeni Registar udruga Republike Hrvatske."
+    "subtitle_register": "Službeni Registar udruga Republike Hrvatske."
   },
   "organisations": {
     "title": "Registar udruga Republike Hrvatske",
     "subtitle": "Pretražite sve aktivne udruge u službenom registru. Zapis u registru ne znači da je organizacija verificirana na DajSrce platformi niti da prima donacije.",
     "official_source": "Službeni izvor: data.gov.hr",
+    "only_onboarded": "Samo udruge s računom",
+    "only_onboarded_on": "Prikazane su samo udruge koje imaju račun na DajSrcu i mogu primiti pomoć.",
+    "only_onboarded_off": "Prikazan je cijeli službeni registar. Većina upisanih udruga još nema račun na DajSrcu.",
     "updated": "Podaci ažurirani",
     "search_label": "Naziv, OIB, registarski broj ili adresa",
     "search_placeholder": "Upišite najmanje 2 znaka",
     "search_submit": "Pretraži",
-    "status": "Status",
-    "all_statuses": "Aktivne udruge",
     "county": "Županija",
     "all_counties": "Sve županije",
     "city": "Grad ili mjesto",
@@ -558,7 +559,10 @@
     "all": "Sve",
     "zagreb_only": "Samo Zagreb",
     "all_croatia": "Cijela Hrvatska",
-    "urgent_only": "Samo hitno"
+    "urgent_only": "Samo hitno",
+    "social_only": "Samo socijalne",
+    "all_associations": "Sve udruge",
+    "onboarded_only": "Samo s računom"
   },
   "needs_page": {
     "title": "Potrebe ustanova",

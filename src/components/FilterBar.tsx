@@ -84,6 +84,8 @@ export type FilterState = {
   donationType: DonationType | null;
   onlyZagreb: boolean;
   onlyUrgent: boolean;
+  onlyOnboarded: boolean;
+  onlySocial: boolean;
 };
 
 type FilterBarProps = {
@@ -186,6 +188,24 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           onClick={() => onChange({ ...filters, onlyUrgent: !filters.onlyUrgent })}
         >
           {t("filters.urgent_only")}
+        </FilterChip>
+
+        {/* Most of the register is sports, culture and hobby associations that
+            nobody comes here to find. This chip is on by default; turning it
+            off widens the map to every registered association, including the
+            ones the classifier could not place. */}
+        <FilterChip
+          aria-pressed={filters.onlySocial}
+          onClick={() => onChange({ ...filters, onlySocial: !filters.onlySocial })}
+        >
+          {filters.onlySocial ? t("filters.social_only") : t("filters.all_associations")}
+        </FilterChip>
+
+        <FilterChip
+          aria-pressed={filters.onlyOnboarded}
+          onClick={() => onChange({ ...filters, onlyOnboarded: !filters.onlyOnboarded })}
+        >
+          {t("filters.onboarded_only")}
         </FilterChip>
       </div>
     </div>

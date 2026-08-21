@@ -26,6 +26,7 @@ const releaseMigrations = [
   "20260812120000_institution_claims.sql",
   "20260812130000_donor_offers.sql",
   "20260812140000_engaged_association_directory.sql",
+  "20260821120000_map_onboarded_filter_and_multiterm_search.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -44,6 +45,43 @@ describe("release migration contracts", () => {
     )?.length ?? 0;
     expect(definitionCount).toBeGreaterThan(0);
     expect(hardenedCount).toBe(definitionCount);
+  });
+
+  it("gives the map an onboarded-only filter without leaving a stale overload", async () => {
+    const sql = await readFile(path.join(migrationsDirectory, "20260821120000_map_onboarded_filter_and_multiterm_search.sql"), "utf8");
+
+    for (const version of ["v1", "v2"]) {
+      const fn = `public.map_association_registry_${version}`;
+      // An added argument means the previous arity has to go. CREATE OR
+      // REPLACE alone would leave it callable, and that older overload
+      // would accept the same call and ignore the new filter.
+      expect(sql).toContain(`DROP FUNCTION IF EXISTS ${fn}(double precision, double precision, double precision, double precision, integer, text[], text, boolean, boolean, text, integer)`);
+      expect(sql).toContain(
+        `CREATE OR REPLACE FUNCTION ${fn}(p_min_lng double precision`
+      );
+      expect(sql).toContain("p_limit integer DEFAULT 150, p_only_onboarded boolean DEFAULT false)");
+      // Public map reads stay readable by the anonymous role.
+      expect(sql).toContain(
+        `GRANT EXECUTE ON FUNCTION ${fn}(double precision, double precision, double precision, double precision, integer, text[], text, boolean, boolean, text, integer, boolean) TO anon, authenticated, service_role`
+      );
+      expect(sql).toContain(`REVOKE ALL ON FUNCTION ${fn}(double precision, double precision, double precision, double precision, integer, text[], text, boolean, boolean, text, integer, boolean) FROM PUBLIC`);
+    }
+
+    // The filter has to belong to the query, not the client: the client
+    // only ever sees rows that already survived the feature budget, and
+    // the clustering decision is taken before that.
+    expect(sql).toContain("AND (NOT p_only_onboarded OR i.id IS NOT NULL)");
+  });
+
+  it("requires every search term to match rather than one contiguous run", async () => {
+    const sql = await readFile(path.join(migrationsDirectory, "20260821120000_map_onboarded_filter_and_multiterm_search.sql"), "utf8");
+    // The leading term stays a positive ILIKE so the GIN trigram index is
+    // still usable; the remaining terms only narrow what it returns.
+    expect(sql).toContain("FROM unnest(query_terms[2:]) AS term");
+    expect(sql).toContain("FROM unnest(v_terms[2:]) AS term");
+    // The register listing is built with EXECUTE, so the term array has to
+    // reach the dynamic statement and not just the count.
+    expect(sql).toContain("USING v_batch_id, v_terms, v_status");
   });
 
   it("keeps mutation and evidence RPCs service-only", async () => {

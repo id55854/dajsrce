@@ -62,18 +62,19 @@
   },
   "organisations_page": {
     "title": "Associations",
-    "subtitle_register": "Every association recorded in the official Croatian Register of Associations."
+    "subtitle_register": "The official register of associations of the Republic of Croatia."
   },
   "organisations": {
     "title": "Croatian Associations Register",
     "subtitle": "Search every active association in the official register. A registry record does not mean the organisation is verified by DajSrce or accepts donations.",
     "official_source": "Official source: data.gov.hr",
+    "only_onboarded": "Only organisations with an account",
+    "only_onboarded_on": "Showing only organisations that hold a DajSrce account and can receive help.",
+    "only_onboarded_off": "Showing the whole official register. Most entries do not have a DajSrce account yet.",
     "updated": "Data updated",
     "search_label": "Name, OIB, registry number or address",
     "search_placeholder": "Enter at least 2 characters",
     "search_submit": "Search",
-    "status": "Status",
-    "all_statuses": "Active associations",
     "county": "County",
     "all_counties": "All counties",
     "city": "City or locality",
@@ -558,7 +559,10 @@
     "all": "All",
     "zagreb_only": "Zagreb only",
     "all_croatia": "All Croatia",
-    "urgent_only": "Urgent only"
+    "urgent_only": "Urgent only",
+    "social_only": "Social only",
+    "all_associations": "All associations",
+    "onboarded_only": "With an account"
   },
   "needs_page": {
     "title": "Institution needs",

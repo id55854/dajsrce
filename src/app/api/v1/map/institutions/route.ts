@@ -121,6 +121,11 @@ async function queryIndexedRpc(query: MapQuery) {
     p_only_urgent: query.onlyUrgent,
     p_query: query.query,
     p_limit: query.limit,
+    // Sent only when set. The argument is newer than the deployed functions
+    // may be, and omitting it keeps an older signature resolvable; including
+    // it when it is genuinely required means a stale schema fails the request
+    // instead of quietly returning register rows the caller excluded.
+    ...(query.onlyOnboarded ? { p_only_onboarded: true } : {}),
   };
 
   let { data, error } = await supabase.rpc("map_association_registry_v2", parameters);

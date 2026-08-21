@@ -75,6 +75,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 21. `20260812120000_institution_claims.sql`
 22. `20260812130000_donor_offers.sql`
 23. `20260812140000_engaged_association_directory.sql`
+24. `20260821120000_map_onboarded_filter_and_multiterm_search.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 

@@ -37,6 +37,14 @@ export interface MapFilters {
   donationType: DonationType | null;
   onlyZagreb: boolean;
   onlyUrgent: boolean;
+  /** Narrow to organisations that hold an account here. Server-side. */
+  onlyOnboarded: boolean;
+  /**
+   * Hide register rows the classifier never placed in a social category.
+   * Purely a shortcut for selecting every social category at once, so it has
+   * no server contract of its own and an explicit category choice wins.
+   */
+  onlySocial: boolean;
 }
 
 export type MapViewport = {

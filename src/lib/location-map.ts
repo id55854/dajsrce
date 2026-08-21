@@ -64,6 +64,20 @@ export type PublicMapCitiesResponse = { cities: PublicMapCity[] };
  * apart, and they must do so from a URL alone, so the prefix is shared rather
  * than spelled out at each call site.
  */
+/**
+ * Every category except the catch-all `association`.
+ *
+ * `map_association_registry_v*` resolves a row's category as
+ * `coalesce(institution.category, directory.category, 'association')`, so the
+ * register rows the classifier never placed all arrive as `association`. Asking
+ * for these twelve is therefore the same as asking for "rows that were actually
+ * classified as something social", which is what the map wants by default. The
+ * RPC rejects more than twelve categories, and this is exactly twelve.
+ */
+export const SOCIAL_MAP_CATEGORIES: InstitutionCategory[] = (
+  Object.keys(CATEGORY_CONFIG) as InstitutionCategory[]
+).filter((category) => category !== "association");
+
 export const REGISTRY_ID_PREFIX = "registry:";
 
 export function splitRegistryFeatureId(featureId: string): string | null {
@@ -115,6 +129,7 @@ export type MapQuery = {
   donationType: DonationType | null;
   onlyZagreb: boolean;
   onlyUrgent: boolean;
+  onlyOnboarded: boolean;
   query: string | null;
   limit: number;
 };
@@ -322,6 +337,11 @@ export function parseMapQuery(searchParams: URLSearchParams): MapQuery {
     "onlyUrgent",
     issues
   );
+  const onlyOnboarded = parseBoolean(
+    searchParams.get("onlyOnboarded"),
+    "onlyOnboarded",
+    issues
+  );
 
   if (issues.length > 0) throw new MapQueryValidationError(issues);
 
@@ -332,6 +352,7 @@ export function parseMapQuery(searchParams: URLSearchParams): MapQuery {
     donationType: donationType as DonationType | null,
     onlyZagreb,
     onlyUrgent,
+    onlyOnboarded,
     query,
     limit,
   };
@@ -349,6 +370,7 @@ export function buildMapQueryString(query: MapQuery): string {
   if (query.donationType) params.set("donationType", query.donationType);
   if (query.onlyZagreb) params.set("onlyZagreb", "true");
   if (query.onlyUrgent) params.set("onlyUrgent", "true");
+  if (query.onlyOnboarded) params.set("onlyOnboarded", "true");
   if (query.query) params.set("q", query.query);
   return params.toString();
 }
@@ -389,7 +411,10 @@ export function buildBrowserMapParams({
 }: {
   center: [number, number];
   zoom: number;
-  filters: Pick<MapQuery, "categories" | "donationType" | "onlyZagreb" | "onlyUrgent">;
+  filters: Pick<
+    MapQuery,
+    "categories" | "donationType" | "onlyZagreb" | "onlyUrgent" | "onlyOnboarded"
+  > & { onlySocial: boolean };
   query: string | null;
   selectedId: string | null;
 }): URLSearchParams {
@@ -406,6 +431,9 @@ export function buildBrowserMapParams({
   if (filters.donationType) params.set("donationType", filters.donationType);
   if (filters.onlyZagreb) params.set("onlyZagreb", "true");
   if (filters.onlyUrgent) params.set("onlyUrgent", "true");
+  if (filters.onlyOnboarded) params.set("onlyOnboarded", "true");
+  // Social-only is the default, so only its absence is worth writing down.
+  if (!filters.onlySocial) params.set("social", "0");
   if (query) params.set("q", query);
   if (selectedId) params.set("institution", selectedId);
   return params;
