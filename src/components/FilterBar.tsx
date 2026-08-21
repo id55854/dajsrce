@@ -175,6 +175,13 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
         />
 
         <FilterChip
+          aria-pressed={filters.onlyOnboarded}
+          onClick={() => onChange({ ...filters, onlyOnboarded: !filters.onlyOnboarded })}
+        >
+          {t("filters.onboarded_only")}
+        </FilterChip>
+
+        <FilterChip
           aria-pressed={filters.onlyZagreb}
           onClick={() => onChange({ ...filters, onlyZagreb: !filters.onlyZagreb })}
         >
@@ -199,13 +206,6 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           onClick={() => onChange({ ...filters, onlySocial: !filters.onlySocial })}
         >
           {filters.onlySocial ? t("filters.social_only") : t("filters.all_associations")}
-        </FilterChip>
-
-        <FilterChip
-          aria-pressed={filters.onlyOnboarded}
-          onClick={() => onChange({ ...filters, onlyOnboarded: !filters.onlyOnboarded })}
-        >
-          {t("filters.onboarded_only")}
         </FilterChip>
       </div>
     </div>
