@@ -68,7 +68,7 @@
     "title": "Croatian Associations Register",
     "subtitle": "Search every active association in the official register. A registry record does not mean the organisation is verified by DajSrce or accepts donations.",
     "official_source": "Official source: data.gov.hr",
-    "only_onboarded": "Only organisations with an account",
+    "only_onboarded": "Organisations registered on DajSrce",
     "only_onboarded_on": "Showing only organisations that hold a DajSrce account and can receive help.",
     "only_onboarded_off": "Showing the whole official register. Most entries do not have a DajSrce account yet.",
     "updated": "Data updated",

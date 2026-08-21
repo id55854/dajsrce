@@ -27,6 +27,8 @@ const releaseMigrations = [
   "20260812130000_donor_offers.sql",
   "20260812140000_engaged_association_directory.sql",
   "20260821120000_map_onboarded_filter_and_multiterm_search.sql",
+  "20260821130000_map_onboarded_requires_account.sql",
+  "20260821140000_engaged_directory_requires_account.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -71,6 +73,28 @@ describe("release migration contracts", () => {
     // only ever sees rows that already survived the feature budget, and
     // the clustering decision is taken before that.
     expect(sql).toContain("AND (NOT p_only_onboarded OR i.id IS NOT NULL)");
+  });
+
+  it("counts an onboarded organisation by account, not by institution row", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260821130000_map_onboarded_requires_account.sql"),
+      "utf8"
+    );
+    // The bug this migration fixes: the registry promotion pipeline
+    // bulk-inserts an institutions row for every donation candidate the
+    // classifier finds, so `i.id IS NOT NULL` matched thousands of
+    // organisations nobody had ever signed up for.
+    expect(sql).not.toContain("AND (NOT p_only_onboarded OR i.id IS NOT NULL)");
+    expect(sql).toMatch(
+      /NOT p_only_onboarded\s+OR EXISTS \(\s*SELECT 1 FROM public\.profiles p\s+WHERE p\.institution_id = i\.id AND p\.role = 'ngo'/i
+    );
+    // Same signature as the migration before it: CREATE OR REPLACE is
+    // sufficient and there is no overload to drop.
+    expect(sql).toContain(
+      "CREATE OR REPLACE FUNCTION public.map_association_registry_v1(p_min_lng double precision"
+    );
+    expect(sql).not.toContain("DROP FUNCTION");
+    expect(sql).not.toContain("map_association_registry_v2");
   });
 
   it("requires every search term to match rather than one contiguous run", async () => {
@@ -410,5 +434,23 @@ describe("release migration contracts", () => {
     expect(sql).toMatch(
       /GRANT EXECUTE ON FUNCTION public\.engaged_association_directory_v1[\s\S]+TO anon, authenticated, service_role/i
     );
+  });
+
+  it("counts the register's engaged listing by account, not by institution row", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260821140000_engaged_directory_requires_account.sql"),
+      "utf8"
+    );
+    // Same bug as the map's onboarded filter, same fix: a bare institutions
+    // row can be an unclaimed registry-promotion candidate, not an account.
+    expect(sql).toMatch(
+      /JOIN public\.institutions i ON i\.id = d\.institution_id[\s\S]{0,400}EXISTS \(\s*SELECT 1 FROM public\.profiles p\s+WHERE p\.institution_id = i\.id AND p\.role = 'ngo'/i
+    );
+    expect(sql).toContain(
+      "CREATE OR REPLACE FUNCTION public.engaged_association_directory_v1("
+    );
+    // Same signature as before: no overload to drop, no grants to restate.
+    expect(sql).not.toContain("DROP FUNCTION");
+    expect(sql).not.toContain("GRANT EXECUTE");
   });
 });
