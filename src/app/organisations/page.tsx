@@ -1,77 +1,54 @@
-"use client";
-
-import { Suspense, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { QuickStartWizard } from "@/components/QuickStartWizard";
-import { NeedsClient } from "@/app/needs/needs-client";
-import { PageHeader, PageShell, Skeleton } from "@/components/ui";
-import { useT } from "@/i18n/client";
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { PageHeader, PageShell } from "@/components/ui";
+import { getTranslator } from "@/i18n/server";
 import { DirectoryLoading, DirectoryView } from "./directory-view";
 
 /**
- * One page for finding an organisation.
+ * The official register, and nothing else.
  *
- * This used to be three separate navigation entries answering three halves of
- * the same question — a 43,703-row official register, a grid of open needs,
- * and a "find help" wizard — so a visitor had to guess which tab held the
- * thing they wanted, and the register gave no hint that only a fraction of
- * those associations can actually be reached here.
+ * This page briefly carried four sub-views — the register, open needs, a "find
+ * help" wizard and a list of onboarded organisations. Only the register is
+ * actually about the register: needs and the wizard are ways of giving and now
+ * live under `/doniraj`, and the onboarded list became a filter on the register
+ * itself rather than a separate tab.
  *
- * The views share one heading and one URL. `?view=` is the only new state, and
- * the register keeps its own address (`/organisations`) so the 43,703 detail
- * pages beneath it keep their inbound links.
+ * A `?view=` value therefore no longer selects anything here. Rather than
+ * silently ignoring it and leaving an old link pointing at content it does not
+ * describe, every known value is redirected to where that content moved and
+ * anything else is canonicalised away.
  */
-const VIEWS = ["register", "needs", "help"] as const;
-type View = (typeof VIEWS)[number];
+const MOVED: Record<string, string> = {
+  needs: "/doniraj",
+  help: "/doniraj?view=explore",
+  // The onboarded-only list is becoming a filter on this page; until that
+  // filter ships, the register itself is the honest destination.
+  active: "/organisations",
+};
 
-const DEFAULT_VIEW: View = "register";
+export default async function OrganisationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const rawView = params.view;
+  const view = Array.isArray(rawView) ? rawView[0] : rawView;
 
-function parseView(raw: string | null): View {
-  return VIEWS.includes(raw as View) ? (raw as View) : DEFAULT_VIEW;
-}
+  if (view) redirect(MOVED[view] ?? "/organisations");
 
-export default function OrganisationsPage() {
-  return (
-    <Suspense fallback={<OrganisationsLoading />}>
-      <OrganisationsExperience />
-    </Suspense>
-  );
-}
-
-function OrganisationsLoading() {
-  return (
-    <PageShell>
-      <div className="mb-8">
-        <Skeleton className="h-10 w-80" />
-        <Skeleton className="mt-4 h-5 w-full max-w-3xl" />
-      </div>
-      <DirectoryLoading />
-    </PageShell>
-  );
-}
-
-function OrganisationsExperience() {
-  const t = useT();
-  const searchParams = useSearchParams();
-  const view = parseView(searchParams.get("view"));
-
-  const subtitle = useMemo(() => t(`organisations_page.subtitle_${view}`), [t, view]);
+  const t = await getTranslator();
 
   return (
     <PageShell>
       <PageHeader
         className="mb-5"
         title={t("organisations_page.title")}
-        subtitle={subtitle}
+        subtitle={t("organisations_page.subtitle_register")}
       />
-
-      {view === "register" ? (
+      <Suspense fallback={<DirectoryLoading />}>
         <DirectoryView />
-      ) : view === "needs" ? (
-        <NeedsClient />
-      ) : (
-        <QuickStartWizard />
-      )}
+      </Suspense>
     </PageShell>
   );
 }

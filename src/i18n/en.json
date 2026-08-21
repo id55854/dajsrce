@@ -37,9 +37,8 @@
   "nav": {
     "map": "Map",
     "organisations": "Directory",
-    "needs": "Needs",
+    "donate": "Donate",
     "volunteer": "Volunteer",
-    "find_help": "Find NGOs",
     "main_navigation": "Main navigation",
     "mobile_navigation": "Mobile navigation",
     "open_menu": "Open menu",
@@ -50,29 +49,20 @@
     "about": "About us",
     "offers": "I can give"
   },
+  "donate_page": {
+    "title": "Donate",
+    "views_label": "Way of giving",
+    "view_needs": "Needs",
+    "view_explore": "Explore options",
+    "subtitle_needs": "Open needs published by organisations. Pledge your help and the organisation confirms it on arrival.",
+    "subtitle_explore": "Answer a few questions and we will find organisations that need exactly what you can give.",
+    "offer_cta_title": "Have something specific to give?",
+    "offer_cta_body": "Publish an offer and verified organisations claim it themselves. Your contact details are shared only once you accept.",
+    "offer_cta_action": "I can donate"
+  },
   "organisations_page": {
     "title": "Associations",
-    "views_label": "View",
-    "view_active": "Active",
-    "view_register": "Register",
-    "view_needs": "Needs",
-    "view_help": "I need help",
-    "subtitle_active": "Associations with a DajSrce account that can receive your help.",
-    "subtitle_register": "Every association recorded in the official Croatian Register of Associations.",
-    "subtitle_needs": "Open needs published by associations.",
-    "subtitle_help": "Answer a few questions and we will find associations that help."
-  },
-  "organisations_active": {
-    "filter_with_needs": "With open posts",
-    "filter_verified": "Verified",
-    "count": "{count} associations",
-    "open_count": "{count} open needs",
-    "urgent_count": "{count} urgent",
-    "no_open": "No open needs right now.",
-    "open_profile": "Open profile",
-    "empty": "No associations match this selection.",
-    "empty_hint": "Clear the filters or browse the full register.",
-    "error": "The association list is temporarily unavailable."
+    "subtitle_register": "Every association recorded in the official Croatian Register of Associations."
   },
   "organisations": {
     "title": "Croatian Associations Register",
@@ -652,7 +642,16 @@
     "field_legal_name": "Registered name",
     "field_address": "Registered address",
     "field_contact": "Contact",
-    "registration_note": "DajSrce is a non-profit association. The details published here can be verified in the public Croatian Register of Associations."
+    "registration_note": "DajSrce is a non-profit association. The details published here can be verified in the public Croatian Register of Associations.",
+    "team_title": "Who is behind DajSrce",
+    "team_body": "DajSrce is built by JužinAI — a team from the Faculty of Electrical Engineering and Computing in Zagreb. It started at the Cursor Hackathon Zagreb 2026 and is now being developed together with the City of Zagreb.",
+    "team_role_strategy": "Strategy and finance",
+    "team_role_ai": "AI and frontend",
+    "team_role_fullstack": "Full-stack engineering",
+    "team_role_vision": "Computer vision and NLP",
+    "team_role_ml": "Applied machine learning",
+    "team_role_student": "Fifth-year student at FER"
+
   },
   "a11y": {
     "dialog_label": "Accessibility settings",

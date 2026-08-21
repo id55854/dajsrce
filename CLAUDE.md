@@ -9,7 +9,8 @@ DajSrce is a nationwide Croatian donation, volunteering and company-impact platf
 Core domains:
 
 - public institution discovery through viewport-bounded map/detail APIs, served at `/`;
-- one merged `/organisations` surface with four views (active, register, needs, help); `/needs` and `/quick-start` redirect into it;
+- `/organisations` is the official register only; an unknown `?view=` is redirected, never silently ignored;
+- one merged `/doniraj` surface for giving, with a needs view and a donation wizard; `/needs` and `/quick-start` redirect into it, and `/offers` stays its own noindex route because an offer is personal data;
 - citizen donation offers that verified organisations claim;
 - NGO needs, acknowledgement-backed pledges and opted-in nearby notifications;
 - volunteer events, capacity-safe signup, hashed QR check-in and idempotent checkout hours;

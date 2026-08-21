@@ -16,7 +16,7 @@ export default function NewCompanyActionPage() {
           acknowledgement instead.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/organisations?view=needs" className={buttonClasses()}>
+          <Link href="/doniraj" className={buttonClasses()}>
             Find an NGO need
           </Link>
           <Link href="/dashboard/company" className={buttonClasses({ variant: "secondary" })}>

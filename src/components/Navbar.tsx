@@ -34,14 +34,12 @@ import { useT } from "@/i18n/client";
 //
 // The register, open needs and the "find help" wizard used to be three entries
 // answering three halves of one question. They are now views of a single
-// Associations page, and `/needs` and `/quick-start` redirect into it.
+// register, and `/needs` and `/quick-start` redirect into the Donate page.
 const navLinks = [
   { href: "/", labelKey: "nav.map" },
   { href: "/organisations", labelKey: "nav.organisations" },
-  { href: "/organisations?view=needs", labelKey: "nav.needs" },
-  { href: "/organisations?view=help", labelKey: "nav.find_help" },
+  { href: "/doniraj", labelKey: "nav.donate" },
   { href: "/volunteer", labelKey: "nav.volunteer" },
-  { href: "/offers", labelKey: "nav.offers" },
   { href: "/o-nama", labelKey: "nav.about" },
 ] as const;
 

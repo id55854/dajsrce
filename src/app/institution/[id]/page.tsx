@@ -225,7 +225,7 @@ export default async function InstitutionPublicPage({
               icon={<PackageSearch className="h-10 w-10" aria-hidden="true" />}
               title={t("needs_page.empty")}
               action={
-                <Link href="/organisations?view=needs" className={buttonClasses({ variant: "secondary" })}>
+                <Link href="/doniraj" className={buttonClasses({ variant: "secondary" })}>
                   {t("needs_page.browse_needs")}
                 </Link>
               }

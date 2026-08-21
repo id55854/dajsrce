@@ -43,8 +43,8 @@ export default async function Hub() {
           icon={<MapPin className="h-5 w-5" aria-hidden />}
         />
         <HomeCard
-          href="/organisations?view=needs"
-          title={t("nav.needs")}
+          href="/doniraj"
+          title={t("nav.donate")}
           desc={t("hub.needs_desc")}
           icon={<PackageSearch className="h-5 w-5" aria-hidden />}
         />

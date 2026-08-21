@@ -103,7 +103,13 @@ export function Dialog({
         </div>
 
         {children ? <div className="mt-4">{children}</div> : null}
-        {footer ? <div className="mt-6 flex gap-3">{footer}</div> : null}
+        {footer ? (
+          // Two `fullWidth` buttons in one flex row overflow the panel: `w-full`
+          // resolves to 100% each and content keeps them from shrinking, which
+          // pushed the secondary action outside the dialog. Stack on phones,
+          // and let them share the row once `min-w-0` allows shrinking.
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row [&>*]:min-w-0">{footer}</div>
+        ) : null}
       </div>
     </div>,
     document.body

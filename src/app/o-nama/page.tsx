@@ -22,6 +22,18 @@ const PILLARS = [
   { key: "evidence", icon: HeartHandshake },
 ] as const;
 
+// The page promises the reader they will learn who is behind DajSrce, so the
+// names belong here rather than in a footer. Roles are translated; names are
+// not, because a person's name is the same in every locale.
+const TEAM = [
+  { name: "Ivan Dražetić", roleKey: "strategy" },
+  { name: "Ana Gašperov", roleKey: "ai" },
+  { name: "Eni Magdalena Oreč", roleKey: "fullstack" },
+  { name: "Erna Topalović", roleKey: "vision" },
+  { name: "Klara Katić", roleKey: "ml" },
+  { name: "Filip Knapić", roleKey: "student" },
+] as const;
+
 export default async function AboutPage() {
   const t = await getTranslator();
   const locale = await getLocale();
@@ -44,6 +56,25 @@ export default async function AboutPage() {
           <p>{t("about.mission_body_1")}</p>
           <p>{t("about.mission_body_2")}</p>
         </div>
+      </section>
+
+      <section aria-labelledby="about-team" className="mb-10">
+        <SectionHeader id="about-team" title={t("about.team_title")} />
+        <p className="mt-4 text-base leading-7 text-ink-secondary">
+          {t("about.team_body")}
+        </p>
+        <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {TEAM.map(({ name, roleKey }) => (
+            <li key={name}>
+              <Card className="h-full">
+                <p className="text-sm font-semibold text-ink">{name}</p>
+                <p className="mt-1 text-sm text-ink-secondary">
+                  {t(`about.team_role_${roleKey}`)}
+                </p>
+              </Card>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="about-pillars" className="mb-10">

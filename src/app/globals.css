@@ -59,14 +59,16 @@
   --nav-height: 4rem;          /* keep in sync with the Navbar's h-16        */
 
   /* --- layering ----------------------------------------------------------
-     One ladder for the whole app. Leaflet's internal panes (200–700) and
-     controls can be high, so global modals intentionally sit above them.     */
+     One ladder for the whole app. Leaflet's internal panes (200–700) are
+     contained by `isolation: isolate` on the map wrapper, and `Dialog`
+     portals to `document.body`, so neither ever needs out-bidding with a
+     four-digit z-index.                                                     */
   --z-base: 0;
   --z-chrome: 40;      /* sticky navbar, floating map controls               */
   --z-dropdown: 50;    /* menus, popovers, comboboxes                        */
   --z-sheet: 60;       /* bottom sheets and their scrim                      */
-  --z-modal: 1000;     /* dialogs and their scrim                            */
-  --z-toast: 1100;     /* transient notifications, above everything          */
+  --z-modal: 70;       /* dialogs and their scrim                            */
+  --z-toast: 80;       /* transient notifications, above everything          */
 }
 
 .dark {

@@ -37,9 +37,8 @@
   "nav": {
     "map": "Karta",
     "organisations": "Registar",
-    "needs": "Potrebe",
+    "donate": "Doniraj",
     "volunteer": "Volontiraj",
-    "find_help": "Pronađi NGO",
     "main_navigation": "Glavna navigacija",
     "mobile_navigation": "Mobilna navigacija",
     "open_menu": "Otvori izbornik",
@@ -50,29 +49,20 @@
     "about": "O nama",
     "offers": "Mogu darovati"
   },
+  "donate_page": {
+    "title": "Doniraj",
+    "views_label": "Način darivanja",
+    "view_needs": "Potrebe",
+    "view_explore": "Istraži mogućnosti",
+    "subtitle_needs": "Otvorene potrebe koje su udruge objavile. Obećajte pomoć i udruga je potvrđuje kad je zaprimi.",
+    "subtitle_explore": "Odgovorite na nekoliko pitanja i pronaći ćemo udruge kojima odgovara upravo ono što možete dati.",
+    "offer_cta_title": "Imate nešto konkretno za dati?",
+    "offer_cta_body": "Objavite ponudu i provjerene udruge same je zatraže. Kontakt dijelite tek kad prihvatite zahtjev.",
+    "offer_cta_action": "Mogu darovati"
+  },
   "organisations_page": {
     "title": "Udruge",
-    "views_label": "Način pregleda",
-    "view_active": "Aktivne",
-    "view_register": "Registar",
-    "view_needs": "Potrebe",
-    "view_help": "Trebam pomoć",
-    "subtitle_active": "Udruge koje imaju račun na DajSrcu i mogu primiti vašu pomoć.",
-    "subtitle_register": "Sve udruge upisane u službeni Registar udruga Republike Hrvatske.",
-    "subtitle_needs": "Otvorene potrebe koje su udruge objavile.",
-    "subtitle_help": "Odgovorite na nekoliko pitanja i pronaći ćemo udruge koje pomažu."
-  },
-  "organisations_active": {
-    "filter_with_needs": "S aktivnim objavama",
-    "filter_verified": "Provjerene",
-    "count": "{count} udruga",
-    "open_count": "{count} otvorenih potreba",
-    "urgent_count": "{count} hitno",
-    "no_open": "Trenutačno nema otvorenih potreba.",
-    "open_profile": "Otvori profil",
-    "empty": "Nema udruga koje odgovaraju odabiru.",
-    "empty_hint": "Uklonite filtre ili pogledajte cijeli registar.",
-    "error": "Popis udruga trenutačno nije dostupan."
+    "subtitle_register": "Sve udruge upisane u službeni Registar udruga Republike Hrvatske."
   },
   "organisations": {
     "title": "Registar udruga Republike Hrvatske",
@@ -652,7 +642,16 @@
     "field_legal_name": "Puni naziv",
     "field_address": "Adresa sjedišta",
     "field_contact": "Kontakt",
-    "registration_note": "DajSrce je neprofitna udruga. Objavljeni podaci mogu se provjeriti u javnom Registru udruga Republike Hrvatske."
+    "registration_note": "DajSrce je neprofitna udruga. Objavljeni podaci mogu se provjeriti u javnom Registru udruga Republike Hrvatske.",
+    "team_title": "Tko stoji iza DajSrca",
+    "team_body": "DajSrce gradi JužinAI — ekipa s Fakulteta elektrotehnike i računarstva u Zagrebu. Nastalo je na Cursor Hackathonu u Zagrebu 2026., a danas ga razvijamo zajedno s Gradom Zagrebom.",
+    "team_role_strategy": "Strategija i financije",
+    "team_role_ai": "AI i frontend",
+    "team_role_fullstack": "Full-stack razvoj",
+    "team_role_vision": "Računalni vid i NLP",
+    "team_role_ml": "Primijenjeno strojno učenje",
+    "team_role_student": "Student 5. godine FER-a"
+
   },
   "a11y": {
     "dialog_label": "Postavke pristupačnosti",
