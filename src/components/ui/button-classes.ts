@@ -41,7 +41,7 @@ export function buttonClasses({
   className?: string;
 } = {}): string {
   return clsx(
-    "inline-flex shrink-0 items-center justify-center rounded-full font-semibold",
+    "inline-flex items-center justify-center rounded-full font-semibold",
     "transition-[background-color,border-color,color,box-shadow,transform,filter]",
     "duration-150 ease-out",
     // Feedback lands on press, not on release.
@@ -50,7 +50,14 @@ export function buttonClasses({
     "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60",
     VARIANTS[variant],
     SIZES[size],
-    fullWidth && "w-full",
+    // `shrink-0` is right for a button sitting among other content — it
+    // should keep its label's width, not get squeezed. It is wrong for a
+    // `fullWidth` button: two of them side by side in a dialog footer each
+    // resolve to 100% width, and `shrink-0` refused to let flexbox negotiate
+    // that down, pushing the second button outside the dialog panel.
+    // `min-w-0` is what actually lets a shrinkable flex item settle below its
+    // label's content width.
+    fullWidth ? "w-full min-w-0" : "shrink-0",
     className
   );
 }

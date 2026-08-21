@@ -254,7 +254,8 @@
     "deliver_confirm": "Da, predao/la sam",
     "deliver_success": "Obećanje je označeno kao odrađeno",
     "deliver_error": "Obećanje nije označeno kao odrađeno",
-    "deliver_error_locked": "Otkazana i već potvrđena obećanja ne mogu se označiti kao odrađena."
+    "deliver_error_locked": "Otkazana i već potvrđena obećanja ne mogu se označiti kao odrađena.",
+    "filter_empty": "Nema obećanja s odabranim statusom."
   },
   "quick_start": {
     "page_title": "Pronađite NGO za pomoć",
@@ -540,8 +541,8 @@
     "unread_count": "Obavijesti, nepročitano: {count}"
   },
   "dashboard_individual": {
-    "title": "Osobna nadzorna ploča",
-    "subtitle": "Povijest darovanja, volontiranja i pošiljki na jednom mjestu.",
+    "title": "Moj profil",
+    "subtitle": "Povijest darovanja i volontiranja na jednom mjestu.",
     "your_account": "Vaš račun",
     "email_label": "E-pošta",
     "role_label": "Uloga",

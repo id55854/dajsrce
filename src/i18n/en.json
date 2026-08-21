@@ -254,7 +254,8 @@
     "deliver_confirm": "Yes, I handed it over",
     "deliver_success": "Pledge marked as handed over",
     "deliver_error": "The pledge was not marked as handed over",
-    "deliver_error_locked": "Cancelled and already confirmed pledges cannot be marked as handed over."
+    "deliver_error_locked": "Cancelled and already confirmed pledges cannot be marked as handed over.",
+    "filter_empty": "No pledges with this status."
   },
   "quick_start": {
     "page_title": "Find NGOs to help",
@@ -540,8 +541,8 @@
     "unread_count": "Notifications, {count} unread"
   },
   "dashboard_individual": {
-    "title": "Individual Dashboard",
-    "subtitle": "Donation history, volunteer actions, and shipment tracking in one place.",
+    "title": "My profile",
+    "subtitle": "Donation and volunteering history in one place.",
     "your_account": "Your account",
     "email_label": "Email",
     "role_label": "Role",

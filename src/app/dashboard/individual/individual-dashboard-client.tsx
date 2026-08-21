@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
-import { CalendarHeart, Clock, Heart, MapPin, PackageCheck } from "lucide-react";
+import { CalendarHeart, Clock, Heart, MapPin } from "lucide-react";
 import type { AuthProfile } from "@/lib/auth/profile";
 import type { Pledge, Shipment } from "@/lib/types";
 import { DONATION_TYPES } from "@/lib/constants";
 import { useLocale, useT } from "@/i18n/client";
 import { createClient } from "@/lib/supabase/client";
 import { CancelActionButton } from "@/components/YourPledgesSection";
+import { FilterChip } from "@/components/FilterBar";
 import type { AppRole } from "@/lib/auth/roles";
 import {
   Badge,
@@ -81,6 +82,14 @@ const STATUS: Record<string, { tone: BadgeTone; key: string }> = {
   cancelled: { tone: "neutral", key: "your_pledges.status_cancelled" },
 };
 
+/** Status filter chips, in the same order the lifecycle usually runs. */
+const STATUS_FILTERS: readonly PledgeRow["status"][] = [
+  "pledged",
+  "delivered",
+  "confirmed",
+  "cancelled",
+];
+
 function roleTranslationKey(role: AppRole): string {
   if (role === "ngo") return "dashboard_individual.role_ngo";
   if (role === "company") return "dashboard_individual.role_company";
@@ -99,6 +108,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
   const [signupsLoading, setSignupsLoading] = useState(true);
   const [signupsError, setSignupsError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<PledgeRow["status"] | "all">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -155,10 +165,15 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
     };
   }, [profile.id, reload, t]);
 
-  const recent = pledges.slice(0, 8);
+  // The status filter narrows the list below only — the stat tiles above
+  // report the whole account regardless of what's currently filtered.
+  const filteredPledges =
+    statusFilter === "all"
+      ? pledges
+      : pledges.filter((item) => item.status === statusFilter);
+  const recent = filteredPledges.slice(0, 8);
   // A withdrawn pledge is not a donation, so it must not inflate the count.
   const active = pledges.filter((item) => item.status !== "cancelled").length;
-  const withShipment = pledges.filter((item) => item.shipment).length;
 
   return (
     <PageShell width="content">
@@ -197,16 +212,11 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
           </dl>
         </Card>
 
-        <section className="grid gap-4 sm:grid-cols-3">
+        <section className="grid gap-4 sm:grid-cols-2">
           <Stat
             icon={<Heart className="h-4 w-4" aria-hidden="true" />}
             label={t("dashboard_individual.stat_donations")}
             value={loading ? <Skeleton className="h-8 w-12" /> : active}
-          />
-          <Stat
-            icon={<PackageCheck className="h-4 w-4" aria-hidden="true" />}
-            label={t("dashboard_individual.stat_shipping")}
-            value={loading ? <Skeleton className="h-8 w-12" /> : withShipment}
           />
           {/* This was a hardcoded `0` presented as a measurement. There is no
               volunteer-hours query on this surface yet, so it shows an em-dash
@@ -245,7 +255,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
                 </Button>
               }
             />
-          ) : recent.length === 0 ? (
+          ) : pledges.length === 0 ? (
             <EmptyState
               title={t("dashboard_individual.no_actions")}
               action={
@@ -255,69 +265,94 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
               }
             />
           ) : (
-            <ul className="space-y-3">
-              {recent.map((pl) => {
-                const need = pl.need;
-                const typeLabel = need
-                  ? DONATION_TYPES[need.donation_type as keyof typeof DONATION_TYPES]?.label ??
-                    need.donation_type
-                  : "";
-                const when = formatDistanceToNow(new Date(pl.created_at), { addSuffix: true });
-                const status = STATUS[pl.status] ?? STATUS.pledged!;
-                return (
-                  <li
-                    key={pl.id}
-                    className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised"
+            <>
+              <div className="mb-3 flex flex-wrap gap-2">
+                <FilterChip
+                  aria-pressed={statusFilter === "all"}
+                  onClick={() => setStatusFilter("all")}
+                >
+                  {t("filters.all")}
+                </FilterChip>
+                {STATUS_FILTERS.map((key) => (
+                  <FilterChip
+                    key={key}
+                    aria-pressed={statusFilter === key}
+                    onClick={() => setStatusFilter(key)}
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-ink">{need?.title ?? "—"}</p>
-                        <p className="text-sm text-ink-secondary">
-                          {need?.institution?.name ?? "—"}
-                        </p>
-                        <p className="mt-1 text-xs text-ink-tertiary">{typeLabel}</p>
-                        {pl.shipment ? (
-                          <p className="mt-1 text-xs text-info">
-                            {t("dashboard_individual.shipment_prefix")} {pl.shipment.status}
-                          </p>
+                    {t(STATUS[key]!.key)}
+                  </FilterChip>
+                ))}
+              </div>
+              {recent.length === 0 ? (
+                <p className="text-sm text-ink-secondary">{t("your_pledges.filter_empty")}</p>
+              ) : (
+                <ul className="space-y-3">
+                  {recent.map((pl) => {
+                    const need = pl.need;
+                    const typeLabel = need
+                      ? DONATION_TYPES[need.donation_type as keyof typeof DONATION_TYPES]
+                          ?.label ?? need.donation_type
+                      : "";
+                    const when = formatDistanceToNow(new Date(pl.created_at), {
+                      addSuffix: true,
+                    });
+                    const status = STATUS[pl.status] ?? STATUS.pledged!;
+                    return (
+                      <li
+                        key={pl.id}
+                        className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-ink">{need?.title ?? "—"}</p>
+                            <p className="text-sm text-ink-secondary">
+                              {need?.institution?.name ?? "—"}
+                            </p>
+                            <p className="mt-1 text-xs text-ink-tertiary">{typeLabel}</p>
+                            {pl.shipment ? (
+                              <p className="mt-1 text-xs text-info">
+                                {t("dashboard_individual.shipment_prefix")} {pl.shipment.status}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
+                            <Badge tone={status.tone}>{t(status.key)}</Badge>
+                            <time dateTime={pl.created_at} className="text-xs text-ink-tertiary">
+                              {when}
+                            </time>
+                          </div>
+                        </div>
+                        {pl.status === "pledged" ? (
+                          <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
+                            <CancelActionButton
+                              endpoint={`/api/pledges/${pl.id}`}
+                              label={t("your_pledges.cancel")}
+                              title={t("your_pledges.cancel_title")}
+                              description={t("your_pledges.cancel_body", {
+                                title: need?.title ?? "",
+                              })}
+                              confirmLabel={t("your_pledges.cancel_confirm")}
+                              successTitle={t("your_pledges.cancel_success")}
+                              errorTitle={t("your_pledges.cancel_error")}
+                              conflictDescription={t("your_pledges.cancel_error_locked")}
+                              onCancelled={() =>
+                                setPledges((prev) =>
+                                  prev.map((row) =>
+                                    row.id === pl.id
+                                      ? { ...row, status: "cancelled" as const }
+                                      : row
+                                  )
+                                )
+                              }
+                            />
+                          </div>
                         ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
-                        <Badge tone={status.tone}>{t(status.key)}</Badge>
-                        <time dateTime={pl.created_at} className="text-xs text-ink-tertiary">
-                          {when}
-                        </time>
-                      </div>
-                    </div>
-                    {pl.status === "pledged" ? (
-                      <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
-                        <CancelActionButton
-                          endpoint={`/api/pledges/${pl.id}`}
-                          label={t("your_pledges.cancel")}
-                          title={t("your_pledges.cancel_title")}
-                          description={t("your_pledges.cancel_body", {
-                            title: need?.title ?? "",
-                          })}
-                          confirmLabel={t("your_pledges.cancel_confirm")}
-                          successTitle={t("your_pledges.cancel_success")}
-                          errorTitle={t("your_pledges.cancel_error")}
-                          conflictDescription={t("your_pledges.cancel_error_locked")}
-                          onCancelled={() =>
-                            setPledges((prev) =>
-                              prev.map((row) =>
-                                row.id === pl.id
-                                  ? { ...row, status: "cancelled" as const }
-                                  : row
-                              )
-                            )
-                          }
-                        />
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
           )}
         </section>
 

@@ -64,13 +64,10 @@ export default async function AboutPage() {
           {t("about.team_body")}
         </p>
         <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {TEAM.map(({ name, roleKey }) => (
+          {TEAM.map(({ name }) => (
             <li key={name}>
               <Card className="h-full">
                 <p className="text-sm font-semibold text-ink">{name}</p>
-                <p className="mt-1 text-sm text-ink-secondary">
-                  {t(`about.team_role_${roleKey}`)}
-                </p>
               </Card>
             </li>
           ))}

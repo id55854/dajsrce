@@ -7,6 +7,7 @@ import { useT } from "@/i18n/client";
 import { timeAgo } from "@/lib/utils";
 import { Badge, Button, Dialog, Skeleton, useToast } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui";
+import { FilterChip } from "@/components/FilterBar";
 
 /** Shape returned by GET /api/pledges (with `need:needs(*, institution:...)`). */
 export type YourPledgeRow = {
@@ -37,6 +38,14 @@ const STATUS: Record<YourPledgeRow["status"], { tone: BadgeTone; key: string }> 
 };
 
 const VISIBLE_LIMIT = 6;
+
+/** Status filter chips, in the same order the lifecycle usually runs. */
+const STATUS_FILTERS: readonly YourPledgeRow["status"][] = [
+  "pledged",
+  "delivered",
+  "confirmed",
+  "cancelled",
+];
 
 /**
  * Confirm-then-write affordance shared by every irreversible control over a
@@ -231,6 +240,13 @@ export function YourPledgesSection({
   // that has just been handed over is remembered here and re-rendered with the
   // `delivered` tone rather than snapping back to `pledged`.
   const [deliveredIds, setDeliveredIds] = useState<Set<string>>(() => new Set());
+  const [statusFilter, setStatusFilter] = useState<YourPledgeRow["status"] | "all">("all");
+
+  // The locally-remembered cancel/deliver overrides (above) have to win here
+  // too, or filtering by "Dostavljeno" right after marking one delivered
+  // would drop it until the parent refetches.
+  const effectiveStatus = (p: YourPledgeRow): YourPledgeRow["status"] =>
+    cancelledIds.has(p.id) ? "cancelled" : deliveredIds.has(p.id) ? "delivered" : p.status;
 
   if (!loggedIn) {
     return (
@@ -260,8 +276,12 @@ export function YourPledgesSection({
     );
   }
 
-  const visible = pledges.slice(0, VISIBLE_LIMIT);
-  const overflow = pledges.length - visible.length;
+  const filtered =
+    statusFilter === "all"
+      ? pledges
+      : pledges.filter((p) => effectiveStatus(p) === statusFilter);
+  const visible = filtered.slice(0, VISIBLE_LIMIT);
+  const overflow = filtered.length - visible.length;
 
   return (
     <SectionWrapper
@@ -277,101 +297,118 @@ export function YourPledgesSection({
         </Link>
       }
     >
-      <ul className="flex snap-x gap-3 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible" role="list">
-        {visible.map((p) => {
-          const state = cancelledIds.has(p.id)
-            ? "cancelled"
-            : deliveredIds.has(p.id)
-              ? "delivered"
-              : p.status;
-          const status = STATUS[state] ?? STATUS.pledged;
-          return (
-            <li key={p.id} className="w-72 shrink-0 snap-start md:max-w-xs">
-              <article className="flex h-full flex-col rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <Badge
-                    tone={status.tone}
-                    size="sm"
-                    icon={
-                      state === "delivered" || state === "confirmed" ? (
-                        <PackageCheck className="h-3 w-3" aria-hidden="true" />
-                      ) : (
-                        <Heart className="h-3 w-3" aria-hidden="true" />
-                      )
-                    }
-                  >
-                    {t(status.key)}
-                  </Badge>
-                  <time className="shrink-0 text-xs text-ink-tertiary" dateTime={p.created_at}>
-                    {timeAgo(p.created_at)}
-                  </time>
-                </div>
-                <h3 className="line-clamp-2 text-sm font-semibold text-ink">
-                  {p.need?.title ?? "—"}
-                </h3>
-                {p.need?.institution?.name ? (
-                  <p className="mt-0.5 line-clamp-1 text-xs text-ink-secondary">
-                    {p.need.institution.name}
-                  </p>
-                ) : null}
-                <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                  <div>
-                    <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
-                      {t("your_pledges.qty_label")}:{" "}
-                    </dt>
-                    <dd className="inline font-semibold tabular-nums text-ink">{p.quantity}</dd>
+      <div className="mb-3 flex flex-wrap gap-2">
+        <FilterChip aria-pressed={statusFilter === "all"} onClick={() => setStatusFilter("all")}>
+          {t("filters.all")}
+        </FilterChip>
+        {STATUS_FILTERS.map((key) => (
+          <FilterChip
+            key={key}
+            aria-pressed={statusFilter === key}
+            onClick={() => setStatusFilter(key)}
+          >
+            {t(STATUS[key].key)}
+          </FilterChip>
+        ))}
+      </div>
+      {filtered.length === 0 ? (
+        <p className="text-sm text-ink-secondary">{t("your_pledges.filter_empty")}</p>
+      ) : (
+        <ul
+          className="flex snap-x gap-3 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible"
+          role="list"
+        >
+          {visible.map((p) => {
+            const state = effectiveStatus(p);
+            const status = STATUS[state] ?? STATUS.pledged;
+            return (
+              <li key={p.id} className="w-72 shrink-0 snap-start md:max-w-xs">
+                <article className="flex h-full flex-col rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <Badge
+                      tone={status.tone}
+                      size="sm"
+                      icon={
+                        state === "delivered" || state === "confirmed" ? (
+                          <PackageCheck className="h-3 w-3" aria-hidden="true" />
+                        ) : (
+                          <Heart className="h-3 w-3" aria-hidden="true" />
+                        )
+                      }
+                    >
+                      {t(status.key)}
+                    </Badge>
+                    <time className="shrink-0 text-xs text-ink-tertiary" dateTime={p.created_at}>
+                      {timeAgo(p.created_at)}
+                    </time>
                   </div>
-                  {p.amount_eur != null ? (
+                  <h3 className="line-clamp-2 text-sm font-semibold text-ink">
+                    {p.need?.title ?? "—"}
+                  </h3>
+                  {p.need?.institution?.name ? (
+                    <p className="mt-0.5 line-clamp-1 text-xs text-ink-secondary">
+                      {p.need.institution.name}
+                    </p>
+                  ) : null}
+                  <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                     <div>
                       <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
-                        {t("your_pledges.amount_label")}:{" "}
+                        {t("your_pledges.qty_label")}:{" "}
                       </dt>
-                      <dd className="inline font-semibold tabular-nums text-ink">
-                        {formatEur(p.amount_eur)}
-                      </dd>
+                      <dd className="inline font-semibold tabular-nums text-ink">{p.quantity}</dd>
+                    </div>
+                    {p.amount_eur != null ? (
+                      <div>
+                        <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
+                          {t("your_pledges.amount_label")}:{" "}
+                        </dt>
+                        <dd className="inline font-semibold tabular-nums text-ink">
+                          {formatEur(p.amount_eur)}
+                        </dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                  {state === "pledged" ? (
+                    <div className="mt-auto flex flex-wrap justify-end gap-2 pt-3">
+                      <MarkDeliveredButton
+                        endpoint={`/api/pledges/${p.id}`}
+                        label={t("your_pledges.deliver")}
+                        title={t("your_pledges.deliver_title")}
+                        description={t("your_pledges.deliver_body", {
+                          title: p.need?.title ?? "",
+                        })}
+                        confirmLabel={t("your_pledges.deliver_confirm")}
+                        successTitle={t("your_pledges.deliver_success")}
+                        errorTitle={t("your_pledges.deliver_error")}
+                        conflictDescription={t("your_pledges.deliver_error_locked")}
+                        onDelivered={() =>
+                          setDeliveredIds((prev) => new Set(prev).add(p.id))
+                        }
+                      />
+                      <CancelActionButton
+                        endpoint={`/api/pledges/${p.id}`}
+                        label={t("your_pledges.cancel")}
+                        title={t("your_pledges.cancel_title")}
+                        description={t("your_pledges.cancel_body", {
+                          title: p.need?.title ?? "",
+                        })}
+                        confirmLabel={t("your_pledges.cancel_confirm")}
+                        successTitle={t("your_pledges.cancel_success")}
+                        errorTitle={t("your_pledges.cancel_error")}
+                        conflictDescription={t("your_pledges.cancel_error_locked")}
+                        onCancelled={() => {
+                          setCancelledIds((prev) => new Set(prev).add(p.id));
+                          onCancelled?.(p.id);
+                        }}
+                      />
                     </div>
                   ) : null}
-                </dl>
-                {state === "pledged" ? (
-                  <div className="mt-auto flex flex-wrap justify-end gap-2 pt-3">
-                    <MarkDeliveredButton
-                      endpoint={`/api/pledges/${p.id}`}
-                      label={t("your_pledges.deliver")}
-                      title={t("your_pledges.deliver_title")}
-                      description={t("your_pledges.deliver_body", {
-                        title: p.need?.title ?? "",
-                      })}
-                      confirmLabel={t("your_pledges.deliver_confirm")}
-                      successTitle={t("your_pledges.deliver_success")}
-                      errorTitle={t("your_pledges.deliver_error")}
-                      conflictDescription={t("your_pledges.deliver_error_locked")}
-                      onDelivered={() =>
-                        setDeliveredIds((prev) => new Set(prev).add(p.id))
-                      }
-                    />
-                    <CancelActionButton
-                      endpoint={`/api/pledges/${p.id}`}
-                      label={t("your_pledges.cancel")}
-                      title={t("your_pledges.cancel_title")}
-                      description={t("your_pledges.cancel_body", {
-                        title: p.need?.title ?? "",
-                      })}
-                      confirmLabel={t("your_pledges.cancel_confirm")}
-                      successTitle={t("your_pledges.cancel_success")}
-                      errorTitle={t("your_pledges.cancel_error")}
-                      conflictDescription={t("your_pledges.cancel_error_locked")}
-                      onCancelled={() => {
-                        setCancelledIds((prev) => new Set(prev).add(p.id));
-                        onCancelled?.(p.id);
-                      }}
-                    />
-                  </div>
-                ) : null}
-              </article>
-            </li>
-          );
-        })}
-      </ul>
+                </article>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {overflow > 0 ? (
         <p className="mt-2 text-xs text-ink-tertiary">+{overflow} more</p>
       ) : null}

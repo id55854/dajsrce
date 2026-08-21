@@ -100,12 +100,12 @@ function AssociationCard({ item }: { item: AssociationDirectoryItem }) {
   return (
     <li className="h-full">
       <Card as="article" className="flex h-full flex-col">
-        <div className="flex items-start justify-between gap-3">
-          <Badge tone={statusTone(item.status)}>
-            {statusLabel(item.status, t)}
-          </Badge>
-          <span className="text-sm text-ink-tertiary">UDR_ID {item.id}</span>
-        </div>
+        {/* UDR_ID stays on the record (it's the link target below and the
+            claim key) but isn't shown here — it's an internal registry
+            identifier, not something a visitor needs to read off the card. */}
+        <Badge tone={statusTone(item.status)}>
+          {statusLabel(item.status, t)}
+        </Badge>
         {/* Registry names routinely run past 100 characters in a fixed-width
             grid cell, so the title is clamped rather than left to reflow. */}
         <h2 className="mt-4 text-lg font-semibold leading-snug text-ink">

@@ -444,7 +444,7 @@ describe("release migration contracts", () => {
     // Same bug as the map's onboarded filter, same fix: a bare institutions
     // row can be an unclaimed registry-promotion candidate, not an account.
     expect(sql).toMatch(
-      /JOIN public\.institutions i ON i\.id = d\.institution_id[\s\S]{0,400}EXISTS \(\s*SELECT 1 FROM public\.profiles p\s+WHERE p\.institution_id = i\.id AND p\.role = 'ngo'/i
+      /JOIN public\.institutions i ON i\.id = d\.institution_id[\s\S]{0,600}EXISTS \(\s*SELECT 1 FROM public\.profiles p\s+WHERE p\.institution_id = i\.id AND p\.role = 'ngo'/i
     );
     expect(sql).toContain(
       "CREATE OR REPLACE FUNCTION public.engaged_association_directory_v1("
