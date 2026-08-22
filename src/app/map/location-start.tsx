@@ -172,7 +172,7 @@ export function CityPickerDialog({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t("map_start.city_placeholder")}
           aria-label={t("map_start.city_placeholder")}
-          className="h-11 w-full rounded-full border border-border-subtle bg-surface-raised pl-10 pr-4 text-sm text-ink outline-none placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand"
+          className="h-11 w-full cursor-pointer rounded-full border border-border-subtle bg-surface-raised pl-10 pr-4 text-sm text-ink outline-none transition-[background-color,border-color,box-shadow] duration-150 ease-out placeholder:text-ink-tertiary hover:bg-ink/[0.08] focus-visible:border-brand focus-visible:bg-surface-raised focus-visible:ring-2 focus-visible:ring-brand"
         />
       </div>
 
@@ -197,7 +197,7 @@ export function CityPickerDialog({
                 <button
                   type="button"
                   onClick={() => onSelect(city)}
-                  className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-safe:active:scale-[0.99]"
+                  className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ink/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand motion-safe:active:scale-[0.99]"
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-ink">{city.city}</span>

@@ -58,7 +58,7 @@ function isNavLinkActive(
 }
 
 const ICON_BUTTON =
-  "relative inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-secondary transition-colors duration-150 hover:bg-surface-sunken hover:text-ink motion-safe:active:scale-[0.92] motion-safe:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+  "relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-ink-secondary transition-colors duration-150 hover:bg-ink/[0.08] hover:text-ink motion-safe:active:scale-[0.92] motion-safe:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
 function NavLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
@@ -71,21 +71,16 @@ function NavLink({ href, label }: { href: string; label: string }) {
       href={href}
       aria-current={active ? "page" : undefined}
       className={clsx(
-        "relative py-1 text-sm font-medium transition-colors duration-150",
+        "cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-medium",
+        "transition-[color,background-color,transform] duration-150 ease-out",
+        "motion-safe:active:scale-[0.97]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
-        active ? "text-brand" : "text-ink-secondary hover:text-ink"
+        active
+          ? "bg-brand-soft text-brand"
+          : "text-ink-secondary hover:bg-ink/[0.08] hover:text-ink"
       )}
     >
       {label}
-      {/* An underline drawn as a positioned rule instead of text-decoration, so
-          it sits clear of descenders and can animate independently. */}
-      <span
-        aria-hidden="true"
-        className={clsx(
-          "absolute -bottom-0.5 left-0 h-0.5 rounded-full bg-brand transition-[width] duration-250 ease-out",
-          active ? "w-full" : "w-0"
-        )}
-      />
     </Link>
   );
 }
@@ -214,11 +209,14 @@ function NavMenu({
   displayName,
   profileEmail,
   onLogout,
+  embedded = false,
 }: {
   user: SupaUser | null;
   displayName: string;
   profileEmail?: string;
   onLogout: () => void;
+  /** Sit inside the account pill; the pill already supplies the chrome. */
+  embedded?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -242,7 +240,11 @@ function NavMenu({
         aria-label={t("nav.open_menu")}
         aria-expanded={open}
         aria-haspopup="true"
-        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle/60 bg-surface-raised text-ink shadow-raised transition-[box-shadow,transform] duration-150 ease-out hover:shadow-overlay motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className={
+          embedded
+            ? "inline-flex h-9 w-9 items-center justify-center rounded-full text-ink transition-[background-color,transform] duration-150 ease-out hover:bg-ink/[0.08] motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            : "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle/60 bg-surface-raised text-ink shadow-raised transition-[box-shadow,transform] duration-150 ease-out hover:shadow-overlay motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        }
       >
         <MenuIcon className="h-4 w-4" aria-hidden="true" />
       </button>
@@ -266,10 +268,9 @@ function NavMenu({
               <ChevronRight className="h-4 w-4 text-ink-tertiary" aria-hidden="true" />
             </button>
 
-            <div className="my-2 h-px bg-border-subtle" />
-
             {user ? (
               <>
+                <div className="my-2 h-px bg-border-subtle" />
                 <Link
                   href="/dashboard"
                   title={profileEmail}
@@ -291,12 +292,7 @@ function NavMenu({
                   {t("nav.sign_out")}
                 </button>
               </>
-            ) : (
-              <Link href="/auth/login" onClick={close} className={MENU_ITEM}>
-                <User className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
-                {t("nav.sign_in")}
-              </Link>
-            )}
+            ) : null}
           </div>
         )}
       </Menu>
@@ -470,18 +466,18 @@ export function Navbar() {
     <header
       data-ui-material
       className={clsx(
-        "sticky top-0 z-[var(--z-chrome)] border-b border-border-subtle",
-        // A translucent layer that content scrolls under, rather than an opaque
-        // strip that permanently consumes the top of the viewport.
-        "bg-chrome backdrop-blur-xl backdrop-saturate-150"
+        "sticky top-0 z-[var(--z-chrome)] border-b border-transparent",
+        // Glass, not a rule. Light mode uses a soft dark wash; dark mode
+        // cannot — black-on-near-black is invisible — so a faint light lip
+        // is what reads as the glass edge.
+        "bg-chrome pt-2 shadow-raised backdrop-blur-xl backdrop-saturate-150",
+        "dark:shadow-[0_1px_0_0_rgb(255_255_255/0.08),0_12px_24px_-8px_rgb(0_0_0/0.45)]"
       )}
     >
-      {/* Full-bleed bar: the logo anchors the far left and the actions the far
-          right, instead of everything gathering in a centered max-w column. */}
-      <div className="relative flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-10">
+      <div className="relative flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 rounded-control py-1 pr-2 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          className="flex shrink-0 cursor-pointer items-center gap-2 rounded-full py-1 pl-0.5 pr-2.5 transition-colors duration-150 hover:bg-ink/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
           onClick={() => setMobileOpen(false)}
         >
           <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand">
@@ -493,11 +489,10 @@ export function Navbar() {
           </span>
         </Link>
 
-        {/* Centred on the screen, not between its siblings, so the middle link
-            sits on the viewport's midline regardless of how wide the logo and
-            the action group are. */}
+        {/* Centred on the viewport, not between the logo and the actions, so
+            the track stays on the midline regardless of how wide those are. */}
         <nav
-          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-5 lg:flex xl:gap-8"
+          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center rounded-full border border-border-subtle bg-surface-sunken p-1 lg:flex"
           aria-label={t("nav.main_navigation")}
         >
           {navLinks.map(({ href, labelKey }) => (
@@ -511,37 +506,40 @@ export function Navbar() {
           {user && companies.length > 1 ? (
             <CompanySwitcher items={companies} activeId={activeCompanyId} />
           ) : null}
-          {user ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                bellRef.current = event.currentTarget;
-                setPanelOpen((o) => !o);
-              }}
-              className={ICON_BUTTON}
-              aria-label={notificationLabel}
-              aria-expanded={panelOpen}
-              aria-controls="notifications-panel"
-            >
-              <Bell className="h-5 w-5" aria-hidden="true" />
-              {notificationBadge}
-            </button>
-          ) : (
-            // Signing in is the primary action for a visitor who has not, so it
-            // stays in the bar. Folding it into the dropdown put the one thing
-            // an anonymous visitor might want two clicks away, behind a control
-            // that gives no hint it is there. The dropdown still carries it, so
-            // the two do not compete.
-            <Link href="/auth/login" className={buttonClasses({ size: "sm" })}>
-              {t("nav.sign_in")}
-            </Link>
-          )}
-          <NavMenu
-            user={user}
-            displayName={displayName}
-            profileEmail={profileEmail}
-            onLogout={handleLogout}
-          />
+          <div className="inline-flex items-center rounded-full border border-border-subtle bg-surface-raised p-1 shadow-raised">
+            {user ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  bellRef.current = event.currentTarget;
+                  setPanelOpen((o) => !o);
+                }}
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-secondary transition-[background-color,transform] duration-150 hover:bg-ink/[0.08] hover:text-ink motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                aria-label={notificationLabel}
+                aria-expanded={panelOpen}
+                aria-controls="notifications-panel"
+              >
+                <Bell className="h-5 w-5" aria-hidden="true" />
+                {notificationBadge}
+              </button>
+            ) : (
+              // Signing in stays visible in the bar. The dropdown no longer
+              // repeats it; the two share one pill so they read as one control.
+              <Link
+                href="/auth/login"
+                className={buttonClasses({ size: "sm", className: "h-9 px-3.5" })}
+              >
+                {t("nav.sign_in")}
+              </Link>
+            )}
+            <NavMenu
+              user={user}
+              displayName={displayName}
+              profileEmail={profileEmail}
+              onLogout={handleLogout}
+              embedded
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-1 lg:hidden">
@@ -612,12 +610,12 @@ export function Navbar() {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={clsx(
-                    "rounded-control px-3 py-3 text-base font-medium transition-colors",
+                    "cursor-pointer rounded-control px-3 py-3 text-base font-medium transition-colors",
                     "motion-safe:active:scale-[0.98] motion-safe:transition-transform",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
                     active
                       ? "bg-brand-soft text-brand-on-soft"
-                      : "text-ink hover:bg-surface-sunken"
+                      : "text-ink hover:bg-ink/[0.08]"
                   )}
                   onClick={() => setMobileOpen(false)}
                 >

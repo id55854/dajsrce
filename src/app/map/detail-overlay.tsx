@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import clsx from "clsx";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, X } from "lucide-react";
 import { Button, usePresence } from "@/components/ui";
 import {
   InstitutionDetailPanel,
@@ -115,43 +115,59 @@ export function DetailOverlay({
         "flex flex-col outline-none",
         isOverlay
           ? [
-              "absolute inset-0 z-10 overflow-hidden bg-surface",
+              // Flush with the map card: same top edge, same bottom inset, no
+              // grey frame around the rounded sheet.
+              "absolute inset-x-0 top-0 z-10 overflow-hidden rounded-sheet border border-border-subtle bg-surface-raised shadow-raised md:bottom-4 lg:bottom-5",
               "data-[state=open]:animate-sheet-in data-[state=closed]:animate-sheet-out",
             ]
           : "data-[state=open]:animate-fade-in"
       )}
     >
-      <div
-        data-ui-material
-        className={clsx(
-          "sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b border-border-subtle bg-chrome py-2 backdrop-blur-xl",
-          isOverlay ? "px-2" : "px-0"
-        )}
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<ArrowLeft className="h-4 w-4" aria-hidden />}
+      {isOverlay ? (
+        <button
+          type="button"
           onClick={onClose}
+          aria-label={t("institution_detail.close")}
+          title={t("institution_detail.close")}
+          data-ui-material
+          className="absolute right-3 top-3 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-border-subtle bg-chrome text-ink shadow-overlay backdrop-blur-md transition-[background-color,transform] duration-150 ease-out hover:bg-surface-sunken motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
-          {t("map_page.back_results")}
-        </Button>
-      </div>
+          <X className="h-5 w-5" aria-hidden />
+        </button>
+      ) : (
+        <div
+          data-ui-material
+          className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b border-border-subtle bg-chrome px-0 py-2 backdrop-blur-xl"
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<ArrowLeft className="h-4 w-4" aria-hidden />}
+            onClick={onClose}
+          >
+            {t("map_page.back_results")}
+          </Button>
+        </div>
+      )}
 
       <div
         className={clsx(
           "min-h-0",
           isOverlay
-            ? "flex-1 overflow-y-auto overscroll-contain p-3"
+            ? "flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-14"
             : "pb-3 pt-3"
         )}
       >
         {loading ? (
-          <InstitutionDetailSkeleton />
+          <InstitutionDetailSkeleton framed={!isOverlay} />
         ) : detail?.kind === "institution" ? (
-          <InstitutionDetailPanel institution={detail.institution} showCloseButton={false} />
+          <InstitutionDetailPanel
+            institution={detail.institution}
+            showCloseButton={false}
+            framed={!isOverlay}
+          />
         ) : detail?.kind === "registry" ? (
-          <RegistryDetailPanel organisation={detail.organisation} />
+          <RegistryDetailPanel organisation={detail.organisation} framed={!isOverlay} />
         ) : (
           <div
             role="alert"

@@ -380,6 +380,7 @@ export function InstitutionClaimSetup({ ensureNgoRole, onApproved }: Props) {
             {(field) => (
               <Input
                 {...field}
+                interactive
                 type="search"
                 autoComplete="organization"
                 placeholder={t("claims.search_placeholder")}

@@ -27,7 +27,7 @@ const CHIP_BASE = [
 ].join(" ");
 
 const CHIP_INACTIVE =
-  "border-border-subtle bg-surface-raised text-ink-secondary hover:border-border-strong hover:text-ink";
+  "cursor-pointer border-border-subtle bg-surface-raised text-ink-secondary hover:border-border-strong hover:bg-ink/[0.08] hover:text-ink";
 
 const CHIP_ACTIVE = "border-brand bg-brand-soft text-brand-on-soft";
 

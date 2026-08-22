@@ -296,6 +296,7 @@ function DirectoryExperience() {
                   />
                   <Input
                     {...props}
+                    interactive
                     className="pl-10"
                     value={searchInput}
                     onChange={(event) => setSearchInput(event.target.value)}
@@ -310,6 +311,7 @@ function DirectoryExperience() {
               {(props) => (
                 <Input
                   {...props}
+                  interactive
                   value={cityInput}
                   onChange={(event) => setCityInput(event.target.value)}
                   placeholder={t("organisations.city_placeholder")}

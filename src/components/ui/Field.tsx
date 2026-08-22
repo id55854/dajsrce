@@ -20,7 +20,7 @@ export function inputClasses(className?: string, invalid?: boolean): string {
     // 44px tall, matching Button's `md`.
     "h-11 text-base",
     "placeholder:text-ink-tertiary",
-    "outline-none transition-[border-color,box-shadow] duration-150 ease-out",
+    "outline-none transition-[background-color,border-color,box-shadow] duration-150 ease-out",
     "disabled:cursor-not-allowed disabled:opacity-60",
     invalid
       ? "border-danger focus:border-danger focus:ring-2 focus:ring-danger/25"
@@ -101,12 +101,32 @@ export function Field({
   );
 }
 
+/**
+ * Airbnb-style hover for a field you type into or click: the caret becomes
+ * a pointer and the fill shifts to a light grey wash. Theme-aware (`ink` at
+ * 8%) so dark mode lightens instead of painting a light-mode grey.
+ */
+export const SEARCH_CONTROL_CLASSES = "cursor-pointer hover:bg-ink/[0.08]";
+
 export function Input({
   className,
   invalid,
+  interactive,
   ...rest
-}: InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }) {
-  return <input className={inputClasses(className, invalid)} {...rest} />;
+}: InputHTMLAttributes<HTMLInputElement> & {
+  invalid?: boolean;
+  /** Pointer + grey hover. Use on search / pickers, not passwords. */
+  interactive?: boolean;
+}) {
+  return (
+    <input
+      className={inputClasses(
+        clsx(interactive && SEARCH_CONTROL_CLASSES, className),
+        invalid
+      )}
+      {...rest}
+    />
+  );
 }
 
 export function Textarea({

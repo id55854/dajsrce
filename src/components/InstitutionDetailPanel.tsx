@@ -25,6 +25,11 @@ export interface InstitutionDetailPanelProps {
   onClose?: () => void;
   /** When false, hides the close control (e.g. standalone public page). */
   showCloseButton?: boolean;
+  /**
+   * When false, skip the card chrome — the map overlay already is the card.
+   * The standalone page keeps the default framed look.
+   */
+  framed?: boolean;
 }
 
 function normalizeWebsiteUrl(url: string): string {
@@ -36,6 +41,7 @@ export function InstitutionDetailPanel({
   institution,
   onClose,
   showCloseButton = true,
+  framed = true,
 }: InstitutionDetailPanelProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -82,7 +88,13 @@ export function InstitutionDetailPanel({
   const actionClasses = "min-w-[10rem] flex-1";
 
   return (
-    <div className="@container relative rounded-card border border-border-subtle bg-surface-raised shadow-raised">
+    <div
+      className={
+        framed
+          ? "@container relative rounded-card border border-border-subtle bg-surface-raised shadow-raised"
+          : "@container relative"
+      }
+    >
       {showCloseButton ? (
         <button
           type="button"
@@ -96,7 +108,13 @@ export function InstitutionDetailPanel({
 
       <div>
         {isLocationHidden ? (
-          <div className="rounded-t-card border-b border-border-subtle bg-warning-soft px-4 py-3 text-sm text-warning-on-soft">
+          <div
+            className={
+              framed
+                ? "rounded-t-card border-b border-border-subtle bg-warning-soft px-4 py-3 text-sm text-warning-on-soft"
+                : "mb-5 rounded-card border border-border-subtle bg-warning-soft px-4 py-3 text-sm text-warning-on-soft"
+            }
+          >
             {t("institution_detail.hidden_notice")}
           </div>
         ) : null}
@@ -105,7 +123,9 @@ export function InstitutionDetailPanel({
           className={
             showCloseButton
               ? "space-y-5 p-4 pr-14 sm:p-5 sm:pr-16"
-              : "space-y-5 p-4 sm:p-5"
+              : framed
+                ? "space-y-5 p-4 sm:p-5"
+                : "space-y-5"
           }
         >
           <header className="space-y-3">
@@ -275,11 +295,15 @@ export function InstitutionDetailPanel({
  * Stands in for the real panel's structure — category chip, display heading,
  * description, the six-field grid and two actions — rather than two grey bars.
  */
-export function InstitutionDetailSkeleton() {
+export function InstitutionDetailSkeleton({ framed = true }: { framed?: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised sm:p-5"
+      className={
+        framed
+          ? "rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised sm:p-5"
+          : undefined
+      }
     >
       <Skeleton className="h-6 w-32 rounded-full" />
       <Skeleton className="mt-3 h-7 w-3/4" />

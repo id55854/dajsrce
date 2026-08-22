@@ -278,6 +278,7 @@ export function OffersInboxClient() {
                 {(props) => (
                   <Input
                     {...props}
+                    interactive
                     value={draft.city}
                     maxLength={OFFER_CITY_MAX_LENGTH}
                     placeholder={t("offers_inbox.filter_city_placeholder")}
@@ -292,6 +293,7 @@ export function OffersInboxClient() {
                 {(props) => (
                   <Input
                     {...props}
+                    interactive
                     value={draft.query}
                     maxLength={OFFER_QUERY_MAX_LENGTH}
                     placeholder={t("offers_inbox.search_placeholder")}

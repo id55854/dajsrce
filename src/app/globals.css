@@ -56,7 +56,7 @@
   --scrim: rgb(0 0 0 / 0.45);
 
   /* --- layout ------------------------------------------------------------ */
-  --nav-height: 4rem;          /* keep in sync with the Navbar's h-16        */
+  --nav-height: 4.5rem;        /* h-16 + pt-2 — keep in sync with Navbar */
 
   /* --- layering ----------------------------------------------------------
      One ladder for the whole app. Leaflet's internal panes (200–700) are

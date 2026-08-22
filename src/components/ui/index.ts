@@ -10,7 +10,14 @@ export type { CardProps } from "./Card";
 export { Dialog } from "./Dialog";
 export type { DialogProps } from "./Dialog";
 export { EmptyState } from "./EmptyState";
-export { Field, Input, Select, Textarea, inputClasses } from "./Field";
+export {
+  Field,
+  Input,
+  Select,
+  Textarea,
+  inputClasses,
+  SEARCH_CONTROL_CLASSES,
+} from "./Field";
 export { Menu } from "./Menu";
 export type { MenuProps } from "./Menu";
 export { Sheet } from "./Sheet";

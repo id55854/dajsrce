@@ -108,7 +108,7 @@ export function CityFilter({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
             value
               ? "border-brand bg-brand-soft text-brand-on-soft"
-              : "border-border-subtle bg-surface-raised text-ink-secondary hover:border-border-strong hover:text-ink",
+              : "cursor-pointer border-border-subtle bg-surface-raised text-ink-secondary hover:border-border-strong hover:bg-ink/[0.08] hover:text-ink",
             value ? "rounded-r-none border-r-0 pl-3.5 pr-2.5" : "px-3.5"
           )}
         >
@@ -142,7 +142,7 @@ export function CityFilter({
               placeholder={t("filters.city_search")}
               aria-label={t("filters.city_search")}
               maxLength={80}
-              className="w-full rounded-input border border-border-subtle bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-tertiary focus:border-brand"
+              className="w-full cursor-pointer rounded-input border border-border-subtle bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors duration-150 ease-out placeholder:text-ink-tertiary hover:bg-ink/[0.08] focus:border-brand focus:bg-surface-raised"
             />
           </div>
           <ul id={listId} role="listbox" className="max-h-64 overflow-y-auto py-1">
@@ -166,8 +166,8 @@ export function CityFilter({
                       setOpen(false);
                     }}
                     className={clsx(
-                      "flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm",
-                      "transition-colors duration-100 hover:bg-surface-raised",
+                      "flex w-full cursor-pointer items-baseline justify-between gap-3 px-3 py-2 text-left text-sm",
+                      "transition-colors duration-100 hover:bg-ink/[0.08]",
                       city.city === value ? "text-brand" : "text-ink"
                     )}
                   >
