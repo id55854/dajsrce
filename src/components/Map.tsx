@@ -35,6 +35,8 @@ const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.pn
 export interface MapFilters {
   categories: InstitutionCategory[];
   donationType: DonationType | null;
+  /** Exact city name from the register's own list, or null for everywhere. */
+  city: string | null;
   onlyZagreb: boolean;
   onlyUrgent: boolean;
   /** Narrow to organisations that hold an account here. Server-side. */
@@ -182,16 +184,47 @@ function clusterIconSize(count: number): number {
   return count >= 100 ? 48 : count >= 10 ? 42 : 36;
 }
 
-function createClusterIcon(count: number, urgent: boolean): L.DivIcon {
+/**
+ * A named cluster carries its place under the pin. The count alone said
+ * "Grupa od 1090 ustanova" — true, and useless: the group was a cell of a grid
+ * laid over whatever rectangle the browser happened to show, so it named
+ * nothing a visitor could recognise or search for.
+ *
+ * The caption is drawn outside the icon box and centred on it, with
+ * `overflow: visible` on the pane, so a long street name does not shift the
+ * pin off its coordinate. It is `aria-hidden` because the marker's `alt`
+ * already carries the same words as its accessible name.
+ */
+function clusterCaptionHtml(placeName: string, size: number): string {
+  const escaped = placeName
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return `<span aria-hidden="true" style="
+    position:absolute;top:${size + 2}px;left:50%;transform:translateX(-50%);
+    max-width:140px;padding:1px 6px;border-radius:6px;
+    font:600 11px/1.35 var(--font-app-sans);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;
+    color:var(--ink);background:color-mix(in oklab, var(--surface-raised) 88%, transparent);
+    box-shadow:0 1px 3px rgba(0,0,0,.28);pointer-events:none;
+  ">${escaped}</span>`;
+}
+
+function createClusterIcon(
+  count: number,
+  urgent: boolean,
+  placeName: string | null
+): L.DivIcon {
   const size = clusterIconSize(count);
+  const caption = placeName ? clusterCaptionHtml(placeName, size) : "";
   return L.divIcon({
     className: "dajsrce-pin dajsrce-cluster",
-    html: markerHtml({
+    html: `<div style="position:relative;width:${size}px;height:${size}px;">${markerHtml({
       fill: "var(--brand)",
       size,
       label: String(Math.max(1, Math.trunc(count))),
       urgent,
-    }),
+    })}${caption}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size],
   });
@@ -404,9 +437,22 @@ function ClusterMarker({ cluster }: { cluster: PublicMapCluster }) {
   const t = useT();
   const map = useMap();
   const icon = useMemo(
-    () => createClusterIcon(cluster.count, cluster.hasUrgentNeed),
-    [cluster.count, cluster.hasUrgentNeed]
+    () => createClusterIcon(cluster.count, cluster.hasUrgentNeed, cluster.placeName),
+    [cluster.count, cluster.hasUrgentNeed, cluster.placeName]
   );
+  // A named group says where it is; the grid fallback can only say how many.
+  const label = cluster.placeName
+    ? t("map_ui.cluster_place_alt", {
+        place: cluster.placeName,
+        count: cluster.count,
+      })
+    : t("map_ui.cluster_alt", { count: cluster.count });
+  const hint = cluster.placeName
+    ? t("map_ui.cluster_place_title", {
+        place: cluster.placeName,
+        count: cluster.count,
+      })
+    : t("map_ui.cluster_title", { count: cluster.count });
 
   return (
     <Marker
@@ -415,7 +461,7 @@ function ClusterMarker({ cluster }: { cluster: PublicMapCluster }) {
       // The accessible name stays on `alt`; the tooltip below is a hover
       // affordance only, so removing the native `title` costs nothing to a
       // screen reader.
-      alt={t("map_ui.cluster_alt", { count: cluster.count })}
+      alt={label}
       eventHandlers={{ click: () => fitFeatureBounds(map, cluster.bounds) }}
     >
       {/* A styled Leaflet tooltip instead of the browser's native `title`
@@ -426,7 +472,7 @@ function ClusterMarker({ cluster }: { cluster: PublicMapCluster }) {
         opacity={1}
         className="dajsrce-tooltip"
       >
-        {t("map_ui.cluster_title", { count: cluster.count })}
+        {hint}
       </Tooltip>
     </Marker>
   );

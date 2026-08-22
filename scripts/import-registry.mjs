@@ -23,6 +23,25 @@ const argVal = (name, fallback = null) => {
   return index >= 0 && index + 1 < args.length ? args[index + 1] : fallback;
 };
 
+// PostgREST rejects with a plain `{code, message, details, hint}` object, not an
+// Error, so the old `error instanceof Error` test recorded five consecutive
+// production failures as the literal string "Unknown import failure" and left
+// nothing to diagnose them with. Keep the batch row useful whatever was thrown.
+function describeImportFailure(error) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const parts = [error.code, error.message, error.details, error.hint]
+      .filter((part) => typeof part === "string" && part.length > 0);
+    if (parts.length > 0) return parts.join(" | ");
+    try {
+      return JSON.stringify(error);
+    } catch {
+      /* fall through to the generic description */
+    }
+  }
+  return `Unknown import failure (${typeof error})`;
+}
+
 function resolveCsvPath() {
   const candidates = [
     argVal("--csv"),
@@ -409,7 +428,7 @@ try {
       .from("registry_import_batches")
       .update({
         status: "failed",
-        error: error instanceof Error ? error.message.slice(0, 2000) : "Unknown import failure",
+        error: describeImportFailure(error).slice(0, 2000),
         updated_at: new Date().toISOString(),
       })
       .eq("id", batchId);

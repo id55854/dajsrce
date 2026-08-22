@@ -44,5 +44,15 @@ jobs:
           args=(--batch-size 500)
           if [ "${{ inputs.force || false }}" = "true" ]; then args+=(--force); fi
           npm run registry:sync -- "${args[@]}"
+      # The sync script runs maintenance itself, including after a failed
+      # import. This repeats it unconditionally so a sync that dies before it
+      # gets that far still cannot leave a partial snapshot projection behind:
+      # one that did cost 26,500 orphan rows and pushed the database past its
+      # storage ceiling. Draining it is idempotent and cheap when there is
+      # nothing to remove.
+      - name: Reclaim storage from any partial snapshot
+        if: always()
+        run: npm run registry:maintain -- --batch-size 500
+
       - name: Verify active registry publication
         run: npm run registry:verify

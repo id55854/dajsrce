@@ -178,10 +178,20 @@ function ClusterRowButton({
         ) : null}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-ink">
-          {t("map_ui.cluster_alt", { count: cluster.count })}
+        {/* The place leads. The count repeats what the badge to the left
+            already shows, so as a title it said nothing twice — "Grupa od 1090
+            ustanova" next to a disc reading 1090. As a subtitle under a real
+            name it is the useful half of the row. */}
+        <span className="block truncate text-sm font-semibold text-ink">
+          {cluster.placeName ?? t("map_ui.cluster_alt", { count: cluster.count })}
         </span>
         <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-secondary">
+          {cluster.placeName ? (
+            <span>
+              {t(`map_ui.place_kind_${cluster.placeKind}`)} ·{" "}
+              {t("map_ui.cluster_count", { count: cluster.count })}
+            </span>
+          ) : null}
           {distance != null ? (
             <span title={t("map_ui.distance")}>{formatDistance(distance)}</span>
           ) : null}

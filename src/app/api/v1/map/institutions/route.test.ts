@@ -21,7 +21,9 @@ describe("GET /api/v1/map/institutions", () => {
       data: [
         {
           feature_kind: "cluster",
-          feature_id: "cluster:7:31:91",
+          feature_id: "place:county:Zagrebačka",
+          place_kind: "county",
+          place_name: "Zagrebačka",
           institution_id: null,
           registry_id: null,
           entity_type: null,
@@ -61,12 +63,14 @@ describe("GET /api/v1/map/institutions", () => {
       features: [
         {
           kind: "cluster",
-          id: "cluster:7:31:91",
+          id: "place:county:Zagrebačka",
           latitude: 45.5,
           longitude: 15.5,
           count: 1073,
           bounds: [13.5, 42.5, 19.5, 46.5],
           hasUrgentNeed: true,
+          placeKind: "county",
+          placeName: "Zagrebačka",
         },
       ],
       meta: {
@@ -97,6 +101,93 @@ describe("GET /api/v1/map/institutions", () => {
     expect(response.status).toBe(200);
     expect(rpc).toHaveBeenNthCalledWith(1, "map_association_registry_v2", expect.any(Object));
     expect(rpc).toHaveBeenNthCalledWith(2, "map_association_registry_v1", expect.any(Object));
+  });
+
+  it("renders a cluster from a function that predates the place columns", async () => {
+    // A rolling deployment can put this route ahead of the migration. Without
+    // the fallback the marker would be captioned "undefined" rather than
+    // degrading to the count-only cluster the old grid produced.
+    rpc.mockResolvedValue({
+      error: null,
+      data: [
+        {
+          feature_kind: "cluster",
+          feature_id: "registry-cluster:7:3:4",
+          institution_id: null,
+          registry_id: null,
+          entity_type: null,
+          name: null,
+          category: null,
+          city: null,
+          address: null,
+          approximate_area: null,
+          location_precision: null,
+          latitude: 45.5,
+          longitude: 15.5,
+          accepts_donations: [],
+          is_verified: false,
+          is_location_hidden: false,
+          source: null,
+          has_urgent_need: false,
+          member_count: 12,
+          min_lng: 15,
+          min_lat: 45,
+          max_lng: 16,
+          max_lat: 46,
+          total_matches: 12,
+          total_features: 1,
+        },
+      ],
+    });
+
+    const payload = await (await GET(new NextRequest(url))).json();
+
+    expect(payload.features[0]).toMatchObject({
+      kind: "cluster",
+      placeKind: "grid",
+      placeName: null,
+    });
+  });
+
+  it("keeps a grid cluster unnamed even if a place name leaks in", async () => {
+    rpc.mockResolvedValue({
+      error: null,
+      data: [
+        {
+          feature_kind: "cluster",
+          feature_id: "registry-cluster:7:3:4",
+          institution_id: null,
+          registry_id: null,
+          entity_type: null,
+          name: null,
+          category: null,
+          city: null,
+          address: null,
+          approximate_area: null,
+          location_precision: null,
+          latitude: 45.5,
+          longitude: 15.5,
+          accepts_donations: [],
+          is_verified: false,
+          is_location_hidden: false,
+          source: null,
+          has_urgent_need: false,
+          member_count: 12,
+          min_lng: 15,
+          min_lat: 45,
+          max_lng: 16,
+          max_lat: 46,
+          total_matches: 12,
+          total_features: 1,
+          place_kind: "grid",
+          place_name: "Nonsense",
+        },
+      ],
+    });
+
+    const payload = await (await GET(new NextRequest(url))).json();
+
+    expect(payload.features[0].placeName).toBeNull();
   });
 
   it("honours If-None-Match with a stable semantic ETag", async () => {

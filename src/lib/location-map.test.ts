@@ -37,6 +37,7 @@ describe("map query contract", () => {
     params.set("donationType", "food");
     params.set("onlyUrgent", "true");
     params.set("onlyOnboarded", "true");
+    params.set("city", "  Velika Gorica  ");
     params.set("q", "  Pučka%__ KUHINJA  ");
 
     expect(parseMapQuery(params)).toEqual({
@@ -47,6 +48,9 @@ describe("map query contract", () => {
       onlyZagreb: false,
       onlyUrgent: true,
       onlyOnboarded: true,
+      // Trimmed but not case-folded: the value is matched against the
+      // register's own spelling, which the picker supplies verbatim.
+      city: "Velika Gorica",
       query: "pučka kuhinja",
       limit: MAP_FEATURE_LIMIT,
     });

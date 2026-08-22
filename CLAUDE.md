@@ -79,6 +79,12 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 25. `20260821130000_map_onboarded_requires_account.sql`
 26. `20260821140000_engaged_directory_requires_account.sql`
 27. `20260821150000_register_classified_only_default.sql`
+28. `20260822120000_registry_orphan_repair_and_map_fast_path.sql`
+29. `20260822140000_map_planar_viewport_predicate.sql`
+30. `20260822160000_city_districts_and_place_clustering.sql`
+31. `20260822180000_fix_place_cluster_column_ambiguity.sql`
+32. `20260822200000_place_cluster_tier_selection.sql`
+33. `20260822220000_place_cluster_single_pass_stats.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 
@@ -117,8 +123,12 @@ Receipt and CSR PDFs use complete static Noto Sans TTFs from `@expo-google-fonts
 - `npm run registry:import -- --csv <path>`
 - `npm run registry:verify`
 - `npm run registry:maintain`
+- `npm run registry:reclaim` (`--dry-run`, `--full`)
+- `npm run registry:districts` (`--dry-run`)
 - `npm run registry:remap`
 - `npm run registry:geocode`
 - `npm run registry:promote -- --dry-run`
+
+Post-sync maintenance is not optional and must run after a **failed** sync too. The importer stages and projects as it goes, so a run that dies before finalization leaves a full partial projection behind; `cleanup_registry_snapshot_storage_batch` is the only thing that reclaims it. Deleting those rows does not shrink the files — follow up with `registry:reclaim` when the plan's storage ceiling is in sight.
 
 `registry:sync` must mirror every `AKTIVAN` row in the CTS snapshot and purge canonical rows outside that active snapshot. Production imports require `--active-only`; `--limit` and `--zg` remain dry-run-only. `UDR_ID` is the official canonical key and OIB is optional source data, so optional-field warnings do not remove an otherwise valid active organisation. Publication is one pointer update over immutable batch membership/directory rows; the legacy `source_present` flag is reconciled and inactive canonical rows are deleted afterward in timeout-safe batches. Configure GitHub Actions secrets `PRODUCTION_SUPABASE_URL` and `PRODUCTION_SUPABASE_SERVICE_ROLE_KEY` for scheduled sync. The workflow runs `registry:verify` after every publication. Use dry-run/coverage before promotion. Nominatim requires a real identifying user agent/contact and <= 1 request/second. Never infer public donation acceptance from category defaults.

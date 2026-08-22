@@ -81,6 +81,7 @@ const CityPickerDialog = dynamic(
 const DEFAULT_FILTERS: MapFilters = {
   categories: [],
   donationType: null,
+  city: null,
   onlyZagreb: false,
   onlyUrgent: false,
   onlyOnboarded: false,
@@ -167,6 +168,7 @@ function initialState(searchParams: URLSearchParams): {
       filters: {
         categories: parsed.categories,
         donationType: parsed.donationType,
+        city: parsed.city,
         onlyZagreb: parsed.onlyZagreb,
         onlyUrgent: parsed.onlyUrgent,
         onlyOnboarded: parsed.onlyOnboarded,
@@ -337,6 +339,7 @@ function MapSurface() {
       zoom: viewport.zoom,
       categories: filters.categories,
       donationType: filters.donationType,
+      city: filters.city,
       onlyZagreb: filters.onlyZagreb,
       onlyUrgent: filters.onlyUrgent,
       onlyOnboarded: filters.onlyOnboarded,
@@ -578,6 +581,7 @@ function MapSurface() {
   const activeFilterCount =
     filters.categories.length +
     (filters.donationType ? 1 : 0) +
+    (filters.city ? 1 : 0) +
     (filters.onlyZagreb ? 1 : 0) +
     (filters.onlyUrgent ? 1 : 0);
 

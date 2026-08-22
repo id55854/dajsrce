@@ -151,6 +151,15 @@ if (!flag("--force") && !flag("--dry-run")) {
   }
 }
 
+// A failed import is exactly when post-publication maintenance matters most:
+// the importer stages and projects as it goes, so a run that dies before
+// finalization leaves a full partial projection behind. Throwing straight out
+// of the importer step used to skip the maintenance block below entirely, and
+// one such run left 26,500 orphan rows in the two largest tables - enough to
+// push the database past its storage ceiling and to make the map miss cache
+// and time out. Record the failure, always run maintenance, then rethrow.
+let importFailure = null;
+
 if (!alreadyComplete) {
   const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "dajsrce-registry-"));
   const csvPath = path.join(tempDirectory, `registar-udruga-${resource.id}.csv`);
@@ -188,7 +197,11 @@ if (!alreadyComplete) {
       child.once("error", reject);
       child.once("exit", (code) => resolve(code ?? 1));
     });
-    if (exitCode !== 0) throw new Error(`Registry importer exited with code ${exitCode}`);
+    if (exitCode !== 0) {
+      importFailure = new Error(`Registry importer exited with code ${exitCode}`);
+    }
+  } catch (error) {
+    importFailure = error instanceof Error ? error : new Error(String(error));
   } finally {
     if (flag("--keep-file")) {
       console.log(`Kept source file: ${csvPath}`);
@@ -200,7 +213,15 @@ if (!alreadyComplete) {
 
 if (!flag("--dry-run")) {
   // Always retry idempotent post-publication maintenance, including when CKAN
-  // metadata is unchanged after an earlier cleanup interruption.
+  // metadata is unchanged after an earlier cleanup interruption, and including
+  // when this run's import failed. Maintenance only ever removes rows outside
+  // the published snapshot, so it is safe after a failure and is the only
+  // thing that reclaims a partial projection.
+  if (importFailure) {
+    console.warn(
+      `Import failed (${importFailure.message}); running maintenance to reclaim partial snapshot storage.`
+    );
+  }
   const maintenanceArgs = [
     path.join(process.cwd(), "scripts", "maintain-registry.mjs"),
     "--batch-size",
@@ -215,7 +236,14 @@ if (!flag("--dry-run")) {
     child.once("error", reject);
     child.once("exit", (code) => resolve(code ?? 1));
   });
-  if (maintenanceExitCode !== 0) {
+  if (maintenanceExitCode !== 0 && !importFailure) {
     throw new Error(`Registry maintenance exited with code ${maintenanceExitCode}`);
   }
+  if (maintenanceExitCode !== 0) {
+    console.error(`Registry maintenance also exited with code ${maintenanceExitCode}.`);
+  }
 }
+
+// The import failure is the more informative one, so it surfaces last and
+// still fails the run. Maintenance has had its chance to reclaim storage by now.
+if (importFailure) throw importFailure;

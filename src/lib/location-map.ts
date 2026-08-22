@@ -130,11 +130,25 @@ export type MapQuery = {
   onlyZagreb: boolean;
   onlyUrgent: boolean;
   onlyOnboarded: boolean;
+  /**
+   * An exact city name from the register's own city list, not free text. The
+   * map filters on equality so that picking "Zagreb" cannot also pull in the
+   * neighbouring "Zagrebacka" county's rows.
+   */
+  city: string | null;
   query: string | null;
   limit: number;
 };
 
 export type PublicTrustStatus = "registry" | "claimed" | "contact_verified";
+
+/**
+ * How a cluster was formed. Everything except `grid` is a named place, so the
+ * marker can say "Trnje" instead of reporting a count with no referent; `grid`
+ * is the spatial fallback used when no naming tier resolves the viewport into
+ * between two and `limit` groups.
+ */
+export type MapPlaceKind = "county" | "city" | "district" | "street" | "grid";
 
 export type PublicMapCluster = {
   kind: "cluster";
@@ -144,6 +158,9 @@ export type PublicMapCluster = {
   count: number;
   bounds: MapBounds;
   hasUrgentNeed: boolean;
+  placeKind: MapPlaceKind;
+  /** Null only when `placeKind` is `grid`. */
+  placeName: string | null;
 };
 
 export type PublicMapInstitution = {
@@ -343,6 +360,15 @@ export function parseMapQuery(searchParams: URLSearchParams): MapQuery {
     issues
   );
 
+  const cityInput = searchParams.get("city");
+  if (cityInput != null && cityInput.length > MAP_CITY_QUERY_MAX_LENGTH) {
+    issues.push(`city must not exceed ${MAP_CITY_QUERY_MAX_LENGTH} characters`);
+  }
+  const city =
+    cityInput == null || cityInput.length > MAP_CITY_QUERY_MAX_LENGTH
+      ? null
+      : cityInput.trim() || null;
+
   if (issues.length > 0) throw new MapQueryValidationError(issues);
 
   return {
@@ -353,6 +379,7 @@ export function parseMapQuery(searchParams: URLSearchParams): MapQuery {
     onlyZagreb,
     onlyUrgent,
     onlyOnboarded,
+    city,
     query,
     limit,
   };
@@ -371,6 +398,7 @@ export function buildMapQueryString(query: MapQuery): string {
   if (query.onlyZagreb) params.set("onlyZagreb", "true");
   if (query.onlyUrgent) params.set("onlyUrgent", "true");
   if (query.onlyOnboarded) params.set("onlyOnboarded", "true");
+  if (query.city) params.set("city", query.city);
   if (query.query) params.set("q", query.query);
   return params.toString();
 }

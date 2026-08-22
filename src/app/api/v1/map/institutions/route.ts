@@ -5,6 +5,7 @@ import {
   MapQueryValidationError,
   parseMapQuery,
   trustStatus,
+  type MapPlaceKind,
   type MapQuery,
   type PublicMapFeature,
   type PublicMapInstitution,
@@ -43,6 +44,8 @@ type RpcMapRow = {
   max_lat: number;
   total_matches: number;
   total_features: number;
+  place_kind: MapPlaceKind | null;
+  place_name: string | null;
 };
 
 type FallbackInstitutionRow = {
@@ -73,6 +76,10 @@ function rpcRowToFeature(row: RpcMapRow): PublicMapFeature | null {
   }
 
   if (row.feature_kind === "cluster") {
+    // A deployed-but-older function has no place columns. Falling back to the
+    // spatial kind keeps such a response renderable rather than showing a
+    // cluster labelled "undefined".
+    const placeKind = row.place_kind ?? "grid";
     return {
       kind: "cluster",
       id: row.feature_id,
@@ -81,6 +88,8 @@ function rpcRowToFeature(row: RpcMapRow): PublicMapFeature | null {
       count: Number(row.member_count),
       bounds: [row.min_lng, row.min_lat, row.max_lng, row.max_lat],
       hasUrgentNeed: Boolean(row.has_urgent_need),
+      placeKind,
+      placeName: placeKind === "grid" ? null : row.place_name,
     };
   }
 
@@ -121,6 +130,7 @@ async function queryIndexedRpc(query: MapQuery) {
     p_only_urgent: query.onlyUrgent,
     p_query: query.query,
     p_limit: query.limit,
+    ...(query.city ? { p_city: query.city } : {}),
     // Sent only when set. The argument is newer than the deployed functions
     // may be, and omitting it keeps an older signature resolvable; including
     // it when it is genuinely required means a stale schema fails the request
@@ -212,6 +222,9 @@ async function queryBoundedFallback(query: MapQuery) {
     builder = builder.contains("accepts_donations", [query.donationType]);
   }
   if (query.onlyZagreb) builder = builder.ilike("city", "Zagreb%");
+  // Same equality semantics as the RPC, so a degraded response filters the
+  // same set rather than quietly widening it.
+  if (query.city) builder = builder.ilike("city", query.city);
   if (urgentIds) builder = builder.in("id", urgentIds);
   if (query.query) {
     const safeQuery = safeFallbackSearch(query.query);

@@ -5,6 +5,7 @@ import { InstitutionCategory, DonationType } from "@/lib/types";
 import { CATEGORY_CONFIG, DONATION_TYPES, categoryVars } from "@/lib/constants";
 import clsx from "clsx";
 import { useLocale, useT } from "@/i18n/client";
+import { CityFilter } from "@/components/CityFilter";
 
 const DONATION_TYPE_KEYS = Object.keys(DONATION_TYPES) as DonationType[];
 const CATEGORY_KEYS = Object.keys(CATEGORY_CONFIG) as InstitutionCategory[];
@@ -82,6 +83,12 @@ export function FilterChip({
 export type FilterState = {
   categories: InstitutionCategory[];
   donationType: DonationType | null;
+  /**
+   * Exact city name, or null for the whole country. Superseded `onlyZagreb`,
+   * which could only ever answer for one of 3,401 places; that flag stays on
+   * the query type so existing shared links keep working.
+   */
+  city: string | null;
   onlyZagreb: boolean;
   onlyUrgent: boolean;
   onlyOnboarded: boolean;
@@ -132,6 +139,11 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
         >
           {t("filters.onboarded_only")}
         </FilterChip>
+
+        <CityFilter
+          value={filters.city}
+          onChange={(city) => onChange({ ...filters, city })}
+        />
 
         <div
           className="mx-1 h-8 w-px shrink-0 self-center bg-border-subtle"
