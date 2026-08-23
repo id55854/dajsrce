@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useId, useState } from "react";
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Heart } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import clsx from "clsx";
 import { Card, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
@@ -13,9 +13,9 @@ import {
 } from "@/lib/password-strength";
 
 /**
- * The auth surfaces share one layout: a warm page wash, a brand lockup, the
- * page's `h1`, then a single card holding the form and a secondary path below
- * it. Keeping it here means login / register / setup / invite / password reset
+ * The auth surfaces share one layout: a warm page wash, the page's `h1`,
+ * then a single card holding the form and a secondary path below it.
+ * Keeping it here means login / register / setup / invite / password reset
  * cannot drift apart again, and the gradient is expressed in tokens so it
  * flips with the theme instead of needing a `dark:` pair.
  */
@@ -41,16 +41,6 @@ export function AuthShell({
         )}
       >
         <header className="flex flex-col items-center gap-3 text-center">
-          <span className="inline-flex items-center gap-2">
-            <Heart
-              className="h-8 w-8 fill-current text-brand"
-              strokeWidth={1.5}
-              aria-hidden="true"
-            />
-            <span className="text-xl font-bold tracking-tight text-ink">
-              DajSrce
-            </span>
-          </span>
           <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-ink sm:text-4xl">
             {title}
           </h1>
