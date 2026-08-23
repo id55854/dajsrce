@@ -1,17 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Building2, HeartHandshake } from "lucide-react";
+import { useCallback, useState } from "react";
+import { HeartHandshake } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { AuthActionDialog } from "@/components/AuthActionDialog";
 import { useT } from "@/i18n/client";
-import type { CompanyRole } from "@/lib/types";
 import {
   Button,
   Dialog,
   Field,
   Input,
-  Select,
   Textarea,
   useToast,
 } from "@/components/ui";
@@ -48,14 +46,6 @@ type PledgeButtonProps = {
   onPledgeSuccess?: (payload: PledgeSuccessPayload) => void;
 };
 
-type CompanyOption = {
-  id: string;
-  legal_name: string;
-  display_name: string | null;
-  default_match_ratio: number;
-  member_role: CompanyRole;
-};
-
 export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: PledgeButtonProps) {
   const t = useT();
   const toast = useToast();
@@ -64,40 +54,14 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [companies, setCompanies] = useState<CompanyOption[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<string>("me");
-  const [requestMatch, setRequestMatch] = useState(false);
   const [amountEur, setAmountEur] = useState("");
 
   const closeModal = useCallback(() => {
     setOpen(false);
     setQuantity(1);
     setMessage("");
-    setRequestMatch(false);
     setAmountEur("");
   }, []);
-
-  // Load company memberships once the modal first opens.
-  useEffect(() => {
-    if (!open || companies.length > 0) return;
-    fetch("/api/companies", { credentials: "include" })
-      .then((r) => r.json())
-      .then((data: { companies?: Array<{ id: string; legal_name: string; display_name: string | null; default_match_ratio: number; member_role: CompanyRole }> }) => {
-        setCompanies(
-          (data.companies ?? []).map((c) => ({
-            id: c.id,
-            legal_name: c.legal_name,
-            display_name: c.display_name,
-            default_match_ratio: Number(c.default_match_ratio ?? 0),
-            member_role: c.member_role,
-          }))
-        );
-      })
-      .catch(() => {});
-  }, [open, companies.length]);
-
-  const activeCompany = companies.find((c) => c.id === selectedCompany) ?? null;
-  const showMatchOption = activeCompany ? activeCompany.default_match_ratio > 0 : false;
 
   const submit = async () => {
     setLoading(true);
@@ -107,10 +71,6 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
         quantity,
         message: message.trim() || undefined,
       };
-      if (selectedCompany !== "me") {
-        payload.company_id = selectedCompany;
-        payload.request_match = requestMatch;
-      }
       const eurParsed = Number.parseFloat(amountEur.replace(",", "."));
       if (Number.isFinite(eurParsed) && eurParsed > 0) {
         payload.amount_eur = Math.round(eurParsed * 100) / 100;
@@ -180,54 +140,6 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
         }
       >
         <div className="space-y-4">
-          {companies.length > 0 ? (
-            <Field
-              label={
-                <span className="inline-flex items-center gap-1.5">
-                  <Building2 className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
-                  {t("company.pledge_on_behalf_label")}
-                </span>
-              }
-            >
-              {(props) => (
-                <Select
-                  {...props}
-                  value={selectedCompany}
-                  onChange={(e) => {
-                    setSelectedCompany(e.target.value);
-                    setRequestMatch(false);
-                  }}
-                >
-                  <option value="me">— ({t("pledge.personal")})</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.display_name || c.legal_name}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          ) : null}
-
-          {showMatchOption ? (
-            <label className="flex items-start gap-2.5 rounded-control bg-brand-soft p-3">
-              <input
-                type="checkbox"
-                checked={requestMatch}
-                onChange={(e) => setRequestMatch(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-brand-on-soft">
-                  {t("company.pledge_match_label")}
-                </span>
-                <span className="block text-sm text-brand-on-soft/80">
-                  {t("company.pledge_match_hint")}
-                </span>
-              </span>
-            </label>
-          ) : null}
-
           <Field label={t("pledge.quantity")}>
             {(props) => (
               <Input

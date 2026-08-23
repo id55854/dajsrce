@@ -30,7 +30,7 @@ export const CLAIM_UDR_ID_MAX_LENGTH = 64;
 export const CLAIM_CONTACT_EMAIL_MAX_LENGTH = 254;
 export const CLAIM_NOTE_MAX_LENGTH = 2000;
 
-/** How long a mailbox challenge stays valid. Mirrors company verification. */
+/** How long a mailbox challenge stays valid. */
 export const CLAIM_EMAIL_TOKEN_TTL_HOURS = 24;
 
 /** Raw challenge tokens are 32 random bytes rendered as hex; only the SHA-256 digest is stored. */

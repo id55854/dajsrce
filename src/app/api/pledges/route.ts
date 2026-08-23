@@ -27,7 +27,7 @@ export async function GET(_req: NextRequest) {
     const { data, error } = await supabase
       .from("pledges")
       .select(
-        "id, need_id, quantity, message, status, company_id, campaign_id, match_of_pledge_id, tax_category, amount_eur, delivered_at, fulfilled_at, created_at, need:needs(id, title, urgency, quantity_needed, quantity_pledged, institution:institutions(id, name, category))"
+        "id, need_id, quantity, message, status, tax_category, amount_eur, delivered_at, fulfilled_at, created_at, need:needs(id, title, urgency, quantity_needed, quantity_pledged, institution:institutions(id, name, category))"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
@@ -72,22 +72,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const {
-      need_id,
-      quantity,
-      message,
-      company_id,
-      campaign_id,
-      request_match,
-      tax_category,
-      amount_eur,
-    } = body as {
+    const { need_id, quantity, message, tax_category, amount_eur } = body as {
       need_id?: string;
       quantity?: number;
       message?: string;
-      company_id?: string | null;
-      campaign_id?: string | null;
-      request_match?: boolean;
       tax_category?: string;
       amount_eur?: number | null;
     };
@@ -125,21 +113,11 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (company_id != null && typeof company_id !== "string") {
-      return NextResponse.json({ error: "Invalid company_id", request_id: requestId }, { status: 400 });
-    }
-    if (campaign_id != null && typeof campaign_id !== "string") {
-      return NextResponse.json({ error: "Invalid campaign_id", request_id: requestId }, { status: 400 });
-    }
-
     const { data, error } = await supabaseAdmin.rpc("create_pledge_transaction", {
       p_user_id: user.id,
       p_need_id: need_id,
       p_quantity: qty,
       p_message: typeof message === "string" ? message : null,
-      p_company_id: company_id ?? null,
-      p_campaign_id: campaign_id ?? null,
-      p_request_match: request_match === true,
       p_tax_category: resolvedTaxCategory,
       p_amount_eur: amt === null ? null : Math.round(amt * 100) / 100,
     });

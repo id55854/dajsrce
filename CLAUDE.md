@@ -4,7 +4,7 @@
 
 ## Product snapshot
 
-DajSrce is a nationwide Croatian donation, volunteering and company-impact platform. The production branch is `main`; Vercel deploys it. Stack: Next.js 15.5, React 19, strict TypeScript, Tailwind 4, Supabase/Postgres/PostGIS/Storage, Leaflet, Stripe, Resend and SudReg.
+DajSrce is a nationwide Croatian donation and volunteering platform. The production branch is `main`; Vercel deploys it. Stack: Next.js 15.5, React 19, strict TypeScript, Tailwind 4, Supabase/Postgres/PostGIS/Storage, Leaflet and Resend.
 
 Core domains:
 
@@ -14,22 +14,23 @@ Core domains:
 - citizen donation offers that verified organisations claim;
 - NGO needs, acknowledgement-backed pledges and opted-in nearby notifications;
 - volunteer events, capacity-safe signup, hashed QR check-in and idempotent checkout hours;
-- company tenants, members, campaigns, authoritative verification and subscriptions;
-- receipts, ESG exports, CSR PDF/DOCX and acknowledgement-backed public impact;
+- acknowledgement-backed public impact — only an acknowledged donation is confirmed evidence;
 - staged/resumable registry import, durable geocoding, reviewed classification and transactional promotion.
+
+Only two account types exist: `individual` and `ngo` (plus `superadmin`). The company/CSR tenant domain (company accounts, campaigns, Stripe billing, tax receipts, ESG exports, CSR PDF/DOCX reports) was removed in `20260823100000_remove_company_domain.sql` — do not reintroduce a `company` role or resurrect Stripe without a fresh product decision.
 
 ## Non-negotiable invariants
 
 1. `/api/institutions` stays retired. Never return the national catalogue or exact hidden coordinates to the browser.
 2. Public map results come from `map_institutions_v1`; detail comes from `public_institution_detail_v1`. Keep viewport/zoom/query/limit guards and explicit truncation.
-3. Do not derive roles or entitlements from user metadata, request bodies, Stripe client metadata or public feature flags.
-4. Multi-row pledge, volunteer, company, audit, billing and artifact transitions belong in service-only transactional RPCs.
+3. Do not derive roles or entitlements from user metadata, request bodies or public feature flags.
+4. Multi-row pledge, volunteer, audit and artifact transitions belong in service-only transactional RPCs.
 5. Raw invite/verification/check-in tokens are never persisted. Store SHA-256 digests, bind identity/control, expire and consume once.
 6. Only acknowledgement-backed donations are confirmed evidence. “Delivered” alone is not confirmed public impact.
 7. Artifact versions are reserved atomically; only `generation_status = 'ready'` is downloadable/public. Clean partial storage on failure.
 8. Registry classification and donation candidates are not organizational confirmation. Curated rows win; excluded entity shapes require review.
 9. Nearby notification requires explicit opt-in and runs through the durable outbox/POST worker, not request-time profile scans.
-10. Production fails closed. Local fixtures and demo billing are development-only and explicit.
+10. Production fails closed. Local fixtures are development-only and explicit.
 11. Security-definer functions use `pg_catalog` first, schema-qualified relations, explicit revoke/grant and the narrowest caller roles.
 12. Keep secrets, raw tokens and protected coordinates out of logs/client code. Use request IDs and structured event logs.
 13. An NGO account is a reviewed claim against an official `UDR_ID`, never a typed name. Nothing creates an institution from user input, and no institution is ever given a fabricated coordinate. Until a claim is approved an `ngo` profile has a null `institution_id` and cannot publish or receive.
@@ -85,6 +86,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 31. `20260822180000_fix_place_cluster_column_ambiguity.sql`
 32. `20260822200000_place_cluster_tier_selection.sql`
 33. `20260822220000_place_cluster_single_pass_stats.sql`
+34. `20260823100000_remove_company_domain.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 
@@ -95,13 +97,13 @@ Required in production: Supabase URL/anon/service keys, HTTPS app URL and a 32+ 
 - `POST /api/cron/auto-acknowledge`
 - `POST /api/cron/process-notification-jobs`
 
-Both use `Authorization: Bearer <CRON_SECRET>`. Vercel's GET-only cron stays disabled. `ALLOW_DEMO_BILLING` and `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
+Both use `Authorization: Bearer <CRON_SECRET>`. Vercel's GET-only cron stays disabled. `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
 
 Institution-claim review needs `SUPABASE_SERVICE_ROLE_KEY`; the mailbox challenge additionally needs `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. A delivery failure is logged and never counts as verification.
 
 Two Supabase Auth settings are still unset and cannot be fixed in code — the client rules they mirror are bypassable by calling the Auth API directly. See `docs/AUTH_PASSWORD_OPERATIONS.md` for the exact paths and the release checklist: minimum password length raised to 12, and Leaked Password Protection enabled. MFA is documented there as a prerequisite toggle plus unbuilt enrolment/`aal2` work; do not record it as done.
 
-Before release, restore a production backup into staging, apply migrations, exercise RLS/RPC flows, run the full check/build/audit and monitor failed Stripe events, dead notification jobs and failed artifacts. See the complete runbook in `TECHNICAL_IMPLEMENTATION.md`.
+Before release, restore a production backup into staging, apply migrations, exercise RLS/RPC flows, run the full check/build/audit and monitor dead notification jobs and failed artifacts. See the complete runbook in `TECHNICAL_IMPLEMENTATION.md`.
 
 ## Repository workflow
 
@@ -111,10 +113,6 @@ Before release, restore a production backup into staging, apply migrations, exer
 - Use `npm.cmd` in Windows PowerShell where execution policy blocks `npm.ps1`.
 - Required gate: `npm run check`, `npm audit`, `npm run build`, `git diff --check`.
 - CI runs on pushes to `main` and pull requests; Dependabot is configured.
-
-## Renderer rule
-
-Receipt and CSR PDFs use complete static Noto Sans TTFs from `@expo-google-fonts/noto-sans` with fontkit subsetting disabled. WOFF subset files and fontkit's TTF subset path produced invalid/missing glyphs in PDF readers. Any renderer change must generate a long Croatian sample, visually inspect every PDF/DOCX page and verify source/summary reconciliation.
 
 ## Registry commands
 

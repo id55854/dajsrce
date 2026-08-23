@@ -96,7 +96,6 @@ const STATUS_FILTERS: readonly PledgeRow["status"][] = [
 
 function roleTranslationKey(role: AppRole): string {
   if (role === "ngo") return "dashboard_individual.role_ngo";
-  if (role === "company") return "dashboard_individual.role_company";
   if (role === "superadmin") return "dashboard_individual.role_superadmin";
   return "dashboard_individual.role_individual";
 }

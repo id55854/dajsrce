@@ -18,13 +18,6 @@ const REQUIRED = [
   "NEXT_PUBLIC_APP_URL",
 ];
 
-const DEMO_RECOMMENDED = [
-  "NEXT_PUBLIC_FLAG_RECEIPTS_ENABLED",
-  "NEXT_PUBLIC_FLAG_EXPORTS_ENABLED",
-  "NEXT_PUBLIC_FLAG_PUBLIC_PROFILE_ENABLED",
-  "ALLOW_DEMO_BILLING",
-];
-
 function parseEnvFile(p) {
   if (!fs.existsSync(p)) return null;
   const raw = fs.readFileSync(p, "utf8");
@@ -42,12 +35,6 @@ function parseEnvFile(p) {
     out[k] = v;
   }
   return out;
-}
-
-function isTruthy(v) {
-  if (v === undefined) return false;
-  const s = String(v).trim().toLowerCase();
-  return s === "1" || s === "true" || s === "on" || s === "yes";
 }
 
 function row(ok, label) {
@@ -68,12 +55,6 @@ console.log("Required:");
 for (const k of REQUIRED) {
   const ok = Boolean(env[k] && String(env[k]).length > 0);
   allOk = row(ok, k) && allOk;
-}
-
-console.log("\nRecommended for demo recording:");
-for (const k of DEMO_RECOMMENDED) {
-  const ok = isTruthy(env[k]);
-  allOk = row(ok, `${k}=true`) && allOk;
 }
 
 console.log("\nStill manual (dashboard / CLI):");

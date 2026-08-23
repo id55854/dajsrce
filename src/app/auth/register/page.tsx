@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Building2, BriefcaseBusiness, Heart } from "lucide-react";
+import { Building2, Heart } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -114,13 +114,8 @@ function RegisterForm() {
       setFormErrorKey("auth.role_required");
       return;
     }
-    if ((role === "ngo" || role === "company") && !institutionName.trim()) {
-      setFieldErrors({
-        institution:
-          role === "company"
-            ? "auth.company_name_required"
-            : "auth.ngo_name_required",
-      });
+    if (role === "ngo" && !institutionName.trim()) {
+      setFieldErrors({ institution: "auth.ngo_name_required" });
       return;
     }
 
@@ -138,9 +133,7 @@ function RegisterForm() {
           data: {
             name,
             role,
-            ...(role === "ngo" || role === "company"
-              ? { institution_name: institutionName.trim() }
-              : {}),
+            ...(role === "ngo" ? { institution_name: institutionName.trim() } : {}),
           },
         },
       });
@@ -157,9 +150,7 @@ function RegisterForm() {
     }
 
     if (data.session) {
-      const fallback =
-        role === "company" ? "/dashboard/company/new" : "/dashboard";
-      window.location.href = searchParams.get("next") || fallback;
+      window.location.href = searchParams.get("next") || "/dashboard";
       return;
     }
 
@@ -168,10 +159,7 @@ function RegisterForm() {
     setSuccessKey("auth.sign_up_confirm_email");
   }
 
-  const institutionLabel =
-    role === "company"
-      ? t("auth.company_name_label")
-      : t("auth.ngo_name_label");
+  const institutionLabel = t("auth.ngo_name_label");
 
   return (
     <AuthShell
@@ -218,20 +206,6 @@ function RegisterForm() {
               title={t("auth.role_ngo_title")}
               subtitle={t("auth.role_ngo_subtitle")}
             />
-            <RoleTile
-              selected={role === "company"}
-              onSelect={() => selectRole("company")}
-              icon={
-                <BriefcaseBusiness
-                  className={TILE_ICON}
-                  strokeWidth={1.75}
-                  aria-hidden="true"
-                />
-              }
-              title={t("company.role_tile_title")}
-              subtitle={t("company.role_tile_subtitle")}
-              className="sm:col-span-2"
-            />
           </div>
 
           <Button size="lg" fullWidth onClick={goToForm}>
@@ -242,11 +216,9 @@ function RegisterForm() {
         <>
           <div className="mb-6 flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold text-ink">
-              {role === "company"
-                ? t("company.role_tile_title")
-                : role === "ngo"
-                  ? t("auth.role_ngo_title")
-                  : t("auth.role_individual_title")}
+              {role === "ngo"
+                ? t("auth.role_ngo_title")
+                : t("auth.role_individual_title")}
             </h2>
             <Button variant="ghost" onClick={backToRoles}>
               {t("common.back")}
@@ -317,7 +289,7 @@ function RegisterForm() {
               strength={password.length > 0 ? strength : null}
             />
 
-            {role === "ngo" || role === "company" ? (
+            {role === "ngo" ? (
               <Field
                 label={institutionLabel}
                 required

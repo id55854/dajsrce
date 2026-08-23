@@ -95,17 +95,3 @@ export function authErrorKey(error: unknown): string {
   }
   return "common.error_generic";
 }
-
-/**
- * `/api/companies/invite/accept` answers with distinct status codes per
- * failure mode (401/403/404/410/400). Translate from the status rather than
- * echoing the English body it returns.
- */
-export function inviteErrorKey(status: number): string {
-  if (status === 400) return "auth.invite_error_invalid_token";
-  if (status === 401) return "auth.invite_error_signed_out";
-  if (status === 403) return "auth.invite_error_email_mismatch";
-  if (status === 404) return "auth.invite_error_not_found";
-  if (status === 410) return "auth.invite_error_expired";
-  return "common.error_generic";
-}

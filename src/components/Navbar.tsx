@@ -25,7 +25,6 @@ import {
   AccessibilityPanel,
 } from "@/components/AccessibilityMenu";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
-import { CompanySwitcher, type CompanySwitcherItem } from "@/components/CompanySwitcher";
 import { Menu, buttonClasses, usePresence } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
@@ -305,8 +304,6 @@ export function Navbar() {
   const [user, setUser] = useState<SupaUser | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [companies, setCompanies] = useState<CompanySwitcherItem[]>([]);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   const [meProfile, setMeProfile] = useState<{ name: string; email: string } | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -353,38 +350,6 @@ export function Navbar() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setNotifications([]);
-      setCompanies([]);
-      setActiveCompanyId(null);
-      return;
-    }
-    // Fetch company memberships once per session; the switcher only
-    // renders when the user belongs to at least two companies.
-    fetch("/api/companies", { credentials: "include" })
-      .then((r) => r.json())
-      .then((data: { companies?: Array<{ id: string; slug: string; display_name: string | null; legal_name: string; logo_url: string | null; member_role: CompanySwitcherItem["role"] }> }) => {
-        const list = (data.companies ?? []).map((c) => ({
-          id: c.id,
-          slug: c.slug,
-          display_name: c.display_name,
-          legal_name: c.legal_name,
-          logo_url: c.logo_url,
-          role: c.member_role,
-        }));
-        setCompanies(list);
-        if (list.length > 0) {
-          const stored = document.cookie
-            .split("; ")
-            .find((c) => c.startsWith("active_company="))
-            ?.split("=")[1];
-          setActiveCompanyId(stored ?? list[0]!.id);
-        }
-      })
-      .catch(() => {});
   }, [user]);
 
   useEffect(() => {
@@ -503,9 +468,6 @@ export function Navbar() {
         <div className="hidden items-center gap-2 lg:flex">
           <LocaleSwitcher />
           <ThemeToggle />
-          {user && companies.length > 1 ? (
-            <CompanySwitcher items={companies} activeId={activeCompanyId} />
-          ) : null}
           <div className="inline-flex items-center rounded-full border border-border-subtle bg-surface-raised p-1 shadow-raised">
             {user ? (
               <button

@@ -45,9 +45,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const requiresAuth =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/company/confirmations");
+  const requiresAuth = pathname.startsWith("/dashboard");
 
   if (requiresAuth && !user) {
     const loginUrl = request.nextUrl.clone();
@@ -66,20 +64,6 @@ export async function middleware(request: NextRequest) {
     // role. A missing profile is treated as least privileged.
     const role = normalizeRole(profile?.role ?? null);
 
-    if (
-      pathname.startsWith("/dashboard/company") &&
-      pathname !== "/dashboard/company/new"
-    ) {
-      const { data: membership } = await supabase
-        .from("company_members")
-        .select("id")
-        .eq("profile_id", user.id)
-        .limit(1)
-        .maybeSingle();
-      if (!membership) {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
-      }
-    }
     if (pathname.startsWith("/dashboard/admin") && role !== "superadmin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
@@ -101,8 +85,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/dashboard/:path*",
-    "/company/confirmations/:path*",
-  ],
+  matcher: ["/dashboard/:path*"],
 };

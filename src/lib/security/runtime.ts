@@ -3,11 +3,6 @@ import { createHash, timingSafeEqual } from "node:crypto";
 const MIN_SECRET_LENGTH = 32;
 type RuntimeEnvironment = Record<string, string | undefined>;
 
-/** Demo billing must never be reachable from a production deployment. */
-export function isDemoBillingEnabled(env: RuntimeEnvironment = process.env): boolean {
-  return env.NODE_ENV !== "production" && env.ALLOW_DEMO_BILLING === "true";
-}
-
 /**
  * Resolve the cron bearer secret. A missing/weak production secret is a server
  * configuration error, never an instruction to run the job without auth.

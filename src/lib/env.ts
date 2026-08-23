@@ -61,10 +61,6 @@ export function getProductionEnvironmentIssues(
     issues.push({ key: "CRON_SECRET", reason: "must contain at least 32 characters" });
   }
 
-  if (valueOf(env, "ALLOW_DEMO_BILLING")?.toLowerCase() === "true") {
-    issues.push({ key: "ALLOW_DEMO_BILLING", reason: "must be false or unset in production" });
-  }
-
   if (valueOf(env, "ALLOW_LOCAL_FIXTURES")?.toLowerCase() === "true") {
     issues.push({ key: "ALLOW_LOCAL_FIXTURES", reason: "must be false or unset in production" });
   }
