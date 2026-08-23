@@ -43,7 +43,6 @@ export async function GET() {
       delivered_at,
       tax_category,
       created_at,
-      company_id,
       need:needs(title),
       pledge_acknowledgements(id, kind, signed_at, notes)
     `

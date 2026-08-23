@@ -3,7 +3,6 @@ import {
   bearerMatchesSecret,
   getCronSecret,
   hashBearerToken,
-  isDemoBillingEnabled,
 } from "./runtime";
 
 describe("security runtime guards", () => {
@@ -17,11 +16,6 @@ describe("security runtime guards", () => {
     expect(bearerMatchesSecret(`Bearer ${secret}`, secret)).toBe(true);
     expect(bearerMatchesSecret("Bearer wrong", secret)).toBe(false);
     expect(bearerMatchesSecret(null, secret)).toBe(false);
-  });
-
-  it("never enables demo billing in production", () => {
-    expect(isDemoBillingEnabled({ NODE_ENV: "production", ALLOW_DEMO_BILLING: "true" })).toBe(false);
-    expect(isDemoBillingEnabled({ NODE_ENV: "development", ALLOW_DEMO_BILLING: "true" })).toBe(true);
   });
 
   it("creates stable SHA-256 token digests without preserving the bearer", () => {

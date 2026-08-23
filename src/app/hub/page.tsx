@@ -13,7 +13,6 @@ import { Card, PageHeader, PageShell } from "@/components/ui";
 const ROLE_LABEL_KEY: Record<AppRole, string> = {
   individual: "dashboard_individual.role_individual",
   ngo: "dashboard_individual.role_ngo",
-  company: "dashboard_individual.role_company",
   superadmin: "dashboard_individual.role_superadmin",
 };
 

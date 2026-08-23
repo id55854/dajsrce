@@ -13,13 +13,12 @@ This document describes the post-audit architecture. Older planning Word/PDF/XLS
 
 ## 1. Product and stack
 
-DajSrce connects individuals, volunteers, Croatian companies, NGOs and social institutions. The platform supports nationwide discovery, needs and pledges, volunteer events and attendance, company campaigns, subscriptions, verification, receipts, ESG exports, CSR reports and public impact profiles.
+DajSrce connects individuals, volunteers, NGOs and social institutions. The platform supports nationwide discovery, needs and pledges, and volunteer events and attendance. Only `individual` and `ngo` account types exist (plus `superadmin`); the former company/CSR tenant domain (company accounts, campaigns, Stripe billing, tax receipts, ESG exports, CSR reports, public company profiles) was removed in `20260823100000_remove_company_domain.sql`.
 
 - Next.js 15.5 App Router, React 19, strict TypeScript and Tailwind CSS 4.
 - Supabase Auth, Postgres, PostGIS, RLS and private Storage.
 - Leaflet/react-leaflet for the map.
-- Stripe subscriptions, Resend transactional email, SudReg company lookup.
-- pdf-lib/fontkit with complete static Noto Sans TTFs; `docx` for editable CSR reports.
+- Resend transactional email.
 - ESLint 9, Vitest and GitHub Actions.
 
 Run locally with `npm install` followed by `npm run dev`. Run the entire repository gate with `npm run check`; run the deploy build with `npm run build`.
@@ -38,7 +37,7 @@ flowchart LR
   W --> N["Opt-in nearby recipients"]
   S --> D["Postgres + RLS"]
   A --> O["Private Storage"]
-  A --> X["Stripe / Resend / SudReg"]
+  A --> X["Resend"]
 ```
 
 Public requests use a stateless anonymous Supabase client and do not read auth cookies. Middleware runs only on protected route families. Authenticated writes resolve the real user with `auth.getUser()`, authorize the relevant tenant/institution, and then call a service-only transactional RPC for multi-row state changes.
@@ -82,15 +81,11 @@ The release gate is `20260801160000_security_release_gate.sql`.
 
 - `/api/seed` is permanently disabled. Seeding is a local/service-role CLI operation.
 - New auth users always start as `individual`; user metadata cannot assign application roles.
-- Profile role, institution linkage, company tenant fields, membership roles, domains, registry rows and verification state cannot be forged through direct authenticated-table writes.
+- Profile role, institution linkage, registry rows and verification state cannot be forged through direct authenticated-table writes.
 - Application roles cannot create objects in `public`; security-definer functions use a locked `pg_catalog`-first search path and explicit grants.
 - Anonymous users cannot select the base institution/registry tables. Public map/detail functions return an allow-listed projection.
-- Company creation plus owner membership and audit append are atomic.
-- Invitation and company-verification bearer values are SHA-256 digests at rest, single use, expiring and bound to the intended verified email/control channel.
-- Verification confirmation is a POST mutation and requires authoritative SudReg data plus published-email or DNS-domain control.
-- Legacy self-attested company-action writes return `410`; historic items are labelled unverified.
 - Cron routes are POST-only, use a 32+ character bearer secret and constant-time digest comparison.
-- Demo billing and local fixture fallbacks are forbidden in production by startup validation.
+- Local fixture fallbacks are forbidden in production by startup validation.
 - CSP, HSTS, framing, MIME, referrer and permissions headers are set centrally; the Next image proxy is not an unrestricted relay.
 
 Authorization summary:
@@ -101,33 +96,23 @@ Authorization summary:
 | Create need/event | authenticated NGO linked to that institution |
 | Deliver pledge | donor or owning NGO, enforced transactionally |
 | Acknowledge pledge | owning NGO only |
-| Company settings/members | tenant role allow-list |
-| Receipts/exports/reports | owner/admin/finance plus feature/tier gate |
 | Registry/import/geocoding/promotion | service role only |
 | Cron/worker execution | strong bearer secret plus service role |
 
-Never put `SUPABASE_SERVICE_ROLE_KEY`, Stripe/Resend/SudReg secrets, raw invite/verification tokens or exact protected coordinates in logs or client bundles.
+Never put `SUPABASE_SERVICE_ROLE_KEY`, Resend secrets, raw invite/verification tokens or exact protected coordinates in logs or client bundles.
 
 ## 5. Transactional workflows and evidence
 
 `202608010300_transactional_integrity.sql` supplies service-only state machines:
 
-- `create_pledge_transaction`: locks the need, validates remaining quantity, creates optional company match, updates counters and appends audit evidence atomically.
+- `create_pledge_transaction`: locks the need, validates remaining quantity, updates counters atomically.
 - delivery and acknowledgement RPCs enforce actor/institution ownership and legal state transitions.
 - volunteer signup locks capacity; check-in uses a short-lived hashed event token; checkout is idempotent and creates one bounded hours row.
-- Stripe events move through received/processing/succeeded/failed states. Failed handlers can retry; stale processing claims can be reclaimed. Price IDs, not client metadata, determine tiers.
-- artifact versions use a locked counter. Receipt/export/CSR rows move through generating/ready/failed; failed uploads are removed and downloads expose only ready rows.
-- audit hashes cover the complete event envelope and serialize each company chain.
-- uncapped JSON evidence RPCs avoid PostgREST row caps for report generation.
+- audit hashes cover the complete event envelope and serialize each chain.
 
-Amounts reconcile in integer cents before rendering. Only acknowledgement-backed pledges count in receipts, reports and public company impact. Automated acknowledgement is explicitly disclosed and does not claim independent tax/legal verification.
+Amounts reconcile in integer cents before rendering. Only acknowledgement-backed pledges count as confirmed public impact. Automated acknowledgement is explicitly disclosed and does not claim independent tax/legal verification.
 
-### Generated artifacts
-
-- Receipt PDF/XML: multi-page repeated headers, complete line count, XML escaping, exact cent reconciliation and Croatian Unicode.
-- CSR PDF/DOCX: complete monthly series, beneficiary/campaign tables, methodology, page numbers and Croatian Unicode.
-- PDF generation embeds complete static Noto Sans TTFs. Do not switch back to Fontsource WOFF subsets or fontkit subsetting without rendering in multiple PDF readers.
-- `src/lib/artifacts.test.ts` generates long fixtures. QA paths are opt-in environment variables and write only under ignored `tmp/`.
+The company-scoped artifact pipeline (donation receipts, ESG exports, CSR PDF/DOCX reports, the `receipts`/`exports`/`reports` storage buckets and their generation RPCs) was removed along with the company domain. No generated-artifact renderer remains in the codebase.
 
 ## 6. Asynchronous notifications
 
@@ -167,7 +152,7 @@ Migrations: `20260801170000_registry_pipeline.sql`, `20260804190000_official_ass
 
 ## 8. Environment contract
 
-Copy `.env.example` to `.env.local`. Production startup fails for missing/placeholders in required values, HTTP production URLs, weak cron secrets, demo billing or local fixtures.
+Copy `.env.example` to `.env.local`. Production startup fails for missing/placeholders in required values, HTTP production URLs, weak cron secrets or local fixtures.
 
 Required platform values:
 
@@ -182,7 +167,7 @@ historical projections and inactive canonical rows are removed after a
 successful refresh. Monitor database size against the provider limit; an
 upgrade is not required for the current active-only operating model.
 
-Feature integrations require the matching Stripe, Resend and SudReg secrets. Public feature flags are presentation gates, never authorization controls.
+Feature integrations require the matching Resend secrets. Public feature flags are presentation gates, never authorization controls.
 
 ## 9. Migration and deployment runbook
 
@@ -220,11 +205,11 @@ Mandatory release sequence:
 
 1. Take a database backup and record current migration history/policies/grants.
 2. Restore the backup into staging and apply all twenty-seven migrations there.
-3. Run RPC/RLS smoke tests for anonymous map/detail, signup/setup, NGO writes, pledges, volunteer tokens/checkout, tenant creation/invites/verification, Stripe retry, report generation and both cron routes.
+3. Run RPC/RLS smoke tests for anonymous map/detail, signup/setup, NGO writes, pledges, volunteer tokens/checkout and both cron routes.
 4. Run `npm ci`, `npm run check`, `npm audit`, `npm run build` and the map benchmark.
 5. Set production secrets/flags; configure authenticated POST schedulers.
 6. Apply migrations in production during a monitored window, then deploy application code.
-7. Watch 5xx rate, map latency/payload/truncation, notification dead jobs, Stripe failed events and artifact failed state.
+7. Watch 5xx rate, map latency/payload/truncation and notification dead jobs.
 
 The production project did not contain `supabase_migrations.schema_migrations`
 when these changes were applied through the authorized Management API. Before
@@ -245,7 +230,7 @@ Initial objectives:
 - error rate below 1% p95 for core APIs;
 - database backup RPO <= 24 hours and restore RTO <= 4 hours;
 - quarterly staging restore drill;
-- alert on Stripe failed events, notification dead jobs, artifact failed rows, map p95 budget breach and sustained 5xx.
+- alert on notification dead jobs, map p95 budget breach and sustained 5xx.
 
 Supabase/Vercel settings must implement automated backups and log/storage retention. Retention owners must define deletion periods for exact user location, raw registry source, audit/evidence records, generated files and expired token rows. User export/deletion must remove or anonymize dependent personal data while retaining only legally required evidence.
 
@@ -254,7 +239,7 @@ Incident minimum:
 1. stop the affected worker/feature flag without enabling an insecure fallback;
 2. rotate exposed secrets and invalidate affected tokens/sessions;
 3. preserve structured request IDs, audit chains and provider event IDs;
-4. assess exact-location, company, volunteer and evidence exposure separately;
+4. assess exact-location, volunteer and evidence exposure separately;
 5. notify the privacy/legal owner; document timeline, scope, remediation and prevention;
 6. restore from a verified backup only after root cause is contained.
 
@@ -264,4 +249,4 @@ Incident minimum:
 
 CI additionally runs a production dependency audit and build. Dependabot is configured. Migration filenames must remain unique and sortable. Use additive timestamped migrations; never edit an applied migration to change production state.
 
-Before changing a renderer, generate long Croatian PDF/DOCX samples, render every page, inspect wrapping/repeated headers/footers and reconcile every source row/total. Before changing the map, benchmark payload, feature count, DOM count and hidden-coordinate behavior.
+Before changing the map, benchmark payload, feature count, DOM count and hidden-coordinate behavior.

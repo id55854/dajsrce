@@ -44,7 +44,7 @@ export async function GET() {
   // reading this list must not see people who withdrew.
   const { data: signups, error: sErr } = await supabase
     .from("volunteer_signups")
-    .select("id, user_id, event_id, checked_in_at, checked_out_at, company_id")
+    .select("id, user_id, event_id, checked_in_at, checked_out_at")
     .in("event_id", eventIds)
     .is("cancelled_at", null)
     .order("id", { ascending: false });

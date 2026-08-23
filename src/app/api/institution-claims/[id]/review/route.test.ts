@@ -47,7 +47,7 @@ describe("POST /api/institution-claims/[id]/review", () => {
   });
 
   it("refuses a non-admin and never reaches the database", async () => {
-    for (const role of ["individual", "ngo", "company"]) {
+    for (const role of ["individual", "ngo"]) {
       signedInAs(role);
       const response = await POST(review({ decision: "approve" }), { params });
       expect(response.status, role).toBe(403);

@@ -23,7 +23,6 @@ type SignupRow = {
   event_id: string;
   checked_in_at: string | null;
   checked_out_at: string | null;
-  company_id: string | null;
   volunteer: { id: string; name: string; email: string };
   event: { id: string; title: string; event_date: string; start_time: string; end_time: string } | null;
 };

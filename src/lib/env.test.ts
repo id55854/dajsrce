@@ -11,7 +11,6 @@ const validEnvironment = {
   SUPABASE_SERVICE_ROLE_KEY: "service-role-key-value",
   NEXT_PUBLIC_APP_URL: "https://dajsrce.example",
   CRON_SECRET: "long-random-cron-secret-at-least-32-chars",
-  ALLOW_DEMO_BILLING: "false",
   ALLOW_LOCAL_FIXTURES: "false",
 };
 
@@ -27,12 +26,11 @@ describe("production environment validation", () => {
     expect(() => assertProductionEnvironment(environmentWithoutCron)).not.toThrow();
   });
 
-  it("rejects demo/fixture toggles, insecure URLs, and weak configured secrets", () => {
+  it("rejects the fixture toggle, insecure URLs, and weak configured secrets", () => {
     const issues = getProductionEnvironmentIssues({
       ...validEnvironment,
       NEXT_PUBLIC_APP_URL: "http://dajsrce.example",
       CRON_SECRET: "too-short",
-      ALLOW_DEMO_BILLING: "true",
       ALLOW_LOCAL_FIXTURES: "true",
     });
 
@@ -40,7 +38,6 @@ describe("production environment validation", () => {
       expect.arrayContaining([
         expect.objectContaining({ key: "NEXT_PUBLIC_APP_URL" }),
         expect.objectContaining({ key: "CRON_SECRET" }),
-        expect.objectContaining({ key: "ALLOW_DEMO_BILLING" }),
         expect.objectContaining({ key: "ALLOW_LOCAL_FIXTURES" }),
       ])
     );
