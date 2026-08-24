@@ -263,7 +263,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
             <EmptyState
               title={t("dashboard_individual.no_actions")}
               action={
-                <Link href="/map" className={buttonClasses({ variant: "secondary" })}>
+                <Link href="/doniraj" className={buttonClasses({ variant: "secondary" })}>
                   {t("dashboard_individual.find_places")}
                 </Link>
               }
