@@ -2,14 +2,13 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Languages } from "lucide-react";
 import clsx from "clsx";
 import { useLocale } from "@/i18n/client";
 import { SUPPORTED_LOCALES } from "@/i18n/dictionaries";
 import type { Locale } from "@/lib/types";
 import { setLocaleAction } from "@/app/actions/locale";
 
-export function LocaleSwitcher({ compact = false }: { compact?: boolean }) {
+export function LocaleSwitcher() {
   const { locale, setLocale } = useLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -24,13 +23,6 @@ export function LocaleSwitcher({ compact = false }: { compact?: boolean }) {
       aria-label={locale === "hr" ? "Promijeni jezik" : "Change language"}
       aria-busy={isPending || undefined}
     >
-      {!compact ? (
-        <Languages
-          className="h-4 w-4 shrink-0 text-ink-tertiary"
-          aria-hidden="true"
-        />
-      ) : null}
-
       <div
         className={clsx(
           "relative inline-flex rounded-full border border-border-subtle bg-surface-raised p-1 shadow-raised",
