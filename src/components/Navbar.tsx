@@ -42,6 +42,14 @@ const navLinks = [
   { href: "/o-nama", labelKey: "nav.about" },
 ] as const;
 
+// An NGO account posts volunteer events; it doesn't sign up for them. The
+// "Volunteer" tab answers a question only an individual account asks, so it
+// is dropped from an NGO's own nav rather than shown and disabled.
+function navLinksForRole(role: string | undefined) {
+  if (role !== "ngo") return navLinks;
+  return navLinks.filter((link) => link.href !== "/volunteer");
+}
+
 function isNavLinkActive(
   href: string,
   pathname: string,
@@ -304,7 +312,9 @@ export function Navbar() {
   const [user, setUser] = useState<SupaUser | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [meProfile, setMeProfile] = useState<{ name: string; email: string } | null>(null);
+  const [meProfile, setMeProfile] = useState<{ name: string; email: string; role: string } | null>(
+    null
+  );
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentView = searchParams.get("view");
@@ -342,9 +352,13 @@ export function Navbar() {
     let cancelled = false;
     fetch("/api/me", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { profile?: { name: string; email: string } } | null) => {
+      .then((data: { profile?: { name: string; email: string; role: string } } | null) => {
         if (cancelled || !data?.profile) return;
-        setMeProfile({ name: data.profile.name, email: data.profile.email });
+        setMeProfile({
+          name: data.profile.name,
+          email: data.profile.email,
+          role: data.profile.role,
+        });
       })
       .catch(() => {});
     return () => {
@@ -460,7 +474,7 @@ export function Navbar() {
           className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center rounded-full border border-border-subtle bg-surface-sunken p-1 lg:flex"
           aria-label={t("nav.main_navigation")}
         >
-          {navLinks.map(({ href, labelKey }) => (
+          {navLinksForRole(meProfile?.role).map(({ href, labelKey }) => (
             <NavLink key={href} href={href} label={t(labelKey)} />
           ))}
         </nav>
@@ -564,7 +578,7 @@ export function Navbar() {
           )}
         >
           <nav className="flex flex-col gap-1" aria-label={t("nav.mobile_navigation")}>
-            {navLinks.map(({ href, labelKey }) => {
+            {navLinksForRole(meProfile?.role).map(({ href, labelKey }) => {
               const active = isNavLinkActive(href, pathname, currentView);
               return (
                 <Link
