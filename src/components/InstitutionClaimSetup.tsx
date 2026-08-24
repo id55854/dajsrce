@@ -5,6 +5,7 @@ import {
   Building2,
   CheckCircle2,
   Loader2,
+  Mail,
   MailCheck,
   Search,
   ShieldCheck,
@@ -14,6 +15,7 @@ import {
   Badge,
   Button,
   Card,
+  Dialog,
   Field,
   Input,
   Textarea,
@@ -25,6 +27,7 @@ import {
   type ClaimableAssociation,
   type OwnInstitutionClaim,
 } from "@/lib/institution-claims";
+import { ORGANISATION } from "@/lib/organisation";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -59,6 +62,14 @@ export function InstitutionClaimSetup({ ensureNgoRole, onApproved }: Props) {
   const [verifying, setVerifying] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
 
+  // The registry doesn't publish an email for every association, so the
+  // mailbox challenge isn't always available. The first time that shows up
+  // for this claim, surface it as a popup instead of leaving it as text the
+  // applicant has to notice on their own; a manual "Contact us" trigger stays
+  // available afterwards for anyone who dismissed it.
+  const [noEmailDialogOpen, setNoEmailDialogOpen] = useState(false);
+  const noEmailDialogShown = useRef(false);
+
   const loadClaim = useCallback(async () => {
     try {
       const res = await fetch("/api/institution-claims", { credentials: "include" });
@@ -79,6 +90,15 @@ export function InstitutionClaimSetup({ ensureNgoRole, onApproved }: Props) {
   useEffect(() => {
     void loadClaim();
   }, [loadClaim]);
+
+  useEffect(() => {
+    if (noEmailDialogShown.current || !claim) return;
+    const isOpenClaim = claim.status === "pending" || claim.status === "email_sent";
+    if (isOpenClaim && !claim.email_verified && !claim.organisation?.registry_email) {
+      noEmailDialogShown.current = true;
+      setNoEmailDialogOpen(true);
+    }
+  }, [claim]);
 
   // The confirmation link lands here rather than on a bare confirmation page,
   // so the applicant sees the claim state immediately after proving the
@@ -260,6 +280,35 @@ export function InstitutionClaimSetup({ ensureNgoRole, onApproved }: Props) {
     }
   }
 
+  const noEmailDialog = (
+    <Dialog
+      open={noEmailDialogOpen}
+      onClose={() => setNoEmailDialogOpen(false)}
+      title={t("claims.no_registry_email_dialog_title")}
+      closeLabel={t("common.close")}
+      footer={
+        <Button
+          onClick={() => setNoEmailDialogOpen(false)}
+          data-dialog-initial-focus
+        >
+          {t("claims.no_registry_email_dialog_ok")}
+        </Button>
+      }
+    >
+      <p className="text-sm leading-6 text-ink-secondary">
+        {t("claims.no_registry_email_dialog_body")}{" "}
+        {ORGANISATION.contactEmail ? (
+          <a
+            href={`mailto:${ORGANISATION.contactEmail}`}
+            className="font-semibold text-brand underline-offset-2 hover:underline"
+          >
+            {ORGANISATION.contactEmail}
+          </a>
+        ) : null}
+      </p>
+    </Dialog>
+  );
+
   if (loadingClaim) {
     return (
       <p role="status" className="inline-flex items-center gap-2 text-sm text-ink-secondary">
@@ -273,68 +322,78 @@ export function InstitutionClaimSetup({ ensureNgoRole, onApproved }: Props) {
 
   if (claim && isOpen) {
     return (
-      <Card padding="lg" className="space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary">
-              {t("claims.status_title")}
-            </p>
-            <h2 className="mt-1 flex items-center gap-2 text-base font-semibold text-ink">
-              <Building2 className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-              <span className="min-w-0 break-words">
-                {claim.organisation?.name ?? claim.udr_id}
-              </span>
-            </h2>
-          </div>
-          <Badge tone={claim.email_verified ? "success" : "warning"}>
-            {claim.email_verified
-              ? t("claims.email_verified_badge")
-              : t("claims.status_pending")}
-          </Badge>
-        </div>
-
-        <p className="text-sm leading-6 text-ink-secondary">{t("claims.status_pending_body")}</p>
-
-        <dl className="space-y-1 rounded-control border border-border-subtle bg-surface-sunken p-4 text-sm">
-          <div className="flex flex-wrap gap-2">
-            <dt className="text-ink-tertiary">{t("claims.contact_email_label")}</dt>
-            <dd className="min-w-0 break-all text-ink">{claim.contact_email}</dd>
-          </div>
-          {claim.organisation?.registry_email ? (
-            <div className="flex flex-wrap gap-2">
-              <dt className="text-ink-tertiary">{t("claims.registry_email_label")}</dt>
-              <dd className="min-w-0 break-all text-ink">{claim.organisation.registry_email}</dd>
+      <>
+        <Card padding="lg" className="space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary">
+                {t("claims.status_title")}
+              </p>
+              <h2 className="mt-1 flex items-center gap-2 text-base font-semibold text-ink">
+                <Building2 className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                <span className="min-w-0 break-words">
+                  {claim.organisation?.name ?? claim.udr_id}
+                </span>
+              </h2>
             </div>
-          ) : null}
-        </dl>
+            <Badge tone={claim.email_verified ? "success" : "warning"}>
+              {claim.email_verified
+                ? t("claims.email_verified_badge")
+                : t("claims.status_pending")}
+            </Badge>
+          </div>
 
-        <div className="flex flex-wrap gap-2">
-          {claim.email_verified ? (
-            <span className="inline-flex items-center gap-2 text-sm font-medium text-success">
-              <MailCheck className="h-4 w-4" aria-hidden="true" />
-              {t("claims.email_verified_badge")}
-            </span>
-          ) : claim.organisation?.registry_email ? (
-            <Button
-              variant="secondary"
-              onClick={() => void sendVerificationEmail()}
-              loading={verifying}
-              icon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
-            >
-              {t("claims.email_verify_cta")}
+          <p className="text-sm leading-6 text-ink-secondary">{t("claims.status_pending_body")}</p>
+
+          <dl className="space-y-1 rounded-control border border-border-subtle bg-surface-sunken p-4 text-sm">
+            <div className="flex flex-wrap gap-2">
+              <dt className="text-ink-tertiary">{t("claims.contact_email_label")}</dt>
+              <dd className="min-w-0 break-all text-ink">{claim.contact_email}</dd>
+            </div>
+            {claim.organisation?.registry_email ? (
+              <div className="flex flex-wrap gap-2">
+                <dt className="text-ink-tertiary">{t("claims.registry_email_label")}</dt>
+                <dd className="min-w-0 break-all text-ink">{claim.organisation.registry_email}</dd>
+              </div>
+            ) : null}
+          </dl>
+
+          <div className="flex flex-wrap gap-2">
+            {claim.email_verified ? (
+              <span className="inline-flex items-center gap-2 text-sm font-medium text-success">
+                <MailCheck className="h-4 w-4" aria-hidden="true" />
+                {t("claims.email_verified_badge")}
+              </span>
+            ) : claim.organisation?.registry_email ? (
+              <Button
+                variant="secondary"
+                onClick={() => void sendVerificationEmail()}
+                loading={verifying}
+                icon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
+              >
+                {t("claims.email_verify_cta")}
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={() => setNoEmailDialogOpen(true)}
+                icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+              >
+                {t("claims.email_verify_unavailable_cta")}
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => void withdrawClaim()} loading={withdrawing}>
+              {t("claims.withdraw")}
             </Button>
-          ) : (
-            <p className="text-sm text-ink-tertiary">{t("claims.email_verify_unavailable")}</p>
-          )}
-          <Button variant="ghost" onClick={() => void withdrawClaim()} loading={withdrawing}>
-            {t("claims.withdraw")}
-          </Button>
-        </div>
-      </Card>
+          </div>
+        </Card>
+        {noEmailDialog}
+      </>
     );
   }
 
   return (
+    <>
     <div className="space-y-4">
       {claim?.status === "rejected" ? (
         <Card padding="lg" className="border-danger/30">
@@ -492,5 +551,7 @@ export function InstitutionClaimSetup({ ensureNgoRole, onApproved }: Props) {
         </>
       ) : null}
     </div>
+    {noEmailDialog}
+    </>
   );
 }
