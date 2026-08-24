@@ -58,7 +58,10 @@
     "subtitle_explore": "Answer a few questions and we will find organisations that need exactly what you can give.",
     "offer_cta_title": "Have something specific to give?",
     "offer_cta_body": "Publish an offer and verified organisations claim it themselves. Your contact details are shared only once you accept.",
-    "offer_cta_action": "I can donate"
+    "offer_cta_action": "I can donate",
+    "ngo_new_need_title": "Managing your organisation's needs?",
+    "ngo_new_need_body": "Post a new need directly from here — it will show up in this list for donors right away.",
+    "ngo_new_need_action": "New need"
   },
   "organisations_page": {
     "title": "Associations",

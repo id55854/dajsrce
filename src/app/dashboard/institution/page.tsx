@@ -4,16 +4,14 @@ import { useId, useState } from "react";
 import Link from "next/link";
 import {
   CalendarPlus,
-  ClipboardList,
   Inbox,
   MapPin,
   Plus,
   Users,
   X,
 } from "lucide-react";
-import { useLocale, useT } from "@/i18n/client";
-import { DONATION_TYPES } from "@/lib/constants";
-import type { DonationType, UrgencyLevel } from "@/lib/types";
+import { useT } from "@/i18n/client";
+import { NewNeedForm } from "@/components/NewNeedForm";
 import {
   Button,
   Card,
@@ -22,36 +20,19 @@ import {
   PageHeader,
   PageShell,
   SectionHeader,
-  Select,
   Stat,
   Textarea,
   buttonClasses,
   useToast,
 } from "@/components/ui";
 
-const donationKeys = Object.keys(DONATION_TYPES) as DonationType[];
-
 export default function InstitutionDashboardPage() {
   const t = useT();
-  const { locale } = useLocale();
   const toast = useToast();
 
-  const urgencyOptions: { value: UrgencyLevel; label: string }[] = [
-    { value: "routine", label: t("institution.dashboard_urgency_routine") },
-    { value: "needed_soon", label: t("institution.dashboard_urgency_needed_soon") },
-    { value: "urgent", label: t("institution.dashboard_urgency_urgent") },
-  ];
   const needPanelId = useId();
   const eventPanelId = useId();
   const [panel, setPanel] = useState<"need" | "event" | null>(null);
-
-  const [needTitle, setNeedTitle] = useState("");
-  const [needDescription, setNeedDescription] = useState("");
-  const [needDonationType, setNeedDonationType] = useState<DonationType>("food");
-  const [needUrgency, setNeedUrgency] = useState<UrgencyLevel>("routine");
-  const [needQuantity, setNeedQuantity] = useState("1");
-  const [needSubmitting, setNeedSubmitting] = useState(false);
-  const [needError, setNeedError] = useState<string | null>(null);
 
   const [evTitle, setEvTitle] = useState("");
   const [evDescription, setEvDescription] = useState("");
@@ -61,50 +42,6 @@ export default function InstitutionDashboardPage() {
   const [evVolunteers, setEvVolunteers] = useState("5");
   const [evSubmitting, setEvSubmitting] = useState(false);
   const [evError, setEvError] = useState<string | null>(null);
-
-  async function submitNeed(e: React.FormEvent) {
-    e.preventDefault();
-    setNeedError(null);
-    setNeedSubmitting(true);
-    try {
-      const res = await fetch("/api/needs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          title: needTitle,
-          description: needDescription,
-          donation_type: needDonationType,
-          urgency: needUrgency,
-          quantity_needed: Number(needQuantity),
-        }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(
-          (json as { error?: string }).error ?? t("institution.dashboard_error_need_failed")
-        );
-      }
-      // Success used to replace the form with a green banner and then close the
-      // panel on a 2s timer, so the content vanished from under the user. The
-      // outcome is a toast; the panel closes because the task is finished.
-      toast({
-        tone: "success",
-        title: t("institution.dashboard_toast_need_posted"),
-        description: needTitle,
-      });
-      setNeedTitle("");
-      setNeedDescription("");
-      setNeedQuantity("1");
-      setPanel(null);
-    } catch (err) {
-      setNeedError(
-        err instanceof Error ? err.message : t("institution.dashboard_error_need_failed")
-      );
-    } finally {
-      setNeedSubmitting(false);
-    }
-  }
 
   async function submitEvent(e: React.FormEvent) {
     e.preventDefault();
@@ -206,10 +143,7 @@ export default function InstitutionDashboardPage() {
             fullWidth
             aria-expanded={panel === "need"}
             aria-controls={needPanelId}
-            onClick={() => {
-              setNeedError(null);
-              setPanel((current) => (current === "need" ? null : "need"));
-            }}
+            onClick={() => setPanel((current) => (current === "need" ? null : "need"))}
             icon={<Plus className="h-5 w-5" aria-hidden="true" />}
           >
             {t("institution.dashboard_new_need")}
@@ -234,116 +168,7 @@ export default function InstitutionDashboardPage() {
             focus move, no Escape, no scrim and no dialog role. They are honest
             inline sections now: normal card elevation and a real close button. */}
         {panel === "need" ? (
-          <Card padding="lg" id={needPanelId}>
-            <SectionHeader
-              title={
-                <span className="flex items-center gap-2">
-                  <ClipboardList className="h-5 w-5 text-brand" aria-hidden="true" />
-                  {t("institution.dashboard_new_need")}
-                </span>
-              }
-              actions={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPanel(null)}
-                  aria-label={t("institution.dashboard_close_need_aria")}
-                  icon={<X className="h-4 w-4" aria-hidden="true" />}
-                >
-                  {t("common.close")}
-                </Button>
-              }
-            />
-            <form onSubmit={submitNeed} className="space-y-4">
-              <FormError message={needError} />
-              <Field
-                label={t("institution.dashboard_field_title")}
-                required
-                requiredLabel={t("common.required")}
-              >
-                {(field) => (
-                  <Input
-                    {...field}
-                    required
-                    value={needTitle}
-                    onChange={(e) => setNeedTitle(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field
-                label={t("institution.dashboard_field_description")}
-                hint={t("common.optional")}
-              >
-                {(field) => (
-                  <Textarea
-                    {...field}
-                    rows={3}
-                    value={needDescription}
-                    onChange={(e) => setNeedDescription(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label={t("institution.dashboard_field_donation_type")}>
-                {(field) => (
-                  <Select
-                    {...field}
-                    value={needDonationType}
-                    onChange={(e) => setNeedDonationType(e.target.value as DonationType)}
-                  >
-                    {donationKeys.map((key) => (
-                      <option key={key} value={key}>
-                        {locale === "hr" ? DONATION_TYPES[key].labelHr : DONATION_TYPES[key].label}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
-              <fieldset>
-                <legend className="mb-2 text-sm font-medium text-ink">
-                  {t("institution.dashboard_field_urgency")}
-                </legend>
-                <div className="flex flex-wrap gap-3">
-                  {urgencyOptions.map((o) => (
-                    <label
-                      key={o.value}
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-control border border-border-subtle px-3 py-2 text-sm text-ink transition-colors has-[:checked]:border-brand has-[:checked]:bg-brand-soft has-[:checked]:text-brand-on-soft"
-                    >
-                      <input
-                        type="radio"
-                        name="urgency"
-                        value={o.value}
-                        checked={needUrgency === o.value}
-                        onChange={() => setNeedUrgency(o.value)}
-                        className="h-4 w-4 accent-brand"
-                      />
-                      {o.label}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <Field
-                label={t("institution.dashboard_field_quantity")}
-                required
-                requiredLabel={t("common.required")}
-              >
-                {(field) => (
-                  <Input
-                    {...field}
-                    type="number"
-                    min={1}
-                    required
-                    value={needQuantity}
-                    onChange={(e) => setNeedQuantity(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Button type="submit" fullWidth loading={needSubmitting}>
-                {needSubmitting
-                  ? t("institution.dashboard_posting")
-                  : t("institution.dashboard_post_need")}
-              </Button>
-            </form>
-          </Card>
+          <NewNeedForm panelId={needPanelId} onClose={() => setPanel(null)} />
         ) : null}
 
         {panel === "event" ? (

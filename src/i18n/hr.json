@@ -58,7 +58,10 @@
     "subtitle_explore": "Odgovorite na nekoliko pitanja i pronaći ćemo udruge kojima odgovara upravo ono što možete dati.",
     "offer_cta_title": "Imate nešto konkretno za dati?",
     "offer_cta_body": "Objavite ponudu i provjerene udruge same je zatraže. Kontakt dijelite tek kad prihvatite zahtjev.",
-    "offer_cta_action": "Mogu darovati"
+    "offer_cta_action": "Mogu darovati",
+    "ngo_new_need_title": "Upravljate potrebama svoje udruge?",
+    "ngo_new_need_body": "Objavite novu potrebu izravno odavde — odmah će se pojaviti u ovom popisu za donatore.",
+    "ngo_new_need_action": "Nova potreba"
   },
   "organisations_page": {
     "title": "Udruge",

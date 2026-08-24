@@ -1,12 +1,14 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { HandHeart } from "lucide-react";
+import { HandHeart, Plus } from "lucide-react";
 import { QuickStartWizard } from "@/components/QuickStartWizard";
 import { NeedsClient } from "@/app/needs/needs-client";
-import { Card, PageHeader, PageShell, Skeleton, buttonClasses } from "@/components/ui";
+import { NewNeedForm } from "@/components/NewNeedForm";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { Button, Card, PageHeader, PageShell, Skeleton, buttonClasses } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
 /**
@@ -51,8 +53,35 @@ function DonateExperience() {
   const t = useT();
   const searchParams = useSearchParams();
   const view = parseView(searchParams.get("view"));
+  const needPanelId = useId();
 
   const subtitle = useMemo(() => t(`donate_page.subtitle_${view}`), [t, view]);
+
+  // An NGO account can already post a need from its own dashboard. This tab
+  // is where a donor looks for one, so offering the same shortcut here saves
+  // the round trip — but only once the account's role is actually known, not
+  // by guessing from a flag a request could forge.
+  const [isNgo, setIsNgo] = useState(false);
+  const [needFormOpen, setNeedFormOpen] = useState(false);
+  const [needsRefreshKey, setNeedsRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled || !data.user) return;
+      fetch("/api/me", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((json: { profile?: { role: string } } | null) => {
+          if (!cancelled && json?.profile?.role === "ngo") setIsNgo(true);
+        })
+        .catch(() => {});
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <PageShell>
@@ -78,7 +107,39 @@ function DonateExperience() {
         })}
       </nav>
 
-      {view === "needs" ? <NeedsClient /> : <QuickStartWizard />}
+      {isNgo ? (
+        <div className="mb-6">
+          {needFormOpen ? (
+            <NewNeedForm
+              panelId={needPanelId}
+              onClose={() => setNeedFormOpen(false)}
+              onPosted={() => setNeedsRefreshKey((k) => k + 1)}
+            />
+          ) : (
+            <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink">
+                  {t("donate_page.ngo_new_need_title")}
+                </p>
+                <p className="mt-1 text-sm text-ink-secondary">
+                  {t("donate_page.ngo_new_need_body")}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                aria-expanded={needFormOpen}
+                aria-controls={needPanelId}
+                onClick={() => setNeedFormOpen(true)}
+                icon={<Plus className="h-4 w-4" aria-hidden="true" />}
+              >
+                {t("donate_page.ngo_new_need_action")}
+              </Button>
+            </Card>
+          )}
+        </div>
+      ) : null}
+
+      {view === "needs" ? <NeedsClient refreshKey={needsRefreshKey} /> : <QuickStartWizard />}
 
       {/* Offering a specific item is the third way to give. It keeps its own
           route because the offer itself is personal data. */}

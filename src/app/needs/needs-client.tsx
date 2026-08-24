@@ -66,7 +66,7 @@ function NeedCardSkeleton() {
   );
 }
 
-export function NeedsClient() {
+export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const t = useT();
   const { locale } = useLocale();
   const [needs, setNeeds] = useState<NeedCardNeed[]>([]);
@@ -145,7 +145,7 @@ export function NeedsClient() {
     return () => {
       cancelled = true;
     };
-  }, [donationType, urgency, retry]);
+  }, [donationType, urgency, retry, refreshKey]);
 
   // Map of need_id → my total pledged qty across all pledges (sum across rows).
   const myPledgedByNeed = useMemo(() => {
