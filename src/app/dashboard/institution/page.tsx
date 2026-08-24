@@ -11,6 +11,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useLocale, useT } from "@/i18n/client";
 import { DONATION_TYPES } from "@/lib/constants";
 import type { DonationType, UrgencyLevel } from "@/lib/types";
 import {
@@ -28,23 +29,18 @@ import {
   useToast,
 } from "@/components/ui";
 
-// NOTE: every string on this page is hardcoded English. It predates the i18n
-// layer and needs roughly 30 keys under an `institution_dashboard.*` namespace;
-// translating it is tracked separately so this pass could stay presentational.
-
-const donationEntries = Object.entries(DONATION_TYPES) as [
-  DonationType,
-  { label: string },
-][];
-
-const urgencyOptions: { value: UrgencyLevel; label: string }[] = [
-  { value: "routine", label: "Routine" },
-  { value: "needed_soon", label: "Needed soon" },
-  { value: "urgent", label: "Urgent" },
-];
+const donationKeys = Object.keys(DONATION_TYPES) as DonationType[];
 
 export default function InstitutionDashboardPage() {
+  const t = useT();
+  const { locale } = useLocale();
   const toast = useToast();
+
+  const urgencyOptions: { value: UrgencyLevel; label: string }[] = [
+    { value: "routine", label: t("institution.dashboard_urgency_routine") },
+    { value: "needed_soon", label: t("institution.dashboard_urgency_needed_soon") },
+    { value: "urgent", label: t("institution.dashboard_urgency_urgent") },
+  ];
   const needPanelId = useId();
   const eventPanelId = useId();
   const [panel, setPanel] = useState<"need" | "event" | null>(null);
@@ -85,18 +81,26 @@ export default function InstitutionDashboardPage() {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        throw new Error((json as { error?: string }).error ?? "Failed to post need");
+        throw new Error(
+          (json as { error?: string }).error ?? t("institution.dashboard_error_need_failed")
+        );
       }
       // Success used to replace the form with a green banner and then close the
       // panel on a 2s timer, so the content vanished from under the user. The
       // outcome is a toast; the panel closes because the task is finished.
-      toast({ tone: "success", title: "Need posted", description: needTitle });
+      toast({
+        tone: "success",
+        title: t("institution.dashboard_toast_need_posted"),
+        description: needTitle,
+      });
       setNeedTitle("");
       setNeedDescription("");
       setNeedQuantity("1");
       setPanel(null);
     } catch (err) {
-      setNeedError(err instanceof Error ? err.message : "Failed to post need");
+      setNeedError(
+        err instanceof Error ? err.message : t("institution.dashboard_error_need_failed")
+      );
     } finally {
       setNeedSubmitting(false);
     }
@@ -122,16 +126,24 @@ export default function InstitutionDashboardPage() {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        throw new Error((json as { error?: string }).error ?? "Failed to post event");
+        throw new Error(
+          (json as { error?: string }).error ?? t("institution.dashboard_error_event_failed")
+        );
       }
-      toast({ tone: "success", title: "Volunteer event posted", description: evTitle });
+      toast({
+        tone: "success",
+        title: t("institution.dashboard_toast_event_posted"),
+        description: evTitle,
+      });
       setEvTitle("");
       setEvDescription("");
       setEvDate("");
       setEvVolunteers("5");
       setPanel(null);
     } catch (err) {
-      setEvError(err instanceof Error ? err.message : "Failed to post event");
+      setEvError(
+        err instanceof Error ? err.message : t("institution.dashboard_error_event_failed")
+      );
     } finally {
       setEvSubmitting(false);
     }
@@ -140,8 +152,8 @@ export default function InstitutionDashboardPage() {
   return (
     <PageShell width="content">
       <PageHeader
-        title="Institution Management"
-        subtitle="Manage needs, events, and activities."
+        title={t("institution.dashboard_title")}
+        subtitle={t("institution.dashboard_subtitle")}
         actions={
           <>
             <Link
@@ -149,14 +161,14 @@ export default function InstitutionDashboardPage() {
               className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
               <Inbox className="h-4 w-4" aria-hidden="true" />
-              Pledges
+              {t("institution.dashboard_nav_pledges")}
             </Link>
             <Link
               href="/dashboard/institution/volunteers"
               className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
               <Users className="h-4 w-4" aria-hidden="true" />
-              Volunteers
+              {t("institution.dashboard_nav_volunteers")}
             </Link>
           </>
         }
@@ -167,22 +179,22 @@ export default function InstitutionDashboardPage() {
             a fabricated `0`, show an explicit em-dash and point at the pledges
             page, which does load real rows. */}
         <Stat
-          label="Pledges this month"
+          label={t("institution.dashboard_stat_label")}
           tone="muted"
           value={
             <>
               <span aria-hidden="true">—</span>
-              <span className="sr-only">Not available yet</span>
+              <span className="sr-only">{t("institution.dashboard_stat_sr_not_available")}</span>
             </>
           }
           hint={
             <>
-              Monthly totals aren&apos;t available yet.{" "}
+              {t("institution.dashboard_stat_hint")}{" "}
               <Link
                 href="/dashboard/institution/pledges"
                 className="rounded font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
               >
-                See every pledge
+                {t("institution.dashboard_stat_see_all")}
               </Link>
             </>
           }
@@ -200,7 +212,7 @@ export default function InstitutionDashboardPage() {
             }}
             icon={<Plus className="h-5 w-5" aria-hidden="true" />}
           >
-            New Need
+            {t("institution.dashboard_new_need")}
           </Button>
           <Button
             size="lg"
@@ -214,7 +226,7 @@ export default function InstitutionDashboardPage() {
             }}
             icon={<CalendarPlus className="h-5 w-5" aria-hidden="true" />}
           >
-            New Volunteer Event
+            {t("institution.dashboard_new_event")}
           </Button>
         </div>
 
@@ -227,7 +239,7 @@ export default function InstitutionDashboardPage() {
               title={
                 <span className="flex items-center gap-2">
                   <ClipboardList className="h-5 w-5 text-brand" aria-hidden="true" />
-                  New Need
+                  {t("institution.dashboard_new_need")}
                 </span>
               }
               actions={
@@ -235,16 +247,20 @@ export default function InstitutionDashboardPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setPanel(null)}
-                  aria-label="Close the new need form"
+                  aria-label={t("institution.dashboard_close_need_aria")}
                   icon={<X className="h-4 w-4" aria-hidden="true" />}
                 >
-                  Close
+                  {t("common.close")}
                 </Button>
               }
             />
             <form onSubmit={submitNeed} className="space-y-4">
               <FormError message={needError} />
-              <Field label="Title" required requiredLabel="required">
+              <Field
+                label={t("institution.dashboard_field_title")}
+                required
+                requiredLabel={t("common.required")}
+              >
                 {(field) => (
                   <Input
                     {...field}
@@ -254,7 +270,10 @@ export default function InstitutionDashboardPage() {
                   />
                 )}
               </Field>
-              <Field label="Description" hint="Optional">
+              <Field
+                label={t("institution.dashboard_field_description")}
+                hint={t("common.optional")}
+              >
                 {(field) => (
                   <Textarea
                     {...field}
@@ -264,23 +283,25 @@ export default function InstitutionDashboardPage() {
                   />
                 )}
               </Field>
-              <Field label="Donation type">
+              <Field label={t("institution.dashboard_field_donation_type")}>
                 {(field) => (
                   <Select
                     {...field}
                     value={needDonationType}
                     onChange={(e) => setNeedDonationType(e.target.value as DonationType)}
                   >
-                    {donationEntries.map(([key, { label }]) => (
+                    {donationKeys.map((key) => (
                       <option key={key} value={key}>
-                        {label}
+                        {locale === "hr" ? DONATION_TYPES[key].labelHr : DONATION_TYPES[key].label}
                       </option>
                     ))}
                   </Select>
                 )}
               </Field>
               <fieldset>
-                <legend className="mb-2 text-sm font-medium text-ink">Urgency</legend>
+                <legend className="mb-2 text-sm font-medium text-ink">
+                  {t("institution.dashboard_field_urgency")}
+                </legend>
                 <div className="flex flex-wrap gap-3">
                   {urgencyOptions.map((o) => (
                     <label
@@ -300,7 +321,11 @@ export default function InstitutionDashboardPage() {
                   ))}
                 </div>
               </fieldset>
-              <Field label="Quantity needed" required requiredLabel="required">
+              <Field
+                label={t("institution.dashboard_field_quantity")}
+                required
+                requiredLabel={t("common.required")}
+              >
                 {(field) => (
                   <Input
                     {...field}
@@ -313,7 +338,9 @@ export default function InstitutionDashboardPage() {
                 )}
               </Field>
               <Button type="submit" fullWidth loading={needSubmitting}>
-                {needSubmitting ? "Posting…" : "Post Need"}
+                {needSubmitting
+                  ? t("institution.dashboard_posting")
+                  : t("institution.dashboard_post_need")}
               </Button>
             </form>
           </Card>
@@ -325,7 +352,7 @@ export default function InstitutionDashboardPage() {
               title={
                 <span className="flex items-center gap-2">
                   <CalendarPlus className="h-5 w-5 text-brand" aria-hidden="true" />
-                  New Volunteer Event
+                  {t("institution.dashboard_new_event")}
                 </span>
               }
               actions={
@@ -333,16 +360,20 @@ export default function InstitutionDashboardPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setPanel(null)}
-                  aria-label="Close the new volunteer event form"
+                  aria-label={t("institution.dashboard_close_event_aria")}
                   icon={<X className="h-4 w-4" aria-hidden="true" />}
                 >
-                  Close
+                  {t("common.close")}
                 </Button>
               }
             />
             <form onSubmit={submitEvent} className="space-y-4">
               <FormError message={evError} />
-              <Field label="Title" required requiredLabel="required">
+              <Field
+                label={t("institution.dashboard_field_title")}
+                required
+                requiredLabel={t("common.required")}
+              >
                 {(field) => (
                   <Input
                     {...field}
@@ -352,7 +383,10 @@ export default function InstitutionDashboardPage() {
                   />
                 )}
               </Field>
-              <Field label="Description" hint="Optional">
+              <Field
+                label={t("institution.dashboard_field_description")}
+                hint={t("common.optional")}
+              >
                 {(field) => (
                   <Textarea
                     {...field}
@@ -362,7 +396,11 @@ export default function InstitutionDashboardPage() {
                   />
                 )}
               </Field>
-              <Field label="Date" required requiredLabel="required">
+              <Field
+                label={t("institution.dashboard_field_date")}
+                required
+                requiredLabel={t("common.required")}
+              >
                 {(field) => (
                   <Input
                     {...field}
@@ -374,7 +412,7 @@ export default function InstitutionDashboardPage() {
                 )}
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Start">
+                <Field label={t("institution.dashboard_field_start")}>
                   {(field) => (
                     <Input
                       {...field}
@@ -384,7 +422,7 @@ export default function InstitutionDashboardPage() {
                     />
                   )}
                 </Field>
-                <Field label="End">
+                <Field label={t("institution.dashboard_field_end")}>
                   {(field) => (
                     <Input
                       {...field}
@@ -395,7 +433,11 @@ export default function InstitutionDashboardPage() {
                   )}
                 </Field>
               </div>
-              <Field label="Volunteers needed" required requiredLabel="required">
+              <Field
+                label={t("institution.dashboard_field_volunteers_needed")}
+                required
+                requiredLabel={t("common.required")}
+              >
                 {(field) => (
                   <Input
                     {...field}
@@ -408,7 +450,9 @@ export default function InstitutionDashboardPage() {
                 )}
               </Field>
               <Button type="submit" fullWidth loading={evSubmitting}>
-                {evSubmitting ? "Posting…" : "Post Event"}
+                {evSubmitting
+                  ? t("institution.dashboard_posting")
+                  : t("institution.dashboard_post_event")}
               </Button>
             </form>
           </Card>
@@ -420,7 +464,7 @@ export default function InstitutionDashboardPage() {
             className={buttonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}
           >
             <MapPin className="h-5 w-5" aria-hidden="true" />
-            View Map
+            {t("institution.dashboard_view_map")}
           </Link>
         </div>
       </div>
