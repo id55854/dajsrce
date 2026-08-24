@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getTranslator } from "@/i18n/server";
 import { Card, PageHeader, PageShell, Stat } from "@/components/ui";
 import type { InstitutionClaimReviewItem } from "@/lib/institution-claims";
+import { SignOutButton } from "@/components/SignOutButton";
 import { InstitutionClaimQueue } from "./institution-claim-queue";
 
 export default async function SuperadminDashboardPage() {
@@ -97,6 +98,10 @@ export default async function SuperadminDashboardPage() {
           {t("admin.other_tools_body")}
         </p>
       </Card>
+
+      <div className="mt-8 border-t border-border-subtle pt-6">
+        <SignOutButton />
+      </div>
     </PageShell>
   );
 }

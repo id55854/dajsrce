@@ -11,6 +11,7 @@ import { DONATION_TYPES } from "@/lib/constants";
 import { useLocale, useT } from "@/i18n/client";
 import { createClient } from "@/lib/supabase/client";
 import { CancelActionButton } from "@/components/YourPledgesSection";
+import { SignOutButton } from "@/components/SignOutButton";
 import { FilterChip } from "@/components/FilterBar";
 import type { AppRole } from "@/lib/auth/roles";
 import {
@@ -457,6 +458,10 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
             </ul>
           )}
         </section>
+
+        <div className="border-t border-border-subtle pt-6">
+          <SignOutButton />
+        </div>
       </div>
     </PageShell>
   );

@@ -6,7 +6,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Bell,
   Heart,
-  LogOut,
   MapPin,
   Menu as MenuIcon,
   User,
@@ -196,76 +195,27 @@ function NotificationPanel({
   );
 }
 
-const MENU_ITEM =
-  "flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-ink transition-colors hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand";
-
 /**
- * The account button: its own icon, separate from anything else in the bar.
- * The dropdown holds only the profile link and, last, sign out — always in
- * that order, so signing out is never the first thing the menu offers.
+ * The account icon: a direct link to the profile, not a dropdown. Sign out
+ * used to hide behind a click here; now it lives at the bottom of the
+ * profile page itself, so this is just navigation.
  */
-function ProfileMenu({
+function ProfileLink({
   displayName,
   profileEmail,
-  onLogout,
 }: {
   displayName: string;
   profileEmail?: string;
-  onLogout: () => void;
 }) {
-  const t = useT();
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
   return (
-    <div className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={displayName}
-        title={profileEmail}
-        aria-expanded={open}
-        aria-haspopup="true"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink transition-[background-color,transform] duration-150 ease-out hover:bg-ink/[0.08] motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-      >
-        <User className="h-4 w-4" aria-hidden="true" />
-      </button>
-
-      <Menu
-        open={open}
-        onClose={() => setOpen(false)}
-        align="top-right"
-        returnFocusRef={triggerRef}
-        role="region"
-        aria-label={displayName}
-        className="w-64"
-      >
-        <div className="py-2">
-          <Link
-            href="/dashboard"
-            title={profileEmail}
-            onClick={() => setOpen(false)}
-            className={MENU_ITEM}
-          >
-            <User className="h-5 w-5 shrink-0 text-ink-tertiary" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate">{displayName}</span>
-          </Link>
-          <div className="my-2 h-px bg-border-subtle" />
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false);
-              onLogout();
-            }}
-            className={MENU_ITEM}
-          >
-            <LogOut className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
-            {t("nav.sign_out")}
-          </button>
-        </div>
-      </Menu>
-    </div>
+    <Link
+      href="/dashboard"
+      aria-label={displayName}
+      title={profileEmail}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink transition-[background-color,transform] duration-150 ease-out hover:bg-ink/[0.08] motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+    >
+      <User className="h-4 w-4" aria-hidden="true" />
+    </Link>
   );
 }
 
@@ -471,11 +421,7 @@ export function Navbar() {
               </Link>
             )}
             {user ? (
-              <ProfileMenu
-                displayName={displayName}
-                profileEmail={profileEmail}
-                onLogout={handleLogout}
-              />
+              <ProfileLink displayName={displayName} profileEmail={profileEmail} />
             ) : null}
           </div>
         </div>

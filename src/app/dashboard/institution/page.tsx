@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/i18n/client";
 import { NewNeedForm } from "@/components/NewNeedForm";
+import { SignOutButton } from "@/components/SignOutButton";
 import {
   Button,
   Card,
@@ -291,6 +292,10 @@ export default function InstitutionDashboardPage() {
             <MapPin className="h-5 w-5" aria-hidden="true" />
             {t("institution.dashboard_view_map")}
           </Link>
+        </div>
+
+        <div className="border-t border-border-subtle pt-6">
+          <SignOutButton />
         </div>
       </div>
     </PageShell>
