@@ -10,14 +10,15 @@ Core domains:
 
 - public institution discovery through viewport-bounded map/detail APIs, served at `/`;
 - `/organisations` is the official register only; an unknown `?view=` is redirected, never silently ignored;
-- one merged `/doniraj` surface for giving, with a needs view and a donation wizard; `/needs` and `/quick-start` redirect into it, and `/offers` stays its own noindex route because an offer is personal data;
-- citizen donation offers that verified organisations claim;
+- one merged `/doniraj` surface for giving, with a needs view and a donation wizard; `/needs` and `/quick-start` redirect into it;
 - NGO needs, acknowledgement-backed pledges and opted-in nearby notifications;
 - volunteer events, capacity-safe signup, hashed QR check-in and idempotent checkout hours;
 - acknowledgement-backed public impact — only an acknowledged donation is confirmed evidence;
 - staged/resumable registry import, durable geocoding, reviewed classification and transactional promotion.
 
 Only two account types exist: `individual` and `ngo` (plus `superadmin`). The company/CSR tenant domain (company accounts, campaigns, Stripe billing, tax receipts, ESG exports, CSR PDF/DOCX reports) was removed in `20260823100000_remove_company_domain.sql` — do not reintroduce a `company` role or resurrect Stripe without a fresh product decision.
+
+The citizen donor-offer flow (`/offers`, `/offers/inbox`, the `/api/offers` routes, `OfferCard`, `src/lib/offers.ts`) was removed from the application on 2026-08-24; the "I can donate" entry point on `/doniraj` is gone with it. The underlying `donor_offers`/`offer_claims` schema from `20260812130000_donor_offers.sql` was deliberately left in place, dormant — no migration dropped it, so those tables/RPCs still exist unused in the database. Do not reintroduce the `/offers` UI or API without a fresh product decision; if the schema itself is ever dropped, do that in its own new migration, not by editing the original one.
 
 ## Non-negotiable invariants
 
@@ -34,7 +35,7 @@ Only two account types exist: `individual` and `ngo` (plus `superadmin`). The co
 11. Security-definer functions use `pg_catalog` first, schema-qualified relations, explicit revoke/grant and the narrowest caller roles.
 12. Keep secrets, raw tokens and protected coordinates out of logs/client code. Use request IDs and structured event logs.
 13. An NGO account is a reviewed claim against an official `UDR_ID`, never a typed name. Nothing creates an institution from user input, and no institution is ever given a fabricated coordinate. Until a claim is approved an `ngo` profile has a null `institution_id` and cannot publish or receive.
-14. Donor offers store a coarse point and a city only — never a private individual's exact location — and contact details are released only after the author accepts a claim.
+14. (Dormant, kept for history) The removed donor-offers schema stored a coarse point and a city only — never a private individual's exact location — and released contact details only after the author accepted a claim. Any revival of that flow must keep the same rule.
 15. Passwords are bcrypt-hashed by Supabase Auth and never seen by this application. Never encrypt a password. Strength rules apply to sign-up and password change only, never to sign-in.
 
 ## Current public performance contract
