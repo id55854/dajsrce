@@ -472,7 +472,8 @@
     "tagline": "Povezujemo donatore s onima kojima je pomoć potrebna",
     "public_good": "Projekt za opće dobro · {year}",
     "oib": "OIB",
-    "registration_number": "Matični broj"
+    "registration_number": "Matični broj",
+    "contact_label": "Kontakt"
   },
   "about": {
     "page_title": "O nama",

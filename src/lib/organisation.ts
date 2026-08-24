@@ -28,12 +28,12 @@ export const ORGANISATION = {
   /** Matični broj — the register of associations entry number. */
   registrationNumber: "06301436",
   /**
-   * Public contact mailbox. Deliberately `null` until a real, monitored
-   * address exists: publishing an address nobody reads is worse than
-   * publishing none, and an invented one would be a false contact claim.
-   * Every surface that renders contact details checks for null.
+   * Public contact mailbox. Was deliberately `null` until a real, monitored
+   * address existed — publishing an address nobody reads is worse than
+   * publishing none. Now live; every surface that renders contact details
+   * still checks for null so it fails closed again if this is ever unset.
    */
-  contactEmail: null as string | null,
+  contactEmail: "kontakt@dajsrce.hr" as string | null,
 } as const;
 
 export function organisationAddressLine(locale: "hr" | "en"): string {

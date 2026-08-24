@@ -49,6 +49,18 @@ export function Footer() {
           </span>
         </address>
 
+        {ORGANISATION.contactEmail ? (
+          <p className="text-sm">
+            <span className="text-ink-tertiary">{t("footer.contact_label")}: </span>
+            <a
+              href={`mailto:${ORGANISATION.contactEmail}`}
+              className="rounded font-semibold text-brand underline-offset-2 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            >
+              {ORGANISATION.contactEmail}
+            </a>
+          </p>
+        ) : null}
+
         <Link
           href="/o-nama"
           className="rounded-control text-sm font-semibold text-brand underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
