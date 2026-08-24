@@ -281,8 +281,11 @@ export function AccessibilityPanel({ onBack }: { onBack?: () => void }) {
 }
 
 /**
- * Standalone accessibility dropdown — an icon button that opens the panel.
- * Used on phones, where the combined navbar menu does not exist.
+ * The accessibility entry point: a round button pinned to the bottom-left
+ * corner of the viewport, on every page and every breakpoint — not folded
+ * into the navbar's account menu, so it stays reachable independently of
+ * being signed in and never competes for space with profile/notifications.
+ * The panel opens upward from it, since the trigger sits at the screen edge.
  */
 export function AccessibilityMenu() {
   const t = useT();
@@ -290,12 +293,12 @@ export function AccessibilityMenu() {
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div className="relative">
+    <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-[var(--z-chrome)]">
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-secondary transition-colors duration-150 hover:bg-surface-sunken hover:text-ink motion-safe:active:scale-[0.92] motion-safe:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle/60 bg-surface-raised text-ink shadow-raised transition-[box-shadow,transform] duration-150 ease-out hover:shadow-overlay motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         aria-label={t("a11y.open")}
         aria-expanded={open}
         aria-haspopup="true"
@@ -306,7 +309,7 @@ export function AccessibilityMenu() {
       <Menu
         open={open}
         onClose={() => setOpen(false)}
-        align="top-right"
+        align="bottom-left"
         returnFocusRef={triggerRef}
         role="region"
         aria-label={t("a11y.dialog_label")}

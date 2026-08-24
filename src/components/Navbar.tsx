@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Bell,
-  ChevronRight,
   Heart,
   LogOut,
   MapPin,
@@ -19,11 +18,6 @@ import type { User as SupaUser } from "@supabase/supabase-js";
 import type { Notification } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import {
-  A11yIcon,
-  AccessibilityMenu,
-  AccessibilityPanel,
-} from "@/components/AccessibilityMenu";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { Menu, buttonClasses, usePresence } from "@/components/ui";
 import { useT } from "@/i18n/client";
@@ -206,102 +200,70 @@ const MENU_ITEM =
   "flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-ink transition-colors hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand";
 
 /**
- * The combined navbar dropdown (the Airbnb-style round menu button): one place
- * for accessibility settings and the account actions. "Pristupačnost" swaps the
- * dropdown's content to the settings panel in place; the back chevron returns
- * to the item list.
+ * The account button: its own icon, separate from anything else in the bar.
+ * The dropdown holds only the profile link and, last, sign out — always in
+ * that order, so signing out is never the first thing the menu offers.
  */
-function NavMenu({
-  user,
+function ProfileMenu({
   displayName,
   profileEmail,
   onLogout,
-  embedded = false,
 }: {
-  user: SupaUser | null;
   displayName: string;
   profileEmail?: string;
   onLogout: () => void;
-  /** Sit inside the account pill; the pill already supplies the chrome. */
-  embedded?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<"main" | "a11y">("main");
   const triggerRef = useRef<HTMLButtonElement>(null);
-
-  const close = useCallback(() => {
-    setOpen(false);
-    setView("main");
-  }, []);
 
   return (
     <div className="relative">
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => {
-          setView("main");
-          setOpen((o) => !o);
-        }}
-        aria-label={t("nav.open_menu")}
+        onClick={() => setOpen((o) => !o)}
+        aria-label={displayName}
+        title={profileEmail}
         aria-expanded={open}
         aria-haspopup="true"
-        className={
-          embedded
-            ? "inline-flex h-9 w-9 items-center justify-center rounded-full text-ink transition-[background-color,transform] duration-150 ease-out hover:bg-ink/[0.08] motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-            : "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle/60 bg-surface-raised text-ink shadow-raised transition-[box-shadow,transform] duration-150 ease-out hover:shadow-overlay motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-        }
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink transition-[background-color,transform] duration-150 ease-out hover:bg-ink/[0.08] motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
       >
-        <MenuIcon className="h-4 w-4" aria-hidden="true" />
+        <User className="h-4 w-4" aria-hidden="true" />
       </button>
 
       <Menu
         open={open}
-        onClose={close}
+        onClose={() => setOpen(false)}
         align="top-right"
         returnFocusRef={triggerRef}
         role="region"
-        aria-label={t("nav.open_menu")}
-        className={view === "a11y" ? "w-80 max-w-[calc(100vw-2rem)]" : "w-64"}
+        aria-label={displayName}
+        className="w-64"
       >
-        {view === "a11y" ? (
-          <AccessibilityPanel onBack={() => setView("main")} />
-        ) : (
-          <div className="py-2">
-            <button type="button" onClick={() => setView("a11y")} className={MENU_ITEM}>
-              <A11yIcon className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
-              <span className="flex-1">{t("a11y.title")}</span>
-              <ChevronRight className="h-4 w-4 text-ink-tertiary" aria-hidden="true" />
-            </button>
-
-            {user ? (
-              <>
-                <div className="my-2 h-px bg-border-subtle" />
-                <Link
-                  href="/dashboard"
-                  title={profileEmail}
-                  onClick={close}
-                  className={MENU_ITEM}
-                >
-                  <User className="h-5 w-5 shrink-0 text-ink-tertiary" aria-hidden="true" />
-                  <span className="min-w-0 flex-1 truncate">{displayName}</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    close();
-                    onLogout();
-                  }}
-                  className={MENU_ITEM}
-                >
-                  <LogOut className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
-                  {t("nav.sign_out")}
-                </button>
-              </>
-            ) : null}
-          </div>
-        )}
+        <div className="py-2">
+          <Link
+            href="/dashboard"
+            title={profileEmail}
+            onClick={() => setOpen(false)}
+            className={MENU_ITEM}
+          >
+            <User className="h-5 w-5 shrink-0 text-ink-tertiary" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{displayName}</span>
+          </Link>
+          <div className="my-2 h-px bg-border-subtle" />
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+            className={MENU_ITEM}
+          >
+            <LogOut className="h-5 w-5 text-ink-tertiary" aria-hidden="true" />
+            {t("nav.sign_out")}
+          </button>
+        </div>
       </Menu>
     </div>
   );
@@ -508,19 +470,18 @@ export function Navbar() {
                 {t("nav.sign_in")}
               </Link>
             )}
-            <NavMenu
-              user={user}
-              displayName={displayName}
-              profileEmail={profileEmail}
-              onLogout={handleLogout}
-              embedded
-            />
+            {user ? (
+              <ProfileMenu
+                displayName={displayName}
+                profileEmail={profileEmail}
+                onLogout={handleLogout}
+              />
+            ) : null}
           </div>
         </div>
 
         <div className="flex items-center gap-1 lg:hidden">
           <ThemeToggle />
-          <AccessibilityMenu />
           {user ? (
             <button
               type="button"

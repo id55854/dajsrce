@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
+import { AccessibilityMenu } from "@/components/AccessibilityMenu";
 import { Footer } from "@/components/Footer";
 import { ToastProvider } from "@/components/ui";
 import { LocaleProvider } from "@/i18n/client";
@@ -96,6 +97,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Navbar />
               <main className="flex-1">{children}</main>
               <Footer />
+              <AccessibilityMenu />
             </div>
           </ToastProvider>
         </LocaleProvider>
