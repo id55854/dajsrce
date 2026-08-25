@@ -51,6 +51,13 @@ export default function SetupPage() {
 
       const r = normalizeRole(profile?.role);
       const setupDone = user.user_metadata?.setup_completed === true;
+      // handle_new_user() always creates the profile as `individual` --
+      // signup metadata is never trusted for the role itself. This is the
+      // only place that intent survives until complete_profile_setup runs,
+      // so a still-`individual` profile that asked for `ngo` at signup must
+      // reach the claim UI below rather than get bounced by the "nothing to
+      // configure" rule that follows.
+      const pickedNgo = user.user_metadata?.role === "ngo";
 
       if (r === "ngo" && profile?.institution_id) {
         router.replace("/dashboard");
@@ -59,6 +66,11 @@ export default function SetupPage() {
       // An NGO account with no institution has not finished onboarding: it is
       // waiting on a claim against the official register.
       if (r === "ngo" && !profile?.institution_id) {
+        setRole("ngo");
+        setChecking(false);
+        return;
+      }
+      if (r === "individual" && pickedNgo) {
         setRole("ngo");
         setChecking(false);
         return;
