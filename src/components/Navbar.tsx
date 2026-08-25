@@ -398,8 +398,11 @@ export function Navbar() {
         <div className="hidden items-center gap-2 lg:flex">
           <LocaleSwitcher />
           <ThemeToggle />
-          <div className="inline-flex items-center rounded-full border border-border-subtle bg-surface-raised p-1 shadow-raised">
-            {user ? (
+          {user ? (
+            // The bell and profile icon share one pill so they read as one
+            // control. A lone sign-in button doesn't need that wrapper -- it
+            // only added a redundant outer ring around the button itself.
+            <div className="inline-flex items-center rounded-full border border-border-subtle bg-surface-raised p-1 shadow-raised">
               <button
                 type="button"
                 onClick={(event) => {
@@ -414,20 +417,16 @@ export function Navbar() {
                 <Bell className="h-5 w-5" aria-hidden="true" />
                 {notificationBadge}
               </button>
-            ) : (
-              // Signing in stays visible in the bar. The dropdown no longer
-              // repeats it; the two share one pill so they read as one control.
-              <Link
-                href="/auth/login"
-                className={buttonClasses({ size: "sm", className: "h-9 px-3.5" })}
-              >
-                {t("nav.sign_in")}
-              </Link>
-            )}
-            {user ? (
               <ProfileLink displayName={displayName} profileEmail={profileEmail} />
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <Link
+              href="/auth/login"
+              className={buttonClasses({ size: "sm", className: "h-9 px-3.5" })}
+            >
+              {t("nav.sign_in")}
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center gap-1 lg:hidden">
