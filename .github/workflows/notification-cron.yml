@@ -1,0 +1,71 @@
+name: Scheduled notification jobs
+
+# Vercel's cron is GET-only and DajSrce's cron routes require a POST with a
+# bearer secret (see CLAUDE.md), so these run from GitHub Actions instead.
+# Three routes, three cadences, one workflow: each schedule entry below fires
+# this job on its own trigger, and the per-step `if` picks the one route that
+# schedule owns. `workflow_dispatch` lets you run any one (or all) on demand
+# for testing.
+
+on:
+  schedule:
+    # Nearby-notification outbox: drain the queue often so delivery stays
+    # close to real-time.
+    - cron: "*/15 * * * *"
+    # Auto-acknowledge stale pledges: once a day is enough.
+    - cron: "30 2 * * *"
+    # Tomorrow's volunteer-event reminders: once a day, before Croatian
+    # morning (05:00 UTC ≈ 06:00–07:00 CET/CEST).
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Run a single job on demand"
+        required: false
+        type: choice
+        options: [all, process-notification-jobs, auto-acknowledge, event-reminders]
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-notification-jobs
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Validate required secrets
+        run: |
+          test -n "$APP_URL"
+          test -n "$CRON_SECRET"
+
+      - name: process-notification-jobs
+        if: >-
+          github.event.schedule == '*/15 * * * *' ||
+          (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'process-notification-jobs'))
+        run: |
+          curl --fail --show-error -sS -X POST "$APP_URL/api/cron/process-notification-jobs" \
+            -H "Authorization: Bearer $CRON_SECRET"
+
+      - name: auto-acknowledge
+        if: >-
+          github.event.schedule == '30 2 * * *' ||
+          (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'auto-acknowledge'))
+        run: |
+          curl --fail --show-error -sS -X POST "$APP_URL/api/cron/auto-acknowledge" \
+            -H "Authorization: Bearer $CRON_SECRET"
+
+      - name: event-reminders
+        if: >-
+          github.event.schedule == '0 5 * * *' ||
+          (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'event-reminders'))
+        run: |
+          curl --fail --show-error -sS -X POST "$APP_URL/api/cron/event-reminders" \
+            -H "Authorization: Bearer $CRON_SECRET"

@@ -278,8 +278,12 @@ export function Navbar() {
     };
   }, [user]);
 
+  // Loads once the session resolves, so the unread badge is right the moment
+  // the navbar renders — not only after the visitor has opened the bell at
+  // least once. Reloads again each time the panel opens, to pick up
+  // anything that landed while it sat closed.
   useEffect(() => {
-    if (!user || !panelOpen) return;
+    if (!user) return;
     const controller = new AbortController();
     fetch("/api/notifications", {
       credentials: "include",

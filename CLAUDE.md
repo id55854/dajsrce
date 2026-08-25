@@ -88,6 +88,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 32. `20260822200000_place_cluster_tier_selection.sql`
 33. `20260822220000_place_cluster_single_pass_stats.sql`
 34. `20260823100000_remove_company_domain.sql`
+35. `20260824100000_activity_notifications.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 
@@ -97,8 +98,9 @@ Required in production: Supabase URL/anon/service keys, HTTPS app URL and a 32+ 
 
 - `POST /api/cron/auto-acknowledge`
 - `POST /api/cron/process-notification-jobs`
+- `POST /api/cron/event-reminders` (once a day: reminds volunteers signed up for tomorrow's event)
 
-Both use `Authorization: Bearer <CRON_SECRET>`. Vercel's GET-only cron stays disabled. `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
+All three use `Authorization: Bearer <CRON_SECRET>`. `.github/workflows/notification-cron.yml` schedules all three via GitHub Actions (`process-notification-jobs` every 15 min, the other two daily); it needs repo secrets `PRODUCTION_APP_URL` and `CRON_SECRET` alongside the existing `PRODUCTION_SUPABASE_*` ones. Vercel's GET-only cron stays disabled. `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
 
 Institution-claim review needs `SUPABASE_SERVICE_ROLE_KEY`; the mailbox challenge additionally needs `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. A delivery failure is logged and never counts as verification.
 
