@@ -89,6 +89,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 33. `20260822220000_place_cluster_single_pass_stats.sql`
 34. `20260823100000_remove_company_domain.sql`
 35. `20260824100000_activity_notifications.sql`
+36. `20260825120000_fix_map_onboarded_regression.sql`
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 
