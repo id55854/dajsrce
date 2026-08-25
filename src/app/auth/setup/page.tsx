@@ -75,10 +75,13 @@ export default function SetupPage() {
         setChecking(false);
         return;
       }
-      if (r === "individual" && !isOAuth) {
-        router.replace("/dashboard");
-        return;
-      }
+      // Past this point every remaining `individual` case gets the plain role
+      // picker (below) rather than a bounce -- including a plain email/password
+      // account, which the individual dashboard now links here from ("Claim
+      // its profile") for anyone who realises later that they represent an
+      // NGO. The one case still sent home is an OAuth account that already
+      // finished this screen once, so it doesn't loop back into the picker on
+      // every subsequent sign-in.
       if (r === "individual" && isOAuth && setupDone) {
         router.replace("/dashboard");
         return;
