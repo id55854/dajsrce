@@ -212,9 +212,9 @@ function ProfileLink({
       href="/dashboard"
       aria-label={displayName}
       title={profileEmail}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink transition-[background-color,transform] duration-150 ease-out hover:bg-ink/[0.08] motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-secondary transition-[background-color,color,transform] duration-150 ease-out hover:bg-ink/[0.08] hover:text-ink motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
     >
-      <User className="h-4 w-4" aria-hidden="true" />
+      <User className="h-5 w-5" aria-hidden="true" />
     </Link>
   );
 }
