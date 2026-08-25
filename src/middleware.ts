@@ -57,21 +57,27 @@ export async function middleware(request: NextRequest) {
   if (user && pathname.startsWith("/dashboard/")) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, institution_id")
       .eq("id", user.id)
       .maybeSingle();
     // user_metadata is user-controlled and must never grant an application
     // role. A missing profile is treated as least privileged.
     const role = normalizeRole(profile?.role ?? null);
+    const isNgoRoute =
+      pathname.startsWith("/dashboard/ngo") || pathname.startsWith("/dashboard/institution");
 
     if (pathname.startsWith("/dashboard/admin") && role !== "superadmin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
-    if (pathname.startsWith("/dashboard/ngo") && role !== "ngo") {
+    if (isNgoRoute && role !== "ngo") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
-    if (pathname.startsWith("/dashboard/institution") && role !== "ngo") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+    // An `ngo` role with no institution_id has not lodged (or had approved)
+    // its UDR_ID claim yet -- see institution_claims. The dashboard has
+    // nothing to show that account; send it back to finish onboarding
+    // instead of rendering an institution-less page.
+    if (isNgoRoute && role === "ngo" && !profile?.institution_id) {
+      return NextResponse.redirect(new URL("/auth/setup", request.url));
     }
     if (
       pathname.startsWith("/dashboard/individual") &&

@@ -36,13 +36,11 @@ function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordTouched, setPasswordTouched] = useState(false);
-  const [institutionName, setInstitutionName] = useState("");
   // Form-level failures (service, credentials) live in the banner; per-field
   // problems live under their field. Both are stored as translation keys.
   const [formErrorKey, setFormErrorKey] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     password?: string;
-    institution?: string;
   }>({});
   const [successKey, setSuccessKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -114,10 +112,6 @@ function RegisterForm() {
       setFormErrorKey("auth.role_required");
       return;
     }
-    if (role === "ngo" && !institutionName.trim()) {
-      setFieldErrors({ institution: "auth.ngo_name_required" });
-      return;
-    }
 
     setLoading(true);
     const supabase = createClient();
@@ -130,11 +124,7 @@ function RegisterForm() {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(searchParams.get("next") || "/dashboard")}`,
-          data: {
-            name,
-            role,
-            ...(role === "ngo" ? { institution_name: institutionName.trim() } : {}),
-          },
+          data: { name, role },
         },
       });
       data = response.data;
@@ -150,7 +140,12 @@ function RegisterForm() {
     }
 
     if (data.session) {
-      window.location.href = searchParams.get("next") || "/dashboard";
+      // handle_new_user() always creates the profile as `individual` — role
+      // is never trusted from signup metadata. An NGO pick still has to run
+      // through /auth/setup, which grants the role via complete_profile_setup
+      // and then walks the applicant through the UDR_ID claim.
+      window.location.href =
+        role === "ngo" ? "/auth/setup" : searchParams.get("next") || "/dashboard";
       return;
     }
 
@@ -158,8 +153,6 @@ function RegisterForm() {
     // user has to act on, so it has to stay on screen.
     setSuccessKey("auth.sign_up_confirm_email");
   }
-
-  const institutionLabel = t("auth.ngo_name_label");
 
   return (
     <AuthShell
@@ -290,29 +283,9 @@ function RegisterForm() {
             />
 
             {role === "ngo" ? (
-              <Field
-                label={institutionLabel}
-                required
-                requiredLabel={t("common.required")}
-                error={
-                  fieldErrors.institution
-                    ? t(fieldErrors.institution)
-                    : undefined
-                }
-              >
-                {(field) => (
-                  <Input
-                    {...field}
-                    name="institution"
-                    type="text"
-                    autoComplete="organization"
-                    required
-                    invalid={Boolean(fieldErrors.institution)}
-                    value={institutionName}
-                    onChange={(e) => setInstitutionName(e.target.value)}
-                  />
-                )}
-              </Field>
+              <p className="text-sm text-ink-secondary">
+                {t("auth.ngo_claim_hint")}
+              </p>
             ) : null}
 
             <Button type="submit" size="lg" fullWidth loading={loading}>

@@ -24,14 +24,21 @@ export async function GET(req: NextRequest) {
 
         const isOAuth = user.app_metadata?.provider !== "email";
         const role = normalizeRole(profile?.role);
-        const needsSetup =
-          isOAuth && profile && !profile.institution_id && role === "individual";
         const isNewOAuth =
           isOAuth &&
           user.created_at &&
           Date.now() - new Date(user.created_at).getTime() < 60_000;
 
-        if (isNewOAuth || (needsSetup && isNewOAuth)) {
+        // handle_new_user() always creates the profile as `individual` —
+        // role is never trusted from signup metadata. Someone who picked
+        // "NGO" (email/password or OAuth) still has to run complete_profile_setup
+        // via /auth/setup, and an NGO profile with no institution_id yet
+        // still needs to lodge its UDR_ID claim there.
+        const pickedNgo = user.user_metadata?.role === "ngo";
+        const needsNgoOnboarding =
+          (pickedNgo && role !== "ngo") || (role === "ngo" && !profile?.institution_id);
+
+        if (isNewOAuth || needsNgoOnboarding) {
           return NextResponse.redirect(`${origin}/auth/setup`);
         }
 
