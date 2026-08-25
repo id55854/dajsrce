@@ -35,13 +35,8 @@ function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [passwordTouched, setPasswordTouched] = useState(false);
-  // Form-level failures (service, credentials) live in the banner; per-field
-  // problems live under their field. Both are stored as translation keys.
+  // Form-level failures (service, credentials) live in the banner.
   const [formErrorKey, setFormErrorKey] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{
-    password?: string;
-  }>({});
   const [successKey, setSuccessKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -60,15 +55,6 @@ function RegisterForm() {
     [password, email, name]
   );
 
-  // Validate on blur, not on every keystroke, so the message does not fight
-  // the user while they are still typing. The meter, which is advice rather
-  // than a verdict, updates live.
-  const passwordError =
-    fieldErrors.password ??
-    (passwordTouched && password.length > 0
-      ? (strength.rejectionKey ?? undefined)
-      : undefined);
-
   function selectRole(next: UserRole) {
     setRole(next);
     setFormErrorKey(null);
@@ -86,14 +72,12 @@ function RegisterForm() {
   function backToRoles() {
     setStep(1);
     setFormErrorKey(null);
-    setFieldErrors({});
     setSuccessKey(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormErrorKey(null);
-    setFieldErrors({});
     setSuccessKey(null);
 
     if (!isSupabaseConfigured) {
@@ -101,13 +85,11 @@ function RegisterForm() {
       return;
     }
 
-    // Hard rules only: length and the deny-list. The strength score never
-    // blocks a submission on its own.
-    if (strength.rejectionKey) {
-      setFieldErrors({ password: strength.rejectionKey });
-      setPasswordTouched(true);
-      return;
-    }
+    // Hard rules only: length and the deny-list, surfaced entirely through the
+    // strength meter next to the field -- no separate message spells out
+    // which rule tripped, so the field itself never hints at what the deny
+    // list checks for. The strength score alone never blocks a submission.
+    if (strength.rejectionKey) return;
     if (!role) {
       setFormErrorKey("auth.role_required");
       return;
@@ -273,12 +255,6 @@ function RegisterForm() {
               minLength={MIN_PASSWORD_LENGTH}
               value={password}
               onChange={setPassword}
-              onBlur={() => setPasswordTouched(true)}
-              error={
-                passwordError
-                  ? t(passwordError, { min: MIN_PASSWORD_LENGTH })
-                  : undefined
-              }
               strength={password.length > 0 ? strength : null}
             />
 

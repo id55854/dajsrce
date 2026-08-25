@@ -30,7 +30,6 @@ export default function ResetPasswordPage() {
   const [stage, setStage] = useState<Stage>("checking");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmationTouched, setConfirmationTouched] = useState(false);
   // There is no email field on this form, so the recovery session supplies the
   // address the deny-list needs. It never leaves the browser.
@@ -83,10 +82,6 @@ export default function ResetPasswordPage() {
 
   const mismatch = confirmation.length > 0 && confirmation !== password;
 
-  const passwordError =
-    passwordTouched && password.length > 0
-      ? (strength.rejectionKey ?? undefined)
-      : undefined;
   const confirmationError =
     confirmationTouched && mismatch ? "auth.reset_mismatch" : undefined;
 
@@ -94,11 +89,9 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setFormErrorKey(null);
 
-    // Hard rules only — the strength score is advice, not a gate.
-    if (strength.rejectionKey) {
-      setPasswordTouched(true);
-      return;
-    }
+    // Hard rules only — surfaced through the strength meter next to the
+    // field, never spelled out here. The score alone is advice, not a gate.
+    if (strength.rejectionKey) return;
     if (confirmation !== password) {
       setConfirmationTouched(true);
       return;
@@ -203,12 +196,6 @@ export default function ResetPasswordPage() {
           minLength={MIN_PASSWORD_LENGTH}
           value={password}
           onChange={setPassword}
-          onBlur={() => setPasswordTouched(true)}
-          error={
-            passwordError
-              ? t(passwordError, { min: MIN_PASSWORD_LENGTH })
-              : undefined
-          }
           describedByExtra={formErrorKey ? FORM_ERROR_ID : undefined}
           strength={password.length > 0 ? strength : null}
         />
