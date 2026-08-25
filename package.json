@@ -26,7 +26,8 @@
     "registry:addresses:audit": "node scripts/audit-dgu-address-match.mjs",
     "registry:addresses:import": "node scripts/import-dgu-geocodes.mjs",
     "registry:promote": "node scripts/promote-registry.mjs",
-    "registry:apply-migration": "node scripts/apply-migration-014.mjs"
+    "registry:apply-migration": "node scripts/apply-migration-014.mjs",
+    "content:audit": "node scripts/audit-content.mjs"
   },
   "dependencies": {
     "@fontsource/noto-sans": "^5.3.0",
