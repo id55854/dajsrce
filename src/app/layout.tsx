@@ -8,6 +8,7 @@ import { Footer } from "@/components/Footer";
 import { ToastProvider } from "@/components/ui";
 import { LocaleProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
+import { Analytics } from "@vercel/analytics/next";
 
 // Root metadata is the one place that cannot read the dictionary through the
 // normal client/server translator, because it is evaluated before any locale
@@ -101,6 +102,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </div>
           </ToastProvider>
         </LocaleProvider>
+        <Analytics />
       </body>
     </html>
   );
