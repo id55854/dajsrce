@@ -1,15 +1,16 @@
 "use client";
 
-import { useId, useState } from "react";
+import { Suspense, useId, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   CalendarPlus,
-  Inbox,
   MapPin,
   Plus,
-  Users,
   X,
 } from "lucide-react";
+import { InstitutionPledgesClient } from "./pledges/institution-pledges-client";
+import { InstitutionVolunteersClient } from "./volunteers/institution-volunteers-client";
 import { useT } from "@/i18n/client";
 import { NewNeedForm } from "@/components/NewNeedForm";
 import { SignOutButton } from "@/components/SignOutButton";
@@ -26,9 +27,35 @@ import {
   useToast,
 } from "@/components/ui";
 
+/**
+ * Inbound pledges and volunteer management are two halves of "what is coming
+ * in", so they are views of one strip here rather than two pages the profile
+ * links out to — the same shape `/doniraj` uses. Pledges is the default view;
+ * both keep their own routes for direct links.
+ */
+const VIEWS = ["pledges", "volunteers"] as const;
+type View = (typeof VIEWS)[number];
+
+const DEFAULT_VIEW: View = "pledges";
+
+function parseView(raw: string | null): View {
+  return VIEWS.includes(raw as View) ? (raw as View) : DEFAULT_VIEW;
+}
+
 export default function InstitutionDashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <InstitutionDashboardExperience />
+    </Suspense>
+  );
+}
+
+function InstitutionDashboardExperience() {
   const t = useT();
   const toast = useToast();
+
+  const searchParams = useSearchParams();
+  const view = parseView(searchParams.get("view"));
 
   const needPanelId = useId();
   const eventPanelId = useId();
@@ -89,27 +116,40 @@ export default function InstitutionDashboardPage() {
   return (
     <PageShell width="content">
       <PageHeader
+        className="mb-5"
         title={t("institution.dashboard_title")}
         subtitle={t("institution.dashboard_subtitle")}
-        actions={
-          <>
-            <Link
-              href="/dashboard/institution/pledges"
-              className={buttonClasses({ variant: "secondary", size: "sm" })}
-            >
-              <Inbox className="h-4 w-4" aria-hidden="true" />
-              {t("institution.dashboard_nav_pledges")}
-            </Link>
-            <Link
-              href="/dashboard/institution/volunteers"
-              className={buttonClasses({ variant: "secondary", size: "sm" })}
-            >
-              <Users className="h-4 w-4" aria-hidden="true" />
-              {t("institution.dashboard_nav_volunteers")}
-            </Link>
-          </>
-        }
       />
+
+      {/* Same pill strip as /doniraj, so switching between the two halves of
+          the profile reads identically to switching between the two halves of
+          the donate page. */}
+      <nav
+        aria-label={t("institution.dashboard_views_label")}
+        className="mb-6 flex flex-wrap gap-2"
+      >
+        {VIEWS.map((candidate) => {
+          const active = candidate === view;
+          return (
+            <Link
+              key={candidate}
+              href={
+                candidate === DEFAULT_VIEW
+                  ? "/dashboard/institution"
+                  : `/dashboard/institution?view=${candidate}`
+              }
+              aria-current={active ? "page" : undefined}
+              className={
+                active
+                  ? "rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white"
+                  : "rounded-full border border-border-subtle px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
+              }
+            >
+              {t(`institution.dashboard_view_${candidate}`)}
+            </Link>
+          );
+        })}
+      </nav>
 
       <div className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -267,6 +307,16 @@ export default function InstitutionDashboardPage() {
             {t("institution.dashboard_view_map")}
           </Link>
         </div>
+
+        {/* The selected half of the profile. Both keep their own routes, so a
+            bookmark or a direct link still lands on the standalone page. */}
+        <section className="border-t border-border-subtle pt-6">
+          {view === "pledges" ? (
+            <InstitutionPledgesClient embedded />
+          ) : (
+            <InstitutionVolunteersClient embedded />
+          )}
+        </section>
 
         <div className="border-t border-border-subtle pt-6">
           <SignOutButton />
