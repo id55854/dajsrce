@@ -26,7 +26,7 @@ export interface InstitutionDetailPanelProps {
   /** When false, hides the close control (e.g. standalone public page). */
   showCloseButton?: boolean;
   /**
-   * When false, skip the card chrome — the map overlay already is the card.
+   * When false, skip the card chrome; the map overlay already is the card.
    * The standalone page keeps the default framed look.
    */
   framed?: boolean;
@@ -292,8 +292,8 @@ export function InstitutionDetailPanel({
 }
 
 /**
- * Stands in for the real panel's structure — category chip, display heading,
- * description, the six-field grid and two actions — rather than two grey bars.
+ * Stands in for the real panel's structure, category chip, display heading,
+ * description, the six-field grid and two actions, rather than two grey bars.
  */
 export function InstitutionDetailSkeleton({ framed = true }: { framed?: boolean }) {
   return (

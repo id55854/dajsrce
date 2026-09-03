@@ -37,7 +37,7 @@ export type FilterChipProps = Omit<
 > & {
   /**
    * Required, and the single source of both the pressed state and the visual
-   * treatment — a chip can never look active without announcing it.
+   * treatment; a chip can never look active without announcing it.
    */
   "aria-pressed": boolean;
   /**
@@ -51,7 +51,7 @@ export type FilterChipProps = Omit<
 
 /**
  * The one filter chip. `/needs` used to re-implement this markup byte for byte
- * — and its two chip rows still disagreed with each other on weight and ink.
+ *; and its two chip rows still disagreed with each other on weight and ink.
  */
 export function FilterChip({
   "aria-pressed": pressed,

@@ -9,7 +9,7 @@ import { useT } from "@/i18n/client";
  *
  * A colour that encodes "can this organisation actually receive anything" is
  * only useful if the reader is told so. This renders wherever the map's
- * filters render — the desktop aside and the mobile filter panel — because
+ * filters render; the desktop aside and the mobile filter panel; because
  * that is where the map's other meaning-carrying controls already are.
  *
  * It imports its colours from `location-map`, not from the Leaflet component,

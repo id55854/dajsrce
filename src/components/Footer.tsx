@@ -77,7 +77,7 @@ export function Footer() {
 /**
  * The registered name on the map surface.
  *
- * The map fills the viewport, so it cannot carry the footer — but the
+ * The map fills the viewport, so it cannot carry the footer, but the
  * association still has to be identifiable on its own front page. This is one
  * line in the layout flow beneath the map (not an overlay), so it never
  * collides with the bottom sheet on phones or with Leaflet's attribution, and
@@ -98,8 +98,8 @@ export function MapLegalStrip() {
         </span>
         {/* Inside the truncating line, not beside it: on a narrow phone the
             registered name is the part that must survive, so the address is
-            what gets clipped. The label is dropped for width — a mailto link
-            reading as an address needs none — and restored for screen readers. */}
+            what gets clipped. The label is dropped for width; a mailto link
+            reading as an address needs none; and restored for screen readers. */}
         {contactEmail ? (
           <>
             <span aria-hidden> · </span>

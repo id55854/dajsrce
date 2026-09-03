@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
           user.created_at &&
           Date.now() - new Date(user.created_at).getTime() < 60_000;
 
-        // handle_new_user() always creates the profile as `individual` —
+        // handle_new_user() always creates the profile as `individual`
         // role is never trusted from signup metadata. Someone who picked
         // "NGO" (email/password or OAuth) still has to run complete_profile_setup
         // via /auth/setup, and an NGO profile with no institution_id yet

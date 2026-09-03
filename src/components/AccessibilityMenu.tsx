@@ -282,7 +282,7 @@ export function AccessibilityPanel({ onBack }: { onBack?: () => void }) {
 
 /**
  * The accessibility entry point: a round button pinned to the bottom-left
- * corner of the viewport, on every page and every breakpoint — not folded
+ * corner of the viewport, on every page and every breakpoint, not folded
  * into the navbar's account menu, so it stays reachable independently of
  * being signed in and never competes for space with profile/notifications.
  * The panel opens upward from it, since the trigger sits at the screen edge.

@@ -30,7 +30,7 @@ export type SheetProps = {
 };
 
 /**
- * A draggable bottom sheet with detents — the pattern that lets a map stay
+ * A draggable bottom sheet with detents; the pattern that lets a map stay
  * visible while a list, a filter row and a detail view all remain reachable,
  * instead of swapping between mutually exclusive full-screen views.
  *
@@ -107,7 +107,7 @@ export function Sheet({
     if (typeof window === "undefined") return false;
     // The spring runs on requestAnimationFrame, so neither the reduced-motion
     // media query nor the accessibility menu's `.stop-animations` rule (both
-    // CSS-only) can stop it — check them here instead. Dragging itself stays
+    // CSS-only) can stop it, check them here instead. Dragging itself stays
     // 1:1 regardless: that is direct manipulation, not decoration.
     return (
       window.matchMedia("(prefers-reduced-motion: reduce)").matches ||

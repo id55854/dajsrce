@@ -74,7 +74,7 @@ const NEEDS_BY_CATEGORY: Partial<Record<InstitutionCategory, NeedTemplate[]>> = 
   ],
   soup_kitchen: [
     {
-      title: "Trajna hrana — konzerve i tjestenina",
+      title: "Trajna hrana: konzerve i tjestenina",
       description:
         "Konzerve (grah, tune, mesne), tjestenina, riža, ulje, brašno, šećer za pripremu dnevnih obroka.",
       donation_type: "food",
@@ -118,7 +118,7 @@ const NEEDS_BY_CATEGORY: Partial<Record<InstitutionCategory, NeedTemplate[]>> = 
     },
     {
       title: "Odjeća za odrasle i djecu",
-      description: "Čista, dobro očuvana odjeća po sezonama — posebno dječje veličine.",
+      description: "Čista, dobro očuvana odjeća po sezonama, posebno dječje veličine.",
       donation_type: "clothes",
       urgency: "routine",
       quantity_needed: 60,
@@ -152,7 +152,7 @@ const NEEDS_BY_CATEGORY: Partial<Record<InstitutionCategory, NeedTemplate[]>> = 
   ],
   elderly_care: [
     {
-      title: "Program za starije — higijena i udobnost",
+      title: "Program za starije: higijena i udobnost",
       description: "Losioni, meke krpice, čarape, deke za korisnike doma.",
       donation_type: "hygiene",
       urgency: "routine",
@@ -195,7 +195,7 @@ const NEEDS_BY_CATEGORY: Partial<Record<InstitutionCategory, NeedTemplate[]>> = 
 
 const DEFAULT_NEEDS: NeedTemplate[] = [
   {
-    title: "Opća donacija — namirnice",
+    title: "Opća donacija: namirnice",
     description: "Trajna hrana i osnovne namirnice za korisnike naše ustanove.",
     donation_type: "food",
     urgency: "routine",
@@ -206,7 +206,7 @@ const DEFAULT_NEEDS: NeedTemplate[] = [
 const EVENTS_BY_CATEGORY: Partial<Record<InstitutionCategory, EventTemplate[]>> = {
   homeless_shelter: [
     {
-      title: "Večernji tim — podjela obroka i razgovor",
+      title: "Večernji tim: podjela obroka i razgovor",
       description:
         "Pomoć pri posluživanju večere i druženje s korisnicima prenoćišta (kratko uputstvo na licu mjesta).",
       start_time: "17:00",
@@ -219,7 +219,7 @@ const EVENTS_BY_CATEGORY: Partial<Record<InstitutionCategory, EventTemplate[]>> 
   ],
   soup_kitchen: [
     {
-      title: "Jutarnja kuhinja — pripremanje ručka",
+      title: "Jutarnja kuhinja: pripremanje ručka",
       description:
         "Rezanje povrća, pomoć kuhaču i posluživanje u trpezariji za oko 120 obroka.",
       start_time: "08:00",
@@ -271,7 +271,7 @@ const EVENTS_BY_CATEGORY: Partial<Record<InstitutionCategory, EventTemplate[]>> 
   ],
   domestic_violence: [
     {
-      title: "Pomoć u skloništu — administracija i dobrodošlica",
+      title: "Pomoć u skloništu: administracija i dobrodošlica",
       description:
         "Pomoć pri uređivanju donacija, doček novih korisnica i lagani admin.",
       start_time: "14:00",
@@ -286,7 +286,7 @@ const EVENTS_BY_CATEGORY: Partial<Record<InstitutionCategory, EventTemplate[]>> 
     {
       title: "Čitanje naglas i druženje",
       description:
-        "Druženje s stanovnicima doma — čitanje, šah, šetnja dvorištem.",
+        "Druženje s stanovnicima doma: čitanje, šah, šetnja dvorištem.",
       start_time: "16:00",
       end_time: "18:00",
       volunteers_needed: 7,
@@ -297,7 +297,7 @@ const EVENTS_BY_CATEGORY: Partial<Record<InstitutionCategory, EventTemplate[]>> 
   ],
   social_welfare: [
     {
-      title: "Terenski obilazak — dostava paketa",
+      title: "Terenski obilazak: dostava paketa",
       description:
         "Pomoć u utovaru i kratkim dostavama paketa obiteljima (vlastito vozilo nije nužno).",
       start_time: "09:30",

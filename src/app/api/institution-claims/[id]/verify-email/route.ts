@@ -48,8 +48,8 @@ async function sendChallengeEmail(input: {
 
   const subject =
     input.locale === "hr"
-      ? `Potvrdite zahtjev za upravljanje udrugom — ${organisation}`
-      : `Confirm the request to manage — ${organisation}`;
+      ? `Potvrdite zahtjev za upravljanje udrugom, ${organisation}`
+      : `Confirm the request to manage, ${organisation}`;
 
   const bodyHr = `
     <p>Pozdrav,</p>
@@ -57,9 +57,9 @@ async function sendChallengeEmail(input: {
     <p>Ova poruka poslana je na adresu koju za tu udrugu objavljuje službeni Registar udruga. Ako prepoznajete zahtjev, potvrdite da kontrolirate ovu adresu:</p>
     <p><a href="${url}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 22px;border-radius:9999px;text-decoration:none;font-weight:600">Potvrdi e-mail adresu</a></p>
     <p style="font-size:12px;color:#6b7280">Poveznica vrijedi do <strong>${expiresHuman}</strong> i može se iskoristiti samo jednom.</p>
-    <p style="font-size:12px;color:#6b7280">Potvrda e-maila ne odobrava zahtjev — svaki zahtjev pregledava administrator DajSrca.</p>
+    <p style="font-size:12px;color:#6b7280">Potvrda e-maila ne odobrava zahtjev, svaki zahtjev pregledava administrator DajSrca.</p>
     <p style="font-size:12px;color:#6b7280">Ako ne prepoznajete ovaj zahtjev, zanemarite poruku i ništa se neće dogoditi.</p>
-    <p>— DajSrce</p>
+    <p>DajSrce</p>
   `;
   const bodyEn = `
     <p>Hello,</p>
@@ -67,9 +67,9 @@ async function sendChallengeEmail(input: {
     <p>This message was sent to the address the official Associations Register publishes for that organisation. If you recognise the request, confirm you control this mailbox:</p>
     <p><a href="${url}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 22px;border-radius:9999px;text-decoration:none;font-weight:600">Confirm email address</a></p>
     <p style="font-size:12px;color:#6b7280">This link is valid until <strong>${expiresHuman}</strong> and can be used once.</p>
-    <p style="font-size:12px;color:#6b7280">Confirming the email does not approve the request — every request is reviewed by a DajSrce administrator.</p>
+    <p style="font-size:12px;color:#6b7280">Confirming the email does not approve the request, every request is reviewed by a DajSrce administrator.</p>
     <p style="font-size:12px;color:#6b7280">If you do not recognise this request, ignore this message and nothing will happen.</p>
-    <p>— DajSrce</p>
+    <p>DajSrce</p>
   `;
 
   const { error } = await new Resend(key).emails.send({

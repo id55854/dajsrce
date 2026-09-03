@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 /**
  * Remembers how the visitor chose to start, so the question is asked once and
- * never again. Any recorded value counts as answered — including "show the
- * whole country" — because re-asking someone who already declined is the
+ * never again. Any recorded value counts as answered, including "show the
+ * whole country", because re-asking someone who already declined is the
  * behaviour that makes a permission prompt feel like nagging.
  *
  * The hook lives apart from the dialogs it gates because the map page has a

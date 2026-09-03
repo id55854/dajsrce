@@ -10,7 +10,7 @@
  */
 
 /**
- * Minimum length for *choosing* a password — sign-up and the password-reset
+ * Minimum length for *choosing* a password, sign-up and the password-reset
  * update form, which both import this constant so the number lives in one
  * place.
  *

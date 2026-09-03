@@ -1,4 +1,4 @@
-# DajSrce Accessibility Menu — Cursor Implementation Prompt
+# DajSrce Accessibility Menu: Cursor Implementation Prompt
 
 Copy everything below this line and paste it into Cursor as a single prompt.
 
@@ -66,7 +66,7 @@ import { Accessibility, X, RotateCcw, Type, Contrast, Eye, MousePointer2, Space,
 
 #### Feature implementation details
 
-**Font Size (special — not a toggle):**
+**Font Size (special, not a toggle):**
 - Row shows: `Type` icon, "Text Size" label, then three small buttons: `A-` | `A` (reset) | `A+`
 - Applies via: `document.documentElement.style.fontSize = \`${fontSize}%\``
 - Min 90%, max 150%, step 10%
@@ -85,7 +85,7 @@ import { Accessibility, X, RotateCcw, Type, Contrast, Eye, MousePointer2, Space,
 
 #### Animation
 - Panel entrance: fade-in + slide-up (use Tailwind `animate-` or inline CSS transition)
-- Keep it simple — a CSS class toggle is fine
+- Keep it simple; a CSS class toggle is fine
 
 #### Click outside to close
 - Add a mousedown listener on document; if click target is outside the panel and outside the toggle button, close the menu.

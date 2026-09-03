@@ -41,7 +41,7 @@ type PledgeRow = Pledge & {
 /**
  * The volunteer's own signups. Read directly under RLS ("Users can view own
  * active signups") with an explicit column list and a hard cap, because this
- * surface needs the signup id — the id the cancel endpoint is keyed by — and
+ * surface needs the signup id; the id the cancel endpoint is keyed by; and
  * the event it belongs to, which the shared list endpoint does not project.
  */
 type SignupEvent = {
@@ -85,7 +85,7 @@ const STATUS: Record<string, { tone: BadgeTone; key: string }> = {
 
 /**
  * Status filter chips, in the same order the lifecycle usually runs.
- * `confirmed` is left off the filter row by design — a confirmed pledge
+ * `confirmed` is left off the filter row by design; a confirmed pledge
  * still shows (and badges as such) under "Sve", it just isn't a state
  * worth a dedicated filter here.
  */
@@ -169,7 +169,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
     };
   }, [profile.id, reload, t]);
 
-  // The status filter narrows the list below only — the stat tiles above
+  // The status filter narrows the list below only; the stat tiles above
   // report the whole account regardless of what's currently filtered.
   const filteredPledges =
     statusFilter === "all"
@@ -226,7 +226,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
               volunteer-hours query on this surface yet, so it shows an em-dash
               in the muted tone rather than a fabricated figure. A localised
               "not available yet" caption needs a translation key that does not
-              exist yet — see the handover note. */}
+              exist yet, see the handover note. */}
           <Stat
             icon={<Clock className="h-4 w-4" aria-hidden="true" />}
             label={t("dashboard_individual.stat_volunteer_hours")}

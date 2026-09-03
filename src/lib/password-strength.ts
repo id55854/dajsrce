@@ -5,7 +5,7 @@
  * Scope, so nobody mistakes this for authentication work: the application never
  * sees, transports or stores a password hash. Supabase Auth (GoTrue) hashes
  * with bcrypt on its side. Nothing here changes how a password is stored, and
- * nothing here may ever be used to gate a *sign-in* — an existing user must
+ * nothing here may ever be used to gate a *sign-in*; an existing user must
  * keep signing in with the password they already have, however short it is.
  * These rules apply to choosing a new password only.
  *
@@ -13,7 +13,7 @@
  * the character classes present, multiplied by the length that survives after
  * removing repeated runs, sequential runs and known-guessable tokens. It is
  * honest about what it measures and it does not pretend to be a dictionary
- * attack simulator — a passphrase built from common words still scores well
+ * attack simulator; a passphrase built from common words still scores well
  * here. The real backstop for "this exact password is in a breach corpus" is
  * Supabase's Leaked Password Protection (HaveIBeenPwned), which is a project
  * setting rather than client code; see the release checklist.
@@ -76,7 +76,7 @@ const HINT_PATTERN = "auth.password_hint_pattern";
 const SITE_TOKENS = ["dajsrce"];
 
 /**
- * Small, curated list — the point is to catch the handful of passwords a
+ * Small, curated list; the point is to catch the handful of passwords a
  * bored attacker tries first, in both languages the product ships in. Anything
  * larger belongs in the breach-corpus check on the provider side.
  */
@@ -147,7 +147,7 @@ const FOLDED_COMMON_TOKENS = COMMON_TOKENS.map(fold);
 
 /**
  * Every way a token can be read out of one identity string: the whole thing,
- * its alphanumeric pieces, and its letters-only pieces — so `ivan.drazetic2`
+ * its alphanumeric pieces, and its letters-only pieces; so `ivan.drazetic2`
  * also yields `drazetic`, which is what people actually reuse.
  */
 function expandToken(value: string): string[] {
@@ -177,7 +177,7 @@ function identityTokens(context: PasswordContext): string[] {
 }
 
 /**
- * True when removing the token leaves nothing worth attacking — either it is
+ * True when removing the token leaves nothing worth attacking, either it is
  * at least half the password, or the remainder is a stub like `123`.
  */
 function dominates(folded: string, token: string): boolean {

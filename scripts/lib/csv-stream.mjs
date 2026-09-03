@@ -29,7 +29,7 @@ export async function* parseCsvStream(readable) {
       const c = buf[i];
       if (inQuotes) {
         if (c === '"') {
-          // lookahead — need next char available
+          // lookahead, need next char available
           if (i + 1 >= buf.length) break; // wait for more
           const next = buf[i + 1];
           if (next === '"') {

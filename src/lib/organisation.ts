@@ -3,7 +3,7 @@
  *
  * Croatian associations must identify themselves by their registered name on
  * their public surfaces, so this is rendered in the footer of every ordinary
- * page and, in a compact one-line form, along the bottom of the map — which is
+ * page and, in a compact one-line form, along the bottom of the map, which is
  * a full-viewport surface with no room for a footer. It is also the source for
  * the `/o-nama` page and its `Organization` structured data.
  *
@@ -23,13 +23,13 @@ export const ORGANISATION = {
     countryCode: "HR",
     country: { hr: "Hrvatska", en: "Croatia" },
   },
-  /** Osobni identifikacijski broj — the Croatian tax identification number. */
+  /** Osobni identifikacijski broj; the Croatian tax identification number. */
   oib: "34669315869",
-  /** Matični broj — the register of associations entry number. */
+  /** Matični broj; the register of associations entry number. */
   registrationNumber: "06301436",
   /**
    * Public contact mailbox. Was deliberately `null` until a real, monitored
-   * address existed — publishing an address nobody reads is worse than
+   * address existed, publishing an address nobody reads is worse than
    * publishing none. Now live; every surface that renders contact details
    * still checks for null so it fails closed again if this is ever unset.
    */

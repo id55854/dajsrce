@@ -44,7 +44,7 @@ function row(ok, label) {
 
 const env = parseEnvFile(envPath);
 if (!env) {
-  console.error("Missing .env.local — copy .env.example and fill in secrets.");
+  console.error("Missing .env.local, copy .env.example and fill in secrets.");
   process.exit(1);
 }
 

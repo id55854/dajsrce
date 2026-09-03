@@ -46,7 +46,7 @@ export default function DemoVolunteerShowcasePage() {
               </p>
             </div>
             {/* A paid placement should read as elevated, not as a different
-                product — one brand ring instead of a stacked gradient frame. */}
+                product, one brand ring instead of a stacked gradient frame. */}
             <div className="rounded-card bg-brand p-[3px] shadow-overlay">
               <div className="overflow-hidden rounded-[calc(var(--radius-card)-3px)] bg-surface-raised">
                 <VolunteerEventCard

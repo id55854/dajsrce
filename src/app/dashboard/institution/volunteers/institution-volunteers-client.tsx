@@ -104,7 +104,7 @@ export function InstitutionVolunteersClient({
   /**
    * Optimistic in place. The previous version awaited a full `load()`, which
    * also re-minted a check-in token and re-rendered every event's QR code on
-   * every single check-in — and reported failures through `alert()`.
+   * every single check-in; and reported failures through `alert()`.
    */
   async function checkIn(signupId: string) {
     const previous = signups.find((s) => s.id === signupId);

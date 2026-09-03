@@ -15,7 +15,7 @@ describe("public UI accessibility contracts", () => {
     const needsPage = source("src/app/needs/needs-client.tsx");
     expect(filterBar).toContain("aria-pressed={on}");
     // The Zagreb-only/urgent-only chips were deliberately removed from this
-    // bar (the onboarded chip moved to the front instead) — see FilterBar.tsx.
+    // bar (the onboarded chip moved to the front instead), see FilterBar.tsx.
     expect(filterBar).toContain("aria-pressed={filters.onlyOnboarded}");
     expect(needsPage).toContain("aria-pressed={donationType === \"all\"}");
   });

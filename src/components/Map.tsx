@@ -85,7 +85,7 @@ const MARKER_ENTER = "animation: ui-marker-in 180ms ease-out both;";
 
 /**
  * One marker silhouette for the whole map. A cluster and a pin differ only by
- * fill and by whether they carry a count — previously clusters were blue/red
+ * fill and by whether they carry a count, previously clusters were blue/red
  * circles set in `system-ui` while pins were category-coloured teardrops, so a
  * zoom step read as a change of subject rather than a change of scale.
  *
@@ -186,7 +186,7 @@ function clusterIconSize(count: number): number {
 
 /**
  * A named cluster carries its place under the pin. The count alone said
- * "Grupa od 1090 ustanova" — true, and useless: the group was a cell of a grid
+ * "Grupa od 1090 ustanova", true, and useless: the group was a cell of a grid
  * laid over whatever rectangle the browser happened to show, so it named
  * nothing a visitor could recognise or search for.
  *
@@ -542,8 +542,8 @@ function InstitutionLayer({
       // with the marker's own accessible name now that the popup is gone.
       title={
         isApproximateRegistryLocation
-          ? `${institution.name} — ${statusLabel} — ${t("map_ui.registry_approximate")}`
-          : `${institution.name} — ${statusLabel}`
+          ? `${institution.name}, ${statusLabel}, ${t("map_ui.registry_approximate")}`
+          : `${institution.name}, ${statusLabel}`
       }
       alt={`${institution.name}, ${categoryLabel}, ${statusLabel}`}
       eventHandlers={{ click: () => onSelect(institution.id) }}
@@ -611,7 +611,7 @@ export default function Map({
   const dark = useDarkMode();
   const compact = useCompactViewport();
   // Icons are token-driven and cached by (status, category, selected), so a
-  // theme flip no longer remounts the marker set — only the tile layer changes.
+  // theme flip no longer remounts the marker set; only the tile layer changes.
   const userIcon = useMemo(() => createUserLocationIcon(), []);
   const institutions = useMemo(
     () =>

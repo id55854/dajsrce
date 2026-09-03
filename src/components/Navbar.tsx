@@ -36,7 +36,7 @@ const navLinks = [
 ] as const;
 
 // The two surfaces an NGO actually works in day to day. They stay reachable
-// from the NGO profile as well — this is a second, shorter route to them, not
+// from the NGO profile as well; this is a second, shorter route to them, not
 // a move.
 const ngoNavLinks = [
   { href: "/dashboard/institution/pledges", labelKey: "nav.ngo_pledges" },
@@ -290,7 +290,7 @@ export function Navbar() {
   }, [user]);
 
   // Loads once the session resolves, so the unread badge is right the moment
-  // the navbar renders — not only after the visitor has opened the bell at
+  // the navbar renders, not only after the visitor has opened the bell at
   // least once. Reloads again each time the panel opens, to pick up
   // anything that landed while it sat closed.
   useEffect(() => {
@@ -385,7 +385,7 @@ export function Navbar() {
       className={clsx(
         "sticky top-0 z-[var(--z-chrome)] border-b border-transparent",
         // Glass, not a rule. Light mode uses a soft dark wash; dark mode
-        // cannot — black-on-near-black is invisible — so a faint light lip
+        // cannot, black-on-near-black is invisible, so a faint light lip
         // is what reads as the glass edge.
         "bg-chrome pt-2 shadow-raised backdrop-blur-xl backdrop-saturate-150",
         "dark:shadow-[0_1px_0_0_rgb(255_255_255/0.08),0_12px_24px_-8px_rgb(0_0_0/0.45)]"

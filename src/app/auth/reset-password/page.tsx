@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setFormErrorKey(null);
 
-    // Hard rules only — surfaced through the strength meter next to the
+    // Hard rules only, surfaced through the strength meter next to the
     // field, never spelled out here. The score alone is advice, not a gate.
     if (strength.rejectionKey) return;
     if (confirmation !== password) {

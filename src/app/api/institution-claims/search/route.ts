@@ -14,7 +14,7 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 /**
  * The organisation picker. Signed-in only, requires a query and caps the page
- * hard — this is a lookup, never a way to page the national catalogue.
+ * hard; this is a lookup, never a way to page the national catalogue.
  */
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);

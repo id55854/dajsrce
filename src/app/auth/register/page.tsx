@@ -122,7 +122,7 @@ function RegisterForm() {
     }
 
     if (data.session) {
-      // handle_new_user() always creates the profile as `individual` — role
+      // handle_new_user() always creates the profile as `individual`, role
       // is never trusted from signup metadata. An NGO pick still has to run
       // through /auth/setup, which grants the role via complete_profile_setup
       // and then walks the applicant through the UDR_ID claim.
@@ -231,7 +231,7 @@ function RegisterForm() {
                 account's sign-in identity, and the association's official
                 mailbox is a separate, later field in the UDR_ID claim
                 ("Službena e-mail adresa udruge"). Only the NGO path is
-                relabelled — there is nothing to disambiguate for a private
+                relabelled; there is nothing to disambiguate for a private
                 individual. */}
             <Field
               label={role === "ngo" ? t("auth.email_label_ngo") : t("auth.email_label")}

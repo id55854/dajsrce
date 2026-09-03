@@ -19,8 +19,8 @@ import {
 const donationKeys = Object.keys(DONATION_TYPES) as DonationType[];
 
 /**
- * The "post a new need" panel. An NGO account reaches it from two places —
- * its own dashboard and the Donate page's needs view — so the form itself
+ * The "post a new need" panel. An NGO account reaches it from two places
+ * its own dashboard and the Donate page's needs view; so the form itself
  * lives here once and each caller only owns the toggle that opens it.
  */
 export function NewNeedForm({

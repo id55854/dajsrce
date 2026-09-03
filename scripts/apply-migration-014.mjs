@@ -1,9 +1,9 @@
 // Apply supabase/migrations/014_ngo_registry.sql via direct Postgres connection.
-// Requires SUPABASE_DB_PASSWORD in env (or .env.local) — Supabase project DB
+// Requires SUPABASE_DB_PASSWORD in env (or .env.local), Supabase project DB
 // password from Settings → Database → Connection string.
 //
 // If you'd rather paste the SQL into the Supabase SQL editor, you don't need
-// this script — but having a runner makes re-applies idempotent and scriptable.
+// this script, but having a runner makes re-applies idempotent and scriptable.
 //
 // Usage:
 //   SUPABASE_DB_PASSWORD=... node scripts/apply-migration-014.mjs
@@ -55,7 +55,7 @@ const candidates = [
   { host: `aws-0-us-east-2.pooler.supabase.com`,    port: 6543, user: `postgres.${projectRef}` },
   { host: `aws-0-us-west-1.pooler.supabase.com`,    port: 6543, user: `postgres.${projectRef}` },
   { host: `aws-0-ap-southeast-1.pooler.supabase.com`, port: 6543, user: `postgres.${projectRef}` },
-  // Direct connection — only works on IPv6-capable networks.
+  // Direct connection; only works on IPv6-capable networks.
   { host: `db.${projectRef}.supabase.co`, port: 5432, user: `postgres` },
 ];
 

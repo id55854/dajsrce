@@ -17,15 +17,15 @@ const loadableManifest = JSON.parse(
 //
 // The baseline is no longer "whatever the other route happens to load" either,
 // because that made the number depend on which route was a redirect. It is now
-// the chunk set every page in the build shares — the framework and root layout
-// — which is a stable definition regardless of how routes are arranged.
+// the chunk set every page in the build shares; the framework and root layout
+//, which is a stable definition regardless of how routes are arranged.
 const mapEntry = appManifest.pages?.["/page"];
 if (!Array.isArray(mapEntry)) {
   throw new Error("The production build does not contain / (the map route)");
 }
 
 // "Shared with at least one other route" is the dividing line. A chunk 28
-// other pages also load is not the map's marginal cost — it is app-wide
+// other pages also load is not the map's marginal cost; it is app-wide
 // weight, and Next already reports that as "First Load JS shared by all". What
 // is left is the code that exists because this route exists, plus its dynamic
 // imports below.

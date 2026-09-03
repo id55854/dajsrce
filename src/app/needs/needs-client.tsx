@@ -37,8 +37,8 @@ const URGENCY_OPTIONS: Array<{
 ];
 
 /**
- * Mirrors NeedCard's real anatomy — badge row, clamped title, three lines of
- * body, progress bar, action row — so a cold load reserves the height the
+ * Mirrors NeedCard's real anatomy, badge row, clamped title, three lines of
+ * body, progress bar, action row; so a cold load reserves the height the
  * cards will actually take instead of a flat `h-64` block that then jumps.
  */
 function NeedCardSkeleton() {
@@ -79,7 +79,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const [settled, setSettled] = useState(false);
   const [retry, setRetry] = useState(0);
 
-  // "Your pledges" state — separate fetch, only when authenticated.
+  // "Your pledges" state, separate fetch, only when authenticated.
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [userPledges, setUserPledges] = useState<YourPledgeRow[]>([]);
   const [pledgesLoading, setPledgesLoading] = useState(true);
@@ -179,7 +179,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const onPledgeSuccess = useCallback(
     (payload: PledgeSuccessPayload) => {
       // Patch the needs[] row in place from the API's authoritative count.
-      // Filters stay intact — we only mutate one row, never re-fetch the list.
+      // Filters stay intact, we only mutate one row, never re-fetch the list.
       if (payload.need) {
         setNeeds((prev) =>
           prev.map((n) =>

@@ -11,7 +11,7 @@
 /**
  * Where a flick would come to rest, using the exponential-decay model that
  * matches native scroll deceleration. The textbook `v²/(2a)` is *not* what
- * feels right here — this is the form UIKit's own sample code uses.
+ * feels right here; this is the form UIKit's own sample code uses.
  *
  * @param velocity px/s at release
  * @param decelerationRate 0.998 for a normal scroll feel, 0.99 for snappier
@@ -36,7 +36,7 @@ export type SpringHandle = { cancel: () => void };
 
 /**
  * Critically damped by default (`damping ≈ 2·√stiffness`), so it settles
- * without overshoot — the correct default for UI that did not arrive on a
+ * without overshoot; the correct default for UI that did not arrive on a
  * flick. Lower the damping to let a thrown surface overshoot slightly.
  */
 export function animateSpring({

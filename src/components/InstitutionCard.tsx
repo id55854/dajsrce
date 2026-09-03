@@ -71,8 +71,8 @@ export function InstitutionCard({
     institution.entityType === "registry" &&
     (institution.locationPrecision === "city" || institution.locationPrecision === "county");
   const cat = getCategoryConfig(institution.category);
-  // Same contract as `categoryVars()` — publish the hue and let the
-  // `category-chip` class mix it against the theme's surface and ink — but
+  // Same contract as `categoryVars()`, publish the hue and let the
+  // `category-chip` class mix it against the theme's surface and ink, but
   // sourced from `getCategoryConfig` so a category newer than this deploy still
   // resolves to a colour instead of throwing.
   const categoryStyle = { "--cat": cat.color } as CSSProperties;
@@ -172,8 +172,8 @@ export function InstitutionCard({
 }
 
 /**
- * Mirrors the real card's blocks — chip row, two-line title, address, donation
- * chips — so a cold load does not resolve into a different shape.
+ * Mirrors the real card's blocks, chip row, two-line title, address, donation
+ * chips; so a cold load does not resolve into a different shape.
  */
 export function InstitutionCardSkeleton() {
   return (

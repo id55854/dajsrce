@@ -283,7 +283,7 @@ Severity definitions:
 
 ### 6.1 Security and privacy
 
-#### SEC-01 — Unauthenticated destructive seed endpoint — P0
+#### SEC-01: Unauthenticated destructive seed endpoint: P0
 
 **Evidence:** `src/app/api/seed/route.ts` exports an unauthenticated POST handler, uses elevated database access, deletes institution records, and reseeds them. Institution deletion can cascade into related data depending on deployed constraints.
 
@@ -293,7 +293,7 @@ Severity definitions:
 
 **Verification:** production POST returns 404/405; source route is absent from the build; an integration test enumerates mutating admin/debug routes and proves anonymous access is denied. Review database logs for past use before deciding whether data restoration is needed.
 
-#### SEC-02 — Profile RLS permits self-promotion and institution takeover — P0
+#### SEC-02: Profile RLS permits self-promotion and institution takeover: P0
 
 **Evidence:** the initial migration's “users can update own profile” policy restricts rows by `auth.uid()` but does not restrict columns. A client with a normal session can update its own `role`, `institution_id`, location, company linkage, and other protected attributes directly through Supabase.
 
@@ -303,7 +303,7 @@ Severity definitions:
 
 **Verification:** pgTAP/integration tests sign in as a regular user and attempt every protected-column mutation; all fail. Authorized admin transitions succeed only through the audited server operation. Retest every policy that derives privileges from `profiles.role` or `profiles.institution_id`.
 
-#### SEC-03 — Users can join arbitrary companies with arbitrary roles — P0
+#### SEC-03: Users can join arbitrary companies with arbitrary roles: P0
 
 **Evidence:** the company-member insert policy permits a user to insert a row when `profile_id = auth.uid()` (or under a staff branch) without proving an invitation or restricting the inserted company role.
 
@@ -313,7 +313,7 @@ Severity definitions:
 
 **Verification:** direct inserts fail for anon and authenticated users. Acceptance by a different-email account fails. Expired/revoked/reused tokens fail. Owner-authorized invite acceptance succeeds once and creates exactly one member.
 
-#### SEC-04 — Company UPDATE policy permits subscription and verification forgery — P0
+#### SEC-04: Company UPDATE policy permits subscription and verification forgery: P0
 
 **Evidence:** company owners/admins have row-level UPDATE permission over the entire company row. API field allowlists do not prevent the same user from using the public Supabase client to update `subscription_tier`, `subscription_status`, `verified_at`, owner identity, OIB, slug, or other protected fields.
 
@@ -323,7 +323,7 @@ Severity definitions:
 
 **Verification:** an owner can edit branding/contact preferences but cannot modify protected fields through PostgREST. Stripe/webhook and verification services can update their respective fields. Add negative authorization tests for every protected column.
 
-#### SEC-05 — Exact sensitive coordinates and broad registry data are publicly selectable — P0
+#### SEC-05: Exact sensitive coordinates and broad registry data are publicly selectable: P0
 
 **Evidence:** the public institutions API retrieves broad rows and hidden locations still contain exact coordinates. Direction links and detail components can use those coordinates. Public table policies also expose broad NGO registry rows, including raw/contact data and exact locations.
 
@@ -333,7 +333,7 @@ Severity definitions:
 
 **Verification:** query every public and authenticated role directly, not just through the Next API. Exact coordinates, raw JSON, private contacts, and internal fields must be absent. Repeated responses must not allow coordinate reconstruction. Add a privacy regression fixture representing a safe house.
 
-#### SEC-06 — Company verification can be auto-consumed and does not prove organizational control — P0
+#### SEC-06: Company verification can be auto-consumed and does not prove organizational control: P0
 
 **Evidence:** `src/app/verify-company/page.tsx` performs state-changing verification from a GET page load. Email security scanners, previewers, or browser prefetch can therefore consume the link. The flow accepts an arbitrary contact email rather than proving it is a registry-listed or organization-controlled address. Verification and company updates are separate operations, and verification tokens are stored in plaintext and visible too broadly to company members under current policies.
 
@@ -343,7 +343,7 @@ Severity definitions:
 
 **Verification:** link scanners cannot confirm; database readers cannot recover usable tokens; arbitrary personal email does not grant high-trust status; replay and concurrent consumption fail; all updates commit or roll back together.
 
-#### SEC-07 — Invitation bearer token is not bound to the invited account — P0
+#### SEC-07: Invitation bearer token is not bound to the invited account: P0
 
 **Evidence:** invite acceptance checks a token but does not require the signed-in account's normalized verified email to match the invited email. Tokens are plaintext, and member creation and invite-state update are not atomic.
 
@@ -353,7 +353,7 @@ Severity definitions:
 
 **Verification:** mismatched and unverified-email accounts fail; concurrent redemption creates one membership; a used token cannot be replayed; audit events record issuer and accepter without storing the secret.
 
-#### SEC-08 — Cron authentication fails open — P0
+#### SEC-08: Cron authentication fails open: P0
 
 **Evidence:** the cron route validates authorization only when `CRON_SECRET` exists and also considers a request header that a public client can spoof. If the secret is missing, the route is effectively open. The route mutates state via GET.
 
@@ -363,7 +363,7 @@ Severity definitions:
 
 **Verification:** missing/incorrect secrets always return 401/403; GET cannot mutate; repeated authorized execution has one effect; logs identify run, duration, affected count, and failure.
 
-#### SEC-09 — Vulnerable production dependencies — P0
+#### SEC-09: Vulnerable production dependencies: P0
 
 **Evidence:** the production dependency audit reports seven vulnerabilities, including four high. The installed Next.js 15.5.14 release is covered by security advisories involving React Server Components, denial of service, middleware bypass, and request/cache behavior. Resend and transitive packages also have reported fixes.
 
@@ -371,7 +371,7 @@ Severity definitions:
 
 **Verification:** `npm audit --omit=dev` has no unaccepted high/critical findings; build, type, route, RLS, auth, Stripe, report, and browser tests pass on the patched versions.
 
-#### SEC-10 — Additional high-priority security/privacy gaps — P1
+#### SEC-10: Additional high-priority security/privacy gaps: P1
 
 | Issue | Evidence/impact | Required action |
 |---|---|---|
@@ -390,7 +390,7 @@ Severity definitions:
 
 ### 6.2 Location and general performance
 
-#### PERF-01 — Full catalogue fetch and silent 1,000-row cap — P1
+#### PERF-01: Full catalogue fetch and silent 1,000-row cap: P1
 
 **Evidence:** `src/app/api/institutions/route.ts` returns broad institution records without a viewport or cursor. The production response is exactly 1,000 rows and 2.53 MB uncompressed. Documentation and ingestion scripts indicate more locations exist.
 
@@ -398,7 +398,7 @@ Severity definitions:
 
 **Required change:** implement the target geospatial API in Section 5. Keep the old endpoint temporarily for shadow comparison only, then remove it from public map usage. Any administrative full export must page server-to-server and stream rather than reuse the map endpoint.
 
-#### PERF-02 — One React/Leaflet object and list card per institution — P1
+#### PERF-02: One React/Leaflet object and list card per institution: P1
 
 **Evidence:** `src/components/Map.tsx` maps every result to Marker/Circle layers, while `src/app/map/page.tsx` renders the complete result list. Production inspection showed roughly 1,000 markers, 18,700 DOM elements, and 1,029 buttons.
 
@@ -406,7 +406,7 @@ Severity definitions:
 
 **Required change:** cluster/server-aggregate features, use a canvas-backed or clustered layer, and virtualize the list. Preserve selection across viewport updates without retaining every offscreen component.
 
-#### PERF-03 — Search/filter/distance work runs over all records on the main thread — P1
+#### PERF-03: Search/filter/distance work runs over all records on the main thread: P1
 
 **Evidence:** the map page builds and ranks normalized data in the browser on input changes. Haversine distance is recomputed during sorting and card rendering. There is no robust request cancellation because all data is already local.
 
@@ -414,7 +414,7 @@ Severity definitions:
 
 **Required change:** indexed server search with bounded results; input debounce/deferred rendering; precompute distance once per result/version; use memoized view models. A Web Worker is an optional fallback for small offline datasets, not the primary nationwide architecture.
 
-#### PERF-04 — Public routes pay global auth middleware cost — P1
+#### PERF-04: Public routes pay global auth middleware cost: P1
 
 **Evidence:** middleware matches nearly every page and API route and invokes `supabase.auth.getUser()` even when the requested resource is public. Public API routes still perform their own authorization where needed.
 
@@ -422,7 +422,7 @@ Severity definitions:
 
 **Required change:** narrow the middleware matcher to routes that truly require session refresh/navigation protection. Public map, public company, embed, static, and public APIs should bypass a user round-trip. Treat middleware redirects as convenience only; each protected server handler/layout must authorize independently.
 
-#### PERF-05 — Root dynamic behavior and global assets — P1
+#### PERF-05: Root dynamic behavior and global assets: P1
 
 **Evidence:** root locale resolution calls `cookies()`, so the route graph is dynamic. Leaflet CSS is loaded globally from `unpkg` even on non-map pages. Google Font CSS is imported remotely from global CSS.
 
@@ -430,7 +430,7 @@ Severity definitions:
 
 **Required change:** isolate cookie-dependent locale handling so public pages can use route segments, middleware-set headers, or another cache-compatible strategy. Load Leaflet CSS within the map bundle. Self-host fonts with `next/font` or an approved local asset. Measure route-level caching after the change.
 
-#### PERF-06 — Oversized icon imports and client boundaries — P1
+#### PERF-06: Oversized icon imports and client boundaries: P1
 
 **Evidence:** `InstitutionCard` and `NeedCard` use `import * as Icons from "lucide-react"`. Large, feature-rich components such as Navbar and dashboards are client components and pull authentication, dictionaries, notifications, and workflow code into broad route surfaces.
 
@@ -438,7 +438,7 @@ Severity definitions:
 
 **Required change:** use an explicit icon-name-to-component map containing only supported icons. Split server data/shells from small interactive islands. Lazy-load rarely opened modals, accessibility controls, reporting panels, and map-only code. Run a bundle analyzer before and after each split.
 
-#### PERF-07 — Notification polling and duplicated navigation fetches — P1
+#### PERF-07: Notification polling and duplicated navigation fetches: P1
 
 **Evidence:** the global client Navbar fetches user/company/notification state and polls notifications about every 30 seconds for authenticated users, including when the panel is closed. Auth state can trigger repeated geolocation and data fetches.
 
@@ -446,7 +446,7 @@ Severity definitions:
 
 **Required change:** provide shared initial session/navigation data from a protected server layout; fetch notification details on demand or use a single realtime unread-count subscription. Pause polling in hidden tabs, back off on errors, and centralize auth-state changes to prevent duplicate work.
 
-#### PERF-08 — Reporting/export queries are capped, duplicated, and executed synchronously — P1
+#### PERF-08: Reporting/export queries are capped, duplicated, and executed synchronously: P1
 
 **Evidence:** report, receipt, and export code retrieves broad client-side row sets, sometimes filters dates in JavaScript, and may hit the same 1,000-row Supabase limit. ESG collection contains sequential/repeated queries. Public company metrics can be fetched multiple times for metadata and page rendering. CPU-intensive document generation and Storage uploads run inside request handlers.
 
@@ -454,7 +454,7 @@ Severity definitions:
 
 **Required change:** aggregate/filter in SQL with explicit date/status criteria; use database numeric/integer values; cache or materialize public metrics; wrap metadata/page loaders with request memoization; queue document generation and persist job status. Stream large exports or write them from a background worker.
 
-#### PERF-09 — Missing hot indexes and spatial search support — P1
+#### PERF-09: Missing hot indexes and spatial search support: P1
 
 Audit the deployed query plans, then add only indexes proven by `EXPLAIN (ANALYZE, BUFFERS)` and production query telemetry. Likely missing candidates include:
 
@@ -469,7 +469,7 @@ Audit the deployed query plans, then add only indexes proven by `EXPLAIN (ANALYZ
 
 Do not add every candidate blindly: unused indexes increase write cost. Capture before/after query plans and retain only those used by hot queries.
 
-#### PERF-10 — Error fallbacks obscure failures and defeat measurement — P1
+#### PERF-10: Error fallbacks obscure failures and defeat measurement: P1
 
 **Evidence:** some public routes substitute local fixture data when database calls fail or return zero rows. A legitimate empty result can therefore be indistinguishable from an outage and can show inconsistent fake content.
 
@@ -481,7 +481,7 @@ Do not add every candidate blindly: unused indexes increase write cost. Capture 
 
 ### 6.3 Transactional correctness and billing
 
-#### COR-01 — Pledge workflow is non-atomic and weakly validated — P1
+#### COR-01: Pledge workflow is non-atomic and weakly validated: P1
 
 **Evidence:** pledge creation, match linkage, aggregate/profile counter updates, and related actions occur as separate calls. Quantity accepts values that are not sufficiently constrained; amounts/tax categorization rely too heavily on client-provided data; counters use read-modify-write patterns.
 
@@ -491,7 +491,7 @@ Do not add every candidate blindly: unused indexes increase write cost. Capture 
 
 **Verification:** concurrent tests cannot exceed the need/cap or lose counters; invalid/decimal/negative/huge values fail; retries return the same result; partial rows never remain after injected failure.
 
-#### COR-02 — Volunteer signup and check-out can race or be forged — P1
+#### COR-02: Volunteer signup and check-out can race or be forged: P1
 
 **Evidence:** signup capacity/counters and check-out/hour creation are separate operations; broad policies allow unsafe self-updates; event identity alone is inadequate proof of presence.
 
@@ -499,7 +499,7 @@ Do not add every candidate blindly: unused indexes increase write cost. Capture 
 
 **Required change:** transactional signup/check-in/check-out RPCs with row locking or constraint-based capacity, explicit status-machine checks, signed rotating QR/nonces with expiry, and idempotency. Insert hours and complete checkout in one transaction. Decide whether staff confirmation or location proof is required and minimize any stored location.
 
-#### COR-03 — Stripe webhook can permanently discard failed events — P0
+#### COR-03: Stripe webhook can permanently discard failed events: P0
 
 **Evidence:** the handler records an event as received before completing business processing. If processing then fails, Stripe retries encounter the existing event and can be acknowledged as duplicates, so the failed event is never applied.
 
@@ -509,25 +509,25 @@ Do not add every candidate blindly: unused indexes increase write cost. Capture 
 
 **Verification:** inject a failure after event receipt, retry, and confirm eventual one-time application. Replay of a succeeded event is harmless. An unknown price never grants an entitlement.
 
-#### COR-04 — Checkout can create overlapping active subscriptions — P1
+#### COR-04: Checkout can create overlapping active subscriptions: P1
 
 **Evidence:** checkout creation does not sufficiently prevent multiple active/pending sessions or account for current subscription state.
 
 **Required change:** use a company-scoped idempotency key and authoritative subscription state. Reuse an open checkout where appropriate, direct subscribed customers to the billing portal, and enforce a database uniqueness/invariant around active subscriptions.
 
-#### COR-05 — Verification, invitations, acknowledgements, and company creation are partial workflows — P1
+#### COR-05: Verification, invitations, acknowledgements, and company creation are partial workflows: P1
 
 **Evidence:** each workflow performs multiple related writes separately. Company creation followed by owner membership can fail midway; rollback attempts may themselves be blocked by RLS. Pledge acknowledgement insert/status change and token consumption/entity updates have the same pattern.
 
 **Required change:** one transaction/RPC per domain action, with explicit authorization, idempotency, audit event, and a returned typed result. Avoid compensating client deletes as a substitute for atomicity.
 
-#### COR-06 — Report/export/receipt version allocation races and leaks storage objects — P1
+#### COR-06: Report/export/receipt version allocation races and leaks storage objects: P1
 
 **Evidence:** code reads the current maximum/version and adds one, uploads files, then inserts metadata. Concurrent jobs can choose the same version. Upload failure, second-file failure, or metadata failure can leave orphan or partial objects.
 
 **Required change:** allocate version numbers under a database uniqueness constraint in a transaction, create a generation job record first, upload to a job-specific temporary prefix, validate both artifacts, then publish metadata/state atomically. A scheduled cleanup removes abandoned temporary objects after a retention window.
 
-#### COR-07 — Receipt output can omit line items while retaining totals — P0/P1
+#### COR-07: Receipt output can omit line items while retaining totals: P0/P1
 
 **Evidence:** the receipt renderer stops after its first page rather than paginating all donation lines. The total can include rows that are not visible in the emitted receipt. Standard Helvetica also cannot reliably render Croatian Unicode, and long text has visibly clipped in sample artifacts.
 
@@ -535,13 +535,13 @@ Do not add every candidate blindly: unused indexes increase write cost. Capture 
 
 **Required change:** implement deterministic multi-page table pagination with repeated headers, Croatian-capable embedded fonts, page numbers, continued subtotals, and final reconciliation. Block publication if rendered line count, count/amount/category totals, source query parameters, or hashes do not match the manifest. Have legal/accounting counsel approve the receipt wording and eligibility rules.
 
-#### COR-08 — Date and numeric handling is not evidence-grade — P1
+#### COR-08: Date and numeric handling is not evidence-grade: P1
 
 **Evidence:** date parsing can normalize impossible calendar dates, money calculations use JavaScript floating point, and the configured acknowledgement period is described with stronger statutory language than the implementation proves.
 
 **Required change:** use strict ISO calendar validation and timezone policy; store/calculate money as integer minor units or Postgres numeric; derive reporting periods in SQL; remove legal claims until reviewed; record currency and valuation method for in-kind donations.
 
-#### COR-09 — Public metrics do not consistently mean “verified” — P1
+#### COR-09: Public metrics do not consistently mean “verified”: P1
 
 **Evidence:** metrics count delivered/confirmed states without consistently requiring institution acknowledgement, while other product copy suggests verified impact.
 
@@ -551,7 +551,7 @@ Do not add every candidate blindly: unused indexes increase write cost. Capture 
 
 ### 6.4 Registry, data quality, and ingestion
 
-#### DATA-01 — Eligibility and category classification is over-permissive — P1
+#### DATA-01: Eligibility and category classification is over-permissive: P1
 
 **Evidence:** the promotion rules rely on broad positive signals and very few negative-name rules. Production examples include cultural, sports, and equestrian associations classified into disability/elderly categories. Donation acceptance is inferred rather than confirmed.
 
@@ -565,37 +565,37 @@ Do not add every candidate blindly: unused indexes increase write cost. Capture 
 
 Create a labeled evaluation corpus including false positives, version the rule/model, record classification reasons/confidence, require human review below a threshold, and provide user/organization correction reporting. Unverified registry records should be discoverable but clearly secondary and should not show an active donation claim by inference.
 
-#### DATA-02 — Organization, contact, and source rows are conflated — P1
+#### DATA-02: Organization, contact, and source rows are conflated: P1
 
 **Evidence:** research spreadsheets repeat organizations for alternate contacts, yet summary totals treat each row as an organization. Registry promotion also uses names/addresses in ways that can create duplicate public entities.
 
 **Required change:** normalize into legal organizations, locations/service areas, contacts, source observations, platform claims, and verification events. Use OIB as an important key after checksum/validity checks but preserve merge/split review because source data can be wrong. Add deterministic and fuzzy duplicate candidates; require review for destructive merges.
 
-#### DATA-03 — Import is not durably resumable or sufficiently validated — P1
+#### DATA-03: Import is not durably resumable or sufficiently validated: P1
 
 **Evidence:** an apparent cursor helper is unused; import state is mostly written at the end; raw source JSON is not consistently persisted; OIB validation is largely length-based; a CSV fallback expression is ineffective.
 
 **Required change:** stage every source row with source file hash, row number, raw payload, normalized values, validation status, and error. Process in bounded batches with a durable checkpoint after each batch. Validate Croatian OIB checksum, encoding, required fields, and source schema. Make reruns idempotent by source hash/version.
 
-#### DATA-04 — Geocoding can repeatedly select permanent failures — P1
+#### DATA-04: Geocoding can repeatedly select permanent failures: P1
 
 **Evidence:** selection is based on missing coordinates while failed rows can receive a timestamp but remain coordinate-null, so the same first batch can be retried indefinitely. There is no robust status/backoff/error taxonomy.
 
 **Required change:** store `pending/in_progress/succeeded/retryable_failed/permanent_failed`, attempts, provider, normalized query, response quality, next attempt time, and error code. Claim jobs atomically, use exponential backoff and daily/provider quotas, obey provider attribution and rate rules, and provide a review queue for ambiguous points.
 
-#### DATA-05 — Promotion/remapping is N+1 and non-transactional — P1
+#### DATA-05: Promotion/remapping is N+1 and non-transactional: P1
 
 **Evidence:** promotion and category remapping scan data client-side and perform per-row inserts/updates. Some update errors are ignored. Dry-run inserted counts are misleading. A non-unique registry ID permits races.
 
 **Required change:** use staging tables plus set-based SQL `INSERT ... SELECT`/`MERGE`/upsert in transactions. Capture batch counts for selected, inserted, updated, skipped, failed, and unchanged. Enforce the identity constraint after duplicate cleanup. A dry run must execute the same classification/query logic without writes and report hypothetical outcomes accurately.
 
-#### DATA-06 — Coverage inspection is capped/stale — P1
+#### DATA-06: Coverage inspection is capped/stale: P1
 
 **Evidence:** the coverage script contains a placeholder/nonexistent call, uses client queries subject to row limits, and documents hard-coded totals that no longer match production behavior.
 
 **Required change:** implement database-side `COUNT`, grouped counts, duplicate rates, geocode status, trust level, classification version, last verified age, and publishability dashboards. Remove hard-coded metrics from documentation and generated reports.
 
-#### DATA-07 — Migration ordering conflict — P0 operational
+#### DATA-07: Migration ordering conflict: P0 operational
 
 **Evidence:** two different migrations use the numeric version `014`: the tracked NGO registry migration and the currently untracked locale-default migration in the workspace.
 
@@ -646,7 +646,7 @@ Create a labeled evaluation corpus including false positives, version the rule/m
 
 Each ticket below is intended to be independently assignable after its listed dependencies. Agents should update the evidence baseline and automated tests in the same change; a code change without an observable acceptance check is incomplete.
 
-### Wave 0 — Security release gate (start immediately)
+### Wave 0: Security release gate (start immediately)
 
 #### W0-01: Remove destructive/debug production surfaces
 
@@ -683,7 +683,7 @@ Each ticket below is intended to be independently assignable after its listed de
 - **Work:** patch Next 15.5.x and compatible dependencies; configure non-interactive ESLint; CI runs install-from-lockfile, format/lint, typecheck, unit/integration, migration duplicate detection, build, and production dependency audit.
 - **Done when:** all checks run without prompts; no unaccepted high/critical production advisory; the current duplicate migration version is resolved before either migration is applied elsewhere.
 
-### Wave 1 — Nationwide location fast path
+### Wave 1: Nationwide location fast path
 
 #### W1-01: Capture repeatable baselines and real-user telemetry
 
@@ -727,7 +727,7 @@ Each ticket below is intended to be independently assignable after its listed de
 - **Work:** feature flag the new API/client; shadow queries on representative viewports and compare direct DB truth, legacy known subset, counts, and safe-location behavior; canary at 5%, 25%, 50%, 100%; monitor SLO/errors/data discrepancy; keep immediate flag rollback.
 - **Done when:** seven days at 100% (or an agreed traffic/sample threshold) meet correctness and performance budgets; remove old map consumption and prevent new code from calling the unbounded endpoint.
 
-### Wave 2 — Correct domain transactions and scalable evidence
+### Wave 2: Correct domain transactions and scalable evidence
 
 #### W2-01: Transactional pledge and acknowledgement service
 
@@ -756,7 +756,7 @@ Each ticket below is intended to be independently assignable after its listed de
 - **Work:** multi-page tables, repeated headers, embedded Croatian fonts, long-text wrapping, page numbering, source manifest/hash, count/amount/category reconciliation, accessible tagging where feasible, legal/accounting review.
 - **Done when:** golden fixtures for 0/1/page-boundary/1000+ rows render without clipping and every rendered/manifest total matches database truth. Publication fails closed on mismatch.
 
-### Wave 3 — Registry and data trust
+### Wave 3: Registry and data trust
 
 #### W3-01: Normalize organizations, locations, contacts, sources, claims, and verification
 
@@ -778,7 +778,7 @@ Each ticket below is intended to be independently assignable after its listed de
 - **Work:** labeled corpus, rules/model version, precision/recall target by category, negative/entity-type filters, confidence/reasons, human review, organization corrections, donation-acceptance confirmation.
 - **Done when:** approved evaluation precision meets a product-set threshold; obvious sports/cultural/equestrian false positives are rejected or routed to review; unclaimed records cannot imply active needs/donation acceptance.
 
-### Wave 4 — Architecture and operational maturity
+### Wave 4: Architecture and operational maturity
 
 #### W4-01: Canonical domain modules and legacy retirement
 
@@ -800,7 +800,7 @@ Each ticket below is intended to be independently assignable after its listed de
 - **Work:** unit/contract/RLS/browser/a11y/load suites; preview/staging environment; migration lint/dry run; backups and restore drill; feature flags/canary; dependency/image/secret scanning; deploy and rollback runbooks.
 - **Done when:** a fresh environment can be built from migrations and seed fixtures, quarterly restore meets RPO/RTO, and high-risk migrations/features have tested forward/rollback procedures.
 
-### Wave 5 — Product quality, accessibility, localization, and design system
+### Wave 5: Product quality, accessibility, localization, and design system
 
 #### W5-01: Complete localization and terminology
 
@@ -885,7 +885,7 @@ For each fixture, compare API features/counts to a direct trusted SQL query and 
 
 | Surface | Metrics/log fields |
 |---|---|
-| HTTP/API | request ID, route, normalized query class, status, duration, response bytes, returned feature/row count, cache state, auth class—not user identity |
+| HTTP/API | request ID, route, normalized query class, status, duration, response bytes, returned feature/row count, cache state, auth class, not user identity |
 | Database | query name/fingerprint, duration, rows, timeout, index/plan regressions through periodic `pg_stat_statements` review |
 | Browser | LCP, INP, CLS, TTFB, route JS, map feature count, list DOM count, search/pan latency, client errors |
 | Jobs | queue depth, oldest age, attempts, runtime, success/failure/dead-letter, output ID; redact payload secrets/personal data |

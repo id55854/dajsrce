@@ -174,7 +174,7 @@ export default async function InstitutionPublicPage({
 
   // Giving is a citizen action, so an NGO account gets the needs list without
   // a pledge CTA. Read from `profiles`, and a signed-out visitor keeps the CTA
-  // — PledgeButton walks them through signing in.
+  //, PledgeButton walks them through signing in.
   const viewer = await getCurrentUserProfile();
   const viewerCanPledge = viewer?.role !== "ngo";
 

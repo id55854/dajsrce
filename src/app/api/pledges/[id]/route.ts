@@ -48,7 +48,7 @@ export async function PATCH(
 
 /**
  * The donor withdraws a pledge that is still only a promise. Ownership and the
- * delivered/confirmed refusal both live inside the transaction — a delivered or
+ * delivered/confirmed refusal both live inside the transaction; a delivered or
  * acknowledged pledge is evidence and is never withdrawn.
  */
 export async function DELETE(

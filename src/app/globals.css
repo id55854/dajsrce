@@ -56,7 +56,7 @@
   --scrim: rgb(0 0 0 / 0.45);
 
   /* --- layout ------------------------------------------------------------ */
-  --nav-height: 4.5rem;        /* h-16 + pt-2 — keep in sync with Navbar */
+  --nav-height: 4.5rem;        /* h-16 + pt-2, keep in sync with Navbar */
 
   /* --- layering ----------------------------------------------------------
      One ladder for the whole app. Leaflet's internal panes (200–700) are
@@ -212,7 +212,7 @@ body {
    Instead, a component sets only the hue (`--cat`, via `categoryVars()`) and
    these classes derive the tint and ink by mixing it against the *surface* and
    *ink* tokens. Because those flip with the theme, the derived colours theme
-   themselves — no second palette to maintain.
+   themselves; no second palette to maintain.
    ============================================================================ */
 
 .category-chip {
@@ -257,7 +257,7 @@ body {
   to { opacity: 0; transform: scale(0.97); }
 }
 
-/* Menus scale from their trigger — set transform-origin at the call site. */
+/* Menus scale from their trigger, set transform-origin at the call site. */
 @keyframes ui-menu-in {
   from { opacity: 0; transform: scale(0.96) translateY(-0.25rem); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -278,7 +278,7 @@ body {
 }
 
 /* Markers are Leaflet divIcons whose transform is already used for the
-   teardrop rotation, so this fades only — never animate transform here. */
+   teardrop rotation, so this fades only, never animate transform here. */
 @keyframes ui-marker-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -351,7 +351,7 @@ body {
 
 /* ============================================================================
    LEAFLET THEME PATCHES
-   Scoped overrides only — the project intentionally ships no global Leaflet CSS.
+   Scoped overrides only; the project intentionally ships no global Leaflet CSS.
    ============================================================================ */
 
 /* Popups and tooltips follow the token vocabulary: soft shadow instead of a
@@ -375,7 +375,7 @@ body {
   padding: 0.375rem 0.875rem;
   font: 500 12px/1.4 var(--font-app-sans);
 }
-/* No arrow — the bubble floats free of the marker on a soft shadow. */
+/* No arrow; the bubble floats free of the marker on a soft shadow. */
 .leaflet-tooltip.dajsrce-tooltip::before {
   display: none;
 }
@@ -534,4 +534,4 @@ body {
 }
 
 /* The accessibility panel now uses the shared overlay animations, which give it
-   a matching exit — `a11y-slide-up` / `.a11y-panel-enter` were enter-only. */
+   a matching exit, `a11y-slide-up` / `.a11y-panel-enter` were enter-only. */

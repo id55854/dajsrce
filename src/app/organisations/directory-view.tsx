@@ -55,8 +55,8 @@ function statusLabel(status: string, t: ReturnType<typeof useT>) {
 }
 
 /**
- * Matches AssociationCard's anatomy — status row, two-line name, four metadata
- * lines, footer link — rather than a flat block that then resizes on arrival.
+ * Matches AssociationCard's anatomy, status row, two-line name, four metadata
+ * lines, footer link, rather than a flat block that then resizes on arrival.
  */
 function AssociationCardSkeleton() {
   return (
@@ -101,7 +101,7 @@ function AssociationCard({ item }: { item: AssociationDirectoryItem }) {
     <li className="h-full">
       <Card as="article" className="flex h-full flex-col">
         {/* UDR_ID stays on the record (it's the link target below and the
-            claim key) but isn't shown here — it's an internal registry
+            claim key) but isn't shown here; it's an internal registry
             identifier, not something a visitor needs to read off the card. */}
         {/* `self-start`: the old wrapper this replaced had `items-start` on
             its own flex row; without it the badge is a direct child of the
@@ -166,7 +166,7 @@ function AssociationCard({ item }: { item: AssociationDirectoryItem }) {
 /**
  * The official register, as one view of the merged Associations page.
  *
- * It no longer owns the page shell or the page title — the merged page does,
+ * It no longer owns the page shell or the page title; the merged page does,
  * so switching views does not tear down and rebuild the heading.
  */
 export function DirectoryView() {

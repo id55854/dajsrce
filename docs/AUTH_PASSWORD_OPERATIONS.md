@@ -2,7 +2,7 @@
 
 **Status: NOT APPLIED.** Everything below is a provider/dashboard setting, not
 application code. It was deliberately left out of the code change because
-faking it in the client would be security theatre — the client can be bypassed
+faking it in the client would be security theatre; the client can be bypassed
 entirely by calling the Supabase Auth API directly.
 
 ## Background: why there is no "AES for passwords" item here
@@ -20,13 +20,13 @@ a category error and was corrected before that work started:
 - This application never sees, transports or stores a password hash. The
   browser hands the password straight to Supabase Auth over TLS.
 
-So there was nothing to fix in hashing. What *was* weak — a 6-character
-minimum, no strength feedback, no rejection of guessable passwords — has been
+So there was nothing to fix in hashing. What *was* weak; a 6-character
+minimum, no strength feedback, no rejection of guessable passwords, has been
 fixed in code. What remains is the provider configuration below.
 
 ---
 
-## 1. Minimum password length parity (do this first — it is the real gate)
+## 1. Minimum password length parity (do this first: it is the real gate)
 
 **What:** raise the server-side minimum from the Supabase default of `6` to
 `12`, matching `MIN_PASSWORD_LENGTH` in `src/app/auth/auth-validation.ts`.
@@ -48,7 +48,7 @@ creatable. The client rules improve the experience of choosing a good password;
 this setting is what actually enforces it.
 
 **Expected side effect:** when the project minimum is raised, GoTrue rejects
-short passwords with the `weak_password` error code. That is already mapped —
+short passwords with the `weak_password` error code. That is already mapped
 `authErrorKey` in `src/app/auth/auth-validation.ts` turns it into
 `auth.error_weak_password`, which reads in the same voice as the client-side
 messages.
@@ -86,7 +86,7 @@ user's own name and email local part). It catches lazy passwords, not
 *breached* ones. `Ljubicasti-Konj-2019` looks strong to any local heuristic and
 would be rejected instantly by HIBP if it has appeared in a dump. Supabase uses
 the k-anonymity range API, so only a 5-character prefix of the SHA-1 digest
-leaves the server — the password itself is never sent to a third party.
+leaves the server; the password itself is never sent to a third party.
 
 **How to verify:** after enabling, run Supabase's **Advisors → Security
 Advisor**. The "Leaked password protection disabled" lint must disappear. Then
@@ -94,7 +94,7 @@ try registering with a known-breached password (e.g. `Password123!`) on
 staging and confirm the sign-up is refused.
 
 **Expected error mapping:** GoTrue reports this as `weak_password` too, so the
-user sees `auth.error_weak_password` — "Lozinka je preslaba. Odaberite dulju i
+user sees `auth.error_weak_password`, "Lozinka je preslaba. Odaberite dulju i
 manje očitu lozinku." No code change needed.
 
 ## 3. MFA for privileged accounts (admin, NGO and company owners)
@@ -114,17 +114,17 @@ publish needs, accept pledges and read donor contact details; a company owner
 account controls a billing relationship. Those are exactly the accounts where a
 second factor pays for itself.
 
-**Important caveat — the toggle alone enforces nothing.** Enabling the provider
+**Important caveat; the toggle alone enforces nothing.** Enabling the provider
 setting only makes enrolment *possible*. Actually requiring MFA is application
 and database work that is **not implemented**, and needs to be scheduled
 deliberately:
 
 1. Enrolment and challenge UI using `supabase.auth.mfa.enroll()`,
-   `.challenge()` and `.verify()` — there is no such screen in the app today.
+   `.challenge()` and `.verify()`; there is no such screen in the app today.
 2. Enforcement at the data layer: Supabase encodes the achieved factor level in
    the JWT `aal` claim (`aal1` = password only, `aal2` = password + second
    factor). Privileged RLS policies and the service-role RPCs would gate on
-   `auth.jwt() ->> 'aal' = 'aal2'` rather than trusting a client flag — which is
+   `auth.jwt() ->> 'aal' = 'aal2'` rather than trusting a client flag; which is
    consistent with the project invariant that roles and entitlements are never
    derived from user metadata or request bodies.
 3. A recovery path, agreed with support, for a user who loses their device.

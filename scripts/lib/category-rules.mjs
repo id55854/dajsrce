@@ -1,8 +1,8 @@
 // Category mapping rules for RegistarUdruga.csv → DajSrce InstitutionCategory.
 //
 // Inputs come from two CSV columns:
-//   * CILJANE_SKUPINE — comma-separated tags ("OSOBE S INVALIDITETOM, …")
-//   * OPIS_DJELATNOSTI / CILJEVI — long Croatian prose
+//   * CILJANE_SKUPINE, comma-separated tags ("OSOBE S INVALIDITETOM, …")
+//   * OPIS_DJELATNOSTI / CILJEVI, long Croatian prose
 //
 // Each rule contributes evidence; the category with the highest weighted score
 // wins.  We also assign a confidence in [0, 1] used by the promoter to gate
@@ -35,7 +35,7 @@ export const RULES = [
   // -------------------- caritas --------------------
   // Caritas is operator-shaped; only match the literal word "Caritas" in
   // the name. "Župa" is a place name in Croatia (Župa dubrovačka, etc.) and
-  // also appears in unrelated NGOs ("Lovačko društvo Župa") — too noisy.
+  // also appears in unrelated NGOs ("Lovačko društvo Župa"), too noisy.
   { category: "caritas", source: "name", weight: 6, pattern: /\bcaritas\b/i, label: "naziv: Caritas" },
 
   // -------------------- disability_support --------------------
@@ -64,7 +64,7 @@ export const RULES = [
 
   // -------------------- mental_health --------------------
   // Actual data uses "OVISNICI I LIJEČENI OVISNICI" and "OSOBE S MENTALNOM
-  // RETARDACIJOM" — broader patterns required.
+  // RETARDACIJOM", broader patterns required.
   { category: "mental_health", source: "groups", weight: 5, pattern: /\bOVISNIC[IA]?\b|LIJECENI OVISNIC|OSOBE S MENTALNOM|MENTALNI POREMEC|PSIHIJATR/i, label: "ciljana skupina: ovisnici / mentalno zdravlje" },
   { category: "mental_health", source: "text",   weight: 4, pattern: /terapijska zajednica|apstinent|mentalno zdravlje|prevencija ovisnosti|liječeni ovisnici/i, label: "opis: terapijska zajednica" },
 
@@ -243,7 +243,7 @@ export function parseSjediste(s) {
 }
 
 /**
- * Derive served_population from CILJANE_SKUPINE — keep human-readable.
+ * Derive served_population from CILJANE_SKUPINE, keep human-readable.
  * Returns up to 3 most informative tags joined.
  */
 export function derivedServedPopulation(groups) {
@@ -267,7 +267,7 @@ export function derivedServedPopulation(groups) {
 
 /**
  * Best-effort accepts_donations inference from a row.
- * Conservative — empty when uncertain. NGOs refine on claim.
+ * Conservative, empty when uncertain. NGOs refine on claim.
  */
 export function inferAcceptsDonations(category, text) {
   const t = normalize(text);

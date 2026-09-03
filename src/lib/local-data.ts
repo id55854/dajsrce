@@ -131,7 +131,7 @@ export function getLocalNeeds(): Need[] {
           id: `need-${idx++}`,
           institution_id: inst.id,
           institution: inst,
-          title: "Trajna hrana — konzerve i tjestenina",
+          title: "Trajna hrana, konzerve i tjestenina",
           description:
             "Konzerve (grah, tune, mesne), tjestenina, riža, ulje, brašno, šećer za pripremu dnevnih obroka.",
           donation_type: "food",

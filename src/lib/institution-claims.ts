@@ -1,7 +1,7 @@
 /**
  * "I am this association" is a reviewed claim against the official Croatian
  * Associations Register, not a free-text assertion. Everything here is shape
- * and bounds only — authorisation lives in the transactional RPCs, which read
+ * and bounds only, authorisation lives in the transactional RPCs, which read
  * the actor's role from `public.profiles` inside the transaction.
  */
 
@@ -264,7 +264,7 @@ export function parseClaimSearchInput(params: URLSearchParams): ParseResult<Clai
 
 /**
  * Map a Postgres error code raised by a claim RPC to a stable HTTP status.
- * The raw database message is never forwarded — it can name rows the caller
+ * The raw database message is never forwarded; it can name rows the caller
  * is not allowed to know exist.
  */
 export function claimErrorStatus(code: string | null | undefined): number {

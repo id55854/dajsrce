@@ -21,7 +21,7 @@ import {
  * The first thing a visitor sees on the map.
  *
  * The map opens on the whole country, which is 43,000+ organisations rendered
- * as a wall of bubbles — true, but useless as a starting point. This asks
+ * as a wall of bubbles, true, but useless as a starting point. This asks
  * where to begin instead of guessing, and it is a card with buttons rather
  * than an automatic geolocation call: the browser's own permission prompt only
  * appears after the visitor has asked for it, which is both the project's rule

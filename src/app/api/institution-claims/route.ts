@@ -81,8 +81,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Every eligibility rule — snapshot membership, "already linked", "already
-  // claimed", "one open claim per account" — is enforced inside the RPC's
+  // Every eligibility rule, snapshot membership, "already linked", "already
+  // claimed", "one open claim per account", is enforced inside the RPC's
   // transaction, not here.
   const { data, error } = await supabaseAdmin.rpc(
     "request_institution_claim_transaction",

@@ -5,7 +5,7 @@ export const DEMO_VOLUNTEER_EVENTS: VolunteerEventCardProps["event"][] = [
   {
     id: "demo-event-featured",
     institution_id: "demo-inst-1",
-    title: "Community kitchen — lunch service",
+    title: "Community kitchen, lunch service",
     description: "Help serve warm meals and chat with guests.",
     event_date: "2026-05-10",
     start_time: "10:00",
@@ -88,7 +88,7 @@ export const DEMO_VOLUNTEER_EVENTS: VolunteerEventCardProps["event"][] = [
     created_at: "2026-04-04T10:00:00.000Z",
     institution: {
       id: "demo-inst-4",
-      name: "Caritas Zagreb — Donation centre",
+      name: "Caritas Zagreb, Donation centre",
       category: "caritas",
       address: "Kaptol 1",
       city: "Zagreb",

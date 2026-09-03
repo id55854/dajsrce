@@ -35,14 +35,14 @@ The old schema/client combination is intentionally incompatible with the new sec
 |---|---|
 | SEC-01 | Seed HTTP mutation permanently returns 404; service/local CLI is the replacement. |
 | SEC-02 | Profile role/institution writes are revoked; controlled setup RPC validates allowed transitions. |
-| SEC-03 | *Obsolete — the company tenant domain (and its membership model) was removed entirely in `20260823100000_remove_company_domain.sql`.* |
-| SEC-04 | *Obsolete — company subscription/verification/ownership fields no longer exist; see `20260823100000_remove_company_domain.sql`.* |
+| SEC-03 | *Obsolete: the company tenant domain (and its membership model) was removed entirely in `20260823100000_remove_company_domain.sql`.* |
+| SEC-04 | *Obsolete: company subscription/verification/ownership fields no longer exist; see `20260823100000_remove_company_domain.sql`.* |
 | SEC-05 | Base institution and registry tables are not publicly selectable; public DTOs expose stable coarse coordinates only. |
 | SEC-06 | Verification is POST-only, hashed, expiring, single-use and requires authoritative registry plus published-email/DNS control. |
 | SEC-07 | Invites are hashed, expiring, single-use and bound to the authenticated verified email. |
 | SEC-08 | Cron is POST-only, fails closed and uses a 32+ character secret with constant-time comparison. |
 | SEC-09 | Next/Supabase/Resend were upgraded to compatible patched releases; npm audit is clean. (Stripe was removed along with the company domain.) |
-| SEC-10 | Raw tokens are gone; admin dashboard is server-authorized; email HTML/subjects are escaped; security headers and production env validation are active. (Demo billing no longer exists — the whole billing subsystem was removed with the company domain.) |
+| SEC-10 | Raw tokens are gone; admin dashboard is server-authorized; email HTML/subjects are escaped; security headers and production env validation are active. (Demo billing no longer exists: the whole billing subsystem was removed with the company domain.) |
 
 ### Location and performance
 
@@ -62,13 +62,13 @@ The old schema/client combination is intentionally incompatible with the new sec
 |---|---|
 | COR-01 | Pledge validation, capacity and counter updates run under one locked transaction. |
 | COR-02 | Volunteer capacity is locked; check-in requires a hashed expiring event token; checkout is idempotent and creates one hours row. |
-| COR-03 | *Obsolete — Stripe billing was removed entirely in `20260823100000_remove_company_domain.sql`.* |
-| COR-04 | *Obsolete — company subscription checkout no longer exists.* |
-| COR-05 | *Obsolete — company creation/invites/verification were removed; delivery and acknowledgement remain atomic state machines, now company-free.* |
-| COR-06 | *Obsolete — the company-scoped artifact pipeline (receipts/exports/CSR reports) was removed along with its version counter.* |
-| COR-07 | *Obsolete — donation receipts and CSR/ESG reports no longer exist.* |
+| COR-03 | *Obsolete: Stripe billing was removed entirely in `20260823100000_remove_company_domain.sql`.* |
+| COR-04 | *Obsolete: company subscription checkout no longer exists.* |
+| COR-05 | *Obsolete: company creation/invites/verification were removed; delivery and acknowledgement remain atomic state machines, now company-free.* |
+| COR-06 | *Obsolete: the company-scoped artifact pipeline (receipts/exports/CSR reports) was removed along with its version counter.* |
+| COR-07 | *Obsolete: donation receipts and CSR/ESG reports no longer exist.* |
 | COR-08 | Strict real-date parsing, integer-cent totals, bounded numeric inputs and evidence fixtures replace permissive JavaScript normalization. |
-| COR-09 | *Obsolete — public company giving metrics no longer exist; institution-side acknowledgement evidence is unaffected.* |
+| COR-09 | *Obsolete: public company giving metrics no longer exist; institution-side acknowledgement evidence is unaffected.* |
 
 ### Registry and data quality
 
@@ -87,7 +87,7 @@ The old schema/client combination is intentionally incompatible with the new sec
 
 | Finding | Disposition |
 |---|---|
-| ARCH-01 | *Obsolete — the entire company tenant model (companies/members/campaigns) was removed in `20260823100000_remove_company_domain.sql`, not just the legacy self-attested action writes.* |
+| ARCH-01 | *Obsolete: the entire company tenant model (companies/members/campaigns) was removed in `20260823100000_remove_company_domain.sql`, not just the legacy self-attested action writes.* |
 | ARCH-02 | Shared security, auth, validation, date, environment, observability and domain transaction adapters reduce route duplication; critical business rules live in RPCs/helpers. |
 | ARCH-03 | Explicit DTO projections and migration/schema contract tests remove broad public casts. Production migrations and grants were queried/applied through the authorized management API; deployed-schema type generation/diff remains a mandatory staging gate. |
 | ARCH-04 | Public map, needs/events, evidence dates/numbers, environment, tokens and webhook boundaries have typed bounded validators. |
@@ -107,7 +107,7 @@ The old schema/client combination is intentionally incompatible with the new sec
 | UX-05 | New/touched navigation, auth, pledge, theme, notification and document copy is bilingual; locale dictionaries remain the required home for user-facing additions. |
 | UX-06–08 | Bounded accessible result list, concise labels/live regions, keyboard dialog focus lifecycle and URL-synchronized search/filter/selection are implemented. |
 | UX-09 | Critical business/data work was moved out of map cards and mutation components into bounded APIs/RPCs. Further component extraction is maintainability work, not a release blocker. |
-| UX-10 | *Obsolete — the receipt/CSR PDF/DOCX renderer this finding covered was removed along with the company domain.* |
+| UX-10 | *Obsolete: the receipt/CSR PDF/DOCX renderer this finding covered was removed along with the company domain.* |
 | UX-11 | Focus lifecycle and semantic contracts have automated unit coverage; map/dialog flows received keyboard/UI smoke testing. Full NVDA/VoiceOver certification remains a manual release checklist item. |
 | UX-12 | Automated acknowledgement, registry provenance, unverified legacy action and informational tax/legal language are explicitly qualified. Legal/accounting approval remains an external publication gate. |
 

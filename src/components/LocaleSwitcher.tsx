@@ -31,7 +31,7 @@ export function LocaleSwitcher() {
         )}
       >
         {/* A single thumb that slides between segments, rather than two
-            independent backgrounds crossfading — the selection keeps its
+            independent backgrounds crossfading; the selection keeps its
             identity as it moves. */}
         <span
           aria-hidden="true"

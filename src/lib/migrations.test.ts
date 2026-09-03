@@ -378,7 +378,7 @@ describe("release migration contracts", () => {
     expect(sql).toContain("approve_institution_claim_transaction");
     // The defect this migration exists to remove: onboarding used to insert an
     // institution at a fabricated Zagreb point with a placeholder address.
-    // Checked against executable SQL only — the migration's own prose quotes
+    // Checked against executable SQL only; the migration's own prose quotes
     // the old values to explain what it is deleting.
     const executable = sql.replace(/^\s*--.*$/gm, "");
     expect(executable).not.toContain("45.8131");
@@ -426,8 +426,8 @@ describe("release migration contracts", () => {
     expect(sql).toMatch(/JOIN public\.institutions i ON i\.id = d\.institution_id/i);
     expect(sql).toMatch(/greatest\(1, least\(coalesce\(p_page_size, 24\), 100\)\)/i);
     // The register's own search keeps its eight-argument signature, so a
-    // rolling deploy never sees an ambiguous call. (It may be *named* here —
-    // the migration explains in prose why it is left alone — but it must not
+    // rolling deploy never sees an ambiguous call. (It may be *named* here
+    // the migration explains in prose why it is left alone, but it must not
     // be redefined or dropped.)
     expect(sql).not.toMatch(
       /(?:CREATE OR REPLACE FUNCTION|DROP FUNCTION)[\s\S]{0,80}search_association_registry_v1/i

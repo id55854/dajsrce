@@ -105,7 +105,7 @@ export function Dialog({
         {children ? <div className="mt-4">{children}</div> : null}
         {footer ? (
           // Two `fullWidth` buttons in one flex row used to overflow the
-          // panel — see the `fullWidth` branch in button-classes.ts for why.
+          // panel, see the `fullWidth` branch in button-classes.ts for why.
           // Stacked full-width on phones, sharing the row from `sm` up.
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">{footer}</div>
         ) : null}

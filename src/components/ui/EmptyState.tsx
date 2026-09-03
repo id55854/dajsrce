@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import clsx from "clsx";
 
 /**
- * Every empty state should say what happened and offer a way forward — an
+ * Every empty state should say what happened and offer a way forward; an
  * empty list whose usual cause is an active filter needs a way to clear it.
  */
 export function EmptyState({

@@ -170,8 +170,8 @@ export function parseAssociationDirectoryQuery(
  * an account here, optionally narrowed to those with something open.
  *
  * Kept as its own query rather than extra flags on the register search,
- * because the two answer different questions — "does this association exist"
- * versus "who can I help right now" — and the register's contract states that
+ * because the two answer different questions, "does this association exist"
+ * versus "who can I help right now"; and the register's contract states that
  * presence in it is not organisational confirmation.
  */
 export type EngagedDirectoryQuery = {

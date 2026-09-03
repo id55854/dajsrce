@@ -7,7 +7,7 @@ import { DirectoryLoading, DirectoryView } from "./directory-view";
 /**
  * The official register, and nothing else.
  *
- * This page briefly carried four sub-views — the register, open needs, a "find
+ * This page briefly carried four sub-views; the register, open needs, a "find
  * help" wizard and a list of onboarded organisations. Only the register is
  * actually about the register: needs and the wizard are ways of giving and now
  * live under `/doniraj`, and the onboarded list became a filter on the register

@@ -128,7 +128,7 @@ describe("interaction primitives", () => {
 
   it("keeps buttonClasses callable from server components", () => {
     // A "use client" module's exports can only be rendered from the server,
-    // never invoked — this helper is called directly by server components.
+    // never invoked; this helper is called directly by server components.
     const button = source("src/components/ui/button-classes.ts");
     expect(button.trimStart().startsWith('"use client"')).toBe(false);
   });

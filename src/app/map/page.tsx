@@ -3,7 +3,7 @@ import { permanentRedirect } from "next/navigation";
 /**
  * `/map` moved to `/`. Existing links, bookmarks, shared viewports and the
  * indexed URL all keep working through a 308, and their query string travels
- * with them — `/map?@45.81,15.97,13&onlyUrgent=true` and the older
+ * with them, `/map?@45.81,15.97,13&onlyUrgent=true` and the older
  * `bbox=…&zoom=…` form both land on the same view. `parseBrowserMapView`
  * still reads the legacy pair.
  */

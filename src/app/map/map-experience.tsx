@@ -117,8 +117,8 @@ function defaultMeta(): MapMeta {
 /**
  * A well-formed stand-in for the viewport the map has not reported yet.
  *
- * It is never sent to the API — the first request waits for Leaflet's own
- * bounds (see `viewportReady`) — but `mapQuery` has to be a valid `MapQuery`
+ * It is never sent to the API; the first request waits for Leaflet's own
+ * bounds (see `viewportReady`), but `mapQuery` has to be a valid `MapQuery`
  * from the first render, and the initial `flyTo`-free centring needs a centre.
  * The clamp keeps it inside the same per-zoom area guard the API enforces, so
  * it stays valid even if it ever were sent.
@@ -933,7 +933,7 @@ function MapSurface() {
 
       {/* Desktop: the split stays, but the detail slides in over the list rather
           than replacing it, so scroll position and the clicked card survive.
-          Opening a pin must not grow this column — the map keeps its 60% —
+          Opening a pin must not grow this column; the map keeps its 60%
           and the chrome stays mounted underneath so query and filters survive. */}
       <aside className="relative hidden min-h-0 w-full flex-col overflow-hidden bg-surface md:flex md:h-full md:w-[40%]">
         <div
@@ -1081,8 +1081,8 @@ function LoadErrorNotice({
 }
 
 /**
- * The map search combobox. Two instances exist — floating over the tiles on
- * desktop, in the sheet header on phones — so each owns its own open state and
+ * The map search combobox. Two instances exist, floating over the tiles on
+ * desktop, in the sheet header on phones; so each owns its own open state and
  * its own ids, while the query and the candidate set stay with the page.
  *
  * Roving selection is the part that was missing: the ARIA wiring was complete
@@ -1228,7 +1228,7 @@ function MapSearchField({
               SEARCH_CONTROL_CLASSES,
               "placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:bg-surface-raised focus-visible:ring-2 focus-visible:ring-brand",
               // WebKit and Blink draw their own clear affordance inside
-              // `type=search`. It sat directly beside this component's own X —
+              // `type=search`. It sat directly beside this component's own X
               // two identical buttons, one of them unstyled, undersized and
               // invisible to the clear handler. The input's search semantics
               // are worth keeping; the duplicate control is not.

@@ -27,7 +27,7 @@ type Event = {
 /**
  * The primitives have no icon-only size (Button's `md` is 44px tall but 40px
  * of horizontal padding wide), so this mirrors the ghost variant as a square
- * 44px target — up from the 28px these arrows used to be.
+ * 44px target, up from the 28px these arrows used to be.
  */
 const NAV_BUTTON =
   "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-secondary transition-[background-color,color,transform] duration-150 ease-out hover:bg-surface-sunken hover:text-ink motion-safe:active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface";

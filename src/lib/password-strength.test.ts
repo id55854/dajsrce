@@ -39,7 +39,7 @@ describe("passwordRejectionKey", () => {
 
   it("does not reject a long passphrase that merely contains a listed word", () => {
     // `admin` is on the list, but it is a fifth of this password, not its whole
-    // substance — the rule is dominance, not naive substring matching.
+    // substance; the rule is dominance, not naive substring matching.
     expect(
       passwordRejectionKey("administrativni-zahtjev-9", base)
     ).toBeNull();

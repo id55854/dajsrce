@@ -20,7 +20,7 @@ export type MenuProps = {
    * control that opened it, so the spatial relationship stays obvious.
    */
   align?: keyof typeof ORIGINS;
-  /** Element that should regain focus on dismiss — usually the trigger. */
+  /** Element that should regain focus on dismiss, usually the trigger. */
   returnFocusRef?: React.RefObject<HTMLElement | null>;
   className?: string;
   children: ReactNode;
@@ -35,7 +35,7 @@ export type MenuProps = {
  * Deliberately does NOT impose keyboard semantics: a listbox, a menu and a
  * notification region each need different roving-focus behaviour, so that stays
  * with the caller. What this guarantees is the part every hand-rolled dropdown
- * in this codebase was missing — symmetric enter/exit motion anchored at the
+ * in this codebase was missing, symmetric enter/exit motion anchored at the
  * trigger, Escape to dismiss, click-outside, and focus return.
  */
 export function Menu({

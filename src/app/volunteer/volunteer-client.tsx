@@ -27,7 +27,7 @@ function eventCardId(eventId: string): string {
 
 /**
  * The highlight the calendar flashes on a card. Kept in one place because it is
- * added imperatively — VolunteerEventCard transitions box-shadow so these fade
+ * added imperatively, VolunteerEventCard transitions box-shadow so these fade
  * in and back out instead of blinking.
  */
 const HIGHLIGHT_CLASSES = [
@@ -140,7 +140,7 @@ export function VolunteerClient() {
 
   const handleSignUp = useCallback((eventId: string) => {
     // Source-of-truth update for both the registered set and the event's
-    // counter — counter only bumps when this is a fresh registration to
+    // counter, counter only bumps when this is a fresh registration to
     // avoid double-counting the 409 (already-registered) path.
     setRegistered((prev) => {
       if (prev.has(eventId)) return prev;

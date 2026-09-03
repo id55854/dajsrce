@@ -16,7 +16,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   success: "bg-success text-white shadow-raised hover:brightness-110",
 };
 
-// `md` is 44px tall — the minimum comfortable touch target. Reserve `sm` for
+// `md` is 44px tall; the minimum comfortable touch target. Reserve `sm` for
 // dense, secondary controls that sit inside an already-generous hit area.
 const SIZES: Record<ButtonSize, string> = {
   sm: "h-10 gap-1.5 px-4 text-sm",
@@ -50,7 +50,7 @@ export function buttonClasses({
     "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60",
     VARIANTS[variant],
     SIZES[size],
-    // `shrink-0` is right for a button sitting among other content — it
+    // `shrink-0` is right for a button sitting among other content; it
     // should keep its label's width, not get squeezed. It is wrong for a
     // `fullWidth` button: two of them side by side in a dialog footer each
     // resolve to 100% width, and `shrink-0` refused to let flexbox negotiate

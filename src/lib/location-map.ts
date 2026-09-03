@@ -21,7 +21,7 @@ export const MAP_CITY_QUERY_MAX_LENGTH = 80;
  * town in view.
  */
 export const MAP_CITY_ZOOM = 12;
-/** Where "near me" lands — roughly a 2–3 km radius around the visitor. */
+/** Where "near me" lands, roughly a 2–3 km radius around the visitor. */
 export const MAP_NEARBY_ZOOM = 13;
 
 /** One aggregate row of the public city directory. Never row-level data. */
@@ -38,7 +38,7 @@ export type PublicMapCitiesResponse = { cities: PublicMapCity[] };
 /**
  * What a map pin's fill means.
  *
- * The map draws the whole official register — 43,000+ associations — of which
+ * The map draws the whole official register, 43,000+ associations, of which
  * only a small share have an account here. Colouring every pin by category
  * made those two populations indistinguishable, so a visitor could tap forty
  * pins before finding one that can actually receive anything.
@@ -46,9 +46,9 @@ export type PublicMapCitiesResponse = { cities: PublicMapCity[] };
  * Fill now carries that distinction and the category moves to a disc inside
  * the pin, so both signals survive:
  *
- * - `registry` — in the official register, no account here. Muted.
- * - `onboarded` — has an account and can publish needs. Brand.
- * - `verified` — account plus a completed identity check. Brand plus a check.
+ * - `registry`, in the official register, no account here. Muted.
+ * - `onboarded`, has an account and can publish needs. Brand.
+ * - `verified`, account plus a completed identity check. Brand plus a check.
  *
  * This deliberately reinforces the rule that presence in the register is
  * neither organisational confirmation nor evidence that an organisation

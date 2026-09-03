@@ -1,6 +1,6 @@
 // Lists every `needs` and `volunteer_events` row so a human can pick out
 // seed/demo content by eye, then deletes exactly the rows named by id.
-// Deliberately does not guess at "looks like seed data" — a wrong guess here
+// Deliberately does not guess at "looks like seed data"; a wrong guess here
 // deletes someone's real donation ask. The `maybe-seed` hint is a pointer for
 // the human doing the picking, never the deletion criterion.
 //
@@ -49,7 +49,7 @@ async function listNeeds() {
     const inst = row.institution?.name ?? "(unknown institution)";
     const date = row.created_at?.slice(0, 10) ?? "?";
     console.log(
-      `${row.id}  ${date}  [${row.urgency}]  ${inst} — "${row.title}"${maybeSeedHint(row.title)}`
+      `${row.id}  ${date}  [${row.urgency}]  ${inst}, "${row.title}"${maybeSeedHint(row.title)}`
     );
   }
   return data;
@@ -65,7 +65,7 @@ async function listVolunteerEvents() {
   for (const row of data) {
     const inst = row.institution?.name ?? "(unknown institution)";
     console.log(
-      `${row.id}  event ${row.event_date}  ${inst} — "${row.title}"${maybeSeedHint(row.title)}`
+      `${row.id}  event ${row.event_date}  ${inst}, "${row.title}"${maybeSeedHint(row.title)}`
     );
   }
   return data;

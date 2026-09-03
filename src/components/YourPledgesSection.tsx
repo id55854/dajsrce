@@ -28,7 +28,7 @@ export type YourPledgeRow = {
 /**
  * The one pledge-status vocabulary. Previously this file carried its own
  * amber/blue/emerald class strings while the individual dashboard rendered the
- * same statuses in a single generic red — the tones now come from `Badge`.
+ * same statuses in a single generic red; the tones now come from `Badge`.
  */
 const STATUS: Record<YourPledgeRow["status"], { tone: BadgeTone; key: string }> = {
   pledged: { tone: "warning", key: "your_pledges.status_pledged" },
@@ -41,7 +41,7 @@ const VISIBLE_LIMIT = 6;
 
 /**
  * Status filter chips, in the same order the lifecycle usually runs.
- * `confirmed` is left off the filter row by design — a confirmed pledge
+ * `confirmed` is left off the filter row by design; a confirmed pledge
  * still shows (and badges as such) under "Sve", it just isn't a state
  * worth a dedicated filter here.
  */
@@ -56,8 +56,8 @@ const STATUS_FILTERS: readonly YourPledgeRow["status"][] = [
  * promise: withdrawing one (pledges here, volunteer signups on the individual
  * dashboard) and declaring one handed over.
  *
- * It reports both outcomes through the toast channel — an action that silently
- * does nothing is the failure mode this replaces — and never assumes success:
+ * It reports both outcomes through the toast channel; an action that silently
+ * does nothing is the failure mode this replaces; and never assumes success:
  * the server owns the refusal (delivered/confirmed pledge, volunteer already
  * checked in) and answers 409, which surfaces as `conflictDescription`.
  */
@@ -237,7 +237,7 @@ export function YourPledgesSection({
 }) {
   const t = useT();
   // The list is owned by the parent, so a cancelled row is remembered here
-  // rather than mutated in place — the card keeps rendering with the
+  // rather than mutated in place; the card keeps rendering with the
   // `cancelled` tone instead of vanishing under the reader.
   const [cancelledIds, setCancelledIds] = useState<Set<string>>(() => new Set());
   // Same reason as `cancelledIds`: the list belongs to the parent, so a row

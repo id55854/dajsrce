@@ -17,14 +17,14 @@ There are **6 critical bugs** preventing the core functionality from working. I 
 **Problem:** When a user signs up via `supabase.auth.signUp()` in `register/page.tsx` (line 57), the user is created in `auth.users` but **NO row is ever inserted into `public.profiles`**. The registration data (name, role, institution_name) is stored only in `auth.users.user_metadata` and never written to the `profiles` table.
 
 This breaks EVERYTHING downstream because:
-- The pledge API (`api/pledges/route.ts` line 68-79) tries to read the profile to increment `total_pledges` — profile doesn't exist, so it silently fails
-- The volunteer signup API (`api/volunteer-signups/route.ts`) inserts with `user_id` referencing `profiles(id)` — this fails due to foreign key constraint since no profile row exists
-- The needs API (`api/needs/route.ts` line 62-68) checks `profile.role !== "institution"` — profile is null, so it always returns 403
-- The volunteer events API (`api/volunteer-events/route.ts` line 37-43) has the same profile check — always 403
+- The pledge API (`api/pledges/route.ts` line 68-79) tries to read the profile to increment `total_pledges`, profile doesn't exist, so it silently fails
+- The volunteer signup API (`api/volunteer-signups/route.ts`) inserts with `user_id` referencing `profiles(id)`; this fails due to foreign key constraint since no profile row exists
+- The needs API (`api/needs/route.ts` line 62-68) checks `profile.role !== "institution"`, profile is null, so it always returns 403
+- The volunteer events API (`api/volunteer-events/route.ts` line 37-43) has the same profile check, always 403
 
 **Fix:** There are two complementary fixes needed:
 
-**Fix 1a — Database trigger:** Add a new migration file `supabase/migrations/002_create_profile_trigger.sql` that creates a trigger function to automatically create a profile row whenever a new user is created in `auth.users`. The function should read `name`, `role`, and `email` from `new.raw_user_meta_data` and insert into `public.profiles`. Use `SECURITY DEFINER` since the trigger runs in auth context.
+**Fix 1a, Database trigger:** Add a new migration file `supabase/migrations/002_create_profile_trigger.sql` that creates a trigger function to automatically create a profile row whenever a new user is created in `auth.users`. The function should read `name`, `role`, and `email` from `new.raw_user_meta_data` and insert into `public.profiles`. Use `SECURITY DEFINER` since the trigger runs in auth context.
 
 ```sql
 create or replace function public.handle_new_user()
@@ -46,7 +46,7 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 ```
 
-**Fix 1b — Client-side fallback:** After successful signup in `register/page.tsx`, if `data.session` exists (meaning email confirmation is disabled and user is immediately logged in), also insert the profile row directly via the Supabase client before redirecting. This handles the case where the trigger hasn't been deployed yet or for existing users who don't have profiles:
+**Fix 1b, Client-side fallback:** After successful signup in `register/page.tsx`, if `data.session` exists (meaning email confirmation is disabled and user is immediately logged in), also insert the profile row directly via the Supabase client before redirecting. This handles the case where the trigger hasn't been deployed yet or for existing users who don't have profiles:
 
 ```typescript
 if (data.session && data.user) {
@@ -70,7 +70,7 @@ if (data.session && data.user) {
 
 **Problem:** When a user registers as an "institution" role, they enter an `institutionName` but this value is ONLY stored in `auth.users.user_metadata` as `institution_name`. No row is ever created in the `institutions` table, and the profile's `institution_id` is never set.
 
-The callback route (`auth/callback/route.ts` line 31) tries to redirect new OAuth users to `/auth/setup` — but **that page doesn't exist** (there is no `src/app/auth/setup/` directory). And even if it did, email-based registrations skip the callback entirely (they go straight to `/dashboard` on line 79 of register/page.tsx).
+The callback route (`auth/callback/route.ts` line 31) tries to redirect new OAuth users to `/auth/setup`, but **that page doesn't exist** (there is no `src/app/auth/setup/` directory). And even if it did, email-based registrations skip the callback entirely (they go straight to `/dashboard` on line 79 of register/page.tsx).
 
 **Result:** Institution users can see the dashboard with "New Need" and "New Event" buttons, but every submission returns 403 because `profile.institution_id` is null.
 
@@ -170,7 +170,7 @@ const res = await fetch("/api/pledges", {
 
 **File:** `src/components/VolunteerEventCard.tsx`, line 41
 
-**Problem:** Identical to Bug 3 — the fetch to `/api/volunteer-signups` is missing `credentials: "include"`, so the server can't identify the user and returns 401.
+**Problem:** Identical to Bug 3; the fetch to `/api/volunteer-signups` is missing `credentials: "include"`, so the server can't identify the user and returns 401.
 
 **Fix:** Add `credentials: "include"`:
 
@@ -242,7 +242,7 @@ Add the same safety net in `src/app/api/volunteer-signups/route.ts` after line 9
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `supabase/migrations/002_create_profile_trigger.sql` | NEW FILE — trigger that auto-creates profile + institution on user signup |
+| 1 | `supabase/migrations/002_create_profile_trigger.sql` | NEW FILE: trigger that auto-creates profile + institution on user signup |
 | 2 | `src/app/auth/register/page.tsx` | After signup, create profile row + institution row (if institution role) client-side |
 | 3 | `src/components/PledgeButton.tsx` line 48 | Add `credentials: "include"` to fetch |
 | 4 | `src/components/VolunteerEventCard.tsx` line 41 | Add `credentials: "include"` to fetch |

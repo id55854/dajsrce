@@ -57,7 +57,7 @@ function DonateExperience() {
 
   // An NGO account can already post a need from its own dashboard. This tab
   // is where a donor looks for one, so offering the same shortcut here saves
-  // the round trip — but only once the account's role is actually known, not
+  // the round trip, but only once the account's role is actually known, not
   // by guessing from a flag a request could forge.
   const [isNgo, setIsNgo] = useState(false);
   const [needFormOpen, setNeedFormOpen] = useState(false);

@@ -69,7 +69,7 @@ export const authLinkClasses =
 
 /**
  * Form-level outcome banner. Field-level problems belong inline on the field
- * (see `Field`'s `error` slot) — this is for failures that cannot be attributed
+ * (see `Field`'s `error` slot); this is for failures that cannot be attributed
  * to one control, such as a rejected credential pair or an unreachable service.
  * Both tones carry an icon so the meaning does not rest on colour alone.
  */
@@ -117,7 +117,7 @@ export function describedBy(...ids: (string | undefined)[]): string | undefined 
 }
 
 /**
- * Colour per band. Colour is never the only signal — the band is also named in
+ * Colour per band. Colour is never the only signal; the band is also named in
  * words right next to the bar, which is what a colour-blind or screen-reader
  * user actually reads.
  */
@@ -211,7 +211,7 @@ export function PasswordField({
   error?: ReactNode;
   /**
    * Marks the control invalid when the message lives in a form-level banner
-   * instead of under the field — a rejected credential pair cannot be
+   * instead of under the field; a rejected credential pair cannot be
    * attributed to the password alone.
    */
   invalid?: boolean;
@@ -222,7 +222,7 @@ export function PasswordField({
   /** Id of a form-level banner that also describes this control. */
   describedByExtra?: string;
   /**
-   * Shows the strength meter. Only for a password being chosen — sign-in
+   * Shows the strength meter. Only for a password being chosen, sign-in
    * passes nothing, because rating a credential the user already owns would
    * be noise they cannot act on.
    */
@@ -288,7 +288,7 @@ export function PasswordField({
 }
 
 /**
- * Role picker tile, shared by register step 1 and the OAuth setup page — the
+ * Role picker tile, shared by register step 1 and the OAuth setup page; the
  * two screens previously carried byte-similar copies of this markup and had
  * already drifted in their subtitle copy.
  */

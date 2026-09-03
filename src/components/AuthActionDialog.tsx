@@ -32,7 +32,7 @@ export function AuthActionDialog({
       footer={
         <>
           {/* Initial focus goes to the primary action, not the dismissive
-              close X — useDialogFocus honours this attribute. */}
+              close X, useDialogFocus honours this attribute. */}
           <Link
             data-dialog-initial-focus
             href={loginHref}

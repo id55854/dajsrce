@@ -40,7 +40,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     drop_off_hours: "Svaki dan 9:00-17:00",
     accepts_donations: ["clothes", "food", "hygiene", "blankets_bedding", "medical_supplies", "money"],
     capacity: "94 kreveta",
-    served_population: "Beskućnici — odrasle osobe",
+    served_population: "Beskućnici: odrasle osobe",
     is_location_hidden: false,
     approximate_area: null,
     nearest_zet_stop: "Terminal Velika Kosnica",
@@ -62,14 +62,14 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     drop_off_hours: "Pon-Pet 8:00-16:00",
     accepts_donations: ["clothes", "food", "hygiene", "blankets_bedding", "furniture", "money", "time"],
     capacity: "21 korisnik",
-    served_population: "Beskućnici — cijela Hrvatska",
+    served_population: "Beskućnici: cijela Hrvatska",
     is_location_hidden: false,
     approximate_area: null,
     nearest_zet_stop: "Sesvetski Kraljevec",
     zet_lines: "Bus 281",
   },
   {
-    name: "Prenoćište Dobri dom — Ilica",
+    name: "Prenoćište Dobri dom, Ilica",
     category: "homeless_shelter",
     description:
       "Prenoćište u centru grada nudi noćenje od 19:00 do 9:00 s toplim obrokom i napitkom. Korisnicima su osigurani kuponi za korištenje Javnog kupališta Diana. Dostupno savjetovanje sa socijalnim radnicima.",
@@ -84,7 +84,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     drop_off_hours: "Kontaktirajte unaprijed",
     accepts_donations: ["clothes", "hygiene", "blankets_bedding", "food"],
     capacity: "20 kreveta",
-    served_population: "Beskućnici — noćni smještaj",
+    served_population: "Beskućnici: noćni smještaj",
     is_location_hidden: false,
     approximate_area: null,
     nearest_zet_stop: "Frankopanska",
@@ -92,7 +92,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
   },
   // DAY CENTERS FOR HOMELESS
   {
-    name: "Udruga Pet Plus — dnevni boravak",
+    name: "Udruga Pet Plus, dnevni boravak",
     category: "homeless_shelter",
     description:
       "Dnevni boravak za beskućnike pri Hrvatskoj mreži za beskućnike. Pruža dnevni prostor, topli obrok, savjetovanje i psihosocijalnu podršku za osobe bez doma.",
@@ -107,14 +107,14 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     drop_off_hours: "Pon-Pet 8:00-15:00",
     accepts_donations: ["food", "clothes", "hygiene", "money"],
     capacity: null,
-    served_population: "Beskućnici — dnevni boravak",
+    served_population: "Beskućnici: dnevni boravak",
     is_location_hidden: false,
     approximate_area: null,
     nearest_zet_stop: "Savišće",
     zet_lines: "Bus 220",
   },
   {
-    name: "Udruga Dom nade — poludnevni boravak",
+    name: "Udruga Dom nade, poludnevni boravak",
     category: "homeless_shelter",
     description:
       "Poludnevni boravak za beskućnike s programima resocijalizacije, savjetovanjem i materijalnom pomoći.",
@@ -129,7 +129,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     drop_off_hours: "Pon-Pet 8:00-14:00",
     accepts_donations: ["food", "clothes", "hygiene"],
     capacity: null,
-    served_population: "Beskućnici — poludnevni boravak",
+    served_population: "Beskućnici: poludnevni boravak",
     is_location_hidden: false,
     approximate_area: null,
     nearest_zet_stop: "Harambašićeva",
@@ -137,7 +137,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
   },
   // SOUP KITCHENS
   {
-    name: "Pučka kuhinja Dobri dom — Branimirova",
+    name: "Pučka kuhinja Dobri dom, Branimirova",
     category: "soup_kitchen",
     description:
       "Najveća zagrebačka pučka kuhinja. Dnevno se priprema i servira preko 200 toplih obroka za beskućnike i socijalno ugrožene građane. Obroci su besplatni.",
@@ -159,7 +159,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Tram 2, 4, 6, 9, 13",
   },
   {
-    name: "Pučka kuhinja Dobri dom — Cerska",
+    name: "Pučka kuhinja Dobri dom, Cerska",
     category: "soup_kitchen",
     description:
       "Podružnica pučke kuhinje za pripremu i podjelu besplatnih toplih obroka socijalno ugroženim građanima.",
@@ -181,7 +181,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Tram 4, 9, 14",
   },
   {
-    name: "Pučka kuhinja Dobri dom — Alfirevićeva",
+    name: "Pučka kuhinja Dobri dom, Alfirevićeva",
     category: "soup_kitchen",
     description:
       "Podružnica pučke kuhinje za pripremu i podjelu besplatnih toplih obroka socijalno ugroženim građanima.",
@@ -246,9 +246,9 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     nearest_zet_stop: "Knežija",
     zet_lines: "Tram 5, 17; Bus 109",
   },
-  // CHILDREN'S HOMES — ZAGREB
+  // CHILDREN'S HOMES: ZAGREB
   {
-    name: "Dom za djecu Zagreb — Nazorova",
+    name: "Dom za djecu Zagreb, Nazorova",
     category: "children_home",
     description:
       "Najveći dom za djecu bez odgovarajuće roditeljske skrbi u Zagrebu. Pruža smještaj, odgoj, obrazovanje i stručnu podršku djeci od predškolske dobi do završetka školovanja. Djeca su uključena u redoviti obrazovni sustav.",
@@ -259,7 +259,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     phone: "01/4821-702",
     email: null,
     website: null,
-    working_hours: "Non-stop (24/7 — djeca žive ovdje)",
+    working_hours: "Non-stop (24/7, djeca žive ovdje)",
     drop_off_hours: "Pon-Pet 9:00-16:00",
     accepts_donations: ["clothes", "toys_books", "school_supplies", "food", "money", "time"],
     capacity: "Više podružnica u Zagrebu",
@@ -270,7 +270,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Tram 8, 14; Bus 102",
   },
   {
-    name: "Dom za djecu Zagreb — podružnica I.G. Kovačić",
+    name: "Dom za djecu Zagreb, podružnica I.G. Kovačić",
     category: "children_home",
     description:
       "Podružnica Doma za djecu Zagreb u središtu grada. Pruža obiteljsko okruženje za djecu bez odgovarajuće roditeljske skrbi.",
@@ -292,7 +292,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Tram 6, 11, 12",
   },
   {
-    name: "Dom za djecu Zagreb — podružnica A.G. Matoš",
+    name: "Dom za djecu Zagreb, podružnica A.G. Matoš",
     category: "children_home",
     description: "Podružnica Doma za djecu Zagreb na Selskoj cesti.",
     address: "Selska cesta 132, Zagreb",
@@ -313,7 +313,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Tram 5, 17",
   },
   {
-    name: "Dom za djecu Zagreb — podružnica Laduč",
+    name: "Dom za djecu Zagreb, podružnica Laduč",
     category: "children_home",
     description: "Podružnica Doma za djecu Zagreb u Laduču, zapadno od grada.",
     address: "Zagrebačka 106, Laduč",
@@ -334,7 +334,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: "Kuća sv. Franje — Caritas (djeca)",
+    name: "Kuća sv. Franje, Caritas (djeca)",
     category: "children_home",
     description:
       "Kuća pruža uslugu skrbi o djeci bez odgovarajuće roditeljske skrbi, primarno starije predškolske i osnovnoškolske dobi, kao i srednjoškolskog uzrasta do punoljetnosti. Kapacitet 34 korisnika. Djeci se osigurava sigurno okruženje, prehrana, zdravstvena skrb, stručna podrška i uključenost u redoviti obrazovni sustav. Od 1972. godine.",
@@ -356,7 +356,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Bus 225",
   },
   {
-    name: "Kuća ljubavi — Caritas (trudnice i bebe)",
+    name: "Kuća ljubavi, Caritas (trudnice i bebe)",
     category: "children_home",
     description:
       "Smještaj za maloljetne i punoljetne trudnice i majke s djecom od rođenja do godine dana kojima je izostala podrška obitelji. Također pruža smještaj djeci bez roditeljske skrbi do treće godine. Radionice brige o djeci, kuhanja, ostvarivanja prava. Prijem putem HCZSR.",
@@ -379,7 +379,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
   },
   // CARITAS FACILITIES
   {
-    name: "Caritas Zagrebačke nadbiskupije — Socijalna služba",
+    name: "Caritas Zagrebačke nadbiskupije, Socijalna služba",
     category: "caritas",
     description:
       "Pruža stručnu i savjetodavnu pomoć, posreduje u ostvarivanju socijalnih prava, dijeli materijalnu pomoć (hrana, odjeća, obuća, drva za ogrjev, namještaj), financijsku pomoć, te posuđuje bolesnička pomagala. Rad sa strankama: pon i sri 9-12; čet 14-17.",
@@ -409,7 +409,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Tram 2, 6; Bus 102, 110",
   },
   {
-    name: "Caritas — Obiteljsko savjetovalište",
+    name: "Caritas, Obiteljsko savjetovalište",
     category: "caritas",
     description:
       "Savjetovalište za osobe s osobnim, bračnim ili obiteljskim poteškoćama, problemima u odnosima s drugima ili razvojnim teškoćama. Uključuje rad s djecom. Stručna pomoć psihologa i savjetnika.",
@@ -431,7 +431,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Tram 2, 6; Bus 102, 110",
   },
   {
-    name: "Caritas — Pomoć u kući starijima",
+    name: "Caritas, Pomoć u kući starijima",
     category: "elderly_care",
     description:
       "Usluge čišćenja, pranja rublja, pomoć oko osobne higijene, kupovine, pratnja do liječnika, mjerenje tlaka i šećera, pomoć kod kućanskih popravaka. Također pruža pomoć u hrani, odjeći, pokrivačima, higijenskim potrepštinama i lijekovima.",
@@ -453,7 +453,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Tram 2, 6; Bus 102, 110",
   },
   {
-    name: "Misionarke ljubavi — sestre Majke Terezije",
+    name: "Misionarke ljubavi, sestre Majke Terezije",
     category: "caritas",
     description:
       "Humanitarna pomoć u hrani, dječjoj hrani, odjeći, obući, higijenskim potrepštinama i pelenama. Psihosocijalna podrška. Samostan sestara Majke Terezije.",
@@ -476,7 +476,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
   },
   // DISABILITY SUPPORT
   {
-    name: "Kuća Bl. Alojzije Stepinac — Brezovica (djeca s teškoćama)",
+    name: "Kuća Bl. Alojzije Stepinac, Brezovica (djeca s teškoćama)",
     category: "disability_support",
     description:
       "Skrb o djeci s teškoćama u razvoju od 3 do 21 godine (dugotrajni smještaj) i poludnevni boravak za odrasle osobe s invaliditetom. Rehabilitacija, fizioterapija, senzorička integracija, snoezelen room, školske aktivnosti. Kapacitet: 75 na smještaju + 25 na boravku. Od 1994.",
@@ -498,7 +498,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: "Bus 161",
   },
   {
-    name: "Stambena zajednica za osobe s invaliditetom — Trešnjevka",
+    name: "Stambena zajednica za osobe s invaliditetom, Trešnjevka",
     category: "disability_support",
     description:
       "Izvaninstitucionalna usluga organiziranog stanovanja za 8 osoba s invaliditetom uz stalnu stručnu pomoć. Cilj: poboljšanje kvalitete života, socijalno uključivanje i izjednačavanje mogućnosti.",
@@ -521,10 +521,10 @@ export const INSTITUTIONS: InstitutionSeed[] = [
   },
   // DOMESTIC VIOLENCE SHELTER
   {
-    name: "Sigurna kuća — Caritas ZgNd",
+    name: "Sigurna kuća, Caritas ZgNd",
     category: "domestic_violence",
     description:
-      "Smještaj za žene i djecu — žrtve obiteljskog nasilja. Osigurava sigurno zbrinjavanje, prehranu, zdravstvenu skrb, psihosocijalnu pomoć, savjetovanje, individualni i grupni rad, pomoć pri odgoju djece. Prijem isključivo putem HCZSR. Lokacija je tajna radi sigurnosti korisnica.",
+      "Smještaj za žene i djecu, žrtve obiteljskog nasilja. Osigurava sigurno zbrinjavanje, prehranu, zdravstvenu skrb, psihosocijalnu pomoć, savjetovanje, individualni i grupni rad, pomoć pri odgoju djece. Prijem isključivo putem HCZSR. Lokacija je tajna radi sigurnosti korisnica.",
     address: "Tajna lokacija",
     city: "Zagreb",
     lat: 45.8,
@@ -536,9 +536,9 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     drop_off_hours: "Kontaktirajte telefonom",
     accepts_donations: ["clothes", "baby_items", "hygiene", "toys_books", "food", "money"],
     capacity: "19 korisnica",
-    served_population: "Žene i djeca — žrtve obiteljskog nasilja",
+    served_population: "Žene i djeca, žrtve obiteljskog nasilja",
     is_location_hidden: true,
-    approximate_area: "Zagreb — zapad",
+    approximate_area: "Zagreb, zapad",
     nearest_zet_stop: null,
     zet_lines: null,
   },
@@ -587,9 +587,9 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     nearest_zet_stop: "Selska",
     zet_lines: "Tram 5, 17",
   },
-  // CHILDREN'S HOMES — REST OF CROATIA
+  // CHILDREN'S HOMES: REST OF CROATIA
   {
-    name: 'Dom za djecu "Sveta Ana" — Vinkovci',
+    name: 'Dom za djecu "Sveta Ana", Vinkovci',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Vinkovcima.",
     address: "Anina 2d, Vinkovci",
@@ -610,7 +610,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: 'Dom za djecu "Braća Mažuranići" — Novi Vinodolski',
+    name: 'Dom za djecu "Braća Mažuranići", Novi Vinodolski',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Novom Vinodolskom.",
     address: "A. Mažuranića 5, Novi Vinodolski",
@@ -631,7 +631,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: 'Dom za djecu "I. Brlić Mažuranić" — Lovran',
+    name: 'Dom za djecu "I. Brlić Mažuranić", Lovran',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Lovranu.",
     address: "Omladinska 1, Lovran",
@@ -652,7 +652,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: 'Dom za djecu "Izvor" — Selce',
+    name: 'Dom za djecu "Izvor", Selce',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Selcu.",
     address: "E. Antića 20, Selce",
@@ -673,7 +673,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: 'Dom za djecu "Klasje" — Osijek',
+    name: 'Dom za djecu "Klasje", Osijek',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Osijeku.",
     address: "Ružina 32, Osijek",
@@ -715,7 +715,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: 'Dom za djecu "Maestral" — Split',
+    name: 'Dom za djecu "Maestral", Split',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Splitu.",
     address: "Jurja Šižgorića 4, Split",
@@ -736,7 +736,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: 'Dom za djecu "Maslina" — Dubrovnik',
+    name: 'Dom za djecu "Maslina", Dubrovnik',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Dubrovniku.",
     address: "Vlahe Bukovca 5, Dubrovnik",
@@ -778,7 +778,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: 'Dom za djecu "Svitanje" — Koprivnica',
+    name: 'Dom za djecu "Svitanje", Koprivnica',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Koprivnici.",
     address: "Đure Basaričeka 13, Koprivnica",
@@ -799,7 +799,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: 'Dom za djecu "Vladimir Nazor" — Karlovac',
+    name: 'Dom za djecu "Vladimir Nazor", Karlovac',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Karlovcu.",
     address: "Nazorova 10, Karlovac",
@@ -820,7 +820,7 @@ export const INSTITUTIONS: InstitutionSeed[] = [
     zet_lines: null,
   },
   {
-    name: 'Dom za djecu "Vrbina" — Sisak',
+    name: 'Dom za djecu "Vrbina", Sisak',
     category: "children_home",
     description: "Dom za djecu bez odgovarajuće roditeljske skrbi u Sisku.",
     address: "Tomislavova 16, Sisak",

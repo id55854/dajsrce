@@ -45,9 +45,9 @@ export type DetailOverlayProps = {
 /**
  * The institution detail as a real overlay rather than a replacement.
  *
- * It carries the dialog semantics the old inline panel never had — `role`,
+ * It carries the dialog semantics the old inline panel never had, `role`,
  * Escape, focus moved in on open and handed back on close (closing used to drop
- * focus on `<body>`) — and an obvious back control instead of a bare floating X.
+ * focus on `<body>`); and an obvious back control instead of a bare floating X.
  *
  * Both breakpoint variants are mounted at once, because the layout is
  * CSS-driven; the focus and Escape wiring therefore only engages for whichever

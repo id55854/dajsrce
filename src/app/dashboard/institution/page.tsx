@@ -30,7 +30,7 @@ import {
 /**
  * Inbound pledges and volunteer management are two halves of "what is coming
  * in", so they are views of one strip here rather than two pages the profile
- * links out to — the same shape `/doniraj` uses. Pledges is the default view;
+ * links out to; the same shape `/doniraj` uses. Pledges is the default view;
  * both keep their own routes for direct links.
  */
 const VIEWS = ["pledges", "volunteers"] as const;

@@ -19,7 +19,7 @@ type Confirmation = {
 /**
  * Consume the mailbox challenge. POST-only and idempotency-free by design: the
  * RPC locks the claim, refuses a consumed or expired digest and stamps the
- * consumption exactly once. Confirming an email proves mailbox control — it
+ * consumption exactly once. Confirming an email proves mailbox control; it
  * does not approve the claim.
  */
 export async function POST(req: NextRequest) {

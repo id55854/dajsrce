@@ -18,7 +18,7 @@ export type MapFilterPanelProps = {
 
 /**
  * The mobile filter surface, opened from a control that lives in the sheet
- * header — so filters are reachable at every detent, which is the whole point
+ * header; so filters are reachable at every detent, which is the whole point
  * of the redesign (they used to exist only inside the list view).
  *
  * It is deliberately *not* rendered inside the sheet header itself. The sheet's

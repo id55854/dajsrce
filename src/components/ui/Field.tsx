@@ -11,7 +11,7 @@ import clsx from "clsx";
 
 /**
  * One focus recipe for every text control in the app. `focus:` rather than
- * `focus-visible:` is deliberate here — a text input should show its ring on
+ * `focus-visible:` is deliberate here; a text input should show its ring on
  * click as well as on keyboard entry, because the caret is already there.
  */
 export function inputClasses(className?: string, invalid?: boolean): string {

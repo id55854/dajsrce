@@ -36,7 +36,7 @@ type NeedCardProps = {
   onPledgeSuccess?: (payload: PledgeSuccessPayload) => void;
   /**
    * False for an NGO account: giving is a citizen action, so an NGO never
-   * pledges against a need — its own included. `/api/pledges` rejects the
+   * pledges against a need; its own included. `/api/pledges` rejects the
    * request either way; hiding the button keeps the account from walking into
    * a 403. The parent resolves the role once, rather than every card asking.
    */

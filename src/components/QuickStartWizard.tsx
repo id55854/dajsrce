@@ -71,7 +71,7 @@ function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): num
 type RankedInstitution = PublicMapInstitution & { distanceKm: number };
 
 async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
-  // Browser-side reverse geocode via Nominatim (no key needed). Best-effort —
+  // Browser-side reverse geocode via Nominatim (no key needed). Best-effort
   // failures don't block the search; we just skip the address feedback.
   try {
     const url =
@@ -208,7 +208,7 @@ export function QuickStartWizard() {
     }
     setGeoLoading(true);
     // Same options as the Map page (src/app/map/page.tsx) so both surfaces
-    // resolve to the same coordinates — most importantly maximumAge: 60000
+    // resolve to the same coordinates, most importantly maximumAge: 60000
     // which lets the browser reuse a recent fix rather than forcing a fresh
     // (and often less accurate) acquisition.
     navigator.geolocation.getCurrentPosition(

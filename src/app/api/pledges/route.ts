@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Giving is a citizen action. An NGO account exists to publish needs and
-    // receive, so it does not pledge against anyone's need — including its own,
+    // receive, so it does not pledge against anyone's need, including its own,
     // which this same check covers without having to compare institutions.
     // The role is read from `profiles`, never from the request body.
     if (existingProfile.role === "ngo") {
