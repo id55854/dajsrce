@@ -37,7 +37,16 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   cancelled: "neutral",
 };
 
-export function InstitutionPledgesClient() {
+type InstitutionPledgesClientProps = {
+  /**
+   * True when rendered inside the NGO profile's own tab strip, which already
+   * supplies the page shell, the heading and the way back. Its own route keeps
+   * all three so a direct link to /dashboard/institution/pledges still works.
+   */
+  embedded?: boolean;
+};
+
+export function InstitutionPledgesClient({ embedded = false }: InstitutionPledgesClientProps) {
   const t = useT();
   const toast = useToast();
   const [pledges, setPledges] = useState<PledgeRow[]>([]);
@@ -173,21 +182,8 @@ export function InstitutionPledgesClient() {
     }
   }
 
-  return (
-    <PageShell width="content">
-      <Link
-        href="/dashboard/institution"
-        className="mb-6 inline-flex items-center gap-2 rounded text-sm font-semibold text-brand transition-colors hover:text-brand-strong hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        {t("common.back")}
-      </Link>
-
-      <PageHeader
-        title={t("institution.pledges_title")}
-        subtitle={t("institution.pledges_subtitle")}
-      />
-
+  const body = (
+    <>
       {loading ? (
         <ul className="space-y-3" aria-busy="true">
           {[0, 1, 2].map((i) => (
@@ -335,6 +331,27 @@ export function InstitutionPledgesClient() {
           })}
         </ul>
       )}
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <PageShell width="content">
+      <Link
+        href="/dashboard/institution"
+        className="mb-6 inline-flex items-center gap-2 rounded text-sm font-semibold text-brand transition-colors hover:text-brand-strong hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        {t("common.back")}
+      </Link>
+
+      <PageHeader
+        title={t("institution.pledges_title")}
+        subtitle={t("institution.pledges_subtitle")}
+      />
+
+      {body}
     </PageShell>
   );
 }

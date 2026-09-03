@@ -1,15 +1,16 @@
 "use client";
 
-import { useId, useState } from "react";
+import { Suspense, useId, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   CalendarPlus,
-  Inbox,
   MapPin,
   Plus,
-  Users,
   X,
 } from "lucide-react";
+import { InstitutionPledgesClient } from "./pledges/institution-pledges-client";
+import { InstitutionVolunteersClient } from "./volunteers/institution-volunteers-client";
 import { useT } from "@/i18n/client";
 import { NewNeedForm } from "@/components/NewNeedForm";
 import { SignOutButton } from "@/components/SignOutButton";
@@ -21,15 +22,40 @@ import {
   PageHeader,
   PageShell,
   SectionHeader,
-  Stat,
   Textarea,
   buttonClasses,
   useToast,
 } from "@/components/ui";
 
+/**
+ * Inbound pledges and volunteer management are two halves of "what is coming
+ * in", so they are views of one strip here rather than two pages the profile
+ * links out to — the same shape `/doniraj` uses. Pledges is the default view;
+ * both keep their own routes for direct links.
+ */
+const VIEWS = ["pledges", "volunteers"] as const;
+type View = (typeof VIEWS)[number];
+
+const DEFAULT_VIEW: View = "pledges";
+
+function parseView(raw: string | null): View {
+  return VIEWS.includes(raw as View) ? (raw as View) : DEFAULT_VIEW;
+}
+
 export default function InstitutionDashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <InstitutionDashboardExperience />
+    </Suspense>
+  );
+}
+
+function InstitutionDashboardExperience() {
   const t = useT();
   const toast = useToast();
+
+  const searchParams = useSearchParams();
+  const view = parseView(searchParams.get("view"));
 
   const needPanelId = useId();
   const eventPanelId = useId();
@@ -88,56 +114,13 @@ export default function InstitutionDashboardPage() {
   }
 
   return (
-    <PageShell width="content">
+    <PageShell width="wide">
       <PageHeader
         title={t("institution.dashboard_title")}
         subtitle={t("institution.dashboard_subtitle")}
-        actions={
-          <>
-            <Link
-              href="/dashboard/institution/pledges"
-              className={buttonClasses({ variant: "secondary", size: "sm" })}
-            >
-              <Inbox className="h-4 w-4" aria-hidden="true" />
-              {t("institution.dashboard_nav_pledges")}
-            </Link>
-            <Link
-              href="/dashboard/institution/volunteers"
-              className={buttonClasses({ variant: "secondary", size: "sm" })}
-            >
-              <Users className="h-4 w-4" aria-hidden="true" />
-              {t("institution.dashboard_nav_volunteers")}
-            </Link>
-          </>
-        }
       />
 
       <div className="space-y-6">
-        {/* NOTE: this figure has never had a query behind it. Rather than print
-            a fabricated `0`, show an explicit em-dash and point at the pledges
-            page, which does load real rows. */}
-        <Stat
-          label={t("institution.dashboard_stat_label")}
-          tone="muted"
-          value={
-            <>
-              <span aria-hidden="true">—</span>
-              <span className="sr-only">{t("institution.dashboard_stat_sr_not_available")}</span>
-            </>
-          }
-          hint={
-            <>
-              {t("institution.dashboard_stat_hint")}{" "}
-              <Link
-                href="/dashboard/institution/pledges"
-                className="rounded font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-              >
-                {t("institution.dashboard_stat_see_all")}
-              </Link>
-            </>
-          }
-        />
-
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             size="lg"
@@ -293,6 +276,47 @@ export default function InstitutionDashboardPage() {
             {t("institution.dashboard_view_map")}
           </Link>
         </div>
+
+        {/* The selected half of the profile, with its switch directly above it:
+            the profile's own actions sit higher up, and a strip parked under
+            the page heading would have been four controls away from what it
+            controls. Same pill recipe as /doniraj. Both halves keep their own
+            routes, so a bookmark or a direct link still lands on the
+            standalone page. */}
+        <section className="border-t border-border-subtle pt-6">
+          <nav
+            aria-label={t("institution.dashboard_views_label")}
+            className="mb-6 flex flex-wrap gap-2"
+          >
+            {VIEWS.map((candidate) => {
+              const active = candidate === view;
+              return (
+                <Link
+                  key={candidate}
+                  href={
+                    candidate === DEFAULT_VIEW
+                      ? "/dashboard/institution"
+                      : `/dashboard/institution?view=${candidate}`
+                  }
+                  aria-current={active ? "page" : undefined}
+                  className={
+                    active
+                      ? "rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white"
+                      : "rounded-full border border-border-subtle px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
+                  }
+                >
+                  {t(`institution.dashboard_view_${candidate}`)}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {view === "pledges" ? (
+            <InstitutionPledgesClient embedded />
+          ) : (
+            <InstitutionVolunteersClient embedded />
+          )}
+        </section>
 
         <div className="border-t border-border-subtle pt-6">
           <SignOutButton />

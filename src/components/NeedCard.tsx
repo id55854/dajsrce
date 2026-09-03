@@ -34,6 +34,13 @@ type NeedCardProps = {
   myPledgedQty?: number | null;
   /** Bubbles up after a successful pledge so the parent can patch state. */
   onPledgeSuccess?: (payload: PledgeSuccessPayload) => void;
+  /**
+   * False for an NGO account: giving is a citizen action, so an NGO never
+   * pledges against a need — its own included. `/api/pledges` rejects the
+   * request either way; hiding the button keeps the account from walking into
+   * a 403. The parent resolves the role once, rather than every card asking.
+   */
+  canPledge?: boolean;
 };
 
 /** One status→tone map, so urgency reads the same wherever a need appears. */
@@ -43,7 +50,12 @@ const URGENCY: Record<Need["urgency"], { key: string; tone: BadgeTone }> = {
   routine: { key: "need_card.routine", tone: "neutral" },
 };
 
-export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCardProps) {
+export function NeedCard({
+  need,
+  myPledgedQty = null,
+  onPledgeSuccess,
+  canPledge = true,
+}: NeedCardProps) {
   const t = useT();
   const { locale } = useLocale();
   const inst = need.institution;
@@ -164,12 +176,19 @@ export function NeedCard({ need, myPledgedQty = null, onPledgeSuccess }: NeedCar
         </div>
       </div>
 
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
-        <PledgeButton
-          needId={need.id}
-          needTitle={need.title}
-          onPledgeSuccess={onPledgeSuccess}
-        />
+      <div
+        className={clsx(
+          "mt-auto flex flex-wrap items-center gap-3 pt-4",
+          canPledge ? "justify-between" : "justify-end"
+        )}
+      >
+        {canPledge ? (
+          <PledgeButton
+            needId={need.id}
+            needTitle={need.title}
+            onPledgeSuccess={onPledgeSuccess}
+          />
+        ) : null}
         <time className="text-sm text-ink-tertiary" dateTime={need.created_at}>
           {t("need_card.posted", { time: posted })}
         </time>

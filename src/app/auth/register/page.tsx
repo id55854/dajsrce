@@ -226,8 +226,16 @@ function RegisterForm() {
               )}
             </Field>
 
+            {/* Beside "Ime i prezime" a bare "E-pošta" reads as though it
+                might be the association's address. It is not: this is the
+                account's sign-in identity, and the association's official
+                mailbox is a separate, later field in the UDR_ID claim
+                ("Službena e-mail adresa udruge"). Only the NGO path is
+                relabelled — there is nothing to disambiguate for a private
+                individual. */}
             <Field
-              label={t("auth.email_label")}
+              label={role === "ngo" ? t("auth.email_label_ngo") : t("auth.email_label")}
+              hint={role === "ngo" ? t("auth.email_hint_ngo") : undefined}
               required
               requiredLabel={t("common.required")}
             >

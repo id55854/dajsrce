@@ -11,6 +11,7 @@ import {
   SectionHeader,
   buttonClasses,
 } from "@/components/ui";
+import { getCurrentUserProfile } from "@/lib/auth/server";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { trustStatus, type PublicInstitutionDetail } from "@/lib/location-map";
 import { getTranslator } from "@/i18n/server";
@@ -171,6 +172,12 @@ export default async function InstitutionPublicPage({
   const t = await getTranslator();
   const data = await getInstitution(id);
 
+  // Giving is a citizen action, so an NGO account gets the needs list without
+  // a pledge CTA. Read from `profiles`, and a signed-out visitor keeps the CTA
+  // — PledgeButton walks them through signing in.
+  const viewer = await getCurrentUserProfile();
+  const viewerCanPledge = viewer?.role !== "ngo";
+
   // No such institution is a real 404; a failed query is not.
   if (data.status === "missing") notFound();
 
@@ -234,7 +241,7 @@ export default async function InstitutionPublicPage({
             <ul className="space-y-4">
               {needs.map((need) => (
                 <li key={need.id}>
-                  <NeedCard need={need} />
+                  <NeedCard need={need} canPledge={viewerCanPledge} />
                 </li>
               ))}
             </ul>

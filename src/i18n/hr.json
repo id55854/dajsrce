@@ -35,6 +35,8 @@
     "aria_switch": "Promijeni jezik"
   },
   "nav": {
+    "ngo_pledges": "Obećanja",
+    "ngo_volunteering": "Volontiranja",
     "map": "Karta",
     "organisations": "Registar",
     "donate": "Doniraj",
@@ -126,6 +128,8 @@
     "switch_to_dark": "Uključi tamni način"
   },
   "auth": {
+    "email_label_ngo": "Vaša e-pošta za prijavu",
+    "email_hint_ngo": "Adresa s kojom se prijavljujete i potvrđujete račun. Službenu e-poštu udruge upisujete kasnije, u koraku potvrde udruge.",
     "email_label": "E-pošta",
     "password_label": "Lozinka",
     "show_password": "Prikaži lozinku",
@@ -324,12 +328,9 @@
     "loading": "Učitavanje…",
     "dashboard_title": "Vaš profil",
     "dashboard_subtitle": "Upravljajte potrebama, događajima i aktivnostima.",
-    "dashboard_nav_pledges": "Obećanja",
-    "dashboard_nav_volunteers": "Volonteri",
-    "dashboard_stat_label": "Obećanja ovaj mjesec",
-    "dashboard_stat_sr_not_available": "Još nije dostupno",
-    "dashboard_stat_hint": "Mjesečni zbroj još nije dostupan.",
-    "dashboard_stat_see_all": "Pogledaj sva obećanja",
+    "dashboard_views_label": "Prikaz profila",
+    "dashboard_view_pledges": "Obećanja",
+    "dashboard_view_volunteers": "Volontiranja",
     "dashboard_new_need": "Nova potreba",
     "dashboard_new_event": "Novi volonterski događaj",
     "dashboard_close_need_aria": "Zatvori obrazac za novu potrebu",
@@ -390,9 +391,7 @@
     "find_places": "Pronađite gdje pomoći",
     "volunteer_signups": "Volonterske prijave",
     "no_volunteer_signups": "Još niste prijavljeni ni na jedan volonterski događaj.",
-    "find_volunteer_events": "Pronađite volonterske događaje",
-    "claim_ngo_prompt": "Predstavljate udrugu ili ustanovu?",
-    "claim_ngo_cta": "Preuzmite njen profil"
+    "find_volunteer_events": "Pronađite volonterske događaje"
   },
   "filters": {
     "city_any": "Svi gradovi",
@@ -704,12 +703,8 @@
     "claims_registry_entry": "Sjedište iz registra",
     "claims_registry_missing": "Zapis nije u trenutnom snimku registra",
     "claims_applicant": "Podnositelj",
-    "claims_contact_email": "Adresa za potvrdu",
     "claims_evidence": "Obrazloženje",
     "claims_submitted_on": "Zaprimljeno",
-    "claims_email_verified": "E-mail potvrđen",
-    "claims_email_pending": "Poveznica poslana",
-    "claims_email_unverified": "Bez potvrde e-maila",
     "claims_already_linked": "Već povezano",
     "claims_approve": "Odobri",
     "claims_reject": "Odbij",

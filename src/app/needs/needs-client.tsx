@@ -83,6 +83,9 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [userPledges, setUserPledges] = useState<YourPledgeRow[]>([]);
   const [pledgesLoading, setPledgesLoading] = useState(true);
+  // Resolved once here rather than per card. An NGO account publishes needs
+  // and receives; it does not pledge against one, so its cards carry no CTA.
+  const [isNgo, setIsNgo] = useState(false);
 
   // 1. Resolve auth + fetch the user's pledges once.
   useEffect(() => {
@@ -99,6 +102,15 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
         return;
       }
       setLoggedIn(true);
+      try {
+        const me = await fetch("/api/me", { credentials: "include" });
+        if (me.ok) {
+          const json = (await me.json()) as { profile?: { role?: string } } | null;
+          if (!cancelled && json?.profile?.role === "ngo") setIsNgo(true);
+        }
+      } catch {
+        // A failed role lookup leaves the CTA in place; the API still refuses.
+      }
       try {
         const res = await fetch("/api/pledges", { credentials: "include" });
         if (res.ok) {
@@ -212,11 +224,15 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     // The page shell and title belong to the merged Associations page; this
     // is one view inside it.
     <>
-      <YourPledgesSection
-        loggedIn={loggedIn === true}
-        loading={pledgesLoading}
-        pledges={userPledges}
-      />
+      {/* An NGO account cannot pledge, so this panel would sit at the top of
+          the page permanently empty for one. */}
+      {isNgo ? null : (
+        <YourPledgesSection
+          loggedIn={loggedIn === true}
+          loading={pledgesLoading}
+          pledges={userPledges}
+        />
+      )}
 
       <div className="mb-8 space-y-4">
         <div>
@@ -330,6 +346,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
               need={need}
               myPledgedQty={myPledgedByNeed.get(need.id) ?? null}
               onPledgeSuccess={onPledgeSuccess}
+              canPledge={!isNgo}
             />
           ))}
         </div>

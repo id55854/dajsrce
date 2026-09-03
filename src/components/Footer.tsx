@@ -85,6 +85,7 @@ export function Footer() {
  */
 export function MapLegalStrip() {
   const t = useT();
+  const contactEmail = ORGANISATION.contactEmail;
   return (
     <div className="flex h-8 shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-border-subtle bg-surface px-3">
       <p className="truncate text-[11px] leading-none text-ink-secondary">
@@ -95,6 +96,22 @@ export function MapLegalStrip() {
         <span className="tabular-nums">
           {t("footer.oib")} {ORGANISATION.oib}
         </span>
+        {/* Inside the truncating line, not beside it: on a narrow phone the
+            registered name is the part that must survive, so the address is
+            what gets clipped. The label is dropped for width — a mailto link
+            reading as an address needs none — and restored for screen readers. */}
+        {contactEmail ? (
+          <>
+            <span aria-hidden> · </span>
+            <a
+              href={`mailto:${contactEmail}`}
+              aria-label={`${t("footer.contact_label")}: ${contactEmail}`}
+              className="rounded font-medium underline-offset-2 transition-colors hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              {contactEmail}
+            </a>
+          </>
+        ) : null}
       </p>
       <Link
         href="/o-nama"

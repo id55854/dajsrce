@@ -35,6 +35,8 @@
     "aria_switch": "Change language"
   },
   "nav": {
+    "ngo_pledges": "Pledges",
+    "ngo_volunteering": "Volunteering",
     "map": "Map",
     "organisations": "Directory",
     "donate": "Donate",
@@ -126,6 +128,8 @@
     "switch_to_dark": "Switch to dark mode"
   },
   "auth": {
+    "email_label_ngo": "Your sign-in email",
+    "email_hint_ngo": "The address you sign in with and confirm the account from. Your association's official email is entered later, in the association verification step.",
     "email_label": "Email",
     "password_label": "Password",
     "show_password": "Show password",
@@ -324,12 +328,9 @@
     "loading": "Loading…",
     "dashboard_title": "Institution Management",
     "dashboard_subtitle": "Manage needs, events, and activities.",
-    "dashboard_nav_pledges": "Pledges",
-    "dashboard_nav_volunteers": "Volunteers",
-    "dashboard_stat_label": "Pledges this month",
-    "dashboard_stat_sr_not_available": "Not available yet",
-    "dashboard_stat_hint": "Monthly totals aren't available yet.",
-    "dashboard_stat_see_all": "See every pledge",
+    "dashboard_views_label": "Profile views",
+    "dashboard_view_pledges": "Pledges",
+    "dashboard_view_volunteers": "Volunteering",
     "dashboard_new_need": "New Need",
     "dashboard_new_event": "New Volunteer Event",
     "dashboard_close_need_aria": "Close the new need form",
@@ -390,9 +391,7 @@
     "find_places": "Find places to help",
     "volunteer_signups": "Volunteer signups",
     "no_volunteer_signups": "You are not signed up for any volunteer event yet.",
-    "find_volunteer_events": "Find volunteer events",
-    "claim_ngo_prompt": "Represent an NGO or association?",
-    "claim_ngo_cta": "Claim its profile"
+    "find_volunteer_events": "Find volunteer events"
   },
   "filters": {
     "city_any": "All cities",
@@ -704,12 +703,8 @@
     "claims_registry_entry": "Seat from the register",
     "claims_registry_missing": "Entry is not in the current register snapshot",
     "claims_applicant": "Applicant",
-    "claims_contact_email": "Confirmation address",
     "claims_evidence": "Supporting note",
     "claims_submitted_on": "Received",
-    "claims_email_verified": "Email confirmed",
-    "claims_email_pending": "Link sent",
-    "claims_email_unverified": "No email proof",
     "claims_already_linked": "Already linked",
     "claims_approve": "Approve",
     "claims_reject": "Reject",

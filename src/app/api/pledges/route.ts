@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     const { data: existingProfile, error: profileError } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, role")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -60,6 +60,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Profile setup is incomplete", request_id: requestId },
         { status: 409 }
+      );
+    }
+
+    // Giving is a citizen action. An NGO account exists to publish needs and
+    // receive, so it does not pledge against anyone's need — including its own,
+    // which this same check covers without having to compare institutions.
+    // The role is read from `profiles`, never from the request body.
+    if (existingProfile.role === "ngo") {
+      return NextResponse.json(
+        { error: "An NGO account cannot pledge", request_id: requestId },
+        { status: 403 }
       );
     }
 

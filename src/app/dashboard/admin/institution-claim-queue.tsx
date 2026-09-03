@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Building2, Link2, MailCheck, MailQuestion, ShieldQuestion } from "lucide-react";
+import { BadgeCheck, Building2, Link2, ShieldQuestion } from "lucide-react";
 import {
   Badge,
   Button,
@@ -124,29 +124,11 @@ export function InstitutionClaimQueue({ claims }: { claims: InstitutionClaimRevi
                       {[organisation?.city, organisation?.county].filter(Boolean).join(", ")}
                     </p>
                   </div>
+                  {/* Review is manual for now, so the mailbox challenge is not
+                      part of the decision and its status badges would only
+                      suggest a precondition that no longer exists. The
+                      already-linked warning stays: it is a real blocker. */}
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    {claim.email_verified ? (
-                      <Badge
-                        tone="success"
-                        icon={<MailCheck className="h-3.5 w-3.5" aria-hidden="true" />}
-                      >
-                        {t("admin.claims_email_verified")}
-                      </Badge>
-                    ) : claim.email_challenge_sent ? (
-                      <Badge
-                        tone="info"
-                        icon={<MailQuestion className="h-3.5 w-3.5" aria-hidden="true" />}
-                      >
-                        {t("admin.claims_email_pending")}
-                      </Badge>
-                    ) : (
-                      <Badge
-                        tone="warning"
-                        icon={<MailQuestion className="h-3.5 w-3.5" aria-hidden="true" />}
-                      >
-                        {t("admin.claims_email_unverified")}
-                      </Badge>
-                    )}
                     {organisation?.already_linked ? (
                       <Badge
                         tone="danger"
@@ -174,14 +156,6 @@ export function InstitutionClaimQueue({ claims }: { claims: InstitutionClaimRevi
                     {claim.applicant.name ?? "—"}
                     {claim.applicant.email ? (
                       <span className="ml-2 text-ink-secondary">{claim.applicant.email}</span>
-                    ) : null}
-                  </DetailRow>
-                  <DetailRow label={t("admin.claims_contact_email")}>
-                    <span className="break-all">{claim.contact_email}</span>
-                    {organisation?.registry_email ? (
-                      <span className="ml-2 break-all text-ink-tertiary">
-                        ({organisation.registry_email})
-                      </span>
                     ) : null}
                   </DetailRow>
                   <DetailRow label={t("admin.claims_evidence")}>

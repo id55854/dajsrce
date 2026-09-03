@@ -50,7 +50,11 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
   const t = useT();
   const toast = useToast();
   const [open, setOpen] = useState(false);
-  const [quantity, setQuantity] = useState(1);
+  // Held as raw text, like `amountEur` below. A numeric state clamped on every
+  // keystroke cannot be emptied: backspacing the last digit yields "", which
+  // clamps straight back to 1 and React re-renders the digit, so the field only
+  // ever grows a second digit. Parsing is deferred to blur and submit.
+  const [quantity, setQuantity] = useState("1");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -58,17 +62,20 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
 
   const closeModal = useCallback(() => {
     setOpen(false);
-    setQuantity(1);
+    setQuantity("1");
     setMessage("");
     setAmountEur("");
   }, []);
+
+  /** At least one whole unit; an empty or junk field means a single unit. */
+  const parsedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
 
   const submit = async () => {
     setLoading(true);
     try {
       const payload: Record<string, unknown> = {
         need_id: needId,
-        quantity,
+        quantity: parsedQuantity,
         message: message.trim() || undefined,
       };
       const eurParsed = Number.parseFloat(amountEur.replace(",", "."));
@@ -149,10 +156,14 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
                 data-dialog-initial-focus
                 type="number"
                 min={1}
+                step={1}
+                inputMode="numeric"
                 value={quantity}
-                onChange={(e) =>
-                  setQuantity(Math.max(1, Number(e.target.value) || 1))
-                }
+                onChange={(e) => setQuantity(e.target.value)}
+                // Leaving the field empty is fine while typing, but not once
+                // focus moves on: normalise so what is submitted is what the
+                // user can see.
+                onBlur={() => setQuantity(String(parsedQuantity))}
               />
             )}
           </Field>
