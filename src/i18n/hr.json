@@ -126,6 +126,8 @@
     "switch_to_dark": "Uključi tamni način"
   },
   "auth": {
+    "email_label_ngo": "Vaša e-pošta za prijavu",
+    "email_hint_ngo": "Adresa s kojom se prijavljujete i potvrđujete račun. Službenu e-poštu udruge upisujete kasnije, u koraku potvrde udruge.",
     "email_label": "E-pošta",
     "password_label": "Lozinka",
     "show_password": "Prikaži lozinku",

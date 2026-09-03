@@ -126,6 +126,8 @@
     "switch_to_dark": "Switch to dark mode"
   },
   "auth": {
+    "email_label_ngo": "Your sign-in email",
+    "email_hint_ngo": "The address you sign in with and confirm the account from. Your association's official email is entered later, in the association verification step.",
     "email_label": "Email",
     "password_label": "Password",
     "show_password": "Show password",
