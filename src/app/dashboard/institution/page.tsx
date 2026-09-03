@@ -21,7 +21,6 @@ import {
   PageHeader,
   PageShell,
   SectionHeader,
-  Stat,
   Textarea,
   buttonClasses,
   useToast,
@@ -113,31 +112,6 @@ export default function InstitutionDashboardPage() {
       />
 
       <div className="space-y-6">
-        {/* NOTE: this figure has never had a query behind it. Rather than print
-            a fabricated `0`, show an explicit em-dash and point at the pledges
-            page, which does load real rows. */}
-        <Stat
-          label={t("institution.dashboard_stat_label")}
-          tone="muted"
-          value={
-            <>
-              <span aria-hidden="true">—</span>
-              <span className="sr-only">{t("institution.dashboard_stat_sr_not_available")}</span>
-            </>
-          }
-          hint={
-            <>
-              {t("institution.dashboard_stat_hint")}{" "}
-              <Link
-                href="/dashboard/institution/pledges"
-                className="rounded font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-              >
-                {t("institution.dashboard_stat_see_all")}
-              </Link>
-            </>
-          }
-        />
-
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             size="lg"
