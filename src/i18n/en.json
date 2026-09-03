@@ -35,6 +35,8 @@
     "aria_switch": "Change language"
   },
   "nav": {
+    "ngo_pledges": "Pledges",
+    "ngo_volunteering": "Volunteering",
     "map": "Map",
     "organisations": "Directory",
     "donate": "Donate",

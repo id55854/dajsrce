@@ -35,12 +35,23 @@ const navLinks = [
   { href: "/o-nama", labelKey: "nav.about" },
 ] as const;
 
+// The two surfaces an NGO actually works in day to day. They stay reachable
+// from the NGO profile as well — this is a second, shorter route to them, not
+// a move.
+const ngoNavLinks = [
+  { href: "/dashboard/institution/pledges", labelKey: "nav.ngo_pledges" },
+  { href: "/dashboard/institution/volunteers", labelKey: "nav.ngo_volunteering" },
+] as const;
+
 // An NGO account posts volunteer events; it doesn't sign up for them. The
 // "Volunteer" tab answers a question only an individual account asks, so it
-// is dropped from an NGO's own nav rather than shown and disabled.
-function navLinksForRole(role: string | undefined) {
+// is dropped from an NGO's own nav rather than shown and disabled, and its
+// own inbound pledges and volunteer management take that place instead.
+function navLinksForRole(
+  role: string | undefined
+): readonly { href: string; labelKey: string }[] {
   if (role !== "ngo") return navLinks;
-  return navLinks.filter((link) => link.href !== "/volunteer");
+  return [...navLinks.filter((link) => link.href !== "/volunteer"), ...ngoNavLinks];
 }
 
 function isNavLinkActive(
