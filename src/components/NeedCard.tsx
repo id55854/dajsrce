@@ -176,16 +176,19 @@ export function NeedCard({
         </div>
       </div>
 
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
+      <div
+        className={clsx(
+          "mt-auto flex flex-wrap items-center gap-3 pt-4",
+          canPledge ? "justify-between" : "justify-end"
+        )}
+      >
         {canPledge ? (
           <PledgeButton
             needId={need.id}
             needTitle={need.title}
             onPledgeSuccess={onPledgeSuccess}
           />
-        ) : (
-          <span />
-        )}
+        ) : null}
         <time className="text-sm text-ink-tertiary" dateTime={need.created_at}>
           {t("need_card.posted", { time: posted })}
         </time>

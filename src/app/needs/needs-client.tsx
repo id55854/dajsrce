@@ -224,11 +224,15 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     // The page shell and title belong to the merged Associations page; this
     // is one view inside it.
     <>
-      <YourPledgesSection
-        loggedIn={loggedIn === true}
-        loading={pledgesLoading}
-        pledges={userPledges}
-      />
+      {/* An NGO account cannot pledge, so this panel would sit at the top of
+          the page permanently empty for one. */}
+      {isNgo ? null : (
+        <YourPledgesSection
+          loggedIn={loggedIn === true}
+          loading={pledgesLoading}
+          pledges={userPledges}
+        />
+      )}
 
       <div className="mb-8 space-y-4">
         <div>
