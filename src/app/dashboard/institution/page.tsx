@@ -114,42 +114,11 @@ function InstitutionDashboardExperience() {
   }
 
   return (
-    <PageShell width="content">
+    <PageShell width="wide">
       <PageHeader
-        className="mb-5"
         title={t("institution.dashboard_title")}
         subtitle={t("institution.dashboard_subtitle")}
       />
-
-      {/* Same pill strip as /doniraj, so switching between the two halves of
-          the profile reads identically to switching between the two halves of
-          the donate page. */}
-      <nav
-        aria-label={t("institution.dashboard_views_label")}
-        className="mb-6 flex flex-wrap gap-2"
-      >
-        {VIEWS.map((candidate) => {
-          const active = candidate === view;
-          return (
-            <Link
-              key={candidate}
-              href={
-                candidate === DEFAULT_VIEW
-                  ? "/dashboard/institution"
-                  : `/dashboard/institution?view=${candidate}`
-              }
-              aria-current={active ? "page" : undefined}
-              className={
-                active
-                  ? "rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white"
-                  : "rounded-full border border-border-subtle px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
-              }
-            >
-              {t(`institution.dashboard_view_${candidate}`)}
-            </Link>
-          );
-        })}
-      </nav>
 
       <div className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -308,9 +277,40 @@ function InstitutionDashboardExperience() {
           </Link>
         </div>
 
-        {/* The selected half of the profile. Both keep their own routes, so a
-            bookmark or a direct link still lands on the standalone page. */}
+        {/* The selected half of the profile, with its switch directly above it:
+            the profile's own actions sit higher up, and a strip parked under
+            the page heading would have been four controls away from what it
+            controls. Same pill recipe as /doniraj. Both halves keep their own
+            routes, so a bookmark or a direct link still lands on the
+            standalone page. */}
         <section className="border-t border-border-subtle pt-6">
+          <nav
+            aria-label={t("institution.dashboard_views_label")}
+            className="mb-6 flex flex-wrap gap-2"
+          >
+            {VIEWS.map((candidate) => {
+              const active = candidate === view;
+              return (
+                <Link
+                  key={candidate}
+                  href={
+                    candidate === DEFAULT_VIEW
+                      ? "/dashboard/institution"
+                      : `/dashboard/institution?view=${candidate}`
+                  }
+                  aria-current={active ? "page" : undefined}
+                  className={
+                    active
+                      ? "rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white"
+                      : "rounded-full border border-border-subtle px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
+                  }
+                >
+                  {t(`institution.dashboard_view_${candidate}`)}
+                </Link>
+              );
+            })}
+          </nav>
+
           {view === "pledges" ? (
             <InstitutionPledgesClient embedded />
           ) : (
