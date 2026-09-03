@@ -353,6 +353,17 @@ export function Navbar() {
 
   const profileEmail = meProfile?.email || user?.email || undefined;
 
+  // An NGO's strip carries six entries instead of five (490px against 387px),
+  // and the track is absolutely positioned on the viewport midline, so at `lg`
+  // its right edge lands under the header controls instead of pushing them
+  // aside. That layout therefore starts one breakpoint later for an NGO, and
+  // the compact menu -- which lists the same links in a column -- covers the
+  // range in between. Written as whole class strings so Tailwind sees them.
+  const wideNav = meProfile?.role === "ngo";
+  const desktopOnly = wideNav ? "hidden xl:flex" : "hidden lg:flex";
+  const compactOnly = wideNav ? "flex xl:hidden" : "flex lg:hidden";
+  const compactPanelOnly = wideNav ? "xl:hidden" : "lg:hidden";
+
   const notificationBadge =
     unreadCount > 0 ? (
       <span
@@ -398,7 +409,10 @@ export function Navbar() {
         {/* Centred on the viewport, not between the logo and the actions, so
             the track stays on the midline regardless of how wide those are. */}
         <nav
-          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center rounded-full border border-border-subtle bg-surface-sunken p-1 lg:flex"
+          className={clsx(
+            "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center rounded-full border border-border-subtle bg-surface-sunken p-1",
+            desktopOnly
+          )}
           aria-label={t("nav.main_navigation")}
         >
           {navLinksForRole(meProfile?.role).map(({ href, labelKey }) => (
@@ -406,7 +420,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
+        <div className={clsx("items-center gap-2", desktopOnly)}>
           <LocaleSwitcher />
           <ThemeToggle />
           {user ? (
@@ -440,7 +454,7 @@ export function Navbar() {
           )}
         </div>
 
-        <div className="flex items-center gap-1 lg:hidden">
+        <div className={clsx("items-center gap-1", compactOnly)}>
           <ThemeToggle />
           {user ? (
             <button
@@ -494,7 +508,8 @@ export function Navbar() {
           data-state={mobileNav.state}
           onAnimationEnd={mobileNav.onAnimationEnd}
           className={clsx(
-            "origin-top border-t border-border-subtle bg-surface-overlay px-4 py-4 shadow-overlay lg:hidden",
+            "origin-top border-t border-border-subtle bg-surface-overlay px-4 py-4 shadow-overlay",
+            compactPanelOnly,
             "data-[state=open]:animate-menu-in data-[state=closed]:animate-menu-out"
           )}
         >
