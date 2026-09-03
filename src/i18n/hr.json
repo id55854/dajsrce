@@ -393,9 +393,7 @@
     "find_places": "Pronađite gdje pomoći",
     "volunteer_signups": "Volonterske prijave",
     "no_volunteer_signups": "Još niste prijavljeni ni na jedan volonterski događaj.",
-    "find_volunteer_events": "Pronađite volonterske događaje",
-    "claim_ngo_prompt": "Predstavljate udrugu ili ustanovu?",
-    "claim_ngo_cta": "Preuzmite njen profil"
+    "find_volunteer_events": "Pronađite volonterske događaje"
   },
   "filters": {
     "city_any": "Svi gradovi",

@@ -214,24 +214,6 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
               <dd className="mt-0.5 text-base text-ink">{t(roleTranslationKey(profile.role))}</dd>
             </div>
           </dl>
-          {/* The only way back to /auth/setup for an account that stayed
-              `individual` -- the register-time redirect fires once, and
-              nothing else in the app links here. Shown to every individual
-              account, not just ones that happened to pick "NGO" at signup:
-              someone can just as well realise this later. */}
-          {profile.role === "individual" ? (
-            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border-subtle pt-5">
-              <p className="text-sm text-ink-secondary">
-                {t("dashboard_individual.claim_ngo_prompt")}
-              </p>
-              <Link
-                href="/auth/setup"
-                className={buttonClasses({ variant: "secondary", size: "sm" })}
-              >
-                {t("dashboard_individual.claim_ngo_cta")}
-              </Link>
-            </div>
-          ) : null}
         </Card>
 
         <section className="grid gap-4 sm:grid-cols-2">

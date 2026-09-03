@@ -79,6 +79,27 @@ export async function middleware(request: NextRequest) {
     if (isNgoRoute && role === "ngo" && !profile?.institution_id) {
       return NextResponse.redirect(new URL("/auth/setup", request.url));
     }
+    // The step before that one: someone who picked "NGO" at signup but never
+    // ran complete_profile_setup is still `individual`, so neither the rule
+    // above nor the role redirects can see them -- they just land on the
+    // individual dashboard with nothing pointing back at onboarding. Signing
+    // in with a password never passes through /auth/callback, which is the
+    // only other place that recovers this.
+    //
+    // Reading `user_metadata.role` here grants nothing: it is signup intent
+    // used for routing only, the same way /auth/callback and /auth/setup
+    // already read it. The role still comes solely from complete_profile_setup
+    // and publishing still needs an approved UDR_ID claim. `setup_completed`
+    // is what completeIndividualSetup() writes when someone deliberately
+    // finishes as an individual, so choosing that on /auth/setup clears this
+    // for good and no one can be trapped in a loop.
+    if (
+      role === "individual" &&
+      user.user_metadata?.role === "ngo" &&
+      user.user_metadata?.setup_completed !== true
+    ) {
+      return NextResponse.redirect(new URL("/auth/setup", request.url));
+    }
     if (
       pathname.startsWith("/dashboard/individual") &&
       role !== "individual"
