@@ -4,6 +4,7 @@ import {
   trustStatus,
   type PublicInstitutionDetail,
 } from "@/lib/location-map";
+import { logError } from "@/lib/observability";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import type { DonationType, InstitutionCategory } from "@/lib/types";
 
@@ -156,10 +157,9 @@ export async function GET(
     }
     return cachedJson(req, { institution }, requestId);
   } catch (error) {
-    console.error("public_institution_detail_failed", {
-      requestId,
+    logError("public_institution_detail_failed", error, {
+      request_id: requestId,
       institutionId: id,
-      message: error instanceof Error ? error.message : "unknown",
     });
     return NextResponse.json(
       { error: "Institution details are temporarily unavailable", requestId },

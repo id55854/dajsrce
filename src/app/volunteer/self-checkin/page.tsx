@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MapPin } from "lucide-react";
@@ -18,11 +18,21 @@ import {
 function SelfCheckInInner() {
   const t = useT();
   const searchParams = useSearchParams();
-  const eventId = searchParams.get("event");
-  const token = searchParams.get("token");
+  const [credentials] = useState(() => ({
+    eventId: searchParams.get("event"),
+    token: searchParams.get("token"),
+  }));
+  const { eventId, token } = credentials;
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    if (!token || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("token");
+    window.history.replaceState(null, "", url.toString());
+  }, [token]);
 
   async function confirm() {
     if (!eventId || !token) return;

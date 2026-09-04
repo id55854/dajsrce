@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { hashBearerToken } from "@/lib/security/runtime";
+import { isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 import { getRequestId, logError } from "@/lib/observability";
 import { getLocale } from "@/i18n/server";
 import type { Locale } from "@/lib/types";
@@ -36,7 +37,7 @@ async function sendChallengeEmail(input: {
   expiresAt: string;
 }): Promise<{ sent: boolean; error?: string }> {
   const key = process.env.RESEND_API_KEY;
-  if (!key) return { sent: false, error: "RESEND_API_KEY not set" };
+  if (!key) return { sent: false, error: "resend_not_configured" };
 
   const expiresHuman = new Date(input.expiresAt).toLocaleString(
     input.locale === "hr" ? "hr-HR" : "en-GB",
@@ -78,7 +79,7 @@ async function sendChallengeEmail(input: {
     subject,
     html: input.locale === "hr" ? bodyHr : bodyEn,
   });
-  return error ? { sent: false, error: error.message } : { sent: true };
+  return error ? { sent: false, error: "delivery_failed" } : { sent: true };
 }
 
 /**
@@ -89,6 +90,13 @@ async function sendChallengeEmail(input: {
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const requestId = getRequestId(req.headers);
   const { id } = await params;
+  if (!isUuid(id)) {
+    return jsonError("Invalid claim id", 400, requestId, NO_STORE);
+  }
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "institution_claims.verify_email", limit: 5, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
 
   const supabase = await createServerSupabaseClient();
   const {

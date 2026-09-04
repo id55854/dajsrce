@@ -54,7 +54,7 @@ export async function notifyNearbyUsers(
     p_radius_km: RADIUS_KM,
   });
   if (error || typeof data !== "string") {
-    throw new Error(`Notification enqueue failed: ${error?.message ?? "invalid job id"}`);
+    throw new Error("Notification enqueue failed");
   }
   return data;
 }
@@ -74,7 +74,7 @@ export async function deliverNearbyNotificationJob(
       p_exclude_user_id: job.exclude_user_id,
     }
   );
-  if (lookupError) throw new Error(`Nearby recipient lookup failed: ${lookupError.message}`);
+  if (lookupError) throw new Error("Nearby recipient lookup failed");
 
   const profileIds = (Array.isArray(data) ? data : []).filter(
     (value): value is string => typeof value === "string"
@@ -92,7 +92,7 @@ export async function deliverNearbyNotificationJob(
       onConflict: "delivery_job_id,user_id",
       ignoreDuplicates: true,
     });
-    if (error) throw new Error(`Notification delivery failed: ${error.message}`);
+    if (error) throw new Error("Notification delivery failed");
   }
   return profileIds.length;
 }

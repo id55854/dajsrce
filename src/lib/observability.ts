@@ -10,11 +10,11 @@ export function getRequestId(headers?: Headers): string {
     : crypto.randomUUID();
 }
 
-function serializeError(error: unknown): { error_name: string; error_message: string } {
+function serializeError(error: unknown): { error_name: string } {
   if (error instanceof Error) {
-    return { error_name: error.name, error_message: error.message };
+    return { error_name: error.name };
   }
-  return { error_name: "UnknownError", error_message: "Unexpected non-Error value" };
+  return { error_name: "UnknownError" };
 }
 
 export function logError(

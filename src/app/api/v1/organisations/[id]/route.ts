@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { AssociationRegistryEntry } from "@/lib/association-registry";
+import { logError } from "@/lib/observability";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const dynamic = "force-dynamic";
@@ -49,10 +50,9 @@ export async function GET(
       headers: { ...headers, "Content-Type": "application/json; charset=utf-8" },
     });
   } catch (error) {
-    console.error("association_directory_detail_failed", {
-      requestId,
+    logError("association_directory_detail_failed", error, {
+      request_id: requestId,
       id,
-      message: error instanceof Error ? error.message : "unknown",
     });
     return NextResponse.json(
       { error: "The official organisation record is temporarily unavailable", requestId },

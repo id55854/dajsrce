@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getRequestId, logError } from "@/lib/observability";
+import { rateLimit } from "@/lib/security/http";
 import {
   claimErrorStatus,
   parseClaimSearchInput,
@@ -18,6 +19,8 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
  */
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
+  const limited = rateLimit(req, { name: "institution_claims.search", limit: 60, windowMs: 60_000 }, requestId);
+  if (limited) return limited;
 
   const supabase = await createServerSupabaseClient();
   const {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getRequestId, logError } from "@/lib/observability";
+import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
 const TAX_CATEGORIES = new Set([
   "cultural",
@@ -40,14 +41,19 @@ export async function GET(_req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const requestId = randomUUID();
+  const requestId = getRequestId(req.headers);
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "pledges.post", limit: 30, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   try {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = await createServerSupabaseClient();
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return jsonError("Not authenticated", 401, requestId, NO_STORE);
     }
 
     const { data: existingProfile, error: profileError } = await supabase
@@ -92,9 +98,9 @@ export async function POST(req: NextRequest) {
     };
     const qty = quantity ?? 1;
 
-    if (typeof need_id !== "string" || !need_id) {
+    if (typeof need_id !== "string" || !isUuid(need_id)) {
       return NextResponse.json(
-        { error: "need_id is required", request_id: requestId },
+        { error: "need_id is invalid", request_id: requestId },
         { status: 400 }
       );
     }
@@ -135,10 +141,9 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : 409;
-      console.error("[/api/pledges POST] transaction failed", {
-        requestId,
+      logError("pledges.create_transaction_failed", error, {
+        request_id: requestId,
         code: error.code,
-        message: error.message,
       });
       return NextResponse.json(
         { error: "Pledge could not be created", request_id: requestId },
@@ -150,8 +155,8 @@ export async function POST(req: NextRequest) {
       status: 201,
       headers: { "x-request-id": requestId },
     });
-  } catch (e) {
-    console.error("[/api/pledges POST] failed", { requestId, error: e });
+  } catch (error) {
+    logError("pledges.create_failed", error, { request_id: requestId });
     return NextResponse.json(
       { error: "Pledge could not be created", request_id: requestId },
       { status: 500, headers: { "x-request-id": requestId } }

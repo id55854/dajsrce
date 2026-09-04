@@ -3,6 +3,7 @@ import { getCurrentUserProfile } from "@/lib/auth/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getRequestId, logError } from "@/lib/observability";
 import { claimErrorStatus, parseClaimReviewInput } from "@/lib/institution-claims";
+import { isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,13 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const requestId = getRequestId(req.headers);
   const { id } = await params;
+  if (!isUuid(id)) {
+    return jsonError("Invalid claim id", 400, requestId, NO_STORE);
+  }
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "institution_claims.review", limit: 30, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
 
   const profile = await getCurrentUserProfile();
   if (!profile) {

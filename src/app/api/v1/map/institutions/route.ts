@@ -11,6 +11,7 @@ import {
   type PublicMapInstitution,
   type PublicMapResponse,
 } from "@/lib/location-map";
+import { logError } from "@/lib/observability";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import type { DonationType, InstitutionCategory } from "@/lib/types";
 
@@ -334,10 +335,7 @@ export async function GET(req: NextRequest) {
     };
     return jsonWithCache(req, response, requestId, result.strategy);
   } catch (error) {
-    console.error("public_map_query_failed", {
-      requestId,
-      message: error instanceof Error ? error.message : "unknown",
-    });
+    logError("public_map_query_failed", error, { request_id: requestId });
     return NextResponse.json(
       { error: "Institution locations are temporarily unavailable", requestId },
       { status: 503, headers: { "Cache-Control": "no-store", "X-Request-Id": requestId } }

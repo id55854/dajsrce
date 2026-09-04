@@ -1,13 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getRequestId, logError } from "@/lib/observability";
+import { NO_STORE, jsonError } from "@/lib/security/http";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const requestId = getRequestId(req.headers);
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }
 
   const { data: profile } = await supabase
@@ -17,7 +20,7 @@ export async function GET() {
     .maybeSingle();
 
   if (!profile?.institution_id || profile.role !== "ngo") {
-    return NextResponse.json({ error: "Institution access only" }, { status: 403 });
+    return jsonError("Institution access only", 403, requestId, NO_STORE);
   }
 
   const { data: needs } = await supabase
@@ -51,7 +54,11 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    logError("institution.pledges_failed", error, {
+      request_id: requestId,
+      code: error.code ?? null,
+    });
+    return jsonError("Pledges are temporarily unavailable", 500, requestId, NO_STORE);
   }
 
   return NextResponse.json({ pledges: pledges ?? [] });

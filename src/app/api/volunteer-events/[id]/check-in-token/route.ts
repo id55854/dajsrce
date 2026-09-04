@@ -2,6 +2,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getRequestId, logError } from "@/lib/observability";
+import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin, withRequestId } from "@/lib/security/http";
 
 /**
  * Issue a short-lived bearer token for an institution's onsite QR code.
@@ -9,16 +11,25 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
  * through the event day so an old public event URL is not a check-in proof.
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getRequestId(req.headers);
   const { id: eventId } = await params;
+  if (!isUuid(eventId)) {
+    return jsonError("Invalid event id", 400, requestId, NO_STORE);
+  }
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "volunteer_events.check_in_token", limit: 20, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }
 
   const [{ data: profile }, { data: event }] = await Promise.all([
@@ -30,10 +41,10 @@ export async function POST(
       .maybeSingle(),
   ]);
   if (!profile || profile.role !== "ngo" || !profile.institution_id) {
-    return NextResponse.json({ error: "Institution access required" }, { status: 403 });
+    return jsonError("Institution access required", 403, requestId, NO_STORE);
   }
   if (!event || event.institution_id !== profile.institution_id) {
-    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    return jsonError("Event not found", 404, requestId, NO_STORE);
   }
 
   const today = new Date();
@@ -42,8 +53,8 @@ export async function POST(
   const day = 24 * 60 * 60 * 1000;
   if (!Number.isFinite(eventUtc) || eventUtc < todayUtc - day || eventUtc > todayUtc + day) {
     return NextResponse.json(
-      { error: "The onsite QR code becomes available one day before the event" },
-      { status: 409 }
+      { error: "The onsite QR code becomes available one day before the event", request_id: requestId },
+      { status: 409, headers: withRequestId(NO_STORE, requestId) }
     );
   }
 
@@ -59,12 +70,15 @@ export async function POST(
     expires_at: expiresAt,
   });
   if (error) {
-    console.error("[check-in-token] insert failed", error);
-    return NextResponse.json({ error: "Could not create the check-in code" }, { status: 500 });
+    logError("volunteer_events.check_in_token_failed", error, {
+      request_id: requestId,
+      code: error.code ?? null,
+    });
+    return jsonError("Could not create the check-in code", 500, requestId, NO_STORE);
   }
 
   return NextResponse.json(
-    { token, expires_at: expiresAt },
-    { headers: { "Cache-Control": "no-store" } }
+    { token, expires_at: expiresAt, request_id: requestId },
+    { headers: withRequestId(NO_STORE, requestId) }
   );
 }

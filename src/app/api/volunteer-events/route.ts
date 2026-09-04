@@ -3,6 +3,13 @@ import { normalizeRole } from "@/lib/auth/roles";
 import { getLocalVolunteerEvents } from "@/lib/local-data";
 import { areLocalFixturesEnabled } from "@/lib/env";
 import { getRequestId, logError } from "@/lib/observability";
+import {
+  NO_STORE,
+  jsonError,
+  rateLimit,
+  requireSameOrigin,
+  withRequestId,
+} from "@/lib/security/http";
 import { parseVolunteerEventInput } from "@/lib/validation";
 import { projectHiddenLocation } from "@/lib/location-map";
 
@@ -68,13 +75,19 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const requestId = getRequestId(req.headers);
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "volunteer_events.post", limit: 20, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   try {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = await createServerSupabaseClient();
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return jsonError("Not authenticated", 401, requestId, NO_STORE);
     }
 
     const { data: profile, error: profileErr } = await supabase
@@ -84,35 +97,30 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (profileErr) {
-      return NextResponse.json({ error: profileErr.message }, { status: 500 });
+      logError("volunteer_events.profile_read_failed", profileErr, {
+        request_id: requestId,
+        code: profileErr.code ?? null,
+      });
+      return jsonError("Profile is temporarily unavailable", 500, requestId, NO_STORE);
     }
     if (!profile) {
-      return NextResponse.json(
-        { error: "Profile not found. Try signing out and back in." },
-        { status: 403 }
-      );
+      return jsonError("Profile setup is incomplete", 403, requestId, NO_STORE);
     }
     if (normalizeRole(profile.role) !== "ngo") {
-      return NextResponse.json({ error: "Only NGOs can create events" }, { status: 403 });
+      return jsonError("Only NGOs can create events", 403, requestId, NO_STORE);
     }
     if (!profile.institution_id) {
-      return NextResponse.json(
-        {
-          error:
-            "Your NGO account is not linked to an institution yet. Finish signup at /auth/setup or contact support.",
-        },
-        { status: 403 }
-      );
+      return jsonError("Institution setup is incomplete", 403, requestId, NO_STORE);
     }
 
     let rawBody: unknown;
     try {
       rawBody = await req.json();
     } catch {
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+      return jsonError("Invalid JSON", 400, requestId, NO_STORE);
     }
     const parsed = parseVolunteerEventInput(rawBody);
-    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    if (!parsed.ok) return jsonError(parsed.error, 400, requestId, NO_STORE);
     const { title, description, event_date, start_time, end_time, volunteers_needed, requirements } = parsed.value;
 
     const { data, error } = await supabase
@@ -152,9 +160,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ event: data });
+    return NextResponse.json(
+      { event: data, request_id: requestId },
+      { headers: withRequestId(NO_STORE, requestId) }
+    );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to create event";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    logError("volunteer_events.create_failed", e, { request_id: requestId });
+    return jsonError("Failed to create event", 500, requestId, NO_STORE);
   }
 }

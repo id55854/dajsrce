@@ -8,6 +8,7 @@ import {
   type AssociationDirectoryItem,
   type AssociationDirectoryResponse,
 } from "@/lib/association-registry";
+import { logError } from "@/lib/observability";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const dynamic = "force-dynamic";
@@ -89,10 +90,7 @@ export async function GET(req: NextRequest) {
     };
     return cachedJson(req, response, requestId);
   } catch (error) {
-    console.error("association_directory_query_failed", {
-      requestId,
-      message: error instanceof Error ? error.message : "unknown",
-    });
+    logError("association_directory_query_failed", error, { request_id: requestId });
     return NextResponse.json(
       { error: "The official organisation directory is temporarily unavailable", requestId },
       { status: 503, headers: { "Cache-Control": "no-store", "X-Request-Id": requestId } }

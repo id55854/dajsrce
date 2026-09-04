@@ -13,6 +13,8 @@ import {
 } from "@/components/ui";
 import { getCurrentUserProfile } from "@/lib/auth/server";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { logError } from "@/lib/observability";
+import { isUuid } from "@/lib/security/http";
 import { trustStatus, type PublicInstitutionDetail } from "@/lib/location-map";
 import { getTranslator } from "@/i18n/server";
 import type { DonationType, InstitutionCategory } from "@/lib/types";
@@ -90,6 +92,8 @@ type InstitutionPageData =
 
 const getInstitution = cache(
   async (id: string): Promise<InstitutionPageData> => {
+    if (!isUuid(id)) return { status: "missing" };
+
     try {
       const supabase = createPublicSupabaseClient();
       const { data, error } = await supabase.rpc("public_institution_detail_v1", {
@@ -129,9 +133,8 @@ const getInstitution = cache(
         })) as NeedCardNeed[],
       };
     } catch (error) {
-      console.error("institution_public_page_query_failed", {
+      logError("institution_public_page_query_failed", error, {
         institutionId: id,
-        message: error instanceof Error ? error.message : "unknown",
       });
       return { status: "error" };
     }

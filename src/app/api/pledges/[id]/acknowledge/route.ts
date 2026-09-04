@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getRequestId, logError } from "@/lib/observability";
+import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getRequestId(req.headers);
   const { id: pledgeId } = await params;
+  if (!isUuid(pledgeId)) {
+    return jsonError("Invalid pledge id", 400, requestId, NO_STORE);
+  }
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "pledges.acknowledge", limit: 60, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }
 
   let notes: string | undefined;
@@ -24,7 +35,7 @@ export async function POST(
   }
 
   if (notes != null && (typeof notes !== "string" || notes.length > 2000)) {
-    return NextResponse.json({ error: "notes must be at most 2000 characters" }, { status: 400 });
+    return jsonError("notes must be at most 2000 characters", 400, requestId, NO_STORE);
   }
 
   const { data, error } = await supabaseAdmin.rpc("acknowledge_pledge_transaction", {
@@ -35,7 +46,11 @@ export async function POST(
 
   if (error) {
     const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : 409;
-    return NextResponse.json({ error: "Pledge could not be acknowledged" }, { status });
+    logError("pledges.acknowledge_failed", error, {
+      request_id: requestId,
+      code: error.code ?? null,
+    });
+    return jsonError("Pledge could not be acknowledged", status, requestId, NO_STORE);
   }
 
   return NextResponse.json({ acknowledgement: data });

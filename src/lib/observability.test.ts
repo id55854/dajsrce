@@ -9,7 +9,7 @@ describe("observability helpers", () => {
     );
   });
 
-  it("emits structured errors without stack traces", () => {
+  it("emits structured errors without stack traces or raw messages", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     logError("test.failed", new Error("safe message"), { request_id: "request-1234" });
 
@@ -19,9 +19,9 @@ describe("observability helpers", () => {
       event: "test.failed",
       request_id: "request-1234",
       error_name: "Error",
-      error_message: "safe message",
     });
     expect(payload).not.toHaveProperty("stack");
+    expect(payload).not.toHaveProperty("error_message");
     spy.mockRestore();
   });
 });

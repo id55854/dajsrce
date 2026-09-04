@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { deliverNearbyNotificationJob, type NearbyNotificationJob } from "@/lib/notify-nearby";
 import { getRequestId, logError, logInfo } from "@/lib/observability";
 import { bearerMatchesSecret, getCronSecret } from "@/lib/security/runtime";
+import { rateLimit } from "@/lib/security/http";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const MAX_JOBS_PER_RUN = 20;
@@ -21,6 +22,9 @@ function isJob(value: unknown): value is NearbyNotificationJob {
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
+  const limited = rateLimit(req, { name: "cron.notification_jobs", limit: 20, windowMs: 60_000 }, requestId);
+  if (limited) return limited;
+
   const secret = getCronSecret();
   if (!secret) {
     logError("notification_jobs.cron_unconfigured", new Error("CRON_SECRET is missing"), {
@@ -74,7 +78,7 @@ export async function POST(req: NextRequest) {
         p_job_id: claim.data.id,
         p_succeeded: false,
         p_delivered_count: 0,
-        p_error: error instanceof Error ? error.message : "Unknown delivery failure",
+        p_error: "Notification delivery failed",
       });
       if (completion.error) {
         logError("notification_jobs.failure_state_failed", completion.error, {

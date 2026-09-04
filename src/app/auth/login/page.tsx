@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Chrome } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { safeInternalPath } from "@/lib/security/redirects";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   AUTH_NETWORK_ERROR,
@@ -36,8 +37,9 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const next = searchParams.get("next");
-  const nextQuery = next ? `?next=${encodeURIComponent(next)}` : "";
+  const rawNext = searchParams.get("next");
+  const next = safeInternalPath(rawNext);
+  const nextQuery = rawNext ? `?next=${encodeURIComponent(next)}` : "";
 
   useEffect(() => {
     if (searchParams.get("error") === "auth_failed") {
@@ -49,7 +51,7 @@ function LoginForm() {
     }
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
-      const target = searchParams.get("next") || "/dashboard";
+      const target = safeInternalPath(searchParams.get("next"));
       if (data.user) router.replace(target);
     });
   }, [searchParams, router]);
@@ -80,7 +82,7 @@ function LoginForm() {
       setCredentialError(true);
       return;
     }
-    router.push(searchParams.get("next") || "/dashboard");
+    router.push(safeInternalPath(searchParams.get("next")));
     router.refresh();
   }
 
@@ -98,7 +100,7 @@ function LoginForm() {
       const response = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(searchParams.get("next") || "/dashboard")}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeInternalPath(searchParams.get("next")))}`,
         },
       });
       if (response.error) failure = authErrorKey(response.error);

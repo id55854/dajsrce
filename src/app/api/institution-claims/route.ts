@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getRequestId, logError } from "@/lib/observability";
+import { rateLimit, requireSameOrigin } from "@/lib/security/http";
 import {
   claimErrorStatus,
   parseClaimRequestInput,
@@ -55,6 +56,11 @@ export async function GET(req: NextRequest) {
 /** Request a claim on one organisation in the published registry snapshot. */
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "institution_claims.post", limit: 10, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   const actorId = await requireActor();
   if (!actorId) {
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestId, logError } from "@/lib/observability";
+import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
@@ -34,6 +35,10 @@ export async function PATCH(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   const json = (body: unknown, status = 200) =>
     NextResponse.json(body, { status, headers: { "x-request-id": requestId } });
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "notifications.patch", limit: 120, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
 
   try {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
@@ -44,17 +49,22 @@ export async function PATCH(req: NextRequest) {
       return json({ error: "Not authenticated" }, 401);
     }
 
-    const body = await req.json();
+    let body: { id?: unknown; mark_all_read?: unknown };
+    try {
+      body = (await req.json()) as { id?: unknown; mark_all_read?: unknown };
+    } catch {
+      return jsonError("Invalid JSON", 400, requestId, NO_STORE);
+    }
     const { id, mark_all_read } = body;
 
-    if (mark_all_read) {
+    if (mark_all_read === true) {
       const { error } = await supabase
         .from("notifications")
         .update({ is_read: true })
         .eq("user_id", user.id)
         .eq("is_read", false);
       if (error) throw error;
-    } else if (id) {
+    } else if (isUuid(id)) {
       const { error } = await supabase
         .from("notifications")
         .update({ is_read: true })

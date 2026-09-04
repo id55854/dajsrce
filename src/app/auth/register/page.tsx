@@ -8,6 +8,7 @@ import { Button, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { evaluatePassword } from "@/lib/password-strength";
+import { safeInternalPath } from "@/lib/security/redirects";
 import type { UserRole } from "@/lib/types";
 import {
   AUTH_NETWORK_ERROR,
@@ -41,7 +42,8 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
 
   const nextParam = searchParams.get("next");
-  const nextQuery = nextParam ? `?next=${encodeURIComponent(nextParam)}` : "";
+  const safeNext = safeInternalPath(nextParam);
+  const nextQuery = nextParam ? `?next=${encodeURIComponent(safeNext)}` : "";
 
   // The name and email already on the form are what makes the deny-list
   // personal: a password built out of either is the first thing anyone guesses.
@@ -105,7 +107,7 @@ function RegisterForm() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(searchParams.get("next") || "/dashboard")}`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeInternalPath(searchParams.get("next")))}`,
           data: { name, role },
         },
       });
@@ -126,8 +128,7 @@ function RegisterForm() {
       // is never trusted from signup metadata. An NGO pick still has to run
       // through /auth/setup, which grants the role via complete_profile_setup
       // and then walks the applicant through the UDR_ID claim.
-      window.location.href =
-        role === "ngo" ? "/auth/setup" : searchParams.get("next") || "/dashboard";
+      window.location.href = role === "ngo" ? "/auth/setup" : safeNext;
       return;
     }
 

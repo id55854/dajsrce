@@ -7,6 +7,7 @@ import {
   type PublicMapCitiesResponse,
   type PublicMapCity,
 } from "@/lib/location-map";
+import { logError } from "@/lib/observability";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const dynamic = "force-dynamic";
@@ -93,10 +94,7 @@ export async function GET(req: NextRequest) {
       headers: { ...headers, "Content-Type": "application/json; charset=utf-8" },
     });
   } catch (error) {
-    console.error("public_map_cities_failed", {
-      requestId,
-      message: error instanceof Error ? error.message : "unknown",
-    });
+    logError("public_map_cities_failed", error, { request_id: requestId });
     return NextResponse.json(
       { error: "City list is temporarily unavailable", requestId },
       { status: 503, headers: { "Cache-Control": "no-store", "X-Request-Id": requestId } }

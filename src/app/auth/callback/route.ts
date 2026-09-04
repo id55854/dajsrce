@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizeRole, roleToDashboardPath } from "@/lib/auth/roles";
+import { safeInternalPath } from "@/lib/security/redirects";
 
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = safeInternalPath(searchParams.get("next"));
 
   if (code) {
     const supabase = await createServerSupabaseClient();

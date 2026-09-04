@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { getRequestId, logError } from "@/lib/observability";
+import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
 /**
  * The volunteer withdraws from an event they have not attended yet.
@@ -12,20 +12,25 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * checked-in refusal are decided inside the transaction.
  */
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getRequestId(req.headers);
   const { id: signupId } = await params;
-  if (!UUID.test(signupId)) {
-    return NextResponse.json({ error: "Invalid signup id" }, { status: 400 });
+  if (!isUuid(signupId)) {
+    return jsonError("Invalid signup id", 400, requestId, NO_STORE);
   }
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "volunteer_signups.delete", limit: 60, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
 
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }
 
   const { data, error } = await supabaseAdmin.rpc(
@@ -35,7 +40,11 @@ export async function DELETE(
 
   if (error) {
     const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : 409;
-    return NextResponse.json({ error: "Signup could not be cancelled" }, { status });
+    logError("volunteer_signups.cancel_failed", error, {
+      request_id: requestId,
+      code: error.code ?? null,
+    });
+    return jsonError("Signup could not be cancelled", status, requestId, NO_STORE);
   }
 
   return NextResponse.json({ ok: true, cancelled: data });

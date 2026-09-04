@@ -1,14 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getRequestId, logError } from "@/lib/observability";
+import { NO_STORE, jsonError } from "@/lib/security/http";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const requestId = getRequestId(req.headers);
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }
 
   const { data: profile } = await supabase
@@ -18,7 +21,7 @@ export async function GET() {
     .maybeSingle();
 
   if (!profile || profile.role !== "ngo" || !profile.institution_id) {
-    return NextResponse.json({ error: "Institution access required" }, { status: 403 });
+    return jsonError("Institution access required", 403, requestId, NO_STORE);
   }
 
   const instId = profile.institution_id;
@@ -31,7 +34,11 @@ export async function GET() {
     .limit(80);
 
   if (eErr) {
-    return NextResponse.json({ error: eErr.message }, { status: 500 });
+    logError("institution.volunteer_events_failed", eErr, {
+      request_id: requestId,
+      code: eErr.code ?? null,
+    });
+    return jsonError("Volunteer events are temporarily unavailable", 500, requestId, NO_STORE);
   }
 
   const eventIds = (events ?? []).map((e) => e.id);
@@ -50,7 +57,11 @@ export async function GET() {
     .order("id", { ascending: false });
 
   if (sErr) {
-    return NextResponse.json({ error: sErr.message }, { status: 500 });
+    logError("institution.volunteer_signups_failed", sErr, {
+      request_id: requestId,
+      code: sErr.code ?? null,
+    });
+    return jsonError("Volunteer signups are temporarily unavailable", 500, requestId, NO_STORE);
   }
 
   const userIds = Array.from(new Set((signups ?? []).map((s) => s.user_id)));

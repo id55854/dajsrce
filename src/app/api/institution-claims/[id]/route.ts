@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getRequestId, logError } from "@/lib/observability";
 import { claimErrorStatus } from "@/lib/institution-claims";
+import { isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,13 @@ export async function DELETE(
 ) {
   const requestId = getRequestId(req.headers);
   const { id } = await params;
+  if (!isUuid(id)) {
+    return jsonError("Invalid claim id", 400, requestId, NO_STORE);
+  }
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "institution_claims.delete", limit: 20, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
 
   const supabase = await createServerSupabaseClient();
   const {

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { bearerMatchesSecret, getCronSecret } from "@/lib/security/runtime";
+import { rateLimit } from "@/lib/security/http";
 import { getRequestId, logError, logInfo } from "@/lib/observability";
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
+  const limited = rateLimit(req, { name: "cron.auto_acknowledge", limit: 10, windowMs: 60_000 }, requestId);
+  if (limited) return limited;
+
   const secret = getCronSecret();
   if (!secret) {
     logError("auto_acknowledge.cron_unconfigured", new Error("CRON_SECRET is missing or weak"), {

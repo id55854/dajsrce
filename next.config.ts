@@ -20,6 +20,7 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   reactStrictMode: true,
   // The site's local Noto Sans build resolves its font files from this
   // package at runtime. Keeping it external prevents Webpack from parsing

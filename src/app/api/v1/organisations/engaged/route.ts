@@ -8,6 +8,7 @@ import {
   type EngagedAssociationItem,
   type EngagedDirectoryResponse,
 } from "@/lib/association-registry";
+import { logError } from "@/lib/observability";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const dynamic = "force-dynamic";
@@ -74,10 +75,7 @@ export async function GET(req: NextRequest) {
       headers: { ...headers, "Content-Type": "application/json; charset=utf-8" },
     });
   } catch (error) {
-    console.error("engaged_directory_query_failed", {
-      requestId,
-      message: error instanceof Error ? error.message : "unknown",
-    });
+    logError("engaged_directory_query_failed", error, { request_id: requestId });
     return NextResponse.json(
       { error: "The organisation list is temporarily unavailable", requestId },
       { status: 503, headers: { "Cache-Control": "no-store", "X-Request-Id": requestId } }

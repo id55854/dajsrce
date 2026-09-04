@@ -3,6 +3,14 @@ import { normalizeRole } from "@/lib/auth/roles";
 import { getLocalNeeds } from "@/lib/local-data";
 import { areLocalFixturesEnabled } from "@/lib/env";
 import { getRequestId, logError } from "@/lib/observability";
+import {
+  NO_STORE,
+  isUuid,
+  jsonError,
+  rateLimit,
+  requireSameOrigin,
+  withRequestId,
+} from "@/lib/security/http";
 import { DONATION_TYPES } from "@/lib/constants";
 import { parseBoundedLimit, parseNeedInput } from "@/lib/validation";
 import { projectHiddenLocation } from "@/lib/location-map";
@@ -36,6 +44,7 @@ export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   const donationType = searchParams.get("donation_type");
   const urgency = searchParams.get("urgency");
+  const institutionId = searchParams.get("institution_id");
   const limitResult = parseBoundedLimit(searchParams.get("limit"), 50, 100);
   if (!limitResult.ok) {
     return NextResponse.json({ error: limitResult.error, request_id: requestId }, { status: 400 });
@@ -45,6 +54,9 @@ export async function GET(req: NextRequest) {
   }
   if (urgency && !["routine", "needed_soon", "urgent"].includes(urgency)) {
     return NextResponse.json({ error: "urgency is invalid", request_id: requestId }, { status: 400 });
+  }
+  if (institutionId && !isUuid(institutionId)) {
+    return NextResponse.json({ error: "institution_id is invalid", request_id: requestId }, { status: 400 });
   }
 
   try {
@@ -64,7 +76,6 @@ export async function GET(req: NextRequest) {
 
     if (urgency) query = query.eq("urgency", urgency);
 
-    const institutionId = searchParams.get("institution_id");
     if (institutionId) query = query.eq("institution_id", institutionId);
 
     query = query.limit(limitResult.value);
@@ -87,7 +98,6 @@ export async function GET(req: NextRequest) {
   let needs = getLocalNeeds();
   if (donationType) needs = needs.filter((n) => n.donation_type === donationType);
   if (urgency) needs = needs.filter((n) => n.urgency === urgency);
-  const institutionId = searchParams.get("institution_id");
   if (institutionId) needs = needs.filter((n) => n.institution_id === institutionId);
   needs = needs.slice(0, limitResult.value);
 
@@ -98,13 +108,19 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const requestId = getRequestId(req.headers);
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "needs.post", limit: 20, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   try {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = await createServerSupabaseClient();
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return jsonError("Not authenticated", 401, requestId, NO_STORE);
     }
 
     const { data: profile, error: profileErr } = await supabase
@@ -114,35 +130,30 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (profileErr) {
-      return NextResponse.json({ error: profileErr.message }, { status: 500 });
+      logError("needs.profile_read_failed", profileErr, {
+        request_id: requestId,
+        code: profileErr.code ?? null,
+      });
+      return jsonError("Profile is temporarily unavailable", 500, requestId, NO_STORE);
     }
     if (!profile) {
-      return NextResponse.json(
-        { error: "Profile not found. Try signing out and back in." },
-        { status: 403 }
-      );
+      return jsonError("Profile setup is incomplete", 403, requestId, NO_STORE);
     }
     if (normalizeRole(profile.role) !== "ngo") {
-      return NextResponse.json({ error: "Only NGOs can post needs" }, { status: 403 });
+      return jsonError("Only NGOs can post needs", 403, requestId, NO_STORE);
     }
     if (!profile.institution_id) {
-      return NextResponse.json(
-        {
-          error:
-            "Your NGO account is not linked to an institution yet. Finish signup at /auth/setup or contact support.",
-        },
-        { status: 403 }
-      );
+      return jsonError("Institution setup is incomplete", 403, requestId, NO_STORE);
     }
 
     let rawBody: unknown;
     try {
       rawBody = await req.json();
     } catch {
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+      return jsonError("Invalid JSON", 400, requestId, NO_STORE);
     }
     const parsed = parseNeedInput(rawBody);
-    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    if (!parsed.ok) return jsonError(parsed.error, 400, requestId, NO_STORE);
     const { title, description, donation_type, urgency, quantity_needed } = parsed.value;
 
     const { data, error } = await supabase
@@ -180,9 +191,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ need: data });
+    return NextResponse.json(
+      { need: data, request_id: requestId },
+      { headers: withRequestId(NO_STORE, requestId) }
+    );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to create need";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    logError("needs.create_failed", e, { request_id: requestId });
+    return jsonError("Failed to create need", 500, requestId, NO_STORE);
   }
 }

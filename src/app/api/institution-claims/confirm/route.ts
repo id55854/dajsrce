@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { hashBearerToken } from "@/lib/security/runtime";
+import { rateLimit, requireSameOrigin } from "@/lib/security/http";
 import { getRequestId, logError } from "@/lib/observability";
 import { claimErrorStatus, isRawClaimToken } from "@/lib/institution-claims";
 
@@ -24,6 +25,10 @@ type Confirmation = {
  */
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
+  const blocked =
+    requireSameOrigin(req, requestId) ??
+    rateLimit(req, { name: "institution_claims.confirm", limit: 20, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
 
   let token = "";
   try {
