@@ -101,7 +101,7 @@ Never reuse a migration version. Add a new sortable timestamp migration for foll
 
 ## Environment and operations
 
-Required in production: Supabase URL/anon/service keys, HTTPS app URL and a 32+ character `CRON_SECRET`. Configure a POST-capable scheduler for:
+Required in production: Supabase URL/anon/service keys, HTTPS app URL and a 32+ character `CRON_SECRET`. The map basemap needs `NEXT_PUBLIC_CARTO_API_KEY` (free non-profit key from carto.com/basemaps/apikey; CARTO watermarks key-less tiles). Without it `src/lib/basemap.ts` falls back to OpenStreetMap raster tiles, which is fine for a clone or a short outage but not the intended production basemap. Configure a POST-capable scheduler for:
 
 - `POST /api/cron/auto-acknowledge`
 - `POST /api/cron/process-notification-jobs`

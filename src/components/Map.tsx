@@ -26,11 +26,19 @@ import {
   type PublicMapInstitution,
 } from "@/lib/location-map";
 import type { DonationType, InstitutionCategory } from "@/lib/types";
+import { basemapLayer, normalizeCartoApiKey } from "@/lib/basemap";
 import { getCategoryConfig } from "@/lib/constants";
 import { useLocale, useT } from "@/i18n/client";
 
-const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+/**
+ * Public by nature (it travels in every tile URL), so it is a NEXT_PUBLIC_
+ * value. The static reference is what lets Next inline it into the client
+ * bundle; see `src/lib/basemap.ts` for what happens when it is absent.
+ */
+const CARTO_API_KEY = normalizeCartoApiKey(process.env.NEXT_PUBLIC_CARTO_API_KEY);
+
+const DATA_ATTRIBUTION =
+  'Address points: <a href="https://geoportal.dgu.hr/services/atom/ad/xml">DGU INSPIRE Addresses</a> (2026-08-02)';
 
 export interface MapFilters {
   categories: InstitutionCategory[];
@@ -609,6 +617,7 @@ export default function Map({
 }: MapProps) {
   const t = useT();
   const dark = useDarkMode();
+  const basemap = useMemo(() => basemapLayer(dark, CARTO_API_KEY), [dark]);
   const compact = useCompactViewport();
   // Icons are token-driven and cached by (status, category, selected), so a
   // theme flip no longer remounts the marker set; only the tile layer changes.
@@ -640,10 +649,12 @@ export default function Map({
       aria-label={t("map_ui.map_aria")}
     >
       <TileLayer
-        key={dark ? "dark" : "light"}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> | Address points: <a href="https://geoportal.dgu.hr/services/atom/ad/xml">DGU INSPIRE Addresses</a> (2026-08-02)'
-        url={dark ? DARK_TILES : LIGHT_TILES}
-        subdomains="abcd"
+        key={`${basemap.provider}:${dark ? "dark" : "light"}`}
+        attribution={`${basemap.attribution} | ${DATA_ATTRIBUTION}`}
+        url={basemap.url}
+        subdomains={basemap.subdomains}
+        className={basemap.className}
+        maxZoom={basemap.maxZoom}
       />
       {/* Attribution leaves the bottom corner on phones, where the results
           sheet peeks over it, and stays bottom-right on the desktop split. */}

@@ -479,6 +479,17 @@ body {
   filter: contrast(1.3) brightness(0.9);
 }
 
+/*
+ * Dark mode for the OpenStreetMap fallback basemap, which ships one light
+ * style only. Leaflet puts this class on the tile container alone, so pins,
+ * clusters and controls in the other panes keep their real colours. The hue
+ * rotation after the inversion turns the inverted orange-ish land back
+ * towards the neutral greys of the CARTO dark style the UI was tuned for.
+ */
+.leaflet-layer.map-tiles-dark {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.92) saturate(0.55);
+}
+
 .dyslexia-font body,
 .dyslexia-font input,
 .dyslexia-font textarea,
