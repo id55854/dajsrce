@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
-import { NO_STORE, jsonError } from "@/lib/security/http";
+import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
 
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
+  const blocked = rateLimit(req, { name: "institution.pledges.get", limit: 60, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Read path: locally verified JWT, role from the profiles row under RLS.
+  const user = await getVerifiedClaims(supabase);
   if (!user) {
     return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }

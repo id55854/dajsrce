@@ -5,6 +5,7 @@ import {
   type PublicInstitutionDetail,
 } from "@/lib/location-map";
 import { logError } from "@/lib/observability";
+import { rateLimit } from "@/lib/security/http";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import type { DonationType, InstitutionCategory } from "@/lib/types";
 
@@ -139,6 +140,8 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const requestId = randomUUID();
+  const blocked = rateLimit(req, { name: "public.institution.detail", limit: 120, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
   const { id } = await context.params;
   if (!UUID_PATTERN.test(id)) {
     return NextResponse.json(

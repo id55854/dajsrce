@@ -385,9 +385,78 @@ export function parseMapQuery(searchParams: URLSearchParams): MapQuery {
   };
 }
 
+/**
+ * Grid step, in degrees, that map requests are snapped to at a zoom: a quarter
+ * of a 256 px tile, i.e. 64 screen pixels at any zoom.
+ */
+export function mapCacheGridStep(zoom: number): number {
+  return 360 / Math.pow(2, Math.trunc(zoom)) / 4;
+}
+
+/**
+ * Turn a viewport into the bbox that is actually requested.
+ *
+ * Every pan used to produce a new five-decimal bbox (about a metre), so every
+ * visitor and every nudge was its own CDN cache key and `s-maxage` never
+ * matched anything: one Postgres query per pan per visitor. Snapping the edges
+ * outward to a fixed grid means everyone looking at roughly the same place at
+ * the same zoom shares one key, so the CDN answers all but the first of them.
+ * The result is identical to the eye: clusters and pins do not change because
+ * the query edge moved by less than a tile.
+ *
+ * Snapping only ever grows the box. If that (or the raw viewport itself, on a
+ * very wide screen at a low zoom) exceeds the per-zoom area guard the API
+ * enforces, the box is shrunk about its centre to fit rather than rejected.
+ * The shrink is a pure function of the snapped box, so it stays shareable.
+ */
+export function normalizeBboxForRequest(bbox: MapBounds, zoom: number): MapBounds {
+  const step = mapCacheGridStep(zoom);
+  // The epsilon keeps an already grid-aligned edge on its own line despite
+  // floating-point division, so normalising twice gives the same box.
+  const snap = (value: number, direction: "floor" | "ceil") =>
+    (direction === "floor"
+      ? Math.floor(value / step + 1e-9)
+      : Math.ceil(value / step - 1e-9)) * step;
+
+  let minLng = Math.max(-180, snap(bbox[0], "floor"));
+  let minLat = Math.max(-90, snap(bbox[1], "floor"));
+  let maxLng = Math.min(180, snap(bbox[2], "ceil"));
+  let maxLat = Math.min(90, snap(bbox[3], "ceil"));
+
+  const maximumArea = maxBboxAreaForZoom(zoom) * 0.98;
+  const area = (maxLng - minLng) * (maxLat - minLat);
+  if (area > maximumArea) {
+    const scale = Math.sqrt(maximumArea / area);
+    const centerLng = (minLng + maxLng) / 2;
+    const centerLat = (minLat + maxLat) / 2;
+    const halfWidth = ((maxLng - minLng) * scale) / 2;
+    const halfHeight = ((maxLat - minLat) * scale) / 2;
+    // Re-snap inward so the fitted box still sits on the shared grid.
+    const fittedMinLng = snap(centerLng - halfWidth, "ceil");
+    const fittedMaxLng = snap(centerLng + halfWidth, "floor");
+    const fittedMinLat = snap(centerLat - halfHeight, "ceil");
+    const fittedMaxLat = snap(centerLat + halfHeight, "floor");
+    if (fittedMinLng < fittedMaxLng && fittedMinLat < fittedMaxLat) {
+      minLng = fittedMinLng;
+      maxLng = fittedMaxLng;
+      minLat = fittedMinLat;
+      maxLat = fittedMaxLat;
+    } else {
+      minLng = centerLng - halfWidth;
+      maxLng = centerLng + halfWidth;
+      minLat = centerLat - halfHeight;
+      maxLat = centerLat + halfHeight;
+    }
+  }
+
+  return [minLng, minLat, maxLng, maxLat];
+}
+
 export function buildMapQueryString(query: MapQuery): string {
   const params = new URLSearchParams({
-    bbox: query.bbox.map((value) => value.toFixed(5)).join(","),
+    bbox: normalizeBboxForRequest(query.bbox, query.zoom)
+      .map((value) => value.toFixed(5))
+      .join(","),
     zoom: String(query.zoom),
     limit: String(query.limit),
   });

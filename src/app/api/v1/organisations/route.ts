@@ -9,6 +9,7 @@ import {
   type AssociationDirectoryResponse,
 } from "@/lib/association-registry";
 import { logError } from "@/lib/observability";
+import { rateLimit } from "@/lib/security/http";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,10 @@ function cachedJson(req: NextRequest, body: AssociationDirectoryResponse, reques
 
 export async function GET(req: NextRequest) {
   const requestId = randomUUID();
+  // Responses are CDN-cached; this bounds what a cache-missing burst from one
+  // address can push through to the database.
+  const blocked = rateLimit(req, { name: "public.organisations", limit: 120, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
   let query;
   try {
     query = parseAssociationDirectoryQuery(req.nextUrl.searchParams);

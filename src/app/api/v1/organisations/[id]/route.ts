@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { AssociationRegistryEntry } from "@/lib/association-registry";
 import { logError } from "@/lib/observability";
+import { rateLimit } from "@/lib/security/http";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,8 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const requestId = randomUUID();
+  const blocked = rateLimit(req, { name: "public.organisations.detail", limit: 120, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
   const { id } = await context.params;
   if (!/^\d{1,20}$/.test(id)) {
     return NextResponse.json(

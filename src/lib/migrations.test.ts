@@ -30,6 +30,7 @@ const releaseMigrations = [
   "20260821130000_map_onboarded_requires_account.sql",
   "20260821140000_engaged_directory_requires_account.sql",
   "20260821150000_register_classified_only_default.sql",
+  "20260822240000_restore_public_city_directory.sql",
 ];
 
 describe("release migration contracts", () => {
@@ -343,6 +344,26 @@ describe("release migration contracts", () => {
     expect(sql).not.toMatch(/GRANT\s+SELECT\s+ON\s+public\.registry_location_centroids/i);
   });
 
+  it("restores the city directory without resurrecting a stale map overload", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260822240000_restore_public_city_directory.sql"),
+      "utf8"
+    );
+
+    expect(sql).toContain("registry_map_cities_v1");
+    expect(sql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.registry_map_cities_v1[\s\S]+TO anon, authenticated, service_role/i
+    );
+    // The reason this migration exists rather than a replay of 20260812100000:
+    // that file's map function predates p_only_onboarded and p_city, so
+    // recreating it now would leave an eleven-argument overload that ordinary
+    // map requests would resolve to.
+    expect(sql).not.toMatch(/CREATE OR REPLACE FUNCTION public\.map_association_registry_v[12]/i);
+    // Aggregate rows only; no per-organisation identity or point escapes.
+    expect(sql).not.toMatch(/SELECT[^;]*\bd\.udr_id\b[^;]*FROM public\.registry_directory_entries[^;]*GROUP BY/i);
+    expect(sql).not.toMatch(/GRANT\s+SELECT\s+ON\s+public\.registry_location_centroids/i);
+  });
+
   it("cancels pledges and signups without destroying evidence", async () => {
     const sql = await readFile(
       path.join(migrationsDirectory, "20260812110000_cancel_pledges_and_signups.sql"),
@@ -483,5 +504,59 @@ describe("release migration contracts", () => {
     expect(sql).toMatch(
       /GRANT EXECUTE ON FUNCTION public\.search_association_registry_v1\(text, text, text, text, text, text, integer, integer, boolean\) TO anon, authenticated, service_role/
     );
+  });
+
+  it("audits every pledge and volunteer state transition", async () => {
+    const sql = await readFile(
+      path.join(migrationsDirectory, "20260906120000_audit_transaction_coverage.sql"),
+      "utf8"
+    );
+    const functions = [
+      "create_pledge_transaction",
+      "mark_pledge_delivered_transaction",
+      "acknowledge_pledge_transaction",
+      "auto_acknowledge_due_pledges_transaction",
+      "cancel_pledge_transaction",
+      "volunteer_signup_transaction",
+      "cancel_volunteer_signup_transaction",
+      "volunteer_staff_checkin_transaction",
+      "volunteer_self_checkin_transaction",
+      "volunteer_checkout_transaction",
+    ];
+    for (const functionName of functions) {
+      const start = sql.indexOf(`CREATE OR REPLACE FUNCTION public.${functionName}(`);
+      expect(start, functionName).toBeGreaterThan(-1);
+      const end = sql.indexOf("$$;", start);
+      const body = sql.slice(start, end);
+      // Every completed state change appends exactly to the hash chain.
+      expect(body, functionName).toContain("PERFORM public.append_audit_log_event(");
+      // Service-only execution is restated, not merely inherited.
+      expect(sql).toMatch(
+        new RegExp(`REVOKE ALL ON FUNCTION public\\.${functionName}\\([^;]+FROM PUBLIC, anon, authenticated`, "i")
+      );
+      expect(sql).toMatch(
+        new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${functionName}\\([^;]+TO service_role`, "i")
+      );
+    }
+    for (const action of [
+      "'pledge.create'",
+      "'pledge.deliver'",
+      "'pledge.acknowledge'",
+      "'pledge.cancel'",
+      "'volunteer.signup'",
+      "'volunteer.signup_cancel'",
+      "'volunteer.checkin'",
+      "'volunteer.checkout'",
+    ]) {
+      expect(sql).toContain(action);
+    }
+    // Free text stays out of the audit trail: the payloads carry ids,
+    // quantities, hashes and timestamps, never the donor's message or notes.
+    expect(sql).not.toMatch(/jsonb_build_object\([^;]*'message', p_message/);
+    expect(sql).not.toMatch(/jsonb_build_object\([^;]*'notes', p_notes/);
+    // The trail is service-only reading too.
+    expect(sql).toContain("REVOKE SELECT ON public.audit_log FROM anon, authenticated;");
+    // The migration refuses to finish if a body lost its audit call.
+    expect(sql).toContain("audit coverage incomplete");
   });
 });

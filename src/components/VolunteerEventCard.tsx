@@ -76,10 +76,11 @@ export function VolunteerEventCard({
   async function handleSignUp() {
     if (readOnly) return;
     const supabase = createClient();
+    // UI gating only; the signup API re-verifies the token server-side.
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) {
       setAuthDialogOpen(true);
       return;
     }

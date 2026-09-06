@@ -541,6 +541,7 @@
   },
   "map_page": {
     "load_error": "Nismo uspjeli učitati ustanove. Pokušajte ponovno.",
+    "not_configured": "Karta se ne može učitati: ovo okruženje nema Supabase vjerodajnice. Kopirajte .env.example u .env.local, dodajte URL projekta i anon ključ pa ponovno pokrenite razvojni poslužitelj.",
     "detail_error": "Podaci o ustanovi nisu dostupni.",
     "geo_unsupported": "Ovaj preglednik ne podržava geolokaciju.",
     "geo_denied": "Pristup lokaciji je odbijen. Omogućite ga u postavkama preglednika.",

@@ -15,12 +15,28 @@ import {
   buttonClasses,
 } from "@/components/ui";
 
+/**
+ * The QR code carries the token in the URL fragment (`#token=...`), which the
+ * browser keeps to itself: it is never sent to the server, so it cannot land
+ * in request logs. Older printed codes used a `?token=` query parameter; that
+ * is still accepted so a poster does not stop working, and either form is
+ * scrubbed from the address bar as soon as it has been read.
+ */
+function readToken(searchParams: URLSearchParams): string | null {
+  if (typeof window !== "undefined" && window.location.hash.length > 1) {
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const fromFragment = fragment.get("token");
+    if (fromFragment) return fromFragment;
+  }
+  return searchParams.get("token");
+}
+
 function SelfCheckInInner() {
   const t = useT();
   const searchParams = useSearchParams();
   const [credentials] = useState(() => ({
     eventId: searchParams.get("event"),
-    token: searchParams.get("token"),
+    token: readToken(searchParams),
   }));
   const { eventId, token } = credentials;
   const [loading, setLoading] = useState(false);
@@ -31,6 +47,7 @@ function SelfCheckInInner() {
     if (!token || typeof window === "undefined") return;
     const url = new URL(window.location.href);
     url.searchParams.delete("token");
+    url.hash = "";
     window.history.replaceState(null, "", url.toString());
   }, [token]);
 

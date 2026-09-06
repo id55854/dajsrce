@@ -8,13 +8,32 @@ import {
   type PublicMapCity,
 } from "@/lib/location-map";
 import { logError } from "@/lib/observability";
-import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { rateLimit } from "@/lib/security/http";
+import {
+  PublicSupabaseConfigError,
+  createPublicSupabaseClient,
+  rpcWithTimeoutRetry,
+} from "@/lib/supabase/public";
 
 export const dynamic = "force-dynamic";
 
 // The published snapshot changes at most once a day, and the response is a
 // pure aggregate, so it is worth caching hard at the edge.
-const PUBLIC_CACHE_CONTROL = "public, s-maxage=3600, stale-while-revalidate=86400";
+const PUBLIC_CACHE_MAX_AGE_SECONDS = 3600;
+const PUBLIC_CACHE_CONTROL = `public, s-maxage=${PUBLIC_CACHE_MAX_AGE_SECONDS}, stale-while-revalidate=86400`;
+
+/**
+ * Same idea as the map route: the validator names the query and the current
+ * cache window rather than the body, so a revalidation inside the window is a
+ * 304 with no database work behind it.
+ */
+function semanticEtag(query: string, limit: number, now = Date.now()): string {
+  const window = Math.floor(now / (PUBLIC_CACHE_MAX_AGE_SECONDS * 1000));
+  const digest = createHash("sha256")
+    .update(`cities|${window}|${limit}|${query}`)
+    .digest("base64url");
+  return `W/"${digest}"`;
+}
 
 type RpcCityRow = {
   city: string | null;
@@ -38,6 +57,8 @@ function rowToCity(row: RpcCityRow): PublicMapCity | null {
 
 export async function GET(req: NextRequest) {
   const requestId = randomUUID();
+  const blocked = rateLimit(req, { name: "public.map.cities", limit: 120, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
   const rawQuery = req.nextUrl.searchParams.get("q") ?? "";
   const rawLimit = req.nextUrl.searchParams.get("limit");
 
@@ -63,12 +84,28 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const normalizedQuery = rawQuery.trim();
+  const etag = semanticEtag(normalizedQuery, parsedLimit);
+  const headers = {
+    "Cache-Control": PUBLIC_CACHE_CONTROL,
+    ETag: etag,
+    Vary: "Accept-Encoding",
+    "X-Request-Id": requestId,
+  };
+  if (req.headers.get("if-none-match") === etag) {
+    return new NextResponse(null, { status: 304, headers });
+  }
+
   try {
     const supabase = createPublicSupabaseClient();
-    const { data, error } = await supabase.rpc("registry_map_cities_v1", {
-      p_query: rawQuery.trim() || null,
-      p_limit: parsedLimit,
-    });
+    // Same cold-start protection as the map itself: this aggregates the whole
+    // published snapshot, and it is the other endpoint a first-time visitor
+    // reaches before anything is warm.
+    const { data, error } = await rpcWithTimeoutRetry(
+      supabase,
+      "registry_map_cities_v1",
+      { p_query: normalizedQuery || null, p_limit: parsedLimit }
+    );
     if (error) throw new Error(`City directory query failed (${error.code ?? "database"})`);
 
     const cities = ((data ?? []) as RpcCityRow[])
@@ -77,23 +114,30 @@ export async function GET(req: NextRequest) {
 
     const response: PublicMapCitiesResponse = { cities };
     const body = JSON.stringify(response);
-    const etag = `"${createHash("sha256").update(body).digest("base64url")}"`;
-    const headers = {
-      "Cache-Control": PUBLIC_CACHE_CONTROL,
-      ETag: etag,
-      Vary: "Accept-Encoding",
-      "X-Request-Id": requestId,
-    };
-
-    if (req.headers.get("if-none-match") === etag) {
-      return new NextResponse(null, { status: 304, headers });
-    }
 
     return new NextResponse(body, {
       status: 200,
       headers: { ...headers, "Content-Type": "application/json; charset=utf-8" },
     });
   } catch (error) {
+    if (error instanceof PublicSupabaseConfigError) {
+      // Same split as the map route: an unconfigured clone is told what is
+      // missing, production is told nothing it could not already infer.
+      logError("public_map_cities_not_configured", error, {
+        request_id: requestId,
+        missing: error.missing.join(","),
+      });
+      return NextResponse.json(
+        {
+          error: "City list is temporarily unavailable",
+          requestId,
+          ...(process.env.NODE_ENV === "production"
+            ? {}
+            : { code: "not_configured", missing: error.missing }),
+        },
+        { status: 503, headers: { "Cache-Control": "no-store", "X-Request-Id": requestId } }
+      );
+    }
     logError("public_map_cities_failed", error, { request_id: requestId });
     return NextResponse.json(
       { error: "City list is temporarily unavailable", requestId },

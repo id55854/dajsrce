@@ -46,7 +46,11 @@ The citizen donor-offer flow (`/offers`, `/offers/inbox`, the `/api/offers` rout
 - `map_association_registry_v*` clusters when matches exceed the feature budget, on a grid capped at 6x6. Detail is lazy-loaded.
 - pin fill encodes registry / onboarded / verified, not category; category moves to a disc inside the pin.
 - AbortController plus stale-sequence protection on viewport changes.
-- ETag and CDN cache for public map/card responses.
+- ETag and CDN cache for public map/card responses. The map and city ETags are derived from the canonical query plus the current `s-maxage` window (`W/"..."`), so a matching `If-None-Match` is a 304 before any RPC.
+- the client snaps the requested bbox outward to a quarter-tile grid per zoom (`normalizeBboxForRequest`) and shrinks about the centre when the per-zoom area guard would reject it; nearby viewports share one CDN key.
+- `/api/needs` and `/api/volunteer-events` GET read through the stateless anon client and are CDN-cached (`s-maxage=60`); anything that reads cookies stays `no-store`.
+- read-only authenticated paths (middleware, `/api/me`, own-pledge/signup/notification lists) verify the session JWT locally via `getVerifiedClaims` (ES256 + cached JWKS). Every mutation, review, token issuance and check-in keeps `auth.getUser()`.
+- every API route is rate limited per client address (`src/lib/security/http.ts`); unsafe methods also require same-origin.
 - `npm run perf:map:bundle` now weighs the chunks **exclusive** to the map route plus its dynamic imports (238,251 bytes against a 327,680 budget). It used to subtract only what the `/page` redirect loaded, so figures recorded before the map moved to `/` are not comparable. The script fails loudly if it measures nothing.
 - hidden locations use stable coarse `public_location`; filtering also uses that projection.
 
@@ -87,9 +91,11 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 31. `20260822180000_fix_place_cluster_column_ambiguity.sql`
 32. `20260822200000_place_cluster_tier_selection.sql`
 33. `20260822220000_place_cluster_single_pass_stats.sql`
-34. `20260823100000_remove_company_domain.sql`
-35. `20260824100000_activity_notifications.sql`
-36. `20260825120000_fix_map_onboarded_regression.sql`
+34. `20260822240000_restore_public_city_directory.sql`
+35. `20260823100000_remove_company_domain.sql`
+36. `20260824100000_activity_notifications.sql`
+37. `20260825120000_fix_map_onboarded_regression.sql`
+38. `20260906120000_audit_transaction_coverage.sql` (applied to production by hand on 2026-09-06)
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 
@@ -105,7 +111,7 @@ All three use `Authorization: Bearer <CRON_SECRET>`. `.github/workflows/notifica
 
 Institution-claim review needs `SUPABASE_SERVICE_ROLE_KEY`; the mailbox challenge additionally needs `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. A delivery failure is logged and never counts as verification.
 
-Two Supabase Auth settings are still unset and cannot be fixed in code; the client rules they mirror are bypassable by calling the Auth API directly. See `docs/AUTH_PASSWORD_OPERATIONS.md` for the exact paths and the release checklist: minimum password length raised to 12, and Leaked Password Protection enabled. MFA is documented there as a prerequisite toggle plus unbuilt enrolment/`aal2` work; do not record it as done.
+`docs/SUPABASE_OPERATIONS_CHECKLIST.md` lists the dashboard-side work (auth settings, MFA, backups, monitoring, buckets, RLS) with what was verified live on 2026-09-06. Two Supabase Auth settings are still unset and cannot be fixed in code; the client rules they mirror are bypassable by calling the Auth API directly. See `docs/AUTH_PASSWORD_OPERATIONS.md` for the exact paths and the release checklist: minimum password length raised to 12, and Leaked Password Protection enabled. MFA is documented there as a prerequisite toggle plus unbuilt enrolment/`aal2` work; do not record it as done.
 
 Before release, restore a production backup into staging, apply migrations, exercise RLS/RPC flows, run the full check/build/audit and monitor dead notification jobs and failed artifacts. See the complete runbook in `TECHNICAL_IMPLEMENTATION.md`.
 

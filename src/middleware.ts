@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { getVerifiedClaims } from "@/lib/auth/claims";
 import { normalizeRole } from "@/lib/auth/roles";
 
 export async function middleware(request: NextRequest) {
@@ -40,9 +41,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // This guard runs on every dashboard navigation. The JWT is verified locally
+  // against the project's cached JWKS instead of a round trip to Supabase
+  // Auth; the profile row below, not the token, still decides the role. A
+  // revoked session is honoured here once its token expires (1 h); every
+  // state-changing API route re-checks with auth.getUser().
+  const user = await getVerifiedClaims(supabase);
 
   const pathname = request.nextUrl.pathname;
   const requiresAuth = pathname.startsWith("/dashboard");
@@ -95,8 +99,8 @@ export async function middleware(request: NextRequest) {
     // for good and no one can be trapped in a loop.
     if (
       role === "individual" &&
-      user.user_metadata?.role === "ngo" &&
-      user.user_metadata?.setup_completed !== true
+      user.userMetadata.role === "ngo" &&
+      user.userMetadata.setup_completed !== true
     ) {
       return NextResponse.redirect(new URL("/auth/setup", request.url));
     }

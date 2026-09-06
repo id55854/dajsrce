@@ -14,6 +14,8 @@ import {
 import { DONATION_TYPES } from "@/lib/constants";
 import { parseBoundedLimit, parseNeedInput } from "@/lib/validation";
 import { projectHiddenLocation } from "@/lib/location-map";
+import { publicListResponse } from "@/lib/public-list-response";
+import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 function publicFixtureNeed(need: ReturnType<typeof getLocalNeeds>[number]) {
   const institution = need.institution;
@@ -59,9 +61,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "institution_id is invalid", request_id: requestId }, { status: 400 });
   }
 
+  const blocked = rateLimit(req, { name: "needs.get", limit: 120, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   try {
-    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
-    const supabase = await createServerSupabaseClient();
+    // The open-needs list is the same for every visitor (RLS: needs are
+    // viewable by everyone, institutions expose only their public projection
+    // columns). Reading it through the stateless anon client keeps cookies out
+    // of the request, which is what lets the CDN hold one copy for everyone
+    // instead of one round trip to Postgres per visitor.
+    const supabase = createPublicSupabaseClient();
 
     let query = supabase
       .from("needs")
@@ -83,7 +92,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query;
     if (error) throw error;
     if (data) {
-      return NextResponse.json({ needs: data });
+      return publicListResponse(req, { needs: data }, requestId);
     }
   } catch (error) {
     logError("needs.list_failed", error, { request_id: requestId });

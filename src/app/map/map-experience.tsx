@@ -452,9 +452,17 @@ function MapSurface() {
         );
         const result = (await response.json()) as PublicMapResponse & {
           error?: string;
+          code?: string;
         };
         if (!response.ok) {
-          throw new Error("map_page.load_error");
+          // The route only sends `not_configured` outside production, so this
+          // branch is a developer's missing `.env.local` and says so, instead
+          // of blaming a server that was never contacted.
+          throw new Error(
+            result.code === "not_configured"
+              ? "map_page.not_configured"
+              : "map_page.load_error"
+          );
         }
         if (controller.signal.aborted || sequence !== requestSequenceRef.current) return;
         setFeatures(result.features);

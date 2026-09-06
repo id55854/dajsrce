@@ -68,6 +68,30 @@ export function getProductionEnvironmentIssues(
   return issues;
 }
 
+/**
+ * The two variables every anonymous read path needs, and which of them this
+ * process is missing or has left on an `.env.example` placeholder.
+ *
+ * `.env.local` is git-ignored, so a fresh clone can only ever get one by hand.
+ * Until it does, the public map, the city directory and every public detail
+ * page fail exactly the way a database outage fails, and a new contributor
+ * reads an empty map as "the server is down" rather than "I have no
+ * credentials". Naming the gap is what separates the two.
+ */
+export const PUBLIC_SUPABASE_KEYS = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+] as const;
+
+export function missingPublicSupabaseKeys(
+  env: RuntimeEnvironment = process.env
+): string[] {
+  return PUBLIC_SUPABASE_KEYS.filter((key) => {
+    const value = valueOf(env, key);
+    return !value || isPlaceholder(value);
+  });
+}
+
 /** Local fixtures are explicit development data, never a production failover. */
 export function areLocalFixturesEnabled(env: RuntimeEnvironment = process.env): boolean {
   return env.NODE_ENV !== "production" && env.ALLOW_LOCAL_FIXTURES === "true";

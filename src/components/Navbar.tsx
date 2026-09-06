@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { fetchMe, invalidateMe } from "@/lib/me-client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 import type { Notification } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
@@ -257,11 +258,16 @@ export function Navbar() {
     }
 
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
+    // The navbar only needs to know whether a session exists; reading it from
+    // local storage costs nothing, where getUser() was one Supabase Auth round
+    // trip per page view for every signed-in visitor. Every API this session
+    // then calls verifies the token itself.
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      invalidateMe();
       setUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
@@ -273,17 +279,14 @@ export function Navbar() {
       return;
     }
     let cancelled = false;
-    fetch("/api/me", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { profile?: { name: string; email: string; role: string } } | null) => {
-        if (cancelled || !data?.profile) return;
-        setMeProfile({
-          name: data.profile.name,
-          email: data.profile.email,
-          role: data.profile.role,
-        });
-      })
-      .catch(() => {});
+    fetchMe().then((profile) => {
+      if (cancelled || !profile) return;
+      setMeProfile({
+        name: profile.name,
+        email: profile.email,
+        role: profile.role,
+      });
+    });
     return () => {
       cancelled = true;
     };

@@ -2,10 +2,16 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const rpc = vi.fn();
+let clientFactory: () => { rpc: typeof rpc } = () => ({ rpc });
 
-vi.mock("@/lib/supabase/public", () => ({
-  createPublicSupabaseClient: () => ({ rpc }),
+// The real module is spread back in so `PublicSupabaseConfigError` stays the
+// same class the route compares against; only the client itself is faked.
+vi.mock("@/lib/supabase/public", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/supabase/public")>()),
+  createPublicSupabaseClient: () => clientFactory(),
 }));
+
+import { PublicSupabaseConfigError } from "@/lib/supabase/public";
 
 import { GET } from "@/app/api/v1/map/institutions/route";
 
@@ -13,7 +19,10 @@ const url =
   "http://localhost/api/v1/map/institutions?bbox=13,42,20,47&zoom=7&limit=150";
 
 describe("GET /api/v1/map/institutions", () => {
-  beforeEach(() => rpc.mockReset());
+  beforeEach(() => {
+    rpc.mockReset();
+    clientFactory = () => ({ rpc });
+  });
 
   it("returns a narrow, cacheable and explicitly bounded contract", async () => {
     rpc.mockResolvedValue({
@@ -56,7 +65,7 @@ describe("GET /api/v1/map/institutions", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toContain("s-maxage=300");
-    expect(response.headers.get("etag")).toMatch(/^".+"$/);
+    expect(response.headers.get("etag")).toMatch(/^W\/".+"$/);
     expect(response.headers.get("x-request-id")).toBeTruthy();
     expect(payload).toEqual({
       version: 2,
@@ -200,6 +209,25 @@ describe("GET /api/v1/map/institutions", () => {
 
     expect(second.status).toBe(304);
     expect(second.headers.get("etag")).toBe(etag);
+    // The validator is derived from the query and cache window, so the
+    // revalidation never reached the database.
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares one ETag across equivalent viewports and filters", async () => {
+    rpc.mockResolvedValue({ error: null, data: [] });
+    const spaced = await GET(
+      new NextRequest(
+        "http://localhost/api/v1/map/institutions?bbox=13.00001,42.00002,20.00003,47.00004&zoom=7&limit=150&categories=soup_kitchen,caritas"
+      )
+    );
+    const reordered = await GET(
+      new NextRequest(
+        "http://localhost/api/v1/map/institutions?categories=caritas,soup_kitchen&zoom=7&bbox=13,42,20,47&limit=150"
+      )
+    );
+
+    expect(spaced.headers.get("etag")).toBe(reordered.headers.get("etag"));
   });
 
   it("rejects an invalid query before touching the database", async () => {
@@ -294,5 +322,65 @@ describe("GET /api/v1/map/institutions", () => {
       registryId: "12345",
       locationPrecision: "city",
     });
+  });
+  it("retries once when the statement timeout cancels a cold query", async () => {
+    // Supabase caps `anon` statements at three seconds, and the first
+    // country-wide query against an idle project spends that budget warming
+    // indexes. Production never sees it because the CDN serves the warm copy;
+    // a dev server has no CDN, so without the retry every boot opens empty.
+    rpc
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: "57014", message: "canceling statement due to statement timeout" },
+      })
+      .mockResolvedValueOnce({ data: [], error: null });
+
+    const response = await GET(new NextRequest(url));
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc).toHaveBeenNthCalledWith(2, "map_association_registry_v2", expect.any(Object));
+  });
+
+  it("reports a persistent timeout rather than retrying forever", async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: { code: "57014", message: "canceling statement due to statement timeout" },
+    });
+
+    const response = await GET(new NextRequest(url));
+
+    expect(response.status).toBe(503);
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("names the missing variables when the environment has no credentials", async () => {
+    clientFactory = () => {
+      throw new PublicSupabaseConfigError(["NEXT_PUBLIC_SUPABASE_URL"]);
+    };
+
+    const response = await GET(new NextRequest(url));
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(payload.code).toBe("not_configured");
+    expect(payload.missing).toEqual(["NEXT_PUBLIC_SUPABASE_URL"]);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("withholds the configuration detail from production responses", async () => {
+    clientFactory = () => {
+      throw new PublicSupabaseConfigError(["NEXT_PUBLIC_SUPABASE_ANON_KEY"]);
+    };
+    vi.stubEnv("NODE_ENV", "production");
+
+    try {
+      const payload = await (await GET(new NextRequest(url))).json();
+      expect(payload.code).toBeUndefined();
+      expect(payload.missing).toBeUndefined();
+      expect(payload.error).toBe("Institution locations are temporarily unavailable");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

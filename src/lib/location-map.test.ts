@@ -5,10 +5,14 @@ import {
   MAP_LIST_RENDER_LIMIT,
   MapQueryValidationError,
   buildMapQueryString,
+  mapCacheGridStep,
+  maxBboxAreaForZoom,
+  normalizeBboxForRequest,
   normalizeMapSearch,
   parseMapQuery,
   projectHiddenLocation,
   SOCIAL_MAP_CATEGORIES,
+  type MapBounds,
   type PublicMapResponse,
 } from "@/lib/location-map";
 
@@ -111,6 +115,58 @@ describe("map query contract", () => {
     expect(output).toContain("categories=caritas%2Csoup_kitchen");
     expect(output).toContain("limit=150");
     expect(output).toBe(buildMapQueryString(query));
+  });
+
+  it("snaps nearby viewports onto one shared request", () => {
+    const base = parseMapQuery(new URLSearchParams({ bbox: "15.9,45.7,16.1,45.9", zoom: "12" }));
+    const nudged = parseMapQuery(
+      new URLSearchParams({ bbox: "15.9004,45.7003,16.1002,45.9001", zoom: "12" })
+    );
+    expect(buildMapQueryString(nudged)).toBe(buildMapQueryString(base));
+
+    // The snapped box only ever grows, so nothing visible is cut off.
+    const [minLng, minLat, maxLng, maxLat] = normalizeBboxForRequest(base.bbox, 12);
+    expect(minLng).toBeLessThanOrEqual(15.9);
+    expect(minLat).toBeLessThanOrEqual(45.7);
+    expect(maxLng).toBeGreaterThanOrEqual(16.1);
+    expect(maxLat).toBeGreaterThanOrEqual(45.9);
+    // ...and by less than one grid step (a quarter tile) per edge.
+    const step = mapCacheGridStep(12);
+    expect(15.9 - minLng).toBeLessThan(step);
+    expect(maxLng - 16.1).toBeLessThan(step);
+  });
+
+  it("keeps a snapped or oversized viewport inside the API's area guard", () => {
+    // A 1920 px wide desktop at zoom 7 spans more than the guard allows.
+    const wideDesktop: MapBounds = [5.85, 41.3, 26.95, 49.1];
+    const fitted = normalizeBboxForRequest(wideDesktop, 7);
+    const area = (fitted[2] - fitted[0]) * (fitted[3] - fitted[1]);
+    expect(area).toBeLessThanOrEqual(maxBboxAreaForZoom(7));
+    // Centre is preserved to within one grid step (the inward re-snap may
+    // move each edge by less than a step), so the visitor still sees what
+    // they pointed at.
+    const step7 = mapCacheGridStep(7);
+    expect(Math.abs((fitted[0] + fitted[2]) / 2 - (5.85 + 26.95) / 2)).toBeLessThanOrEqual(step7);
+    expect(Math.abs((fitted[1] + fitted[3]) / 2 - (41.3 + 49.1) / 2)).toBeLessThanOrEqual(step7);
+
+    // Whatever the client sends after normalisation must parse on the server.
+    const params = new URLSearchParams({
+      bbox: fitted.map((value) => value.toFixed(5)).join(","),
+      zoom: "7",
+    });
+    expect(() => parseMapQuery(params)).not.toThrow();
+
+    // The same holds for every zoom level with a box right at the guard.
+    for (let zoom = 6; zoom <= 19; zoom += 1) {
+      const side = Math.sqrt(maxBboxAreaForZoom(zoom));
+      const box: MapBounds = [16 - side / 2, 45 - side / 2, 16 + side / 2, 45 + side / 2];
+      const normalized = normalizeBboxForRequest(box, zoom);
+      const query = new URLSearchParams({
+        bbox: normalized.map((value) => value.toFixed(5)).join(","),
+        zoom: String(zoom),
+      });
+      expect(() => parseMapQuery(query), `zoom ${zoom}`).not.toThrow();
+    }
   });
 
   it("normalizes wildcard characters before an indexed search", () => {

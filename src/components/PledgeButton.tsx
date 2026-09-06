@@ -115,10 +115,12 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
         icon={<HeartHandshake className="h-4 w-4" strokeWidth={2} aria-hidden="true" />}
         onClick={async () => {
           const supabase = createClient();
+          // UI gating only (open the dialog or ask to sign in), so the local
+          // session is enough; the pledge API re-verifies the token itself.
           const {
-            data: { user },
-          } = await supabase.auth.getUser();
-          if (!user) {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session?.user) {
             setAuthDialogOpen(true);
             return;
           }

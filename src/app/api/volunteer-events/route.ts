@@ -12,6 +12,8 @@ import {
 } from "@/lib/security/http";
 import { parseVolunteerEventInput } from "@/lib/validation";
 import { projectHiddenLocation } from "@/lib/location-map";
+import { publicListResponse } from "@/lib/public-list-response";
+import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 function publicFixtureEvent(event: ReturnType<typeof getLocalVolunteerEvents>[number]) {
   const institution = event.institution;
@@ -39,9 +41,13 @@ function publicFixtureEvent(event: ReturnType<typeof getLocalVolunteerEvents>[nu
 
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
+  const blocked = rateLimit(req, { name: "volunteer_events.get", limit: 120, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   try {
-    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
-    const supabase = await createServerSupabaseClient();
+    // Public list, identical for every visitor: read it through the
+    // stateless anon client so the CDN can cache it (see /api/needs).
+    const supabase = createPublicSupabaseClient();
 
     const { data, error } = await supabase
       .from("volunteer_events")
@@ -52,7 +58,7 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
     if (data) {
-      return NextResponse.json({ events: data });
+      return publicListResponse(req, { events: data }, requestId);
     }
   } catch (error) {
     logError("volunteer_events.list_failed", error, { request_id: requestId });

@@ -8,6 +8,7 @@ import { QuickStartWizard } from "@/components/QuickStartWizard";
 import { NeedsClient } from "@/app/needs/needs-client";
 import { NewNeedForm } from "@/components/NewNeedForm";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { fetchMe } from "@/lib/me-client";
 import { Button, Card, PageHeader, PageShell, Skeleton } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
@@ -67,14 +68,13 @@ function DonateExperience() {
     if (!isSupabaseConfigured) return;
     let cancelled = false;
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (cancelled || !data.user) return;
-      fetch("/api/me", { credentials: "include" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((json: { profile?: { role: string } } | null) => {
-          if (!cancelled && json?.profile?.role === "ngo") setIsNgo(true);
-        })
-        .catch(() => {});
+    // Local session read (no Auth round trip); the shared /api/me memo means
+    // the Navbar and this page pay for one profile lookup between them.
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled || !data.session?.user) return;
+      fetchMe().then((profile) => {
+        if (!cancelled && profile?.role === "ngo") setIsNgo(true);
+      });
     });
     return () => {
       cancelled = true;

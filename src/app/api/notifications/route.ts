@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   const json = (body: unknown, status = 200) =>
-    NextResponse.json(body, { status, headers: { "x-request-id": requestId } });
+    NextResponse.json(body, { status, headers: { "x-request-id": requestId, ...NO_STORE } });
+  const blocked = rateLimit(req, { name: "notifications.get", limit: 120, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
 
   try {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // Read path: the JWT is verified locally; RLS scopes the rows to the user.
+    const user = await getVerifiedClaims(supabase);
     if (!user) {
       return json({ notifications: [] });
     }

@@ -541,6 +541,7 @@
   },
   "map_page": {
     "load_error": "We couldn't load institutions. Please try again.",
+    "not_configured": "The map can't load: this environment has no Supabase credentials. Copy .env.example to .env.local, add your project URL and anon key, then restart the dev server.",
     "detail_error": "Institution details are unavailable.",
     "geo_unsupported": "Geolocation is not supported by this browser.",
     "geo_denied": "Location permission was denied. Enable it in your browser settings.",

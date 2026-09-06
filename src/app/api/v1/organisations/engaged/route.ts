@@ -9,6 +9,7 @@ import {
   type EngagedDirectoryResponse,
 } from "@/lib/association-registry";
 import { logError } from "@/lib/observability";
+import { rateLimit } from "@/lib/security/http";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,8 @@ type EngagedRpcResponse = {
 
 export async function GET(req: NextRequest) {
   const requestId = randomUUID();
+  const blocked = rateLimit(req, { name: "public.organisations.engaged", limit: 120, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
   let query;
   try {
     query = parseEngagedDirectoryQuery(req.nextUrl.searchParams);

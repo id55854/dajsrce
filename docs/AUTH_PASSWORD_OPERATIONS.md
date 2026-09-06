@@ -5,6 +5,44 @@ application code. It was deliberately left out of the code change because
 faking it in the client would be security theatre; the client can be bypassed
 entirely by calling the Supabase Auth API directly.
 
+## Live values, read from the project on 2026-09-06
+
+Read through the Management API (`GET /v1/projects/{ref}/config/auth`), not
+from memory. Project `wbxvpdbhddespdsscsnw`.
+
+| Setting | Live value | Target | Section |
+| --- | --- | --- | --- |
+| `password_min_length` | `6` | `12` | 1 |
+| `password_hibp_enabled` | `false` | `true` | 2 |
+| `password_required_characters` | none | none (deliberate) | 1 |
+| `mailer_autoconfirm` | `true` (e-mail confirmation OFF) | `false` | 4 |
+| `security_captcha_enabled` | `false` | decide (hCaptcha/Turnstile) | 4 |
+| `mfa_totp_enroll_enabled` / `mfa_totp_verify_enabled` | `true` | keep; app-side enrolment still unbuilt | 3 |
+| JWT signing key | ES256 in use, HS256 previously used | keep asymmetric | note below |
+
+The three rows marked as gaps can be closed in one call, from a shell that has
+`SUPABASE_ACCESS_TOKEN` (the same token `.env.local` already holds):
+
+```bash
+curl -X PATCH "https://api.supabase.com/v1/projects/wbxvpdbhddespdsscsnw/config/auth" \
+  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"password_min_length":12,"password_hibp_enabled":true,"mailer_autoconfirm":false}'
+```
+
+Turning `mailer_autoconfirm` off is a product change as well as a security one:
+new e-mail/password accounts must click the confirmation link before their
+first sign-in. The register page already sends `emailRedirectTo` to
+`/auth/callback`, so the flow exists; test it on staging first and drop that
+key from the payload if you want the two password settings alone.
+
+**Signing key note.** Because the in-use key is asymmetric (ES256), the
+application verifies session JWTs locally on read-only paths
+(`src/lib/auth/claims.ts`) instead of calling Supabase Auth on every request.
+Do not roll the project back to a symmetric (HS256) key without reading that
+file: the code still works (it falls back to a network check), but the
+performance reason for it disappears.
+
 ## Background: why there is no "AES for passwords" item here
 
 The original request was to "switch passwords to a standard like AES". That is

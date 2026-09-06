@@ -73,7 +73,11 @@ export function InstitutionVolunteersClient({
         if (!tokenResponse.ok) continue;
         const tokenData = (await tokenResponse.json()) as { token?: string };
         if (!tokenData.token) continue;
-        const url = `${origin}/volunteer/self-checkin?event=${encodeURIComponent(eid)}&token=${encodeURIComponent(tokenData.token)}`;
+        // The token rides in the URL fragment: browsers never send a fragment
+        // to the server, so it stays out of request logs, CDN logs and
+        // Referer headers. The self-check-in page reads it client-side and
+        // posts it in a request body.
+        const url = `${origin}/volunteer/self-checkin?event=${encodeURIComponent(eid)}#token=${encodeURIComponent(tokenData.token)}`;
         entries[eid] = await QRCode.toDataURL(url, { width: 160, margin: 1 });
       }
       setQrByEvent(entries);

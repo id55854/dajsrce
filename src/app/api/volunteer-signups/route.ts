@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const requestId = getRequestId(req.headers);
+  const blocked = rateLimit(req, { name: "volunteer_signups.get", limit: 60, windowMs: 60_000 }, requestId);
+  if (blocked) return blocked;
+
   try {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // Read path: the JWT is verified locally; RLS scopes the rows to the user.
+    const user = await getVerifiedClaims(supabase);
     if (!user) {
-      return NextResponse.json({ signups: [] });
+      return NextResponse.json({ signups: [] }, { headers: NO_STORE });
     }
 
     const { data, error } = await supabase

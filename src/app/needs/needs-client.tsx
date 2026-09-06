@@ -14,6 +14,7 @@ import {
   type YourPledgeRow,
 } from "@/components/YourPledgesSection";
 import { createClient } from "@/lib/supabase/client";
+import { fetchMe } from "@/lib/me-client";
 import { useLocale, useT } from "@/i18n/client";
 import {
   Button,
@@ -92,25 +93,21 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     let cancelled = false;
     (async () => {
       const supabase = createClient();
+      // Local session read; the shared /api/me memo dedupes the profile fetch
+      // with the Navbar. Both are UI hints only: the APIs decide.
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
       if (cancelled) return;
-      if (!user) {
+      if (!session?.user) {
         setLoggedIn(false);
         setPledgesLoading(false);
         return;
       }
       setLoggedIn(true);
-      try {
-        const me = await fetch("/api/me", { credentials: "include" });
-        if (me.ok) {
-          const json = (await me.json()) as { profile?: { role?: string } } | null;
-          if (!cancelled && json?.profile?.role === "ngo") setIsNgo(true);
-        }
-      } catch {
-        // A failed role lookup leaves the CTA in place; the API still refuses.
-      }
+      const profile = await fetchMe();
+      // A failed role lookup leaves the CTA in place; the API still refuses.
+      if (!cancelled && profile?.role === "ngo") setIsNgo(true);
       try {
         const res = await fetch("/api/pledges", { credentials: "include" });
         if (res.ok) {
