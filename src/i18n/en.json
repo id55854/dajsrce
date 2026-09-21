@@ -304,6 +304,7 @@
     "pledges_empty": "No pledges yet.",
     "pledges_need": "Need",
     "pledges_amount": "Amount (EUR)",
+    "pledges_count": "{count} pledged",
     "loading": "Loading…",
     "dashboard_title": "Institution Management",
     "dashboard_subtitle": "Manage needs, events, and activities.",

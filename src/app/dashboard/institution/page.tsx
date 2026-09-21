@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useId, useState } from "react";
+import { Suspense, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -14,6 +14,11 @@ import { InstitutionVolunteersClient } from "./volunteers/institution-volunteers
 import { useT } from "@/i18n/client";
 import { NewNeedForm } from "@/components/NewNeedForm";
 import { SignOutButton } from "@/components/SignOutButton";
+import {
+  InstitutionDetailPanel,
+  InstitutionDetailSkeleton,
+} from "@/components/InstitutionDetailPanel";
+import type { PublicInstitutionDetail } from "@/lib/location-map";
 import {
   Button,
   Card,
@@ -56,6 +61,27 @@ function InstitutionDashboardExperience() {
 
   const searchParams = useSearchParams();
   const view = parseView(searchParams.get("view"));
+
+  const [institution, setInstitution] = useState<PublicInstitutionDetail | null>(null);
+  const [institutionLoading, setInstitutionLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/institution", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { institution?: PublicInstitutionDetail | null } | null) => {
+        if (!cancelled) setInstitution(json?.institution ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setInstitution(null);
+      })
+      .finally(() => {
+        if (!cancelled) setInstitutionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const needPanelId = useId();
   const eventPanelId = useId();
@@ -121,6 +147,15 @@ function InstitutionDashboardExperience() {
       />
 
       <div className="space-y-6">
+        {/* Who the account is acting as, laid out the same way a visitor sees
+            it on the public page: the console below had every lever for
+            running the organisation but never said which one it was. */}
+        {institutionLoading ? (
+          <InstitutionDetailSkeleton />
+        ) : institution ? (
+          <InstitutionDetailPanel institution={institution} showCloseButton={false} />
+        ) : null}
+
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             size="lg"

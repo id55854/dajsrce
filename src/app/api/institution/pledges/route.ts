@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
@@ -45,6 +46,7 @@ export async function GET(req: NextRequest) {
     .select(
       `
       id,
+      user_id,
       need_id,
       quantity,
       amount_eur,
@@ -64,5 +66,21 @@ export async function GET(req: NextRequest) {
     return jsonError("Pledges are temporarily unavailable", 500, requestId, NO_STORE);
   }
 
-  return NextResponse.json({ pledges: pledges ?? [] });
+  // Same reason as the volunteer roster: RLS on `profiles` scopes a normal
+  // read to the caller's own row, so the donor's name/email is looked up with
+  // the admin client instead.
+  const userIds = Array.from(new Set((pledges ?? []).map((p) => p.user_id)));
+  const { data: donorProfiles } =
+    userIds.length > 0
+      ? await supabaseAdmin.from("profiles").select("id, name, email").in("id", userIds)
+      : { data: [] };
+
+  const byUser = new Map((donorProfiles ?? []).map((p) => [p.id, p]));
+
+  const enriched = (pledges ?? []).map((p) => ({
+    ...p,
+    donor: byUser.get(p.user_id) ?? { id: p.user_id, name: "Donor", email: "" },
+  }));
+
+  return NextResponse.json({ pledges: enriched });
 }

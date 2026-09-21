@@ -106,7 +106,6 @@ function markerHtml({
   selected = false,
   label,
   urgent = false,
-  dot,
   verified = false,
 }: {
   fill: string;
@@ -114,8 +113,6 @@ function markerHtml({
   selected?: boolean;
   label?: string;
   urgent?: boolean;
-  /** Category colour, drawn as a disc inside the pin. See `MapPinStatus`. */
-  dot?: string;
   verified?: boolean;
 }): string {
   const ring = selected
@@ -125,17 +122,6 @@ function markerHtml({
     ? `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 ${
         size >= 48 ? 14 : 12
       }px/1 var(--font-app-sans);color:#fff;">${label}</span>`
-    : "";
-  // The category disc sits in the pin's optical centre, which is above the
-  // midpoint because the silhouette tapers to a point at the bottom.
-  const categoryDot = dot
-    ? `<span style="position:absolute;left:50%;top:${Math.round(size * 0.38)}px;width:${Math.round(
-        size * 0.31
-      )}px;height:${Math.round(
-        size * 0.31
-      )}px;margin-left:-${Math.round(size * 0.155)}px;margin-top:-${Math.round(
-        size * 0.155
-      )}px;border-radius:9999px;background:${dot};box-shadow:0 0 0 1.5px color-mix(in oklab, var(--surface-raised) 80%, transparent);"></span>`
     : "";
   const flag = urgent
     ? `<span style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-radius:9999px;background:var(--warning);border:2px solid var(--surface-raised);"></span>`
@@ -149,7 +135,7 @@ function markerHtml({
     : "";
   return `<div style="position:relative;width:${size}px;height:${size}px;${MARKER_ENTER}">
     <div style="position:absolute;inset:0;background:${fill};border:3px solid var(--surface-raised);border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:${ring}0 2px 6px rgba(0,0,0,.35);"></div>
-    ${count}${categoryDot}${flag}${check}
+    ${count}${flag}${check}
   </div>`;
 }
 
@@ -162,12 +148,8 @@ function markerHtml({
 // is named `Map` and shadows the global.
 const ICON_CACHE: Record<string, L.DivIcon> = {};
 
-function institutionIcon(
-  status: MapPinStatus,
-  category: string,
-  selected: boolean
-): L.DivIcon {
-  const key = `${status}|${category}|${selected}`;
+function institutionIcon(status: MapPinStatus, selected: boolean): L.DivIcon {
+  const key = `${status}|${selected}`;
   const cached = ICON_CACHE[key];
   if (cached) return cached;
 
@@ -178,7 +160,6 @@ function institutionIcon(
       fill: PIN_STATUS_FILL[status],
       size,
       selected,
-      dot: getCategoryConfig(category).color,
       verified: status === "verified",
     }),
     iconSize: [size, size],
@@ -499,7 +480,7 @@ function InstitutionLayer({
   const { locale } = useLocale();
   const category = getCategoryConfig(institution.category);
   const status = pinStatus(institution);
-  const icon = institutionIcon(status, institution.category, isSelected);
+  const icon = institutionIcon(status, isSelected);
   const position: [number, number] = [institution.latitude, institution.longitude];
   const categoryLabel = locale === "hr" ? category.labelHr : category.label;
   // Fill is a colour, so the same distinction has to reach a screen reader.
@@ -520,7 +501,7 @@ function InstitutionLayer({
         radius={2200}
         pathOptions={{
           color: PIN_STATUS_FILL[status],
-          fillColor: category.color,
+          fillColor: PIN_STATUS_FILL[status],
           fillOpacity: isSelected ? 0.32 : 0.18,
           weight: isSelected ? 4 : 2,
         }}

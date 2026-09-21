@@ -24,6 +24,47 @@ export async function sendPasswordRecovery(email: string, origin: string) {
   });
 }
 
+/**
+ * How long a recovery-flavoured session is trusted to open the new-password
+ * form. Supabase mints the access token with `amr: [{ method: "recovery",
+ * timestamp }]` when it is established via a recovery link, and that claim
+ * survives token refresh for the life of the session — so without a recency
+ * bound, someone who reset their password weeks ago and stayed signed in
+ * could still reach this form on that same old proof.
+ */
+const RECOVERY_SESSION_MAX_AGE_MINUTES = 60;
+
+function base64UrlDecode(segment: string): string {
+  const base64 = segment.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = base64.length % 4;
+  return atob(pad ? base64 + "=".repeat(4 - pad) : base64);
+}
+
+/**
+ * A session merely existing is not proof of a recovery request: an already
+ * signed-in visitor who simply types this page's URL in also has a valid
+ * session. Only the `amr` claim Supabase stamps on a recovery-minted access
+ * token proves that, so the form only opens for a session carrying a fresh
+ * one, regardless of how that session was reached (fragment tokens set
+ * locally, or a cookie session the server callback already established).
+ */
+function hasFreshRecoveryClaim(accessToken: string): boolean {
+  const payload = accessToken.split(".")[1];
+  if (!payload) return false;
+  let claims: { amr?: { method?: string; timestamp?: number }[] };
+  try {
+    claims = JSON.parse(base64UrlDecode(payload));
+  } catch {
+    return false;
+  }
+  const timestamps = (claims.amr ?? [])
+    .filter((entry) => entry.method === "recovery" && typeof entry.timestamp === "number")
+    .map((entry) => entry.timestamp as number);
+  if (timestamps.length === 0) return false;
+  const latest = Math.max(...timestamps);
+  return Date.now() / 1000 - latest < RECOVERY_SESSION_MAX_AGE_MINUTES * 60;
+}
+
 /** Consume fragment tokens using the normal cookie-backed client. */
 export async function establishRecoverySession(
   client: SupabaseClient,
@@ -49,6 +90,9 @@ export async function establishRecoverySession(
     });
     if (error) return null;
   }
-  const { data, error } = await client.auth.getUser();
-  return error || !data.user ? null : data.user.email ?? "";
+  const { data, error } = await client.auth.getSession();
+  const session = data.session;
+  if (error || !session) return null;
+  if (!hasFreshRecoveryClaim(session.access_token)) return null;
+  return session.user.email ?? "";
 }

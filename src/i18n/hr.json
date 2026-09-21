@@ -304,6 +304,7 @@
     "pledges_empty": "Još nema obećanja.",
     "pledges_need": "Potreba",
     "pledges_amount": "Iznos (EUR)",
+    "pledges_count": "Obećanja: {count}",
     "loading": "Učitavanje…",
     "dashboard_title": "Vaš profil",
     "dashboard_subtitle": "Upravljajte potrebama, događajima i aktivnostima.",

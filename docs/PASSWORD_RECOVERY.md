@@ -11,9 +11,17 @@ origin. That URL must be allowed in Supabase Authentication → URL Configuratio
 (including additional `sb_flow_id` query parameters for older PKCE links).
 The callback forwards fragment-based recovery to `/auth/reset-password` without
 going through login or NGO onboarding. The reset page removes the fragment,
-establishes the cookie-backed session, verifies the user, and saves the new
-password using `supabase.auth.updateUser({ password })`. Supabase Auth hashes
-and persists the password; no application profile password column is needed.
+establishes the cookie-backed session, and saves the new password using
+`supabase.auth.updateUser({ password })`. Supabase Auth hashes and persists
+the password; no application profile password column is needed.
+
+An existing session is never treated as proof of a recovery request: navigating
+straight to `/auth/reset-password` while already signed in must not open the
+form. Supabase stamps a recovery-minted access token with `amr: [{ method:
+"recovery", timestamp }]`, and `establishRecoverySession` requires that claim,
+timestamped within the last hour, before rendering the new-password form —
+an ordinary signed-in session (`amr` method `password`/`oauth`) is rejected
+the same as a missing or expired one.
 
 Custom recovery templates can alternatively use
 `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery`.
@@ -37,5 +45,7 @@ validation. Production email delivery and provider settings require a live test:
 4. Save a new password, sign out, and confirm that only the new password signs in.
 5. Reopen the consumed email link; confirm the invalid-link screen appears.
 6. Repeat with a pending NGO account; recovery must not open onboarding first.
+7. While already signed in, navigate straight to `/auth/reset-password` with no
+   emailed link; confirm the invalid-link screen appears rather than the form.
 
 Do not log email links, fragment tokens, passwords, or recovery sessions.

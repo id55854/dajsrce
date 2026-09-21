@@ -15,67 +15,12 @@ import { getCurrentUserProfile } from "@/lib/auth/server";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { logError } from "@/lib/observability";
 import { isUuid } from "@/lib/security/http";
-import { trustStatus, type PublicInstitutionDetail } from "@/lib/location-map";
+import {
+  toPublicInstitutionDetail,
+  type PublicInstitutionDetail,
+  type PublicInstitutionDetailRpcRow,
+} from "@/lib/location-map";
 import { getTranslator } from "@/i18n/server";
-import type { DonationType, InstitutionCategory } from "@/lib/types";
-
-type DetailRpcRow = {
-  id: string;
-  name: string;
-  category: InstitutionCategory;
-  description: string;
-  address: string | null;
-  city: string;
-  latitude: number;
-  longitude: number;
-  phone: string | null;
-  email: string | null;
-  website: string | null;
-  working_hours: string | null;
-  drop_off_hours: string | null;
-  accepts_donations: DonationType[] | null;
-  capacity: string | null;
-  served_population: string | null;
-  photo_url: string | null;
-  is_verified: boolean | null;
-  is_location_hidden: boolean | null;
-  approximate_area: string | null;
-  nearest_zet_stop: string | null;
-  zet_lines: string | null;
-  source: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-function toPublicDetail(row: DetailRpcRow): PublicInstitutionDetail {
-  return {
-    id: row.id,
-    name: row.name,
-    category: row.category,
-    description: row.description,
-    address: row.is_location_hidden ? null : row.address,
-    city: row.city,
-    latitude: row.latitude,
-    longitude: row.longitude,
-    phone: row.phone,
-    email: row.email,
-    website: row.website,
-    workingHours: row.working_hours,
-    dropOffHours: row.drop_off_hours,
-    acceptsDonations: row.accepts_donations ?? [],
-    capacity: row.capacity,
-    servedPopulation: row.served_population,
-    photoUrl: row.photo_url,
-    isVerified: Boolean(row.is_verified),
-    isLocationHidden: Boolean(row.is_location_hidden),
-    approximateArea: row.approximate_area,
-    nearestZetStop: row.nearest_zet_stop,
-    zetLines: row.zet_lines,
-    trustStatus: trustStatus(Boolean(row.is_verified), row.source),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
 
 /**
  * A missing row and a failed query are different outcomes: the first is a real
@@ -101,9 +46,9 @@ const getInstitution = cache(
       });
       if (error) throw new Error(`Institution detail query failed (${error.code})`);
 
-      const row = ((data ?? []) as DetailRpcRow[])[0];
+      const row = ((data ?? []) as PublicInstitutionDetailRpcRow[])[0];
       if (!row) return { status: "missing" };
-      const institution = toPublicDetail(row);
+      const institution = toPublicInstitutionDetail(row);
       const { data: needRows, error: needsError } = await supabase
         .from("needs")
         .select(

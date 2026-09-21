@@ -120,10 +120,15 @@ export const MAP_PIN_STATUSES: readonly MapPinStatus[] = [
   "registry",
 ];
 
+// Every pin is the same red now: category and registry/onboarded/verified
+// used to each claim their own hue (a coloured disc plus a tinted fill), which
+// read as two competing legends for one shape. Verified still gets its
+// check-mark badge and an urgent need its flag, but those are drawn as
+// overlays, not a fill change, so the map has one colour to learn.
 export const PIN_STATUS_FILL: Record<MapPinStatus, string> = {
-  registry: "var(--ink-tertiary)",
+  registry: "var(--brand)",
   onboarded: "var(--brand)",
-  verified: "var(--brand-strong)",
+  verified: "var(--brand)",
 };
 
 export function pinStatus(institution: PublicMapInstitution): MapPinStatus {
@@ -670,6 +675,72 @@ export function trustStatus(
   if (isVerified) return "contact_verified";
   if (source === "registry") return "registry";
   return "claimed";
+}
+
+/** The row shape `public_institution_detail_v1` returns, before camelCasing. */
+export type PublicInstitutionDetailRpcRow = {
+  id: string;
+  name: string;
+  category: InstitutionCategory;
+  description: string;
+  address: string | null;
+  city: string;
+  latitude: number;
+  longitude: number;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  working_hours: string | null;
+  drop_off_hours: string | null;
+  accepts_donations: DonationType[] | null;
+  capacity: string | null;
+  served_population: string | null;
+  photo_url: string | null;
+  is_verified: boolean | null;
+  is_location_hidden: boolean | null;
+  approximate_area: string | null;
+  nearest_zet_stop: string | null;
+  zet_lines: string | null;
+  source: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * Shared by the public institution page and the NGO's own dashboard: both
+ * read the same public detail RPC and need the same camelCase shape, so the
+ * mapping lives once instead of drifting between two copies.
+ */
+export function toPublicInstitutionDetail(
+  row: PublicInstitutionDetailRpcRow
+): PublicInstitutionDetail {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    description: row.description,
+    address: row.is_location_hidden ? null : row.address,
+    city: row.city,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    phone: row.phone,
+    email: row.email,
+    website: row.website,
+    workingHours: row.working_hours,
+    dropOffHours: row.drop_off_hours,
+    acceptsDonations: row.accepts_donations ?? [],
+    capacity: row.capacity,
+    servedPopulation: row.served_population,
+    photoUrl: row.photo_url,
+    isVerified: Boolean(row.is_verified),
+    isLocationHidden: Boolean(row.is_location_hidden),
+    approximateArea: row.approximate_area,
+    nearestZetStop: row.nearest_zet_stop,
+    zetLines: row.zet_lines,
+    trustStatus: trustStatus(Boolean(row.is_verified), row.source),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 export function isInstitutionFeature(
