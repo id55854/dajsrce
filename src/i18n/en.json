@@ -309,7 +309,6 @@
     "volunteers_no_access_title": "NGO accounts only",
     "volunteers_no_access_body": "This page is for institution staff running volunteer events. Your account is not linked to an NGO.",
     "volunteers_no_access_back": "Back to dashboard",
-    "volunteers_back": "Back",
     "volunteers_loading": "Loading…",
     "volunteers_empty": "No sign-ups yet. Post a volunteer event first.",
     "volunteers_qr_caption": "Self check-in QR",
@@ -372,7 +371,6 @@
   "notifications": {
     "title": "Notifications",
     "empty": "No notifications yet.",
-    "mark_all_read": "Mark all read",
     "unread_count": "Notifications, {count} unread"
   },
   "dashboard_individual": {
@@ -570,6 +568,10 @@
     "search_count": "{count} matching organisations across Croatia",
     "retry": "Retry",
     "back_results": "Back to results",
+    "activity_loading": "Loading this organisation's posts…",
+    "activity_error": "This organisation's posts are unavailable right now.",
+    "activity_needs": "Open needs ({count})",
+    "activity_events": "Volunteering opportunities ({count})",
     "open_full_record": "Open the full register record",
     "registry_notice": "An entry in the official register of associations. It does not mean the organisation is verified on DajSrce or that it accepts donations.",
     "cluster_hint": "Zoom into a cluster to browse individual organisations. All active official records stay represented while the national view remains fast.",

@@ -104,21 +104,21 @@ function NotificationPanel({
   id,
   open,
   notifications,
+  seenOnOpen,
   onMarkRead,
-  onMarkAllRead,
   onClose,
   triggerRef,
 }: {
   id: string;
   open: boolean;
   notifications: Notification[];
+  /** Ids that were unread when the panel opened; they keep the "new" tint. */
+  seenOnOpen: Set<string>;
   onMarkRead: (id: string) => void;
-  onMarkAllRead: () => void;
   onClose: () => void;
   triggerRef: React.RefObject<HTMLElement | null>;
 }) {
   const t = useT();
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
     // The gutter wrapper gives the popover the page's horizontal inset while
@@ -135,19 +135,13 @@ function NotificationPanel({
           className="max-h-[70dvh] w-80 sm:w-96"
         >
           <div id={id}>
+            {/* No "mark all read" control any more: opening the panel is what
+                marks them, so the button could only ever appear in the moment
+                before its own job was already done. */}
             <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
               <h3 className="text-sm font-semibold text-ink">
-                {t("notifications.title")} {unreadCount > 0 ? `(${unreadCount})` : ""}
+                {t("notifications.title")}
               </h3>
-              {unreadCount > 0 ? (
-                <button
-                  type="button"
-                  onClick={onMarkAllRead}
-                  className="rounded-full px-2 py-1 text-xs font-semibold text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  {t("notifications.mark_all_read")}
-                </button>
-              ) : null}
             </div>
 
             <div className="max-h-[60dvh] overflow-y-auto overscroll-contain">
@@ -173,7 +167,9 @@ function NotificationPanel({
                       key={n.id}
                       className={clsx(
                         "border-b border-border-subtle/60 transition-colors last:border-b-0",
-                        n.is_read ? "bg-transparent" : "bg-brand-soft/50"
+                        !n.is_read || seenOnOpen.has(n.id)
+                          ? "bg-brand-soft/50"
+                          : "bg-transparent"
                       )}
                     >
                       {n.link ? (
@@ -239,6 +235,13 @@ export function Navbar() {
   const [user, setUser] = useState<SupaUser | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
+  /**
+   * The entries that were still unread when this visitor opened the bell.
+   * Opening marks everything read, so without this the tint that says "these
+   * arrived since you last looked" would vanish in the same instant the
+   * panel appeared.
+   */
+  const [seenOnOpen, setSeenOnOpen] = useState<Set<string>>(new Set());
   const [meProfile, setMeProfile] = useState<{ name: string; email: string; role: string } | null>(
     null
   );
@@ -251,8 +254,21 @@ export function Navbar() {
   // Holds whichever bell opened the panel (there is a desktop and a mobile
   // one), so the popover can ignore clicks on it and hand focus back on Escape.
   const bellRef = useRef<HTMLElement | null>(null);
+  // Lets the loader read the current list without making it a dependency,
+  // which would restart the load on every state change it causes itself.
+  const notificationsRef = useRef<Notification[]>([]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
+
+  // Closing ends the session the tint belongs to; the next open decides again
+  // what is new. Guarded so an already-empty set does not cost a render.
+  useEffect(() => {
+    if (!panelOpen) setSeenOnOpen((prev) => (prev.size === 0 ? prev : new Set()));
+  }, [panelOpen]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -295,25 +311,6 @@ export function Navbar() {
     };
   }, [user]);
 
-  // Loads once the session resolves, so the unread badge is right the moment
-  // the navbar renders, not only after the visitor has opened the bell at
-  // least once. Reloads again each time the panel opens, to pick up
-  // anything that landed while it sat closed.
-  useEffect(() => {
-    if (!user) return;
-    const controller = new AbortController();
-    fetch("/api/notifications", {
-      credentials: "include",
-      signal: controller.signal,
-    })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data: { notifications?: Notification[] } | null) => {
-        if (data) setNotifications(data.notifications ?? []);
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [user, panelOpen]);
-
   const markRead = useCallback((id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
@@ -325,14 +322,50 @@ export function Navbar() {
     }).catch(() => {});
   }, []);
 
-  const markAllRead = useCallback(() => {
+  const markAllRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    fetch("/api/notifications", {
+    await fetch("/api/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mark_all_read: true }),
     }).catch(() => {});
   }, []);
+
+  // Loads once the session resolves, so the unread badge is right the moment
+  // the navbar renders, not only after the visitor has opened the bell at
+  // least once. Reloads again each time the panel opens, to pick up
+  // anything that landed while it sat closed.
+  useEffect(() => {
+    if (!user) return;
+    const controller = new AbortController();
+
+    async function load() {
+      // Opening the bell is the reading. The badge used to survive until the
+      // visitor had tapped every entry one by one, which said "unread" about
+      // notifications they were looking at. Marking happens before the
+      // reload, and is awaited, because a reload that overtook the PATCH
+      // would bring the unread flags straight back.
+      if (panelOpen && notificationsRef.current.some((n) => !n.is_read)) {
+        setSeenOnOpen(
+          new Set(notificationsRef.current.filter((n) => !n.is_read).map((n) => n.id))
+        );
+        await markAllRead();
+      }
+
+      const response = await fetch("/api/notifications", {
+        credentials: "include",
+        signal: controller.signal,
+      }).catch(() => null);
+      if (!response?.ok) return;
+      const data = (await response.json().catch(() => null)) as
+        | { notifications?: Notification[] }
+        | null;
+      if (data && !controller.signal.aborted) setNotifications(data.notifications ?? []);
+    }
+
+    load();
+    return () => controller.abort();
+  }, [user, panelOpen, markAllRead]);
 
   async function handleLogout() {
     if (!isSupabaseConfigured) {
@@ -499,8 +532,8 @@ export function Navbar() {
           id="notifications-panel"
           open={panelOpen}
           notifications={notifications}
+          seenOnOpen={seenOnOpen}
           onMarkRead={markRead}
-          onMarkAllRead={markAllRead}
           onClose={() => setPanelOpen(false)}
           triggerRef={bellRef}
         />

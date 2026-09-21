@@ -340,16 +340,10 @@ export function InstitutionVolunteersClient({
 
   if (embedded) return body;
 
+  // No back link, for the same reason as the pledges page: this is a navbar
+  // tab of its own, so there is nothing behind it to go back to.
   return (
     <PageShell width="wide">
-      <Link
-        href="/dashboard/institution"
-        className="mb-6 inline-flex items-center gap-2 rounded text-sm font-semibold text-brand transition-colors hover:text-brand-strong hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        {t("institution.volunteers_back")}
-      </Link>
-
       <PageHeader
         title={t("institution.volunteers_title")}
         subtitle={t("institution.volunteers_subtitle")}

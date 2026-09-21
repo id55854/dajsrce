@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Check, Package } from "lucide-react";
+import { Check, Package } from "lucide-react";
 import { useT } from "@/i18n/client";
 import {
   Badge,
@@ -336,16 +335,10 @@ export function InstitutionPledgesClient({ embedded = false }: InstitutionPledge
 
   if (embedded) return body;
 
+  // No back link. An NGO reaches this page from its own navbar tab, not from
+  // the profile, so "back" pointed at a page the visitor had never been on.
   return (
     <PageShell width="content">
-      <Link
-        href="/dashboard/institution"
-        className="mb-6 inline-flex items-center gap-2 rounded text-sm font-semibold text-brand transition-colors hover:text-brand-strong hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        {t("common.back")}
-      </Link>
-
       <PageHeader
         title={t("institution.pledges_title")}
         subtitle={t("institution.pledges_subtitle")}

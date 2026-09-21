@@ -309,7 +309,6 @@
     "volunteers_no_access_title": "Samo za NGO račune",
     "volunteers_no_access_body": "Ova stranica je za osoblje udruga koje vode volonterske događaje. Vi nemate povezan NGO račun.",
     "volunteers_no_access_back": "Natrag na nadzornu ploču",
-    "volunteers_back": "Natrag",
     "volunteers_loading": "Učitavanje…",
     "volunteers_empty": "Još nema prijava. Prvo objavite volonterski događaj.",
     "volunteers_qr_caption": "QR za samoprijavu",
@@ -372,7 +371,6 @@
   "notifications": {
     "title": "Obavijesti",
     "empty": "Nema obavijesti.",
-    "mark_all_read": "Označi sve pročitanim",
     "unread_count": "Obavijesti, nepročitano: {count}"
   },
   "dashboard_individual": {
@@ -570,6 +568,10 @@
     "search_count": "{count} pronađenih udruga u cijeloj Hrvatskoj",
     "retry": "Pokušaj ponovno",
     "back_results": "Natrag na rezultate",
+    "activity_loading": "Učitavanje objava organizacije…",
+    "activity_error": "Objave ove organizacije trenutačno nisu dostupne.",
+    "activity_needs": "Otvorene potrebe ({count})",
+    "activity_events": "Volonterske prilike ({count})",
     "open_full_record": "Otvori cijeli zapis u registru",
     "registry_notice": "Zapis u službenom Registru udruga. To ne znači da je udruga provjerena na DajSrcu niti da prima donacije.",
     "cluster_hint": "Povećajte grupu kako biste pregledali pojedinačne udruge. Svi aktivni službeni zapisi ostaju prikazani, a nacionalni prikaz ostaje brz.",

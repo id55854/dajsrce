@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import clsx from "clsx";
 import { AlertTriangle, ArrowLeft, X } from "lucide-react";
 import { Button, usePresence } from "@/components/ui";
@@ -12,6 +13,16 @@ import { useT } from "@/i18n/client";
 import type { AssociationRegistryEntry } from "@/lib/association-registry";
 import type { PublicInstitutionDetail } from "@/lib/location-map";
 import { RegistryDetailPanel } from "./registry-detail-panel";
+
+/**
+ * Pulled in only once a pin is opened. It carries the need and event cards,
+ * with their pledge and sign-up flows behind them, which the map itself has
+ * no use for until someone asks about one organisation.
+ */
+const InstitutionActivity = dynamic(
+  () => import("./institution-activity").then((module) => module.InstitutionActivity),
+  { ssr: false }
+);
 
 /**
  * A pin is either an onboarded institution or a row of the official register,
@@ -161,11 +172,14 @@ export function DetailOverlay({
         {loading ? (
           <InstitutionDetailSkeleton framed={!isOverlay} />
         ) : detail?.kind === "institution" ? (
-          <InstitutionDetailPanel
-            institution={detail.institution}
-            showCloseButton={false}
-            framed={!isOverlay}
-          />
+          <div className="space-y-5">
+            <InstitutionDetailPanel
+              institution={detail.institution}
+              showCloseButton={false}
+              framed={!isOverlay}
+            />
+            <InstitutionActivity institutionId={detail.institution.id} />
+          </div>
         ) : detail?.kind === "registry" ? (
           <RegistryDetailPanel organisation={detail.organisation} framed={!isOverlay} />
         ) : (

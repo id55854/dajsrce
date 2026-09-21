@@ -5,6 +5,7 @@ import { areLocalFixturesEnabled } from "@/lib/env";
 import { getRequestId, logError } from "@/lib/observability";
 import {
   NO_STORE,
+  isUuid,
   jsonError,
   rateLimit,
   requireSameOrigin,
@@ -41,6 +42,16 @@ function publicFixtureEvent(event: ReturnType<typeof getLocalVolunteerEvents>[nu
 
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
+  // One organisation's upcoming events, for the map's detail panel. Same
+  // shape and same public projection as the full list; the filter only
+  // narrows what a visitor could already read.
+  const institutionId = new URL(req.url).searchParams.get("institution_id");
+  if (institutionId && !isUuid(institutionId)) {
+    return NextResponse.json(
+      { error: "institution_id is invalid", request_id: requestId },
+      { status: 400, headers: { "x-request-id": requestId } }
+    );
+  }
   const blocked = rateLimit(req, { name: "volunteer_events.get", limit: 120, windowMs: 60_000 }, requestId);
   if (blocked) return blocked;
 
@@ -49,12 +60,16 @@ export async function GET(req: NextRequest) {
     // stateless anon client so the CDN can cache it (see /api/needs).
     const supabase = createPublicSupabaseClient();
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("volunteer_events")
       .select("*, institution:institutions(id, name, category, address:public_address, city)")
       .gte("event_date", new Date().toISOString().split("T")[0])
       .order("event_date", { ascending: true })
       .limit(30);
+
+    if (institutionId) query = query.eq("institution_id", institutionId);
+
+    const { data, error } = await query;
 
     if (error) throw error;
     if (data) {
@@ -70,9 +85,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const fixtures = getLocalVolunteerEvents().filter(
+    (event) => !institutionId || event.institution_id === institutionId
+  );
   return NextResponse.json(
     {
-      events: getLocalVolunteerEvents().map(publicFixtureEvent),
+      events: fixtures.map(publicFixtureEvent),
       fixture: true,
       request_id: requestId,
     },
