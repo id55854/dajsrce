@@ -26,7 +26,8 @@ export type PledgeSuccessPayload = {
     need_id: string;
     quantity: number;
     message: string | null;
-    status: "pledged" | "delivered" | "confirmed" | "cancelled";
+    /** Written by the API, shown to nobody; see YourPledgesSection. */
+    status?: string | null;
     amount_eur: number | null;
     created_at: string;
   };

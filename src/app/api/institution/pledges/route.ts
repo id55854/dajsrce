@@ -36,24 +36,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ pledges: [] });
   }
 
+  // Statuses and acknowledgements are no longer part of the product, so they
+  // are no longer projected: what the NGO needs is what was promised against
+  // which need, and when. A withdrawn promise is left out rather than listed
+  // as "cancelled".
   const { data: pledges, error } = await supabase
     .from("pledges")
     .select(
       `
       id,
-      user_id,
       need_id,
       quantity,
-      status,
       amount_eur,
-      delivered_at,
-      tax_category,
       created_at,
-      need:needs(title),
-      pledge_acknowledgements(id, kind, signed_at, notes)
+      need:needs(title)
     `
     )
     .in("need_id", needIds)
+    .neq("status", "cancelled")
     .order("created_at", { ascending: false });
 
   if (error) {

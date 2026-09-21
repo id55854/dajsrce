@@ -13,7 +13,7 @@
  * elsewhere stays valid here until the token expires (one hour). That is
  * acceptable for navigation guards and "who am I" reads. It is NOT acceptable
  * for anything that changes state or grants access, so every mutation, claim
- * review, token issuance and check-in keeps calling `auth.getUser()`.
+ * review and token issuance keeps calling `auth.getUser()`.
  */
 
 type ClaimsCapableClient = {

@@ -2,21 +2,26 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, Heart, PackageCheck, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import { useT } from "@/i18n/client";
 import { timeAgo } from "@/lib/utils";
-import { Badge, Button, Dialog, Skeleton, useToast } from "@/components/ui";
-import type { BadgeTone } from "@/components/ui";
-import { FilterChip } from "@/components/FilterBar";
+import { Button, Dialog, Skeleton, useToast } from "@/components/ui";
 
-/** Shape returned by GET /api/pledges (with `need:needs(*, institution:...)`). */
+/**
+ * Shape returned by GET /api/pledges (with `need:needs(*, institution:...)`).
+ *
+ * `status` is carried but never shown. A promise no longer has a lifecycle a
+ * donor is asked to follow: it is made, and it can be withdrawn. The column
+ * survives only so a withdrawn row can be left out of this list; see the
+ * project notes on why the database keeps it.
+ */
 export type YourPledgeRow = {
   id: string;
   user_id: string;
   need_id: string;
   quantity: number;
   amount_eur?: number | null;
-  status: "pledged" | "delivered" | "confirmed" | "cancelled";
+  status?: string | null;
   created_at: string;
   need?: {
     id: string;
@@ -25,46 +30,20 @@ export type YourPledgeRow = {
   } | null;
 };
 
-/**
- * The one pledge-status vocabulary. Previously this file carried its own
- * amber/blue/emerald class strings while the individual dashboard rendered the
- * same statuses in a single generic red; the tones now come from `Badge`.
- */
-const STATUS: Record<YourPledgeRow["status"], { tone: BadgeTone; key: string }> = {
-  pledged: { tone: "warning", key: "your_pledges.status_pledged" },
-  delivered: { tone: "info", key: "your_pledges.status_delivered" },
-  confirmed: { tone: "success", key: "your_pledges.status_confirmed" },
-  cancelled: { tone: "neutral", key: "your_pledges.status_cancelled" },
-};
-
 const VISIBLE_LIMIT = 6;
 
 /**
- * Status filter chips, in the same order the lifecycle usually runs.
- * `confirmed` is left off the filter row by design; a confirmed pledge
- * still shows (and badges as such) under "Sve", it just isn't a state
- * worth a dedicated filter here.
- */
-const STATUS_FILTERS: readonly YourPledgeRow["status"][] = [
-  "pledged",
-  "delivered",
-  "cancelled",
-];
-
-/**
- * Confirm-then-write affordance shared by every irreversible control over a
- * promise: withdrawing one (pledges here, volunteer signups on the individual
- * dashboard) and declaring one handed over.
+ * Confirm-then-write affordance shared by every control that withdraws a
+ * promise: pledges here, volunteer signups on the individual dashboard.
  *
  * It reports both outcomes through the toast channel; an action that silently
  * does nothing is the failure mode this replaces; and never assumes success:
- * the server owns the refusal (delivered/confirmed pledge, volunteer already
- * checked in) and answers 409, which surfaces as `conflictDescription`.
+ * the server owns the refusal and answers 409, which surfaces as
+ * `conflictDescription`.
  */
 function ConfirmActionButton({
   endpoint,
   method,
-  body,
   icon,
   variant,
   label,
@@ -79,8 +58,7 @@ function ConfirmActionButton({
 }: {
   /** Write target, e.g. `/api/pledges/<id>`. */
   endpoint: string;
-  method: "DELETE" | "PATCH";
-  body?: unknown;
+  method: "DELETE";
   icon: ReactNode;
   variant: "ghost" | "secondary";
   label: string;
@@ -102,16 +80,7 @@ function ConfirmActionButton({
   async function confirm() {
     setBusy(true);
     try {
-      const res = await fetch(endpoint, {
-        method,
-        credentials: "include",
-        ...(body === undefined
-          ? {}
-          : {
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-            }),
-      });
+      const res = await fetch(endpoint, { method, credentials: "include" });
       if (!res.ok) {
         toast({
           tone: "error",
@@ -176,11 +145,11 @@ function ConfirmActionButton({
   );
 }
 
-/** Withdraw a promise that is still only a promise. */
+/** Withdraw a promise. */
 export function CancelActionButton(
   props: Omit<
     Parameters<typeof ConfirmActionButton>[0],
-    "method" | "body" | "icon" | "variant" | "confirmVariant" | "onDone"
+    "method" | "icon" | "variant" | "confirmVariant" | "onDone"
   > & { onCancelled: () => void }
 ) {
   const { onCancelled, ...rest } = props;
@@ -192,33 +161,6 @@ export function CancelActionButton(
       variant="ghost"
       confirmVariant="danger"
       onDone={onCancelled}
-    />
-  );
-}
-
-/**
- * The donor says they handed the goods over.
- *
- * This is the donor's account of events, not evidence: only the recipient's
- * acknowledgement makes a donation confirmed, and the status vocabulary keeps
- * `delivered` and `confirmed` apart for exactly that reason.
- */
-export function MarkDeliveredButton(
-  props: Omit<
-    Parameters<typeof ConfirmActionButton>[0],
-    "method" | "body" | "icon" | "variant" | "confirmVariant" | "onDone"
-  > & { onDelivered: () => void }
-) {
-  const { onDelivered, ...rest } = props;
-  return (
-    <ConfirmActionButton
-      {...rest}
-      method="PATCH"
-      body={{ status: "delivered" }}
-      icon={<PackageCheck className="h-4 w-4" aria-hidden="true" />}
-      variant="secondary"
-      confirmVariant="primary"
-      onDone={onDelivered}
     />
   );
 }
@@ -236,21 +178,12 @@ export function YourPledgesSection({
   onCancelled?: (pledgeId: string) => void;
 }) {
   const t = useT();
-  // The list is owned by the parent, so a cancelled row is remembered here
-  // rather than mutated in place; the card keeps rendering with the
-  // `cancelled` tone instead of vanishing under the reader.
+  // The list belongs to the parent, so a row withdrawn here is remembered
+  // locally and dropped from the list until the parent refetches.
   const [cancelledIds, setCancelledIds] = useState<Set<string>>(() => new Set());
-  // Same reason as `cancelledIds`: the list belongs to the parent, so a row
-  // that has just been handed over is remembered here and re-rendered with the
-  // `delivered` tone rather than snapping back to `pledged`.
-  const [deliveredIds, setDeliveredIds] = useState<Set<string>>(() => new Set());
-  const [statusFilter, setStatusFilter] = useState<YourPledgeRow["status"] | "all">("all");
 
-  // The locally-remembered cancel/deliver overrides (above) have to win here
-  // too, or filtering by "Dostavljeno" right after marking one delivered
-  // would drop it until the parent refetches.
-  const effectiveStatus = (p: YourPledgeRow): YourPledgeRow["status"] =>
-    cancelledIds.has(p.id) ? "cancelled" : deliveredIds.has(p.id) ? "delivered" : p.status;
+  const isWithdrawn = (p: YourPledgeRow) =>
+    cancelledIds.has(p.id) || p.status === "cancelled";
 
   if (!loggedIn) {
     return (
@@ -280,12 +213,11 @@ export function YourPledgesSection({
     );
   }
 
-  const filtered =
-    statusFilter === "all"
-      ? pledges
-      : pledges.filter((p) => effectiveStatus(p) === statusFilter);
-  const visible = filtered.slice(0, VISIBLE_LIMIT);
-  const overflow = filtered.length - visible.length;
+  // A withdrawn promise is not one of your donations, so it leaves the list
+  // rather than sitting in it wearing a "cancelled" label.
+  const current = pledges.filter((p) => !isWithdrawn(p));
+  const visible = current.slice(0, VISIBLE_LIMIT);
+  const overflow = current.length - visible.length;
 
   return (
     <SectionWrapper
@@ -301,47 +233,18 @@ export function YourPledgesSection({
         </Link>
       }
     >
-      <div className="mb-3 flex flex-wrap gap-2">
-        <FilterChip aria-pressed={statusFilter === "all"} onClick={() => setStatusFilter("all")}>
-          {t("filters.all")}
-        </FilterChip>
-        {STATUS_FILTERS.map((key) => (
-          <FilterChip
-            key={key}
-            aria-pressed={statusFilter === key}
-            onClick={() => setStatusFilter(key)}
-          >
-            {t(STATUS[key].key)}
-          </FilterChip>
-        ))}
-      </div>
-      {filtered.length === 0 ? (
-        <p className="text-sm text-ink-secondary">{t("your_pledges.filter_empty")}</p>
+      {current.length === 0 ? (
+        <p className="text-sm text-ink-secondary">{t("your_pledges.empty")}</p>
       ) : (
         <ul
           className="flex snap-x gap-3 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible"
           role="list"
         >
           {visible.map((p) => {
-            const state = effectiveStatus(p);
-            const status = STATUS[state] ?? STATUS.pledged;
             return (
               <li key={p.id} className="w-72 shrink-0 snap-start md:max-w-xs">
                 <article className="flex h-full flex-col rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <Badge
-                      tone={status.tone}
-                      size="sm"
-                      icon={
-                        state === "delivered" || state === "confirmed" ? (
-                          <PackageCheck className="h-3 w-3" aria-hidden="true" />
-                        ) : (
-                          <Heart className="h-3 w-3" aria-hidden="true" />
-                        )
-                      }
-                    >
-                      {t(status.key)}
-                    </Badge>
+                  <div className="mb-2 flex items-start justify-end gap-2">
                     <time className="shrink-0 text-xs text-ink-tertiary" dateTime={p.created_at}>
                       {timeAgo(p.created_at)}
                     </time>
@@ -372,41 +275,24 @@ export function YourPledgesSection({
                       </div>
                     ) : null}
                   </dl>
-                  {state === "pledged" ? (
-                    <div className="mt-auto flex flex-wrap justify-end gap-2 pt-3">
-                      <MarkDeliveredButton
-                        endpoint={`/api/pledges/${p.id}`}
-                        label={t("your_pledges.deliver")}
-                        title={t("your_pledges.deliver_title")}
-                        description={t("your_pledges.deliver_body", {
-                          title: p.need?.title ?? "",
-                        })}
-                        confirmLabel={t("your_pledges.deliver_confirm")}
-                        successTitle={t("your_pledges.deliver_success")}
-                        errorTitle={t("your_pledges.deliver_error")}
-                        conflictDescription={t("your_pledges.deliver_error_locked")}
-                        onDelivered={() =>
-                          setDeliveredIds((prev) => new Set(prev).add(p.id))
-                        }
-                      />
-                      <CancelActionButton
-                        endpoint={`/api/pledges/${p.id}`}
-                        label={t("your_pledges.cancel")}
-                        title={t("your_pledges.cancel_title")}
-                        description={t("your_pledges.cancel_body", {
-                          title: p.need?.title ?? "",
-                        })}
-                        confirmLabel={t("your_pledges.cancel_confirm")}
-                        successTitle={t("your_pledges.cancel_success")}
-                        errorTitle={t("your_pledges.cancel_error")}
-                        conflictDescription={t("your_pledges.cancel_error_locked")}
-                        onCancelled={() => {
-                          setCancelledIds((prev) => new Set(prev).add(p.id));
-                          onCancelled?.(p.id);
-                        }}
-                      />
-                    </div>
-                  ) : null}
+                  <div className="mt-auto flex flex-wrap justify-end gap-2 pt-3">
+                    <CancelActionButton
+                      endpoint={`/api/pledges/${p.id}`}
+                      label={t("your_pledges.cancel")}
+                      title={t("your_pledges.cancel_title")}
+                      description={t("your_pledges.cancel_body", {
+                        title: p.need?.title ?? "",
+                      })}
+                      confirmLabel={t("your_pledges.cancel_confirm")}
+                      successTitle={t("your_pledges.cancel_success")}
+                      errorTitle={t("your_pledges.cancel_error")}
+                      conflictDescription={t("your_pledges.cancel_error_locked")}
+                      onCancelled={() => {
+                        setCancelledIds((prev) => new Set(prev).add(p.id));
+                        onCancelled?.(p.id);
+                      }}
+                    />
+                  </div>
                 </article>
               </li>
             );

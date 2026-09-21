@@ -11,14 +11,15 @@ Core domains:
 - public institution discovery through viewport-bounded map/detail APIs, served at `/`;
 - `/organisations` is the official register only; an unknown `?view=` is redirected, never silently ignored;
 - one merged `/doniraj` surface for giving, with a needs view and a donation wizard; `/needs` and `/quick-start` redirect into it;
-- NGO needs, acknowledgement-backed pledges and opted-in nearby notifications;
-- volunteer events, capacity-safe signup, hashed QR check-in and idempotent checkout hours;
-- acknowledgement-backed public impact; only an acknowledged donation is confirmed evidence;
+- NGO needs, pledges and opted-in nearby notifications;
+- volunteer events and capacity-safe, one-click signup;
 - staged/resumable registry import, durable geocoding, reviewed classification and transactional promotion.
 
 Only two account types exist: `individual` and `ngo` (plus `superadmin`). The company/CSR tenant domain (company accounts, campaigns, Stripe billing, tax receipts, ESG exports, CSR PDF/DOCX reports) was removed in `20260823100000_remove_company_domain.sql`; do not reintroduce a `company` role or resurrect Stripe without a fresh product decision.
 
 The citizen donor-offer flow (`/offers`, `/offers/inbox`, the `/api/offers` routes, `OfferCard`, `src/lib/offers.ts`) was removed from the application on 2026-08-24; the "I can donate" entry point on `/doniraj` is gone with it. The underlying `donor_offers`/`offer_claims` schema from `20260812130000_donor_offers.sql` was deliberately left in place, dormant; no migration dropped it, so those tables/RPCs still exist unused in the database. Do not reintroduce the `/offers` UI or API without a fresh product decision; if the schema itself is ever dropped, do that in its own new migration, not by editing the original one.
+
+The pledge and volunteer-signup status machinery was removed from the application on 2026-09-21: pledge statuses (`pledged`/`delivered`/`confirmed`), acknowledgements, the donor's "mark delivered" action, volunteer check-in/check-out, the hashed QR self-check-in flow and the `auto-acknowledge` cron are all gone from the UI, the API routes and the scheduler. A pledge is a promise and a signup is a signup; the only action left on either is the person withdrawing their own. The database keeps `pledges.status`, `pledge_acknowledgements`, `volunteer_signups.checked_in_at`/`checked_out_at`, `volunteer_hours` and the matching RPCs, dormant and unread except that a withdrawn row is still soft-cancelled and filtered out of every list; no migration dropped them. Do not rebuild any of it without a fresh product decision, and if the schema is ever dropped, do that in its own new migration.
 
 ## Non-negotiable invariants
 
@@ -26,8 +27,8 @@ The citizen donor-offer flow (`/offers`, `/offers/inbox`, the `/api/offers` rout
 2. Public map results come from `map_institutions_v1`; detail comes from `public_institution_detail_v1`. Keep viewport/zoom/query/limit guards and explicit truncation.
 3. Do not derive roles or entitlements from user metadata, request bodies or public feature flags.
 4. Multi-row pledge, volunteer, audit and artifact transitions belong in service-only transactional RPCs.
-5. Raw invite/verification/check-in tokens are never persisted. Store SHA-256 digests, bind identity/control, expire and consume once.
-6. Only acknowledgement-backed donations are confirmed evidence. “Delivered” alone is not confirmed public impact.
+5. Raw invite/verification tokens are never persisted. Store SHA-256 digests, bind identity/control, expire and consume once.
+6. A pledge and a volunteer signup carry no status a person has to follow. Either stands or is withdrawn by the person who made it; nothing is approved, rejected, checked in or acknowledged. See the removal note below before rebuilding any of that.
 7. Artifact versions are reserved atomically; only `generation_status = 'ready'` is downloadable/public. Clean partial storage on failure.
 8. Registry classification and donation candidates are not organizational confirmation. Curated rows win; excluded entity shapes require review.
 9. Nearby notification requires explicit opt-in and runs through the durable outbox/POST worker, not request-time profile scans.
@@ -49,7 +50,7 @@ The citizen donor-offer flow (`/offers`, `/offers/inbox`, the `/api/offers` rout
 - ETag and CDN cache for public map/card responses. The map and city ETags are derived from the canonical query plus the current `s-maxage` window (`W/"..."`), so a matching `If-None-Match` is a 304 before any RPC.
 - the client snaps the requested bbox outward to a quarter-tile grid per zoom (`normalizeBboxForRequest`) and shrinks about the centre when the per-zoom area guard would reject it; nearby viewports share one CDN key.
 - `/api/needs` and `/api/volunteer-events` GET read through the stateless anon client and are CDN-cached (`s-maxage=60`); anything that reads cookies stays `no-store`.
-- read-only authenticated paths (middleware, `/api/me`, own-pledge/signup/notification lists) verify the session JWT locally via `getVerifiedClaims` (ES256 + cached JWKS). Every mutation, review, token issuance and check-in keeps `auth.getUser()`.
+- read-only authenticated paths (middleware, `/api/me`, own-pledge/signup/notification lists) verify the session JWT locally via `getVerifiedClaims` (ES256 + cached JWKS). Every mutation, review and token issuance keeps `auth.getUser()`.
 - every API route is rate limited per client address (`src/lib/security/http.ts`); unsafe methods also require same-origin.
 - `npm run perf:map:bundle` now weighs the chunks **exclusive** to the map route plus its dynamic imports (238,251 bytes against a 327,680 budget). It used to subtract only what the `/page` redirect loaded, so figures recorded before the map moved to `/` are not comparable. The script fails loudly if it measures nothing.
 - hidden locations use stable coarse `public_location`; filtering also uses that projection.
@@ -103,11 +104,10 @@ Never reuse a migration version. Add a new sortable timestamp migration for foll
 
 Required in production: Supabase URL/anon/service keys, HTTPS app URL and a 32+ character `CRON_SECRET`. The map basemap needs `NEXT_PUBLIC_CARTO_API_KEY` (free non-profit key from carto.com/basemaps/apikey; CARTO watermarks key-less tiles). Without it `src/lib/basemap.ts` falls back to OpenStreetMap raster tiles, which is fine for a clone or a short outage but not the intended production basemap. Configure a POST-capable scheduler for:
 
-- `POST /api/cron/auto-acknowledge`
 - `POST /api/cron/process-notification-jobs`
 - `POST /api/cron/event-reminders` (once a day: reminds volunteers signed up for tomorrow's event)
 
-All three use `Authorization: Bearer <CRON_SECRET>`. `.github/workflows/notification-cron.yml` schedules all three via GitHub Actions (`process-notification-jobs` every 15 min, the other two daily); it needs repo secrets `PRODUCTION_APP_URL` and `CRON_SECRET` alongside the existing `PRODUCTION_SUPABASE_*` ones. Vercel's GET-only cron stays disabled. `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
+Both use `Authorization: Bearer <CRON_SECRET>`. `.github/workflows/notification-cron.yml` schedules both via GitHub Actions (`process-notification-jobs` every 15 min, the reminders daily); it needs repo secrets `PRODUCTION_APP_URL` and `CRON_SECRET` alongside the existing `PRODUCTION_SUPABASE_*` ones. Vercel's GET-only cron stays disabled. `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
 
 Institution-claim review needs `SUPABASE_SERVICE_ROLE_KEY`; the mailbox challenge additionally needs `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. A delivery failure is logged and never counts as verification.
 

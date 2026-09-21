@@ -106,11 +106,11 @@ Never put `SUPABASE_SERVICE_ROLE_KEY`, Resend secrets, raw invite/verification t
 `202608010300_transactional_integrity.sql` supplies service-only state machines:
 
 - `create_pledge_transaction`: locks the need, validates remaining quantity, updates counters atomically.
-- delivery and acknowledgement RPCs enforce actor/institution ownership and legal state transitions.
-- volunteer signup locks capacity; check-in uses a short-lived hashed event token; checkout is idempotent and creates one bounded hours row.
+- the delivery, acknowledgement and check-in/checkout RPCs still exist and still enforce actor/institution ownership, but nothing calls them: those steps were removed from the product on 2026-09-21 (see CLAUDE.md).
+- volunteer signup locks capacity; cancelling a signup or withdrawing a pledge remains a transactional RPC.
 - audit hashes cover the complete event envelope and serialize each chain.
 
-Amounts reconcile in integer cents before rendering. Only acknowledgement-backed pledges count as confirmed public impact. Automated acknowledgement is explicitly disclosed and does not claim independent tax/legal verification.
+Amounts reconcile in integer cents before rendering. A pledge carries no status a donor is asked to follow, and the product makes no claim about what was ultimately handed over; anything the two parties settle between them happens off the platform.
 
 The company-scoped artifact pipeline (donation receipts, ESG exports, CSR PDF/DOCX reports, the `receipts`/`exports`/`reports` storage buckets and their generation RPCs) was removed along with the company domain. No generated-artifact renderer remains in the codebase.
 

@@ -49,15 +49,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ events: [], signups: [] });
   }
 
-  // Cancelled signups are kept as rows (deleting one would cascade away its
-  // volunteer-hours evidence), but they are not attendance: an organiser
-  // reading this list must not see people who withdrew.
+  // A withdrawn signup keeps its row but is not a signup any more, so an
+  // organiser reading this list does not see it. Attendance columns are no
+  // longer projected: there is no check-in step left to fill them.
   const { data: signups, error: sErr } = await supabase
     .from("volunteer_signups")
-    .select("id, user_id, event_id, checked_in_at, checked_out_at")
+    .select("id, user_id, event_id, created_at")
     .in("event_id", eventIds)
     .is("cancelled_at", null)
-    .order("id", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (sErr) {
     logError("institution.volunteer_signups_failed", sErr, {

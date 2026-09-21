@@ -19,10 +19,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ signups: [] }, { headers: NO_STORE });
     }
 
+    // Which events this person is already signed up for, and nothing else:
+    // a signup has no state beyond existing.
     const { data, error } = await supabase
       .from("volunteer_signups")
-      .select("event_id, checked_in_at, checked_out_at")
-      .eq("user_id", user.id);
+      .select("event_id")
+      .eq("user_id", user.id)
+      .is("cancelled_at", null);
 
     if (error) throw error;
     return NextResponse.json({ signups: data ?? [] });

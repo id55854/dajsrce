@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
-import { CalendarHeart, Clock, Heart, MapPin } from "lucide-react";
+import { CalendarHeart, Heart, MapPin } from "lucide-react";
 import type { AuthProfile } from "@/lib/auth/profile";
 import type { Pledge, Shipment } from "@/lib/types";
 import { DONATION_TYPES } from "@/lib/constants";
@@ -12,10 +12,8 @@ import { useLocale, useT } from "@/i18n/client";
 import { createClient } from "@/lib/supabase/client";
 import { CancelActionButton } from "@/components/YourPledgesSection";
 import { SignOutButton } from "@/components/SignOutButton";
-import { FilterChip } from "@/components/FilterBar";
 import type { AppRole } from "@/lib/auth/roles";
 import {
-  Badge,
   Button,
   Card,
   EmptyState,
@@ -26,7 +24,6 @@ import {
   Stat,
   buttonClasses,
 } from "@/components/ui";
-import type { BadgeTone } from "@/components/ui";
 
 type PledgeRow = Pledge & {
   need?: {
@@ -55,8 +52,6 @@ type SignupRow = {
   id: string;
   event_id: string;
   created_at: string;
-  checked_in_at: string | null;
-  checked_out_at: string | null;
   event: SignupEvent | null;
 };
 
@@ -75,26 +70,6 @@ function toSignupRow(
   };
 }
 
-/** The same status vocabulary the map surface uses (`YourPledgesSection`). */
-const STATUS: Record<string, { tone: BadgeTone; key: string }> = {
-  pledged: { tone: "warning", key: "your_pledges.status_pledged" },
-  delivered: { tone: "info", key: "your_pledges.status_delivered" },
-  confirmed: { tone: "success", key: "your_pledges.status_confirmed" },
-  cancelled: { tone: "neutral", key: "your_pledges.status_cancelled" },
-};
-
-/**
- * Status filter chips, in the same order the lifecycle usually runs.
- * `confirmed` is left off the filter row by design; a confirmed pledge
- * still shows (and badges as such) under "Sve", it just isn't a state
- * worth a dedicated filter here.
- */
-const STATUS_FILTERS: readonly PledgeRow["status"][] = [
-  "pledged",
-  "delivered",
-  "cancelled",
-];
-
 function roleTranslationKey(role: AppRole): string {
   if (role === "ngo") return "dashboard_individual.role_ngo";
   if (role === "superadmin") return "dashboard_individual.role_superadmin";
@@ -112,7 +87,6 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
   const [signupsLoading, setSignupsLoading] = useState(true);
   const [signupsError, setSignupsError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<PledgeRow["status"] | "all">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -146,7 +120,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
         const { data, error } = await supabase
           .from("volunteer_signups")
           .select(
-            "id, event_id, created_at, checked_in_at, checked_out_at, event:volunteer_events(id, title, event_date, start_time)"
+            "id, event_id, created_at, event:volunteer_events(id, title, event_date, start_time)"
           )
           .eq("user_id", profile.id)
           .order("created_at", { ascending: false })
@@ -169,15 +143,11 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
     };
   }, [profile.id, reload, t]);
 
-  // The status filter narrows the list below only; the stat tiles above
-  // report the whole account regardless of what's currently filtered.
-  const filteredPledges =
-    statusFilter === "all"
-      ? pledges
-      : pledges.filter((item) => item.status === statusFilter);
-  const recent = filteredPledges.slice(0, 8);
-  // A withdrawn pledge is not a donation, so it must not inflate the count.
-  const active = pledges.filter((item) => item.status !== "cancelled").length;
+  // A withdrawn pledge is not a donation: it leaves the history and does not
+  // count. Nothing else about a pledge is a state the donor has to track.
+  const current = pledges.filter((item) => item.status !== "cancelled");
+  const recent = current.slice(0, 8);
+  const active = current.length;
 
   return (
     <PageShell width="content">
@@ -216,22 +186,20 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
           </dl>
         </Card>
 
+        {/* The volunteer-hours tile went with the check-in flow that was the
+            only thing that could ever have filled it. It had always shown an
+            em-dash; now nothing records hours at all, so a tile promising
+            them would be a promise the product no longer makes. */}
         <section className="grid gap-4 sm:grid-cols-2">
           <Stat
             icon={<Heart className="h-4 w-4" aria-hidden="true" />}
             label={t("dashboard_individual.stat_donations")}
             value={loading ? <Skeleton className="h-8 w-12" /> : active}
           />
-          {/* This was a hardcoded `0` presented as a measurement. There is no
-              volunteer-hours query on this surface yet, so it shows an em-dash
-              in the muted tone rather than a fabricated figure. A localised
-              "not available yet" caption needs a translation key that does not
-              exist yet, see the handover note. */}
           <Stat
-            icon={<Clock className="h-4 w-4" aria-hidden="true" />}
-            label={t("dashboard_individual.stat_volunteer_hours")}
-            tone="muted"
-            value="—"
+            icon={<CalendarHeart className="h-4 w-4" aria-hidden="true" />}
+            label={t("dashboard_individual.stat_volunteer_signups")}
+            value={signupsLoading ? <Skeleton className="h-8 w-12" /> : signups.length}
           />
         </section>
 
@@ -270,25 +238,8 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
             />
           ) : (
             <>
-              <div className="mb-3 flex flex-wrap gap-2">
-                <FilterChip
-                  aria-pressed={statusFilter === "all"}
-                  onClick={() => setStatusFilter("all")}
-                >
-                  {t("filters.all")}
-                </FilterChip>
-                {STATUS_FILTERS.map((key) => (
-                  <FilterChip
-                    key={key}
-                    aria-pressed={statusFilter === key}
-                    onClick={() => setStatusFilter(key)}
-                  >
-                    {t(STATUS[key]!.key)}
-                  </FilterChip>
-                ))}
-              </div>
               {recent.length === 0 ? (
-                <p className="text-sm text-ink-secondary">{t("your_pledges.filter_empty")}</p>
+                <p className="text-sm text-ink-secondary">{t("your_pledges.empty")}</p>
               ) : (
                 <ul className="space-y-3">
                   {recent.map((pl) => {
@@ -300,7 +251,6 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
                     const when = formatDistanceToNow(new Date(pl.created_at), {
                       addSuffix: true,
                     });
-                    const status = STATUS[pl.status] ?? STATUS.pledged!;
                     return (
                       <li
                         key={pl.id}
@@ -313,44 +263,30 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
                               {need?.institution?.name ?? "—"}
                             </p>
                             <p className="mt-1 text-xs text-ink-tertiary">{typeLabel}</p>
-                            {pl.shipment ? (
-                              <p className="mt-1 text-xs text-info">
-                                {t("dashboard_individual.shipment_prefix")} {pl.shipment.status}
-                              </p>
-                            ) : null}
                           </div>
                           <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
-                            <Badge tone={status.tone}>{t(status.key)}</Badge>
                             <time dateTime={pl.created_at} className="text-xs text-ink-tertiary">
                               {when}
                             </time>
                           </div>
                         </div>
-                        {pl.status === "pledged" ? (
-                          <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
-                            <CancelActionButton
-                              endpoint={`/api/pledges/${pl.id}`}
-                              label={t("your_pledges.cancel")}
-                              title={t("your_pledges.cancel_title")}
-                              description={t("your_pledges.cancel_body", {
-                                title: need?.title ?? "",
-                              })}
-                              confirmLabel={t("your_pledges.cancel_confirm")}
-                              successTitle={t("your_pledges.cancel_success")}
-                              errorTitle={t("your_pledges.cancel_error")}
-                              conflictDescription={t("your_pledges.cancel_error_locked")}
-                              onCancelled={() =>
-                                setPledges((prev) =>
-                                  prev.map((row) =>
-                                    row.id === pl.id
-                                      ? { ...row, status: "cancelled" as const }
-                                      : row
-                                  )
-                                )
-                              }
-                            />
-                          </div>
-                        ) : null}
+                        <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
+                          <CancelActionButton
+                            endpoint={`/api/pledges/${pl.id}`}
+                            label={t("your_pledges.cancel")}
+                            title={t("your_pledges.cancel_title")}
+                            description={t("your_pledges.cancel_body", {
+                              title: need?.title ?? "",
+                            })}
+                            confirmLabel={t("your_pledges.cancel_confirm")}
+                            successTitle={t("your_pledges.cancel_success")}
+                            errorTitle={t("your_pledges.cancel_error")}
+                            conflictDescription={t("your_pledges.cancel_error_locked")}
+                            onCancelled={() =>
+                              setPledges((prev) => prev.filter((row) => row.id !== pl.id))
+                            }
+                          />
+                        </div>
                       </li>
                     );
                   })}
@@ -399,7 +335,6 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
           ) : (
             <ul className="space-y-3">
               {signups.map((signup) => {
-                const attended = signup.checked_in_at !== null;
                 return (
                   <li
                     key={signup.id}
@@ -421,37 +356,24 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
                           </p>
                         ) : null}
                       </div>
-                      {attended ? (
-                        <Badge tone="success">
-                          {t(
-                            signup.checked_out_at
-                              ? "volunteer_signup.completed"
-                              : "volunteer_signup.checked_in"
-                          )}
-                        </Badge>
-                      ) : null}
                     </div>
-                    {attended ? null : (
-                      <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
-                        <CancelActionButton
-                          endpoint={`/api/volunteer-signups/${signup.id}`}
-                          label={t("volunteer_signup.cancel")}
-                          title={t("volunteer_signup.cancel_title")}
-                          description={t("volunteer_signup.cancel_body", {
-                            title: signup.event?.title ?? "",
-                          })}
-                          confirmLabel={t("volunteer_signup.cancel_confirm")}
-                          successTitle={t("volunteer_signup.cancel_success")}
-                          errorTitle={t("volunteer_signup.cancel_error")}
-                          conflictDescription={t("volunteer_signup.cancel_error_checked_in")}
-                          onCancelled={() =>
-                            setSignups((prev) =>
-                              prev.filter((row) => row.id !== signup.id)
-                            )
-                          }
-                        />
-                      </div>
-                    )}
+                    <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
+                      <CancelActionButton
+                        endpoint={`/api/volunteer-signups/${signup.id}`}
+                        label={t("volunteer_signup.cancel")}
+                        title={t("volunteer_signup.cancel_title")}
+                        description={t("volunteer_signup.cancel_body", {
+                          title: signup.event?.title ?? "",
+                        })}
+                        confirmLabel={t("volunteer_signup.cancel_confirm")}
+                        successTitle={t("volunteer_signup.cancel_success")}
+                        errorTitle={t("volunteer_signup.cancel_error")}
+                        conflictDescription={t("volunteer_signup.cancel_error_locked")}
+                        onCancelled={() =>
+                          setSignups((prev) => prev.filter((row) => row.id !== signup.id))
+                        }
+                      />
+                    </div>
                   </li>
                 );
               })}
