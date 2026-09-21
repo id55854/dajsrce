@@ -11,6 +11,7 @@ import {
   normalizeMapSearch,
   parseMapQuery,
   projectHiddenLocation,
+  resolveMapCategories,
   SOCIAL_MAP_CATEGORIES,
   type MapBounds,
   type PublicMapResponse,
@@ -171,6 +172,25 @@ describe("map query contract", () => {
 
   it("normalizes wildcard characters before an indexed search", () => {
     expect(normalizeMapSearch("  DOM%__ZA   DJECU ")).toBe("dom za djecu");
+  });
+
+  it("drops the classified-only default for the On DajSrce filter", () => {
+    // An onboarded organisation whose register row was never classified is
+    // still `association`; asking for the twelve classified categories hid it.
+    expect(
+      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: true })
+    ).toEqual([]);
+    expect(
+      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: false })
+    ).toEqual(SOCIAL_MAP_CATEGORIES);
+    // An explicit choice wins over both defaults.
+    expect(
+      resolveMapCategories({
+        categories: ["soup_kitchen"],
+        onlySocial: true,
+        onlyOnboarded: true,
+      })
+    ).toEqual(["soup_kitchen"]);
   });
 
   it("reduces a typed OIB to its bare digits", () => {

@@ -78,6 +78,32 @@ export const SOCIAL_MAP_CATEGORIES: InstitutionCategory[] = (
   Object.keys(CATEGORY_CONFIG) as InstitutionCategory[]
 ).filter((category) => category !== "association");
 
+/**
+ * The categories the map actually asks for, given what the visitor chose.
+ *
+ * An explicit selection always wins. With no selection the map asks for the
+ * twelve classified categories, to keep the ~40,700 register rows the
+ * classifier could never place out of a nationwide view.
+ *
+ * "On DajSrce" is the exception, and the reason this is a function. That
+ * filter means "organisations with a real account here", and an account is
+ * not a category: an NGO whose register row was never classified is still
+ * `association`, so the classified-only default hid it. On production that
+ * silently reduced the filter's answer from three organisations to one, while
+ * the register's own engaged listing, which has no such default, showed all
+ * three. The noise the default exists to suppress cannot occur here, because
+ * every row already has a person behind it.
+ */
+export function resolveMapCategories(filters: {
+  categories: InstitutionCategory[];
+  onlySocial: boolean;
+  onlyOnboarded: boolean;
+}): InstitutionCategory[] {
+  if (filters.categories.length > 0) return filters.categories;
+  if (filters.onlyOnboarded) return [];
+  return filters.onlySocial ? SOCIAL_MAP_CATEGORIES : [];
+}
+
 export const REGISTRY_ID_PREFIX = "registry:";
 
 export function splitRegistryFeatureId(featureId: string): string | null {

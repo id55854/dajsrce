@@ -46,7 +46,7 @@ import {
   maxBboxAreaForZoom,
   parseBrowserMapView,
   parseMapQuery,
-  SOCIAL_MAP_CATEGORIES,
+  resolveMapCategories,
   splitRegistryFeatureId,
   type MapBounds,
   type MapQuery,
@@ -353,10 +353,13 @@ function MapSurface() {
   // viewport, and "social only" expands into the twelve real categories rather
   // than writing all twelve into the URL.
   const apiMapQuery = useMemo<MapQuery>(() => {
+    const categories = resolveMapCategories({
+      categories: mapQuery.categories,
+      onlySocial: filters.onlySocial,
+      onlyOnboarded: mapQuery.onlyOnboarded,
+    });
     const withCategories =
-      mapQuery.categories.length === 0 && filters.onlySocial
-        ? { ...mapQuery, categories: SOCIAL_MAP_CATEGORIES }
-        : mapQuery;
+      categories === mapQuery.categories ? mapQuery : { ...mapQuery, categories };
     return withCategories.query
       ? {
           ...withCategories,
