@@ -255,8 +255,28 @@ function parseBoolean(
   return false;
 }
 
+/**
+ * An OIB the visitor typed, reduced to its eleven bare digits, or null.
+ *
+ * The register's `search_text` already carries the OIB, so the digits alone
+ * have always matched; what did not was everything a person naturally puts
+ * around them. "OIB: 282-3894-9295" reaches the search as four terms, all of
+ * which must match, so the one input a donor is most likely to paste from an
+ * invoice or a register page returned nothing. Anything that is not exactly
+ * eleven digits is left alone, so a partial number stays an ordinary
+ * substring search.
+ */
+function normalizeOibSearch(value: string): string | null {
+  const withoutLabel = value.replace(/^\s*oib\b[\s:.\-/]*/i, "");
+  if (!/^[\d\s.\-/]+$/.test(withoutLabel)) return null;
+  const digits = withoutLabel.replace(/\D/g, "");
+  return digits.length === 11 ? digits : null;
+}
+
 export function normalizeMapSearch(value: string | null): string | null {
   if (value == null) return null;
+  const oib = normalizeOibSearch(value);
+  if (oib) return oib;
   const normalized = value
     .normalize("NFKC")
     .replace(/[%_]/g, " ")

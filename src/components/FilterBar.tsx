@@ -2,13 +2,13 @@
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { InstitutionCategory, DonationType } from "@/lib/types";
-import { CATEGORY_CONFIG, DONATION_TYPES, categoryVars } from "@/lib/constants";
+import { DONATION_TYPES, categoryVars } from "@/lib/constants";
 import clsx from "clsx";
 import { useLocale, useT } from "@/i18n/client";
 import { CityFilter } from "@/components/CityFilter";
+import { CategoryFilter } from "@/components/CategoryFilter";
 
 const DONATION_TYPE_KEYS = Object.keys(DONATION_TYPES) as DonationType[];
-const CATEGORY_KEYS = Object.keys(CATEGORY_CONFIG) as InstitutionCategory[];
 
 /**
  * One transition declaration per chip: stacking `transition-colors` with
@@ -113,13 +113,6 @@ function GroupLabel({ children }: { children: ReactNode }) {
 export function FilterBar({ filters, onChange }: FilterBarProps) {
   const t = useT();
   const { locale } = useLocale();
-  const toggleCategory = (cat: InstitutionCategory) => {
-    const has = filters.categories.includes(cat);
-    const categories = has
-      ? filters.categories.filter((c) => c !== cat)
-      : [...filters.categories, cat];
-    onChange({ ...filters, categories });
-  };
 
   const setDonationType = (t: DonationType | null) => {
     onChange({ ...filters, donationType: t });
@@ -127,12 +120,11 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
 
   return (
     <div className="w-full">
-      <div
-        className={clsx(
-          "flex flex-nowrap gap-2 overflow-x-auto pb-1",
-          "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        )}
-      >
+      {/* Wrapping, not scrolling sideways. The twelve category chips were what
+          made this row longer than any viewport; with them behind their own
+          button what is left fits, and a second line is a better answer than a
+          hidden scroll track for the narrow case that does not. */}
+      <div className="flex flex-wrap items-center gap-2">
         <FilterChip
           aria-pressed={filters.onlyOnboarded}
           onClick={() => onChange({ ...filters, onlyOnboarded: !filters.onlyOnboarded })}
@@ -145,26 +137,10 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           onChange={(city) => onChange({ ...filters, city })}
         />
 
-        <div
-          className="mx-1 h-8 w-px shrink-0 self-center bg-border-subtle"
-          aria-hidden
+        <CategoryFilter
+          value={filters.categories}
+          onChange={(categories) => onChange({ ...filters, categories })}
         />
-
-        <GroupLabel>{t("filters.category")}</GroupLabel>
-        {CATEGORY_KEYS.map((cat) => {
-          const cfg = CATEGORY_CONFIG[cat];
-          const on = filters.categories.includes(cat);
-          return (
-            <FilterChip
-              key={cat}
-              aria-pressed={on}
-              category={cat}
-              onClick={() => toggleCategory(cat)}
-            >
-              {locale === "hr" ? cfg.labelHr : cfg.label}
-            </FilterChip>
-          );
-        })}
 
         <div
           className="mx-1 h-8 w-px shrink-0 self-center bg-border-subtle"

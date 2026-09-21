@@ -31,7 +31,6 @@ import { Button, Menu, SEARCH_CONTROL_CLASSES, Sheet, Skeleton } from "@/compone
 import { DetailOverlay, type MapDetail } from "./detail-overlay";
 import { MapFilterPanel } from "./filter-panel";
 import { useMapStartPrompt } from "./use-map-start";
-import { MapPinLegend } from "./pin-legend";
 import { ResultsList, type ClusterRow, type InstitutionRow } from "./results-list";
 import { useLocale, useT } from "@/i18n/client";
 import type { AssociationRegistryEntry } from "@/lib/association-registry";
@@ -966,9 +965,6 @@ function MapSurface() {
               onSelect={onSelect}
             />
             <FilterBar filters={filters} onChange={setFilters} />
-            <div className="mt-3">
-              <MapPinLegend />
-            </div>
             <div className="mt-2">{resultsMeta}</div>
           </div>
 

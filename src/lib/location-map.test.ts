@@ -172,6 +172,21 @@ describe("map query contract", () => {
   it("normalizes wildcard characters before an indexed search", () => {
     expect(normalizeMapSearch("  DOM%__ZA   DJECU ")).toBe("dom za djecu");
   });
+
+  it("reduces a typed OIB to its bare digits", () => {
+    // The register's search text holds the plain eleven digits, so every
+    // shape a person might paste has to arrive as those digits.
+    expect(normalizeMapSearch("28238949295")).toBe("28238949295");
+    expect(normalizeMapSearch("OIB: 28238949295")).toBe("28238949295");
+    expect(normalizeMapSearch("282-3894-9295")).toBe("28238949295");
+    expect(normalizeMapSearch(" oib 282 389 49295 ")).toBe("28238949295");
+  });
+
+  it("leaves anything that is not a whole OIB as an ordinary search", () => {
+    expect(normalizeMapSearch("2823894")).toBe("2823894");
+    expect(normalizeMapSearch("282389492950")).toBe("282389492950");
+    expect(normalizeMapSearch("Dom 2")).toBe("dom 2");
+  });
 });
 
 describe("hidden-location projection", () => {

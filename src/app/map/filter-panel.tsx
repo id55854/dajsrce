@@ -3,7 +3,6 @@
 import { useId, useRef } from "react";
 import { Button, usePresence } from "@/components/ui";
 import { FilterBar } from "@/components/FilterBar";
-import { MapPinLegend } from "./pin-legend";
 import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { useT } from "@/i18n/client";
 import type { MapFilters } from "@/components/Map";
@@ -22,10 +21,10 @@ export type MapFilterPanelProps = {
  * of the redesign (they used to exist only inside the list view).
  *
  * It is deliberately *not* rendered inside the sheet header itself. The sheet's
- * grab area sets `touch-action: none` to own vertical gestures, and a
- * horizontally scrolling 25-chip row nested under that cannot be panned by
- * touch. A dedicated surface also gives the chips room to wrap instead of
- * hiding two thirds of them off the edge of a 145px peek header.
+ * grab area sets `touch-action: none` to own vertical gestures, so anything
+ * nested under it that needs its own touch handling fights the sheet. A
+ * dedicated surface also gives the filter row and the category popover room to
+ * open, instead of squeezing them into a 145px peek header.
  */
 export function MapFilterPanel({
   open,
@@ -69,10 +68,6 @@ export function MapFilterPanel({
         </h2>
 
         <FilterBar filters={filters} onChange={onChange} />
-
-        <div className="mt-4">
-          <MapPinLegend />
-        </div>
 
         <div className="mt-4 flex gap-2">
           <Button variant="secondary" size="md" fullWidth onClick={onClear}>

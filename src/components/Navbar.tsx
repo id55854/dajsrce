@@ -28,9 +28,13 @@ import { useT } from "@/i18n/client";
 // The register, open needs and the "find help" wizard used to be three entries
 // answering three halves of one question. They are now views of a single
 // register, and `/needs` and `/quick-start` redirect into the Donate page.
+//
+// The register no longer has a tab of its own. The map already searches the
+// same rows by name and by OIB, so a second entry point answered a question
+// the map was answering better; `/organisations` itself stays routable, and
+// is still reached from the map's own detail panel and from existing links.
 const navLinks = [
   { href: "/", labelKey: "nav.map" },
-  { href: "/organisations", labelKey: "nav.organisations" },
   { href: "/doniraj", labelKey: "nav.donate" },
   { href: "/volunteer", labelKey: "nav.volunteer" },
 ] as const;
@@ -65,9 +69,6 @@ function isNavLinkActive(
   const [hrefPath, hrefSearch = ""] = href.split("?");
   const hrefView = new URLSearchParams(hrefSearch).get("view");
   if (hrefView) return pathname === hrefPath && currentView === hrefView;
-  if (hrefPath === "/organisations") {
-    return (pathname === hrefPath || pathname.startsWith(`${hrefPath}/`)) && !currentView;
-  }
   return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
 }
 
