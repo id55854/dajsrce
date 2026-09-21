@@ -163,6 +163,8 @@
     "role_ngo_subtitle": "Udruga / ustanova",
     "ngo_claim_hint": "Nakon prijave povezat ćete profil sa svojom udrugom iz službenog Registra udruga.",
     "setup_title": "Dobro došli! Tko ste?",
+    "switch_account": "Odjavi se i prijavi drugim računom",
+    "switch_account_body": "Dok čekate odobrenje udruge, možete se prijaviti kao pojedinac drugim računom ili izraditi novi osobni račun. Zahtjev udruge ostaje spremljen i na čekanju.",
     "setup_subtitle": "Odaberite svoju ulogu kako bismo pripremili vašu nadzornu ploču.",
     "setup_checking": "Provjeravamo vaš račun…",
     "create_account": "Izradi račun",

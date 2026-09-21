@@ -33,7 +33,6 @@ const navLinks = [
   { href: "/organisations", labelKey: "nav.organisations" },
   { href: "/doniraj", labelKey: "nav.donate" },
   { href: "/volunteer", labelKey: "nav.volunteer" },
-  { href: "/o-nama", labelKey: "nav.about" },
 ] as const;
 
 // The two surfaces an NGO actually works in day to day. They stay reachable
@@ -45,14 +44,17 @@ const ngoNavLinks = [
 ] as const;
 
 // An NGO account posts volunteer events; it doesn't sign up for them. The
-// "Volunteer" tab answers a question only an individual account asks, so it
-// is dropped from an NGO's own nav rather than shown and disabled, and its
+// "Donate" and "Volunteer" tabs serve individual accounts, so they
+// are dropped from an NGO's own nav, and its
 // own inbound pledges and volunteer management take that place instead.
 function navLinksForRole(
   role: string | undefined
 ): readonly { href: string; labelKey: string }[] {
   if (role !== "ngo") return navLinks;
-  return [...navLinks.filter((link) => link.href !== "/volunteer"), ...ngoNavLinks];
+  return [
+    ...navLinks.filter((link) => link.href !== "/volunteer" && link.href !== "/doniraj"),
+    ...ngoNavLinks,
+  ];
 }
 
 function isNavLinkActive(
@@ -356,10 +358,9 @@ export function Navbar() {
 
   const profileEmail = meProfile?.email || user?.email || undefined;
 
-  // An NGO's strip carries six entries instead of five (490px against 387px),
-  // and the track is absolutely positioned on the viewport midline, so at `lg`
-  // its right edge lands under the header controls instead of pushing them
-  // aside. That layout therefore starts one breakpoint later for an NGO, and
+  // An NGO's management labels need more room, and the track is absolutely
+  // positioned on the viewport midline. Start one breakpoint later so the
+  // links do not overlap the header controls, and
   // the compact menu -- which lists the same links in a column -- covers the
   // range in between. Written as whole class strings so Tailwind sees them.
   const wideNav = meProfile?.role === "ngo";

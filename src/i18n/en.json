@@ -163,6 +163,8 @@
     "role_ngo_subtitle": "NGO / association",
     "ngo_claim_hint": "After signing up you'll link your profile to your NGO from the official Associations Register.",
     "setup_title": "Welcome! Who are you?",
+    "switch_account": "Sign out and sign in with another account",
+    "switch_account_body": "While waiting for your organisation to be approved, you can sign in as an individual with another account or create a new personal account. Your organisation's request stays saved and awaiting review.",
     "setup_subtitle": "Select your role so we can set up your dashboard.",
     "setup_checking": "Checking your account…",
     "create_account": "Create account",

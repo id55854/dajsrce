@@ -23,6 +23,7 @@ export default function SetupPage() {
   const router = useRouter();
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
   const [checking, setChecking] = useState(true);
   const [formErrorKey, setFormErrorKey] = useState<string | null>(null);
 
@@ -94,6 +95,21 @@ export default function SetupPage() {
   function selectRole(next: UserRole) {
     setRole(next);
     setFormErrorKey(null);
+  }
+
+  async function switchAccount() {
+    setSwitchingAccount(true);
+    setFormErrorKey(null);
+    try {
+      if (!isSupabaseConfigured) throw new Error(AUTH_NOT_CONFIGURED);
+      const { error } = await createClient().auth.signOut({ scope: "local" });
+      if (error) throw error;
+      // Reset client caches and leave the pending claim attached to its owner.
+      window.location.replace("/auth/login");
+    } catch (error) {
+      setFormErrorKey(authErrorKey(error));
+      setSwitchingAccount(false);
+    }
   }
 
   /**
@@ -210,10 +226,25 @@ export default function SetupPage() {
         </div>
 
         {role === "ngo" ? (
-          <InstitutionClaimSetup
-            ensureNgoRole={ensureNgoRole}
-            onApproved={() => router.replace("/dashboard")}
-          />
+          <>
+            <InstitutionClaimSetup
+              ensureNgoRole={ensureNgoRole}
+              onApproved={() => router.replace("/dashboard")}
+            />
+            <div className="space-y-3 border-t border-border-subtle pt-6">
+              <p className="text-sm leading-6 text-ink-secondary">
+                {t("auth.switch_account_body")}
+              </p>
+              <Button
+                variant="secondary"
+                fullWidth
+                loading={switchingAccount}
+                onClick={() => void switchAccount()}
+              >
+                {t("auth.switch_account")}
+              </Button>
+            </div>
+          </>
         ) : (
           <Button
             size="lg"
