@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Field, Input, Button, useToast } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { sendPasswordRecovery } from "@/lib/auth/password-recovery";
 import {
   AUTH_NETWORK_ERROR,
   AUTH_NOT_CONFIGURED,
@@ -14,16 +15,6 @@ import {
 import { AuthAlert, AuthShell, authLinkClasses } from "../auth-ui";
 
 const FORM_ERROR_ID = "forgot-form-error";
-
-/**
- * The recovery mail redirects through the existing `/auth/callback` route
- * rather than straight at the update page: that route already exchanges the
- * code for a session, and it is a redirect target Supabase is configured to
- * allow, so the reset flow needs no new auth handling of its own.
- */
-function recoveryRedirectTarget(): string {
-  return `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/reset-password")}`;
-}
 
 export default function ForgotPasswordPage() {
   const t = useT();
@@ -44,12 +35,9 @@ export default function ForgotPasswordPage() {
     }
 
     setLoading(true);
-    const supabase = createClient();
     let failure: string | null = null;
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(address, {
-        redirectTo: recoveryRedirectTarget(),
-      });
+      const { error } = await sendPasswordRecovery(address, window.location.origin);
       if (error) failure = authErrorKey(error);
     } catch {
       failure = AUTH_NETWORK_ERROR;

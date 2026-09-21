@@ -6,12 +6,35 @@ import { safeInternalPath } from "@/lib/security/redirects";
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
+  const flowId = searchParams.get("sb_flow_id");
   const next = safeInternalPath(searchParams.get("next"));
+  const isRecovery = searchParams.get("type") === "recovery" || next === "/auth/reset-password";
+  const recoveryUrl = `${origin}/auth/reset-password`;
+
+  if (isRecovery && searchParams.has("error")) {
+    return NextResponse.redirect(`${recoveryUrl}?error=invalid_recovery`);
+  }
+
+  // Recovery templates can send a token hash directly. Unlike a PKCE code,
+  // this also works when the email is opened on another device.
+  if (tokenHash && searchParams.get("type") === "recovery") {
+    const supabase = await createServerSupabaseClient();
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+    return NextResponse.redirect(error ? `${recoveryUrl}?error=invalid_recovery` : recoveryUrl);
+  }
 
   if (code) {
     const supabase = await createServerSupabaseClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(
+      code,
+      flowId ? { flowId } : undefined
+    );
     if (!error) {
+      // Password recovery takes priority over OAuth/NGO onboarding.
+      if (isRecovery || ("redirectType" in data && data.redirectType === "recovery")) {
+        return NextResponse.redirect(recoveryUrl);
+      }
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -50,6 +73,12 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.redirect(`${origin}${next}`);
     }
+  }
+
+  if (isRecovery) {
+    // A legacy link may carry its session in a URL fragment, invisible to
+    // this server route. The browser preserves it across this redirect.
+    return NextResponse.redirect(code ? `${recoveryUrl}?error=invalid_recovery` : recoveryUrl);
   }
 
   return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`);

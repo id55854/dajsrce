@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { Button, buttonClasses, useToast } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { evaluatePassword } from "@/lib/password-strength";
+import { establishRecoverySession } from "@/lib/auth/password-recovery";
 import {
   AUTH_NETWORK_ERROR,
   AUTH_NOT_CONFIGURED,
@@ -36,6 +37,7 @@ export default function ResetPasswordPage() {
   const [accountEmail, setAccountEmail] = useState("");
   const [formErrorKey, setFormErrorKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const recovery = useRef<Promise<string | null> | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -47,27 +49,26 @@ export default function ResetPasswordPage() {
     const supabase = createClient();
     let active = true;
 
-    // `/auth/callback` normally establishes the recovery session before this
-    // page renders, so `getSession` resolves it straight from the cookie. The
-    // listener is the fallback for a link that lands here directly and lets the
-    // browser client finish its own code exchange.
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!active || !session) return;
-        setAccountEmail(session.user.email ?? "");
-        setStage("ready");
-      }
-    );
-
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setAccountEmail(data.session?.user.email ?? "");
-      setStage(data.session ? "ready" : "invalid");
+    // Share initialization across Strict Mode effects; a one-use recovery
+    // token must not be consumed twice. Auth events must not reopen the form
+    // after a successful password update or override an invalid-link error.
+    recovery.current ??= establishRecoverySession(supabase, window.location.href, () => {
+      window.history.replaceState(window.history.state, "", "/auth/reset-password");
     });
+    void recovery.current
+      .then((email) => {
+        if (!active) return;
+        setAccountEmail(email ?? "");
+        setStage(email === null ? "invalid" : "ready");
+      })
+      .catch(() => {
+        if (!active) return;
+        setFormErrorKey(AUTH_NETWORK_ERROR);
+        setStage("invalid");
+      });
 
     return () => {
       active = false;
-      listener.subscription.unsubscribe();
     };
   }, []);
 
@@ -114,6 +115,8 @@ export default function ResetPasswordPage() {
     }
 
     toast({ tone: "success", title: t("auth.reset_done_toast") });
+    setPassword("");
+    setConfirmation("");
     setStage("done");
   }
 

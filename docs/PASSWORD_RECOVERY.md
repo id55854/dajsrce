@@ -1,0 +1,41 @@
+# Password recovery
+
+Recovery requests use an isolated, non-persistent Supabase client with the
+implicit flow. The email's one-use confirmation link can therefore be opened
+on another device without a PKCE verifier cookie from the requesting browser.
+Normal sign-in, signup and OAuth continue to use the cookie-backed PKCE client.
+
+The default Supabase recovery email must use `{{ .ConfirmationURL }}`. Its
+redirect target is `/auth/callback?next=%2Fauth%2Freset-password` on the requesting
+origin. That URL must be allowed in Supabase Authentication → URL Configuration
+(including additional `sb_flow_id` query parameters for older PKCE links).
+The callback forwards fragment-based recovery to `/auth/reset-password` without
+going through login or NGO onboarding. The reset page removes the fragment,
+establishes the cookie-backed session, verifies the user, and saves the new
+password using `supabase.auth.updateUser({ password })`. Supabase Auth hashes
+and persists the password; no application profile password column is needed.
+
+Custom recovery templates can alternatively use
+`{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery`.
+The callback verifies that one-use token server-side. Never replace the link
+with `{{ .SiteURL }}` alone: that contains no recovery proof or destination.
+
+Old PKCE emails remain supported in their originating browser. A person opening
+an old PKCE email on another device must request a new email after deployment.
+Expired, reused and malformed recovery links display the reset error page with
+a link to request another email, even if another account is already signed in.
+
+## Verification
+
+Automated tests cover portable email requests, fragment session establishment,
+token-hash and PKCE callbacks, NGO onboarding bypass, invalid links, and redirect
+validation. Production email delivery and provider settings require a live test:
+
+1. Request a fresh recovery email for a test account.
+2. Open it in the same browser; confirm the new-password form appears.
+3. Request another email and open it on a different device/private browser.
+4. Save a new password, sign out, and confirm that only the new password signs in.
+5. Reopen the consumed email link; confirm the invalid-link screen appears.
+6. Repeat with a pending NGO account; recovery must not open onboarding first.
+
+Do not log email links, fragment tokens, passwords, or recovery sessions.
