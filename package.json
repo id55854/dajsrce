@@ -27,9 +27,7 @@
     "registry:addresses:import": "node scripts/import-dgu-geocodes.mjs",
     "registry:promote": "node scripts/promote-registry.mjs",
     "registry:apply-migration": "node scripts/apply-migration-014.mjs",
-    "content:audit": "node scripts/audit-content.mjs",
-    "predev": "node scripts/copy-maplibre-worker.mjs",
-    "prebuild": "node scripts/copy-maplibre-worker.mjs"
+    "content:audit": "node scripts/audit-content.mjs"
   },
   "dependencies": {
     "@fontsource/noto-sans": "^5.3.0",
@@ -38,17 +36,19 @@
     "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.474.0",
-    "maplibre-gl": "^6.10.0",
     "next": "15.5.25",
     "proj4": "2.21.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-leaflet": "^5.0.0",
     "resend": "^6.19.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.3.3",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

@@ -56,7 +56,7 @@ describe("design token layer", () => {
 
   it("keeps the layering ladder single, ordered and free of four-digit escapes", () => {
     const css = source(GLOBALS);
-    // One ladder for the whole app. MapLibre's panes (200-700) are contained by
+    // One ladder for the whole app. Leaflet's panes (200-700) are contained by
     // `isolation: isolate` on the map wrapper, and Dialog portals to
     // document.body, so nothing here has to out-bid them. A four-digit value
     // is the symptom of someone fixing a stacking bug by escalation instead;

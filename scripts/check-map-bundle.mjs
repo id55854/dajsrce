@@ -2,7 +2,6 @@
 
 import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { gzipSync } from "node:zlib";
 
 const buildDir = resolve(process.cwd(), ".next");
 const appManifest = JSON.parse(
@@ -42,7 +41,7 @@ const sharedFiles = new Set(
 );
 const mapFiles = new Set(mapEntry.filter((file) => !sharedFiles.has(file)));
 for (const [key, value] of Object.entries(loadableManifest)) {
-  // The MapLibre component is a dynamic import from the map experience module.
+  // The Leaflet component is a dynamic import from the map experience module.
   if (
     key.includes("app\\map\\map-experience.tsx") ||
     key.includes("app/map/map-experience.tsx")
@@ -66,25 +65,11 @@ if (measured.length === 0) {
 }
 
 const totalRawBytes = measured.reduce((sum, item) => sum + item.bytes, 0);
-// MapLibre 6 replaces Leaflet: its renderer is ~1 MB raw. Keep a bounded
-// renderer-inclusive budget and include the separately served worker modules,
-// which Next's manifests do not track. Compressed transfer is bounded too.
-const maximumRawBytes = 1280 * 1024;
-const maximumWorkerRawBytes = 600 * 1024;
-const maximumGzipBytes = 500 * 1024;
-const workerFiles = ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"];
-let workerRawBytes = 0;
-let totalGzipBytes = 0;
-for (const file of mapFiles) totalGzipBytes += gzipSync(await readFile(resolve(buildDir, file))).length;
-for (const file of workerFiles) {
-  const contents = await readFile(resolve(process.cwd(), "public/maplibre", file));
-  workerRawBytes += contents.length;
-  totalGzipBytes += gzipSync(contents).length;
-}
+const maximumRawBytes = 320 * 1024;
 const result = {
   route: "/",
-  budget: { maximumRawBytes, maximumWorkerRawBytes, maximumGzipBytes, excludesSharedFramework: true },
-  result: { totalRawBytes, workerRawBytes, totalGzipBytes, passed: totalRawBytes <= maximumRawBytes && workerRawBytes <= maximumWorkerRawBytes && totalGzipBytes <= maximumGzipBytes },
+  budget: { maximumRawBytes, excludesSharedFramework: true },
+  result: { totalRawBytes, passed: totalRawBytes <= maximumRawBytes },
   files: measured,
 };
 process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

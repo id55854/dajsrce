@@ -598,7 +598,6 @@
     "status_verified": "Verified organisation",
     "status_onboarded": "On DajSrce",
     "status_registry": "In the register",
-    "webgl_unavailable": "The map requires WebGL. Enable hardware acceleration or open the page in another browser.",
     "distance": "Distance from you",
     "verified": "Verified",
     "approximate_area": "Approximate area",
