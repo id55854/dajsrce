@@ -32,6 +32,7 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [confirmationTouched, setConfirmationTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   // There is no email field on this form, so the recovery session supplies the
   // address the deny-list needs. It never leaves the browser.
   const [accountEmail, setAccountEmail] = useState("");
@@ -81,20 +82,26 @@ export default function ResetPasswordPage() {
     [password, accountEmail]
   );
 
-  const mismatch = confirmation.length > 0 && confirmation !== password;
+  const mismatch = confirmation !== password;
 
   const confirmationError =
     confirmationTouched && mismatch ? "auth.reset_mismatch" : undefined;
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (loading) return;
     setFormErrorKey(null);
-
-    // Hard rules only, surfaced through the strength meter next to the
-    // field, never spelled out here. The score alone is advice, not a gate.
-    if (strength.rejectionKey) return;
+    setSubmitted(true);
+    // Never silently return: explain the failed rule and focus its field.
+    if (strength.rejectionKey) {
+      setFormErrorKey(strength.rejectionKey);
+      (e.currentTarget.elements.namedItem("new-password") as HTMLInputElement | null)?.focus();
+      return;
+    }
     if (confirmation !== password) {
       setConfirmationTouched(true);
+      setFormErrorKey("auth.reset_mismatch");
+      (e.currentTarget.elements.namedItem("confirm-password") as HTMLInputElement | null)?.focus();
       return;
     }
 
@@ -185,9 +192,9 @@ export default function ResetPasswordPage() {
         </Link>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form noValidate onSubmit={handleSubmit} className="space-y-5">
         {formErrorKey ? (
-          <AuthAlert id={FORM_ERROR_ID}>{t(formErrorKey)}</AuthAlert>
+          <AuthAlert id={FORM_ERROR_ID}>{t(formErrorKey, { min: MIN_PASSWORD_LENGTH })}</AuthAlert>
         ) : null}
 
         <PasswordField
@@ -198,7 +205,8 @@ export default function ResetPasswordPage() {
           autoComplete="new-password"
           minLength={MIN_PASSWORD_LENGTH}
           value={password}
-          onChange={setPassword}
+          onChange={(value) => { setPassword(value); setFormErrorKey(null); }}
+          error={submitted && strength.rejectionKey ? t(strength.rejectionKey, { min: MIN_PASSWORD_LENGTH }) : undefined}
           describedByExtra={formErrorKey ? FORM_ERROR_ID : undefined}
           strength={password.length > 0 ? strength : null}
         />
@@ -209,7 +217,7 @@ export default function ResetPasswordPage() {
           autoComplete="new-password"
           minLength={MIN_PASSWORD_LENGTH}
           value={confirmation}
-          onChange={setConfirmation}
+          onChange={(value) => { setConfirmation(value); setFormErrorKey(null); }}
           onBlur={() => setConfirmationTouched(true)}
           error={confirmationError ? t(confirmationError) : undefined}
         />
