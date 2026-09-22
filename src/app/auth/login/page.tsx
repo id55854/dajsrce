@@ -1,18 +1,16 @@
 "use client";
 
-import { Suspense, useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Chrome } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import { sendPasswordRecovery } from "@/lib/auth/password-recovery";
 import { safeInternalPath } from "@/lib/security/redirects";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   AUTH_NETWORK_ERROR,
   AUTH_NOT_CONFIGURED,
-  AUTH_RATE_LIMITED,
   authErrorKey,
 } from "../auth-validation";
 import {
@@ -30,9 +28,6 @@ function LoginForm() {
   const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const emailRef = useRef<HTMLInputElement>(null);
-  const [recoveryLoading, setRecoveryLoading] = useState(false);
-  const [sentTo, setSentTo] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // Errors are stored as translation keys, not rendered strings, so switching
@@ -91,29 +86,9 @@ function LoginForm() {
     router.refresh();
   }
 
-  async function handleRecovery() {
-    if (recoveryLoading) return;
-    setErrorKey(null);
-    setCredentialError(false);
-    setSentTo(null);
-    const address = email.trim();
-    if (!address || !emailRef.current?.checkValidity()) {
-      setErrorKey(address ? "auth.error_email_invalid" : "auth.forgot_email_required");
-      emailRef.current?.focus();
-      return;
-    }
-    if (!isSupabaseConfigured) { setErrorKey(AUTH_NOT_CONFIGURED); return; }
-    setRecoveryLoading(true);
-    let failure: string | null = null;
-    try {
-      const { error } = await sendPasswordRecovery(address, window.location.origin);
-      if (error) failure = authErrorKey(error);
-    } catch { failure = AUTH_NETWORK_ERROR; }
-    setRecoveryLoading(false);
-    // A neutral response never reveals whether this address has an account.
-    if (failure === AUTH_NETWORK_ERROR || failure === AUTH_RATE_LIMITED) {
-      setErrorKey(failure);
-    } else { setSentTo(address); }
+  function handleRecovery() {
+    try { sessionStorage.setItem("password-recovery-email", email.trim()); } catch { /* Recovery remains available without browser storage. */ }
+    router.push("/auth/forgot-password");
   }
 
   async function handleGoogle() {
@@ -167,7 +142,6 @@ function LoginForm() {
           {(field) => (
             <Input
               {...field}
-              ref={emailRef}
               aria-describedby={describedBy(
                 field["aria-describedby"],
                 errorKey ? FORM_ERROR_ID : undefined
@@ -179,7 +153,7 @@ function LoginForm() {
               required
               invalid={credentialError}
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setSentTo(null); }}
+              onChange={(e) => setEmail(e.target.value)}
             />
           )}
         </Field>
@@ -197,17 +171,15 @@ function LoginForm() {
         <div className="flex justify-end">
           <button
             type="button"
-            disabled={recoveryLoading || loading}
-            onClick={() => void handleRecovery()}
+            disabled={loading}
+            onClick={handleRecovery}
             className={`${authLinkClasses} text-sm disabled:opacity-50`}
           >
-            {t(recoveryLoading ? "auth.forgot_sending" : "auth.forgot_password")}
+            {t("auth.forgot_password")}
           </button>
         </div>
 
-        {sentTo ? <p role="status" className="rounded-control bg-success-soft p-3 text-sm text-success-on-soft">{t("auth.forgot_sent_body", { email: sentTo })}</p> : null}
-
-        <Button type="submit" size="lg" fullWidth loading={loading} disabled={recoveryLoading}>
+        <Button type="submit" size="lg" fullWidth loading={loading}>
           {t("auth.sign_in_cta")}
         </Button>
       </form>
