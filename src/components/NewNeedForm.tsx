@@ -46,6 +46,7 @@ export function NewNeedForm({
   const [description, setDescription] = useState("");
   const [donationType, setDonationType] = useState<DonationType>("food");
   const [urgency, setUrgency] = useState<UrgencyLevel>("routine");
+  const [deadline, setDeadline] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +66,7 @@ export function NewNeedForm({
           donation_type: donationType,
           urgency,
           quantity_needed: Number(quantity),
+          deadline: deadline || null,
         }),
       });
       if (!res.ok) {
@@ -81,6 +83,7 @@ export function NewNeedForm({
       setTitle("");
       setDescription("");
       setQuantity("1");
+      setDeadline("");
       onClose();
       onPosted?.();
     } catch (err) {
@@ -192,6 +195,9 @@ export function NewNeedForm({
               onChange={(e) => setQuantity(e.target.value)}
             />
           )}
+        </Field>
+        <Field label={t("profile_calendar.deadline_field")} hint={t("profile_calendar.deadline_hint")}>
+          {(field) => <Input {...field} type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />}
         </Field>
         <Button type="submit" fullWidth loading={submitting}>
           {submitting ? t("institution.dashboard_posting") : t("institution.dashboard_post_need")}

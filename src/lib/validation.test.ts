@@ -19,6 +19,7 @@ describe("HTTP input validation", () => {
         donation_type: "food",
         urgency: "urgent",
         quantity_needed: 25,
+        deadline: null,
       },
     });
   });
@@ -32,6 +33,14 @@ describe("HTTP input validation", () => {
     const result = parseNeedInput(input);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain(expected as string);
+  });
+
+  it("accepts optional deadlines and rejects impossible dates", () => {
+    const need = { title: "Test", donation_type: "food" };
+    expect(parseNeedInput({ ...need, deadline: "2028-02-29" })).toMatchObject({ ok: true, value: { deadline: "2028-02-29" } });
+    expect(parseNeedInput({ ...need, deadline: "2026-02-29" }).ok).toBe(false);
+    expect(parseNeedInput({ ...need, deadline: "2026-09-25T00:00:00Z" }).ok).toBe(false);
+    expect(parseNeedInput({ ...need, deadline: "" })).toMatchObject({ ok: true, value: { deadline: null } });
   });
 
   it("requires real event dates, valid times, and bounded capacity", () => {

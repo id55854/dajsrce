@@ -7,7 +7,7 @@ import {
   VolunteerEventCard,
   type VolunteerEventCardProps,
 } from "@/components/VolunteerEventCard";
-import { VolunteerCalendar } from "@/components/VolunteerCalendar";
+import { endOfMonth, endOfWeek, format } from "date-fns";
 import { useT } from "@/i18n/client";
 import {
   Button,
@@ -23,49 +23,6 @@ type EventRow = VolunteerEventCardProps["event"];
 
 function eventCardId(eventId: string): string {
   return `volunteer-event-${eventId}`;
-}
-
-/**
- * The highlight the calendar flashes on a card. Kept in one place because it is
- * added imperatively, VolunteerEventCard transitions box-shadow so these fade
- * in and back out instead of blinking.
- */
-const HIGHLIGHT_CLASSES = [
-  "ring-2",
-  "ring-brand",
-  "ring-offset-2",
-  "ring-offset-surface",
-];
-
-/** Same 7-column shape and 44px cells as the real calendar. */
-function CalendarSkeleton() {
-  return (
-    <Card padding="sm" className="sm:p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <Skeleton className="h-6 w-40" />
-        <div className="flex gap-1">
-          <Skeleton className="h-11 w-11 rounded-full" />
-          <Skeleton className="h-10 w-20 rounded-full" />
-          <Skeleton className="h-11 w-11 rounded-full" />
-        </div>
-      </div>
-      <div className="mb-1 grid grid-cols-7 gap-1">
-        {Array.from({ length: 7 }, (_, i) => (
-          <Skeleton key={i} className="h-4" />
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {Array.from({ length: 35 }, (_, i) => (
-          <Skeleton key={i} className="aspect-square min-h-11" />
-        ))}
-      </div>
-      <div className="mt-4 flex gap-4">
-        {Array.from({ length: 3 }, (_, i) => (
-          <Skeleton key={i} className="h-4 w-24" />
-        ))}
-      </div>
-    </Card>
-  );
 }
 
 /** Mirrors VolunteerEventCard: chip row, title, three meta lines, progress, CTA. */
@@ -91,6 +48,7 @@ function EventCardSkeleton() {
 
 export function VolunteerClient() {
   const t = useT();
+  const [period, setPeriod] = useState<"all" | "week" | "month">("all");
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,37 +118,19 @@ export function VolunteerClient() {
     );
   }, []);
 
-  const onCalendarDayClick = useCallback(
-    (_date: string, eventIds: string[]) => {
-      const targetId = eventIds[0];
-      if (!targetId) return;
-      const node = document.getElementById(eventCardId(targetId));
-      if (!node) return;
-      const reducedMotion = window.matchMedia?.(
-        "(prefers-reduced-motion: reduce)"
-      ).matches;
-      node.scrollIntoView({
-        behavior: reducedMotion ? "auto" : "smooth",
-        block: "center",
-      });
-      node.focus({ preventScroll: true });
-      // Fades in and back out: the card carries a box-shadow transition.
-      node.classList.add(...HIGHLIGHT_CLASSES);
-      window.setTimeout(() => {
-        node.classList.remove(...HIGHLIGHT_CLASSES);
-      }, 1500);
-    },
-    []
-  );
-
   const sortedEvents = useMemo(
     () =>
-      [...events].sort((a, b) =>
+      [...events].filter((event) => {
+        if (period === "all") return true;
+        const today = new Date();
+        const end = period === "week" ? endOfWeek(today, { weekStartsOn: 1 }) : endOfMonth(today);
+        return event.event_date >= format(today, "yyyy-MM-dd") && event.event_date <= format(end, "yyyy-MM-dd");
+      }).sort((a, b) =>
         a.event_date === b.event_date
           ? (a.start_time ?? "").localeCompare(b.start_time ?? "")
           : a.event_date.localeCompare(b.event_date)
       ),
-    [events]
+    [events, period]
   );
 
   return (
@@ -202,9 +142,6 @@ export function VolunteerClient() {
 
       {loading ? (
         <div role="status" aria-label={t("volunteer_page.loading")}>
-          <div className="mb-8">
-            <CalendarSkeleton />
-          </div>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
               <EventCardSkeleton key={i} />
@@ -252,32 +189,40 @@ export function VolunteerClient() {
           }
         />
       ) : (
-        <>
-          <div className="mb-8">
-            <VolunteerCalendar
-              events={events.map((e) => ({
-                id: e.id,
-                title: e.title,
-                event_date: e.event_date,
-                start_time: e.start_time,
-              }))}
-              registeredEventIds={registered}
-              onDayClick={onCalendarDayClick}
+        <div>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-5">
+            <div role="group" aria-label={t("volunteer_page.period_label")} className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto">
+              {(["all", "week", "month"] as const).map((value) => (
+                <Button key={value} className="px-2 text-xs sm:px-5 sm:text-sm" variant={period === value ? "primary" : "secondary"} aria-pressed={period === value} onClick={() => setPeriod(value)}>
+                  {t(`volunteer_page.period_${value}`)}
+                </Button>
+              ))}
+            </div>
+            <p role="status" className="text-sm text-ink-secondary">
+              {t("volunteer_calendar.upcoming_count", { count: sortedEvents.length })}
+            </p>
+          </div>
+          {sortedEvents.length === 0 ? (
+            <EmptyState
+              icon={<CalendarHeart className="h-10 w-10" aria-hidden="true" />}
+              title={t("volunteer_page.period_empty")}
+              description={t("volunteer_page.period_empty_hint")}
+              action={<Button variant="secondary" onClick={() => setPeriod("all")}>{t("volunteer_page.period_all")}</Button>}
             />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {sortedEvents.map((event) => (
-              <VolunteerEventCard
-                key={event.id}
-                event={event}
-                isRegistered={registered.has(event.id)}
-                onSignUp={handleSignUp}
-                htmlId={eventCardId(event.id)}
-              />
-            ))}
-          </div>
-        </>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {sortedEvents.map((event) => (
+                <VolunteerEventCard
+                  key={event.id}
+                  event={event}
+                  isRegistered={registered.has(event.id)}
+                  onSignUp={handleSignUp}
+                  htmlId={eventCardId(event.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </PageShell>
   );

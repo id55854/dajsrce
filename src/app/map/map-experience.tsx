@@ -276,6 +276,7 @@ function MapSurface() {
   const [retryToken, setRetryToken] = useState(0);
   const [sheetDetent, setSheetDetent] = useState(SHEET_PEEK);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const closeFilterPanel = useCallback(() => setFilterPanelOpen(false), []);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const { shouldAsk: shouldAskStart, resolve: resolveStart } = useMapStartPrompt();
   const [userPosition, setUserPosition] = useState<{ lat: number; lng: number } | null>(null);
@@ -916,7 +917,7 @@ function MapSurface() {
           filters={filters}
           onChange={setFilters}
           onClear={clearFilters}
-          onClose={() => setFilterPanelOpen(false)}
+          onClose={closeFilterPanel}
         />
 
         <LocationStartDialog

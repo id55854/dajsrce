@@ -9,15 +9,13 @@ function source(path: string): string {
 describe("public UI accessibility contracts", () => {
   it("keeps filter state programmatically exposed", () => {
     const filterBar = source("src/components/FilterBar.tsx");
-    // `/needs` and `/volunteer` are thin server shells that exist only to
-    // export localized metadata; the interactive markup lives in the client
-    // components these assertions point at.
-    const needsPage = source("src/app/needs/needs-client.tsx");
-    expect(filterBar).toContain("aria-pressed={on}");
-    // The Zagreb-only/urgent-only chips were deliberately removed from this
-    // bar (the onboarded chip moved to the front instead), see FilterBar.tsx.
-    expect(filterBar).toContain("aria-pressed={filters.onlyOnboarded}");
-    expect(needsPage).toContain("aria-pressed={donationType === \"all\"}");
+    const dropdown = source("src/components/FilterDropdown.tsx");
+    expect(filterBar).toContain("checked={filters.onlyOnboarded}");
+    expect(filterBar).toContain('role="switch"');
+    expect(dropdown).toContain("aria-expanded={open}");
+    expect(dropdown).toContain("checked={value.includes(option.value)}");
+    expect(dropdown).toContain('type={multiple ? "checkbox" : "radio"}');
+
   });
 
   it("keeps async errors and loading state announced", () => {

@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { NewVolunteerEventForm } from "@/components/NewVolunteerEventForm";
+import { Plus } from "lucide-react";
 import { useT } from "@/i18n/client";
 import {
   Button,
@@ -31,6 +33,7 @@ type InstitutionVolunteersClientProps = {
    * direct link still works.
    */
   embedded?: boolean;
+  refreshKey?: number;
 };
 
 /**
@@ -45,8 +48,12 @@ type InstitutionVolunteersClientProps = {
  */
 export function InstitutionVolunteersClient({
   embedded = false,
+  refreshKey = 0,
 }: InstitutionVolunteersClientProps) {
   const t = useT();
+  const panelId = useId();
+  const [publishing, setPublishing] = useState(false);
+  const [events, setEvents] = useState<NonNullable<SignupRow["event"]>[]>([]);
   const [signups, setSignups] = useState<SignupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +71,7 @@ export function InstitutionVolunteersClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load");
       setSignups((data.signups ?? []) as SignupRow[]);
+      setEvents(data.events ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -73,9 +81,10 @@ export function InstitutionVolunteersClient({
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   const byEvent = new Map<string, SignupRow[]>();
+  for (const event of events) byEvent.set(event.id, []);
   for (const s of signups) {
     const arr = byEvent.get(s.event_id) ?? [];
     arr.push(s);
@@ -122,12 +131,12 @@ export function InstitutionVolunteersClient({
             </Button>
           }
         />
-      ) : signups.length === 0 ? (
+      ) : byEvent.size === 0 ? (
         <EmptyState title={t("institution.volunteers_empty")} />
       ) : (
         <div className="space-y-6">
           {Array.from(byEvent.entries()).map(([eventId, rows]) => {
-            const ev = rows[0]?.event;
+            const ev = events.find((event) => event.id === eventId) ?? rows[0]?.event;
             return (
               <Card key={eventId} padding="none">
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border-subtle p-5">
@@ -142,6 +151,7 @@ export function InstitutionVolunteersClient({
                   </p>
                 </div>
 
+                {rows.length === 0 ? <p className="p-5 text-sm text-ink-secondary">{t("institution.event_no_signups")}</p> : null}
                 <ul className="divide-y divide-border-subtle">
                   {rows.map((s) => (
                     <li
@@ -180,8 +190,10 @@ export function InstitutionVolunteersClient({
       <PageHeader
         title={t("institution.volunteers_title")}
         subtitle={t("institution.volunteers_subtitle")}
+        actions={<Button onClick={() => setPublishing((value) => !value)} aria-expanded={publishing} aria-controls={panelId} icon={<Plus className="h-4 w-4" aria-hidden />}>{t("institution.dashboard_new_event")}</Button>}
       />
 
+      {publishing ? <div className="mb-6"><NewVolunteerEventForm panelId={panelId} onClose={() => setPublishing(false)} onPosted={() => void load()} /></div> : null}
       {body}
     </PageShell>
   );

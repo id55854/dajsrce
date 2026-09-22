@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight, ChevronDown, X } from "lucide-react";
 import { useT } from "@/i18n/client";
 import { timeAgo } from "@/lib/utils";
 import { Button, Dialog, Skeleton, useToast } from "@/components/ui";
@@ -30,7 +30,7 @@ export type YourPledgeRow = {
   } | null;
 };
 
-const VISIBLE_LIMIT = 6;
+const VISIBLE_LIMIT = 3;
 
 /**
  * Confirm-then-write affordance shared by every control that withdraws a
@@ -182,6 +182,9 @@ export function YourPledgesSection({
   // locally and dropped from the list until the parent refetches.
   const [cancelledIds, setCancelledIds] = useState<Set<string>>(() => new Set());
 
+  const listId = useId();
+  const [expanded, setExpanded] = useState(false);
+
   const isWithdrawn = (p: YourPledgeRow) =>
     cancelledIds.has(p.id) || p.status === "cancelled";
 
@@ -198,7 +201,7 @@ export function YourPledgesSection({
       <SectionWrapper title={t("your_pledges.section_title")}>
         <div className="flex gap-3 overflow-hidden" aria-busy="true">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-28 w-64 shrink-0 rounded-card" />
+            <Skeleton key={i} className="h-5 w-32 shrink-0 rounded-control" />
           ))}
         </div>
       </SectionWrapper>
@@ -222,29 +225,33 @@ export function YourPledgesSection({
   return (
     <SectionWrapper
       title={t("your_pledges.section_title")}
-      subtitle={t("your_pledges.section_subtitle")}
       action={
         <Link
           href="/dashboard/individual"
           className="inline-flex items-center gap-1 rounded text-sm font-semibold text-brand transition-colors hover:text-brand-strong hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
-          {t("your_pledges.view_all")}
+          {t("your_pledges.view_all_short")}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
       }
     >
+      <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={listId} className="flex min-h-10 w-full items-center justify-between gap-2 rounded-control text-left text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        {expanded ? t("your_pledges.hide_summary") : t("your_pledges.summary_count", { count: current.length })}
+        <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden />
+      </button>
+      <div id={listId} hidden={!expanded}>
       {current.length === 0 ? (
         <p className="text-sm text-ink-secondary">{t("your_pledges.empty")}</p>
       ) : (
         <ul
-          className="flex snap-x gap-3 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible"
+          className="divide-y divide-border-subtle"
           role="list"
         >
           {visible.map((p) => {
             return (
-              <li key={p.id} className="w-72 shrink-0 snap-start md:max-w-xs">
-                <article className="flex h-full flex-col rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised">
-                  <div className="mb-2 flex items-start justify-end gap-2">
+              <li key={p.id} className="py-3">
+                <article className="relative flex flex-col sm:pr-44">
+                  <div className="mb-1 flex items-start gap-2">
                     <time className="shrink-0 text-xs text-ink-tertiary" dateTime={p.created_at}>
                       {timeAgo(p.created_at)}
                     </time>
@@ -257,7 +264,7 @@ export function YourPledgesSection({
                       {p.need.institution.name}
                     </p>
                   ) : null}
-                  <dl className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                  <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                     <div>
                       <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
                         {t("your_pledges.qty_label")}:{" "}
@@ -275,7 +282,7 @@ export function YourPledgesSection({
                       </div>
                     ) : null}
                   </dl>
-                  <div className="mt-auto flex flex-wrap justify-end gap-2 pt-3">
+                  <div className="mt-1 flex flex-wrap gap-2 sm:absolute sm:right-0 sm:top-0 sm:mt-0">
                     <CancelActionButton
                       endpoint={`/api/pledges/${p.id}`}
                       label={t("your_pledges.cancel")}
@@ -300,8 +307,9 @@ export function YourPledgesSection({
         </ul>
       )}
       {overflow > 0 ? (
-        <p className="mt-2 text-xs text-ink-tertiary">+{overflow} more</p>
+        <p className="mt-2 text-xs text-ink-tertiary">{t("your_pledges.more_count", { count: overflow })}</p>
       ) : null}
+      </div>
     </SectionWrapper>
   );
 }
@@ -319,12 +327,12 @@ function SectionWrapper({
 }) {
   return (
     <section
-      className="mb-8 rounded-card border border-border-subtle bg-surface-raised p-5 shadow-raised"
+      className="mb-4 rounded-control border border-border-subtle bg-surface-raised px-4 py-2.5"
       aria-labelledby="your-pledges-heading"
     >
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 id="your-pledges-heading" className="text-lg font-semibold text-ink">
+          <h2 id="your-pledges-heading" className="text-sm font-semibold text-ink">
             {title}
           </h2>
           {subtitle ? (

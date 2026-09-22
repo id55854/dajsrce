@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AlertTriangle, PackageSearch } from "lucide-react";
-import type { DonationType, UrgencyLevel } from "@/lib/types";
-import { DONATION_TYPES } from "@/lib/constants";
+import type { DonationType, InstitutionCategory, UrgencyLevel } from "@/lib/types";
+import { CategoryFilter } from "@/components/CategoryFilter";
+import { DonationFilter } from "@/components/DonationFilter";
+import { FilterDropdown } from "@/components/FilterDropdown";
 import { NeedCard, type NeedCardNeed } from "@/components/NeedCard";
-import { FilterChip } from "@/components/FilterBar";
 import type { PledgeSuccessPayload } from "@/components/PledgeButton";
 import {
   YourPledgesSection,
@@ -15,7 +16,7 @@ import {
 } from "@/components/YourPledgesSection";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMe } from "@/lib/me-client";
-import { useLocale, useT } from "@/i18n/client";
+import { useT } from "@/i18n/client";
 import {
   Button,
   Card,
@@ -25,7 +26,6 @@ import {
   buttonClasses,
 } from "@/components/ui";
 
-const DONATION_KEYS = Object.keys(DONATION_TYPES) as DonationType[];
 
 const URGENCY_OPTIONS: Array<{
   value: UrgencyLevel | "all";
@@ -69,7 +69,7 @@ function NeedCardSkeleton() {
 
 export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const t = useT();
-  const { locale } = useLocale();
+  const [categories, setCategories] = useState<InstitutionCategory[]>([]);
   const [needs, setNeeds] = useState<NeedCardNeed[]>([]);
   const [donationType, setDonationType] = useState<DonationType | "all">("all");
   const [urgency, setUrgency] = useState<UrgencyLevel | "all">("all");
@@ -133,6 +133,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
         const params = new URLSearchParams();
         if (donationType !== "all") params.set("donation_type", donationType);
         if (urgency !== "all") params.set("urgency", urgency);
+        if (categories.length) params.set("categories", categories.join(","));
         const res = await fetch(`/api/needs?${params.toString()}`);
         const json = (await res.json()) as {
           needs?: NeedCardNeed[];
@@ -154,7 +155,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     return () => {
       cancelled = true;
     };
-  }, [donationType, urgency, retry, refreshKey]);
+  }, [donationType, categories, urgency, retry, refreshKey]);
 
   // Map of need_id → my total pledged qty across all pledges (sum across rows).
   const myPledgedByNeed = useMemo(() => {
@@ -166,10 +167,11 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     return map;
   }, [userPledges]);
 
-  const filtersActive = donationType !== "all" || urgency !== "all";
+  const filtersActive = donationType !== "all" || urgency !== "all" || categories.length > 0;
 
   const clearFilters = useCallback(() => {
     setDonationType("all");
+    setCategories([]);
     setUrgency("all");
   }, []);
 
@@ -231,54 +233,19 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
         />
       )}
 
-      <div className="mb-8 space-y-4">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-tertiary">
-            {t("needs_page.donation_type")}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <FilterChip
-              aria-pressed={donationType === "all"}
-              onClick={() => setDonationType("all")}
-            >
-              {t("needs_page.all")}
-            </FilterChip>
-            {DONATION_KEYS.map((key) => {
-              const on = donationType === key;
-              return (
-                <FilterChip
-                  key={key}
-                  aria-pressed={on}
-                  onClick={() => setDonationType(on ? "all" : key)}
-                >
-                  {locale === "hr"
-                    ? DONATION_TYPES[key].labelHr
-                    : DONATION_TYPES[key].label}
-                </FilterChip>
-              );
-            })}
-          </div>
+      <div className="mb-6 rounded-card border border-border-subtle bg-surface-sunken p-4">
+        <div className="flex flex-wrap gap-3">
+          <CategoryFilter value={categories} onChange={setCategories} />
+          <DonationFilter value={donationType === "all" ? null : donationType} onChange={(value) => setDonationType(value ?? "all")} />
+          <FilterDropdown
+            label={t("needs_page.urgency")}
+            allLabel={t("needs_page.all")}
+            options={URGENCY_OPTIONS.filter((option) => option.value !== "all").map((option) => ({ value: option.value, label: t(option.key) }))}
+            value={urgency === "all" ? [] : [urgency]}
+            onChange={(value) => setUrgency(value[0] ?? "all")}
+          />
         </div>
-
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-tertiary">
-            {t("needs_page.urgency")}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {URGENCY_OPTIONS.map((opt) => {
-              const on = urgency === opt.value;
-              return (
-                <FilterChip
-                  key={opt.value}
-                  aria-pressed={on}
-                  onClick={() => setUrgency(opt.value)}
-                >
-                  {t(opt.key)}
-                </FilterChip>
-              );
-            })}
-          </div>
-        </div>
+        {filtersActive ? <button type="button" onClick={clearFilters} className="mt-3 min-h-10 rounded-control px-2 text-sm font-semibold text-brand hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{t("needs_page.clear_filters")}</button> : null}
       </div>
 
       {coldLoad ? (

@@ -18,6 +18,8 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Builds must not overwrite the files used by a running local dev server.
+  distDir: isDevelopment ? ".next-dev" : ".next",
   compress: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,

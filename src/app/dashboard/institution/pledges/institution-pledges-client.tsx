@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
+import { NewNeedForm } from "@/components/NewNeedForm";
+import { Plus } from "lucide-react";
 import { useT } from "@/i18n/client";
 import {
   Button,
@@ -30,6 +32,7 @@ type InstitutionPledgesClientProps = {
    * direct link to /dashboard/institution/pledges still works.
    */
   embedded?: boolean;
+  refreshKey?: number;
 };
 
 /**
@@ -41,8 +44,10 @@ type InstitutionPledgesClientProps = {
  * grouped by need the same way the volunteer roster groups by event, so an
  * organisation can see who to actually expect a donation from.
  */
-export function InstitutionPledgesClient({ embedded = false }: InstitutionPledgesClientProps) {
+export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: InstitutionPledgesClientProps) {
   const t = useT();
+  const panelId = useId();
+  const [publishing, setPublishing] = useState(false);
   const [pledges, setPledges] = useState<PledgeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -66,7 +71,7 @@ export function InstitutionPledgesClient({ embedded = false }: InstitutionPledge
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   const byNeed = new Map<string, PledgeRow[]>();
   for (const p of pledges) {
@@ -174,8 +179,10 @@ export function InstitutionPledgesClient({ embedded = false }: InstitutionPledge
       <PageHeader
         title={t("institution.pledges_title")}
         subtitle={t("institution.pledges_subtitle")}
+        actions={<Button onClick={() => setPublishing((value) => !value)} aria-expanded={publishing} aria-controls={panelId} icon={<Plus className="h-4 w-4" aria-hidden />}>{t("institution.dashboard_new_need")}</Button>}
       />
 
+      {publishing ? <div className="mb-6"><NewNeedForm panelId={panelId} onClose={() => setPublishing(false)} onPosted={() => void load()} /></div> : null}
       {body}
     </PageShell>
   );

@@ -11,6 +11,8 @@ import { DONATION_TYPES } from "@/lib/constants";
 import { useLocale, useT } from "@/i18n/client";
 import { createClient } from "@/lib/supabase/client";
 import { CancelActionButton } from "@/components/YourPledgesSection";
+import { ProfileCalendar } from "@/components/ProfileCalendar";
+import { individualCalendarEntries } from "@/lib/profile-calendar";
 import { SignOutButton } from "@/components/SignOutButton";
 import type { AppRole } from "@/lib/auth/roles";
 import {
@@ -30,6 +32,8 @@ type PledgeRow = Pledge & {
     id: string;
     title: string;
     donation_type: string;
+    deadline?: string | null;
+    is_fulfilled?: boolean;
     institution?: { id: string; name: string; category: string };
   };
   shipment?: Shipment | null;
@@ -55,7 +59,7 @@ type SignupRow = {
   event: SignupEvent | null;
 };
 
-const SIGNUP_LIMIT = 20;
+const SIGNUP_LIMIT = 100;
 
 /**
  * PostgREST answers a to-one embed with an object, but the untyped client
@@ -123,6 +127,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
             "id, event_id, created_at, event:volunteer_events(id, title, event_date, start_time)"
           )
           .eq("user_id", profile.id)
+          .is("cancelled_at", null)
           .order("created_at", { ascending: false })
           .limit(SIGNUP_LIMIT);
         if (cancelled) return;
@@ -146,7 +151,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
   // A withdrawn pledge is not a donation: it leaves the history and does not
   // count. Nothing else about a pledge is a state the donor has to track.
   const current = pledges.filter((item) => item.status !== "cancelled");
-  const recent = current.slice(0, 8);
+  const recent = current;
   const active = current.length;
 
   return (
@@ -185,6 +190,14 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
             </div>
           </dl>
         </Card>
+
+        <ProfileCalendar
+          entries={individualCalendarEntries(current, signups)}
+          loading={loading || signupsLoading}
+          error={Boolean(loadError || signupsError)}
+          truncated={signups.length >= SIGNUP_LIMIT}
+          onRetry={() => { setLoading(true); setSignupsLoading(true); setReload((value) => value + 1); }}
+        />
 
         {/* The volunteer-hours tile went with the check-in flow that was the
             only thing that could ever have filled it. It had always shown an
@@ -253,6 +266,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
                     });
                     return (
                       <li
+                        id={`pledge-${pl.id}`}
                         key={pl.id}
                         className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised"
                       >
@@ -337,6 +351,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
               {signups.map((signup) => {
                 return (
                   <li
+                    id={`signup-${signup.id}`}
                     key={signup.id}
                     className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised"
                   >

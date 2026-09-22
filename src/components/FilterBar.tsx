@@ -1,14 +1,14 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes } from "react";
 import { InstitutionCategory, DonationType } from "@/lib/types";
-import { DONATION_TYPES, categoryVars } from "@/lib/constants";
+import { categoryVars } from "@/lib/constants";
 import clsx from "clsx";
-import { useLocale, useT } from "@/i18n/client";
+import { useT } from "@/i18n/client";
 import { CityFilter } from "@/components/CityFilter";
 import { CategoryFilter } from "@/components/CategoryFilter";
 
-const DONATION_TYPE_KEYS = Object.keys(DONATION_TYPES) as DonationType[];
+import { DonationFilter } from "@/components/DonationFilter";
 
 /**
  * One transition declaration per chip: stacking `transition-colors` with
@@ -100,74 +100,25 @@ type FilterBarProps = {
   onChange: (next: FilterState) => void;
 };
 
-function GroupLabel({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex shrink-0 items-center gap-1.5 pr-2">
-      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-tertiary">
-        {children}
-      </span>
-    </div>
-  );
-}
-
 export function FilterBar({ filters, onChange }: FilterBarProps) {
   const t = useT();
-  const { locale } = useLocale();
-
-  const setDonationType = (t: DonationType | null) => {
-    onChange({ ...filters, donationType: t });
-  };
-
   return (
-    <div className="w-full">
-      {/* Wrapping, not scrolling sideways. The twelve category chips were what
-          made this row longer than any viewport; with them behind their own
-          button what is left fits, and a second line is a better answer than a
-          hidden scroll track for the narrow case that does not. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <FilterChip
-          aria-pressed={filters.onlyOnboarded}
-          onClick={() => onChange({ ...filters, onlyOnboarded: !filters.onlyOnboarded })}
-        >
-          {t("filters.onboarded_only")}
-        </FilterChip>
-
-        <CityFilter
-          value={filters.city}
-          onChange={(city) => onChange({ ...filters, city })}
-        />
-
-        <CategoryFilter
-          value={filters.categories}
-          onChange={(categories) => onChange({ ...filters, categories })}
-        />
-
-        <div
-          className="mx-1 h-8 w-px shrink-0 self-center bg-border-subtle"
-          aria-hidden
-        />
-
-        <GroupLabel>{t("filters.donation")}</GroupLabel>
-        <FilterChip
-          aria-pressed={filters.donationType === null}
-          onClick={() => setDonationType(null)}
-        >
-          {t("filters.all")}
-        </FilterChip>
-        {DONATION_TYPE_KEYS.map((key) => {
-          const on = filters.donationType === key;
-          return (
-            <FilterChip
-              key={key}
-              aria-pressed={on}
-              onClick={() => setDonationType(on ? null : key)}
-            >
-              {locale === "hr"
-                ? DONATION_TYPES[key].labelHr
-                : DONATION_TYPES[key].label}
-            </FilterChip>
-          );
-        })}
+    <div className="w-full space-y-3">
+      <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 border-b border-border-subtle pb-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium text-ink">{t("filters.onboarded_label")}</span>
+          <span className="mt-0.5 block text-xs text-ink-secondary">{t("filters.onboarded_hint")}</span>
+        </span>
+        <span className="relative inline-flex shrink-0">
+          <input type="checkbox" role="switch" checked={filters.onlyOnboarded} onChange={(event) => onChange({ ...filters, onlyOnboarded: event.target.checked })} className="peer sr-only" />
+          <span aria-hidden className="h-6 w-11 rounded-full bg-ink/20 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface" />
+          <span aria-hidden className="pointer-events-none absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+        </span>
+      </label>
+      <CityFilter value={filters.city} onChange={(city) => onChange({ ...filters, city })} />
+      <div className="flex flex-wrap gap-3">
+        <CategoryFilter value={filters.categories} onChange={(categories) => onChange({ ...filters, categories })} />
+        <DonationFilter value={filters.donationType} onChange={(donationType) => onChange({ ...filters, donationType })} />
       </div>
     </div>
   );

@@ -34,15 +34,16 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase
       .from("pledges")
       .select(
-        "id, need_id, quantity, message, status, tax_category, amount_eur, delivered_at, fulfilled_at, created_at, need:needs(id, title, urgency, quantity_needed, quantity_pledged, institution:institutions(id, name, category))"
+        "id, need_id, quantity, message, status, tax_category, amount_eur, delivered_at, fulfilled_at, created_at, need:needs(id, title, donation_type, deadline, is_fulfilled, urgency, quantity_needed, quantity_pledged, institution:institutions(id, name, category))"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return NextResponse.json({ pledges: data ?? [] });
-  } catch {
-    return NextResponse.json({ pledges: [] });
+    return NextResponse.json({ pledges: data ?? [] }, { headers: NO_STORE });
+  } catch (error) {
+    logError("pledges.list_failed", error, { request_id: requestId });
+    return jsonError("Pledges are temporarily unavailable", 503, requestId, NO_STORE);
   }
 }
 

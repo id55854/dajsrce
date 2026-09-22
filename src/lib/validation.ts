@@ -66,6 +66,7 @@ export type NeedInput = {
   donation_type: string;
   urgency: "routine" | "needed_soon" | "urgent";
   quantity_needed: number | null;
+  deadline: string | null;
 };
 
 export function parseNeedInput(value: unknown): ValidationResult<NeedInput> {
@@ -84,6 +85,10 @@ export function parseNeedInput(value: unknown): ValidationResult<NeedInput> {
   }
   const quantity = integer(body.quantity_needed, "quantity_needed", 1, 1_000_000, true);
   if (!quantity.ok) return quantity;
+  const deadline = body.deadline == null || body.deadline === "" ? null : parseISODate(body.deadline);
+  if (body.deadline != null && body.deadline !== "" && !deadline) {
+    return { ok: false, error: "deadline must be a real YYYY-MM-DD date" };
+  }
   return {
     ok: true,
     value: {
@@ -92,6 +97,7 @@ export function parseNeedInput(value: unknown): ValidationResult<NeedInput> {
       donation_type: body.donation_type,
       urgency,
       quantity_needed: quantity.value,
+      deadline,
     },
   };
 }

@@ -44,7 +44,7 @@ export function Dialog({
   const descriptionId = useId();
   const { present, state, onAnimationEnd } = usePresence(open);
 
-  useDialogFocus({ open, dialogRef: panelRef, onClose });
+  useDialogFocus({ open: open && present, dialogRef: panelRef, onClose });
 
   if (!present || typeof document === "undefined") return null;
 

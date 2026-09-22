@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addMonths,
+  addDays,
   endOfMonth,
   endOfWeek,
   format,
@@ -15,7 +16,7 @@ import clsx from "clsx";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { enUS, hr } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
 
 type Event = {
   id: string;
@@ -36,6 +37,11 @@ export type VolunteerCalendarProps = {
   events: Event[];
   registeredEventIds: Set<string>;
   /** Called when the user clicks a day with at least one event. */
+  selectedDate?: string | null;
+  framed?: boolean;
+  activityMode?: boolean;
+  initialMonth?: string;
+  onMonthChange?: (month: string) => void;
   onDayClick?: (date: string, eventIds: string[]) => void;
 };
 
@@ -43,17 +49,19 @@ export function VolunteerCalendar({
   events,
   registeredEventIds,
   onDayClick,
+  selectedDate,
+  framed = true,
+  activityMode = false,
+  initialMonth,
+  onMonthChange,
 }: VolunteerCalendarProps) {
   const t = useT();
   const { locale } = useLocale();
   const dateLocale = locale === "hr" ? hr : enUS;
   const [cursor, setCursor] = useState<Date>(() => {
-    // Start on the month containing the earliest upcoming event, or today if none.
-    if (events.length === 0) return startOfMonth(new Date());
-    const sorted = [...events].sort((a, b) =>
-      a.event_date.localeCompare(b.event_date)
-    );
-    return startOfMonth(parseISO(sorted[0].event_date));
+    if (initialMonth) return startOfMonth(parseISO(`${initialMonth}-01`));
+    if (selectedDate) return startOfMonth(parseISO(selectedDate));
+    return startOfMonth(new Date());
   });
 
   // Month navigation used to replace the whole grid in one frame, with nothing
@@ -65,8 +73,9 @@ export function VolunteerCalendar({
   const goToMonth = useCallback((next: Date, dir: 1 | -1) => {
     setDirection(dir);
     setCursor(next);
+    onMonthChange?.(format(next, "yyyy-MM"));
     setEntering(true);
-  }, []);
+  }, [onMonthChange]);
 
   useEffect(() => {
     if (!entering) return;
@@ -97,7 +106,7 @@ export function VolunteerCalendar({
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
     const end = endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 });
     const out: Date[] = [];
-    for (let d = start; d <= end; d = new Date(d.getTime() + 24 * 60 * 60 * 1000)) {
+    for (let d = start; d <= end; d = addDays(d, 1)) {
       out.push(d);
     }
     return out;
@@ -112,14 +121,13 @@ export function VolunteerCalendar({
   }, [dateLocale]);
 
   return (
-    <Card
-      padding="sm"
+    <div
       role="region"
-      aria-label={t("volunteer_calendar.aria_label")}
-      className="sm:p-5"
+      aria-label={t(activityMode ? "profile_calendar.title" : "volunteer_calendar.aria_label")}
+      className={clsx("w-full max-w-sm", framed && "rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised")}
     >
-      <header className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-ink">
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-1">
+        <h2 className="text-sm font-semibold text-ink">
           {format(cursor, "LLLL yyyy", { locale: dateLocale })}
         </h2>
         <div className="flex items-center gap-1">
@@ -203,15 +211,16 @@ export function VolunteerCalendar({
                       type: "button" as const,
                       onClick: () => onDayClick?.(iso, dayEvents.map((e) => e.id)),
                       title: tooltip,
+                      "aria-pressed": iso === selectedDate,
                       "aria-label": `${t(
                         dayEvents.length === 1
-                          ? "volunteer_calendar.events_one"
-                          : "volunteer_calendar.events_many",
+                          ? (activityMode ? "profile_calendar.activities_one" : "volunteer_calendar.events_one")
+                          : (activityMode ? "profile_calendar.activities_many" : "volunteer_calendar.events_many"),
                         {
                           count: dayEvents.length,
                           date: format(day, "PPPP", { locale: dateLocale }),
                         }
-                      )}${hasRegistered ? t("volunteer_calendar.registered_suffix") : ""}`,
+                      )}${hasRegistered && !activityMode ? t("volunteer_calendar.registered_suffix") : ""}`,
                     }
                   : {
                       "aria-hidden": true as const,
@@ -219,7 +228,7 @@ export function VolunteerCalendar({
                 className={clsx(
                   // 44px floor: these were 40px, and they are the primary
                   // touch target of the whole calendar.
-                  "relative aspect-square min-h-11 rounded-control p-1 text-sm",
+                  "relative h-11 min-w-0 rounded-control p-1 text-sm",
                   "transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out",
                   !inMonth && "opacity-40",
                   hasEvents &&
@@ -229,6 +238,7 @@ export function VolunteerCalendar({
                     : hasEvents
                       ? "border border-brand/40 bg-brand-soft text-brand-on-soft hover:brightness-[0.97]"
                       : "border border-transparent text-ink-tertiary",
+                  iso === selectedDate && "ring-2 ring-brand ring-offset-1",
                   isToday && "ring-2 ring-info ring-offset-1 ring-offset-surface"
                 )}
               >
@@ -263,11 +273,11 @@ export function VolunteerCalendar({
       <footer className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-tertiary">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-brand" aria-hidden />
-          {t("volunteer_calendar.event")}
+          {t(activityMode ? "profile_calendar.activity" : "volunteer_calendar.event")}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
-          {t("volunteer_calendar.registered")}
+          {t(activityMode ? "profile_calendar.donation" : "volunteer_calendar.registered")}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span
@@ -277,6 +287,6 @@ export function VolunteerCalendar({
           {t("volunteer_calendar.today")}
         </span>
       </footer>
-    </Card>
+    </div>
   );
 }

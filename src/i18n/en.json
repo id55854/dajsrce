@@ -218,6 +218,10 @@
     "register": "Register"
   },
   "your_pledges": {
+    "view_all_short": "View all",
+    "summary_count": "Show summary ({count})",
+    "hide_summary": "Hide summary",
+    "more_count": "{count} more in your profile",
     "section_title": "Your pledges",
     "section_subtitle": "An overview of your contributions.",
     "empty": "You haven't pledged yet. Pick something below.",
@@ -292,6 +296,7 @@
     "amount_eur_hint": "Optional. Needed for annual donation receipts."
   },
   "institution": {
+    "event_no_signups": "Event published. No volunteers have signed up yet.",
     "volunteers_title": "Volunteer roster",
     "volunteers_subtitle": "The people who signed up for your volunteer events.",
     "volunteers_no_access_title": "NGO accounts only",
@@ -363,6 +368,15 @@
     "stat_volunteer_signups": "Volunteer signups"
   },
   "filters": {
+    "city_label": "City or town",
+    "onboarded_label": "Only organisations on DajSrce",
+    "onboarded_hint": "Organisations with a platform account",
+    "organisation_type": "Organisation type",
+    "donation_any": "All donation types",
+    "selected_count": "Selected: {count}",
+    "search_options": "Search categories…",
+    "no_options": "No categories match your search.",
+    "done": "Done",
     "city_any": "All cities",
     "city_search": "Find a city…",
     "city_none": "No city matches that search.",
@@ -406,7 +420,32 @@
     "progress": "{percent}% of this need pledged",
     "posted": "Posted {time}"
   },
+  "profile_calendar": {
+    "institution_title": "Organisation calendar",
+    "title": "My calendar",
+    "institution_hint": "Publications, volunteer dates and deadlines for your needs. Select a day for details.",
+    "individual_hint": "Your registered volunteering and deadlines for needs you pledged to support. Donations without deadlines are not shown.",
+    "activity": "Activity",
+    "volunteer": "Volunteering",
+    "donation": "Donation deadline",
+    "publication": "Published",
+    "activities_one": "1 activity on {date}",
+    "activities_many": "{count} activities on {date}",
+    "month_summary": "This month",
+    "whole_month": "Whole month",
+    "empty": "No activities in the selected period.",
+    "error": "The calendar could not be loaded. Please try again.",
+    "truncated": "A limited number of recent records is shown; older activities may not be included.",
+    "deadline_field": "Donation deadline",
+    "deadline_hint": "Optional. Appears in the calendar of the person who pledges a donation."
+  },
   "volunteer_page": {
+    "period_label": "Event period",
+    "period_all": "All events",
+    "period_week": "This week",
+    "period_month": "This month",
+    "period_empty": "No events in this period",
+    "period_empty_hint": "Browse other dates to find a volunteering opportunity.",
     "title": "Volunteer events",
     "subtitle": "Join an event and make a difference",
     "loading": "Loading volunteer events",
@@ -428,6 +467,10 @@
     "auth_action": "Volunteer"
   },
   "volunteer_calendar": {
+    "upcoming_count": "Upcoming events: {count}",
+    "choose_date": "Choose a date",
+    "all_dates": "All dates",
+    "filtered_count": "Events on the selected date: {count}",
     "aria_label": "Volunteer events calendar",
     "previous_month": "Previous month",
     "next_month": "Next month",

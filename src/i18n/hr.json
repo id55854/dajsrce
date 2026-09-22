@@ -218,6 +218,10 @@
     "register": "Registracija"
   },
   "your_pledges": {
+    "view_all_short": "Prikaži sva",
+    "summary_count": "Prikaži pregled ({count})",
+    "hide_summary": "Sakrij pregled",
+    "more_count": "Još {count} u profilu",
     "section_title": "Vaša obećanja",
     "section_subtitle": "Pregled vaših doprinosa.",
     "empty": "Još niste poslali nijedno obećanje. Odaberite nešto ispod.",
@@ -292,6 +296,7 @@
     "amount_eur_hint": "Nije obavezno. Potrebno za godišnje potvrde o donaciji."
   },
   "institution": {
+    "event_no_signups": "Događaj je objavljen. Još nema prijavljenih volontera.",
     "volunteers_title": "Volonterski popis",
     "volunteers_subtitle": "Popis osoba koje su se prijavile na vaše volonterske događaje.",
     "volunteers_no_access_title": "Samo za NGO račune",
@@ -363,6 +368,15 @@
     "stat_volunteer_signups": "Volonterske prijave"
   },
   "filters": {
+    "city_label": "Grad ili mjesto",
+    "onboarded_label": "Samo udruge na DajSrcu",
+    "onboarded_hint": "Udruge s računom na platformi",
+    "organisation_type": "Vrsta organizacije",
+    "donation_any": "Sve vrste donacija",
+    "selected_count": "Odabrano: {count}",
+    "search_options": "Pretraži kategorije…",
+    "no_options": "Nema kategorija za ovu pretragu.",
+    "done": "Gotovo",
     "city_any": "Svi gradovi",
     "city_search": "Pronađite grad…",
     "city_none": "Nema grada koji odgovara pretrazi.",
@@ -406,7 +420,32 @@
     "progress": "Obećano je {percent}% ove potrebe",
     "posted": "Objavljeno {time}"
   },
+  "profile_calendar": {
+    "institution_title": "Kalendar udruge",
+    "title": "Moj kalendar",
+    "institution_hint": "Objave, termini volontiranja i rokovi vaših potreba. Odaberite dan za detalje.",
+    "individual_hint": "Vaša prijavljena volontiranja i rokovi potreba za koje ste obećali donaciju. Donacije bez roka nisu prikazane.",
+    "activity": "Aktivnost",
+    "volunteer": "Volontiranje",
+    "donation": "Rok donacije",
+    "publication": "Objavljeno",
+    "activities_one": "1 aktivnost na datum {date}",
+    "activities_many": "{count} aktivnosti na datum {date}",
+    "month_summary": "U ovom mjesecu",
+    "whole_month": "Cijeli mjesec",
+    "empty": "Nema aktivnosti za odabrano razdoblje.",
+    "error": "Kalendar se nije uspio učitati. Pokušajte ponovno.",
+    "truncated": "Prikazan je ograničen broj posljednjih zapisa; starije aktivnosti možda nisu uključene.",
+    "deadline_field": "Rok za donacije",
+    "deadline_hint": "Neobavezno. Prikazuje se u kalendaru osobe koja obeća donaciju."
+  },
   "volunteer_page": {
+    "period_label": "Razdoblje događaja",
+    "period_all": "Svi događaji",
+    "period_week": "Ovaj tjedan",
+    "period_month": "Ovaj mjesec",
+    "period_empty": "Nema događaja u ovom razdoblju",
+    "period_empty_hint": "Pogledajte ostale termine i pronađite priliku za volontiranje.",
     "title": "Volonterski događaji",
     "subtitle": "Pridružite se događaju i učinite razliku",
     "loading": "Učitavanje volonterskih događaja",
@@ -428,6 +467,10 @@
     "auth_action": "Volontiranje"
   },
   "volunteer_calendar": {
+    "upcoming_count": "Nadolazeći događaji: {count}",
+    "choose_date": "Odaberi datum",
+    "all_dates": "Svi datumi",
+    "filtered_count": "Događaji za odabrani datum: {count}",
     "aria_label": "Kalendar volonterskih događaja",
     "previous_month": "Prethodni mjesec",
     "next_month": "Sljedeći mjesec",

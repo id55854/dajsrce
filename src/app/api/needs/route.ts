@@ -11,7 +11,7 @@ import {
   requireSameOrigin,
   withRequestId,
 } from "@/lib/security/http";
-import { DONATION_TYPES } from "@/lib/constants";
+import { CATEGORY_CONFIG, DONATION_TYPES } from "@/lib/constants";
 import { parseBoundedLimit, parseNeedInput } from "@/lib/validation";
 import { projectHiddenLocation } from "@/lib/location-map";
 import { publicListResponse } from "@/lib/public-list-response";
@@ -46,6 +46,10 @@ export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   const donationType = searchParams.get("donation_type");
   const urgency = searchParams.get("urgency");
+  const categories = [...new Set((searchParams.get("categories") ?? "").split(",").filter(Boolean))];
+  if (categories.some((category) => !Object.hasOwn(CATEGORY_CONFIG, category))) {
+    return NextResponse.json({ error: "categories is invalid", request_id: requestId }, { status: 400 });
+  }
   const institutionId = searchParams.get("institution_id");
   const limitResult = parseBoundedLimit(searchParams.get("limit"), 50, 100);
   if (!limitResult.ok) {
@@ -75,11 +79,13 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from("needs")
       .select(
-        "*, institution:institutions(id, name, category, address:public_address, city, lat:public_lat, lng:public_lng)"
+        `id,institution_id,title,description,donation_type,urgency,quantity_needed,quantity_pledged,quantity_delivered,photo_url,deadline,is_fulfilled,created_at, institution:institutions${categories.length ? "!inner" : ""}(id, name, category, address:public_address, city, lat:public_lat, lng:public_lng)`
       )
       .eq("is_fulfilled", false)
       .order("urgency", { ascending: false })
       .order("created_at", { ascending: false });
+
+    if (categories.length) query = query.in("institution.category", categories);
 
     if (donationType) query = query.eq("donation_type", donationType);
 
@@ -105,6 +111,7 @@ export async function GET(req: NextRequest) {
   }
 
   let needs = getLocalNeeds();
+  if (categories.length) needs = needs.filter((need) => need.institution && categories.includes(need.institution.category));
   if (donationType) needs = needs.filter((n) => n.donation_type === donationType);
   if (urgency) needs = needs.filter((n) => n.urgency === urgency);
   if (institutionId) needs = needs.filter((n) => n.institution_id === institutionId);
@@ -163,7 +170,7 @@ export async function POST(req: NextRequest) {
     }
     const parsed = parseNeedInput(rawBody);
     if (!parsed.ok) return jsonError(parsed.error, 400, requestId, NO_STORE);
-    const { title, description, donation_type, urgency, quantity_needed } = parsed.value;
+    const { title, description, donation_type, urgency, quantity_needed, deadline } = parsed.value;
 
     const { data, error } = await supabase
       .from("needs")
@@ -174,6 +181,7 @@ export async function POST(req: NextRequest) {
         donation_type,
         urgency,
         quantity_needed,
+        deadline,
       })
       .select(
         "*, institution:institutions(id, name, category, address:public_address, city, lat:public_lat, lng:public_lng)"
