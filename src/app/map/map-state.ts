@@ -10,7 +10,7 @@ import {
 
 export const DEFAULT_FILTERS: MapFilters = {
   categories: [],
-  donationType: null,
+  donationTypes: [],
   city: null,
   onlyZagreb: false,
   onlyUrgent: false,
@@ -87,7 +87,7 @@ export function initialState(searchParams: URLSearchParams): {
       viewport: { bbox, zoom },
       filters: {
         categories: parsed.categories,
-        donationType: parsed.donationType,
+        donationTypes: parsed.donationTypes,
         city: parsed.city,
         onlyZagreb: parsed.onlyZagreb,
         onlyUrgent: parsed.onlyUrgent,

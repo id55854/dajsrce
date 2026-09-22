@@ -251,7 +251,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
       <div className="mb-6 rounded-card border border-border-subtle bg-surface-sunken p-4">
         <div className="flex flex-wrap gap-3">
           <CategoryFilter value={categories} onChange={setCategories} />
-          <DonationFilter value={donationType === "all" ? null : donationType} onChange={(value) => setDonationType(value ?? "all")} />
+          <DonationFilter value={donationType === "all" ? [] : [donationType]} onChange={(value) => setDonationType(value[0] ?? "all")} />
           <FilterDropdown
             label={t("needs_page.urgency")}
             allLabel={t("needs_page.all")}

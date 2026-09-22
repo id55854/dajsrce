@@ -42,7 +42,7 @@ const DATA_ATTRIBUTION =
 
 export interface MapFilters {
   categories: InstitutionCategory[];
-  donationType: DonationType | null;
+  donationTypes: DonationType[];
   /** Exact city name from the register's own list, or null for everywhere. */
   city: string | null;
   onlyZagreb: boolean;

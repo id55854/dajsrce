@@ -82,7 +82,8 @@ export function FilterChip({
 
 export type FilterState = {
   categories: InstitutionCategory[];
-  donationType: DonationType | null;
+  /** Empty means "any kind of help"; several means "any one of these". */
+  donationTypes: DonationType[];
   /**
    * Exact city name, or null for the whole country. Superseded `onlyZagreb`,
    * which could only ever answer for one of 3,401 places; that flag stays on
@@ -118,7 +119,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
       <CityFilter value={filters.city} onChange={(city) => onChange({ ...filters, city })} />
       <div className="flex flex-wrap gap-3">
         <CategoryFilter value={filters.categories} onChange={(categories) => onChange({ ...filters, categories })} />
-        <DonationFilter value={filters.donationType} onChange={(donationType) => onChange({ ...filters, donationType })} />
+        <DonationFilter multiple value={filters.donationTypes} onChange={(donationTypes) => onChange({ ...filters, donationTypes })} />
       </div>
     </div>
   );

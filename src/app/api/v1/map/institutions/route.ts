@@ -149,7 +149,15 @@ async function queryIndexedRpc(query: MapQuery) {
     p_max_lat: maxLat,
     p_zoom: query.zoom,
     p_categories: query.categories,
-    p_donation_type: query.donationType,
+    // One type goes out under the original scalar name and several under the
+    // newer array, and neither is sent when nothing is selected. The array
+    // argument is newer than the deployed function may be, so a single-type
+    // filter keeps working against either schema; only a genuinely
+    // multi-select filter needs the newer one, and that case degrades to the
+    // bounded fallback (same overlap semantics, no clustering) rather than
+    // quietly ignoring what the visitor asked for.
+    ...(query.donationTypes.length === 1 ? { p_donation_type: query.donationTypes[0] } : {}),
+    ...(query.donationTypes.length > 1 ? { p_donation_types: query.donationTypes } : {}),
     p_only_zagreb: query.onlyZagreb,
     p_only_urgent: query.onlyUrgent,
     p_query: query.query,
@@ -242,8 +250,10 @@ async function queryBoundedFallback(query: MapQuery) {
     .lte("public_lat", maxLat);
 
   if (query.categories.length > 0) builder = builder.in("category", query.categories);
-  if (query.donationType) {
-    builder = builder.contains("accepts_donations", [query.donationType]);
+  if (query.donationTypes.length > 0) {
+    // Overlap, matching the RPC: accepting any one of the selected kinds is
+    // enough. `contains` would demand all of them.
+    builder = builder.overlaps("accepts_donations", query.donationTypes);
   }
   if (query.onlyZagreb) builder = builder.ilike("city", "Zagreb%");
   // Same equality semantics as the RPC, so a degraded response filters the

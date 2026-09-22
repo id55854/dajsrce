@@ -157,7 +157,11 @@ export type MapQuery = {
   bbox: MapBounds;
   zoom: number;
   categories: InstitutionCategory[];
-  donationType: DonationType | null;
+  /**
+   * The kinds of help the visitor is looking for. Empty means "any". Several
+   * selected means "accepts at least one of these", not "accepts all of them".
+   */
+  donationTypes: DonationType[];
   onlyZagreb: boolean;
   onlyUrgent: boolean;
   onlyOnboarded: boolean;
@@ -368,13 +372,28 @@ export function parseMapQuery(searchParams: URLSearchParams): MapQuery {
     }
   }
 
-  const donationTypeInput = searchParams.get("donationType") ?? "";
-  if (donationTypeInput.length > 64) issues.push("donationType is too long");
-  const donationType = donationTypeInput.length <= 64
-    ? donationTypeInput.trim() || null
-    : null;
-  if (donationType && !VALID_DONATION_TYPES.has(donationType)) {
-    issues.push(`unsupported donationType: ${donationType}`);
+  // `donationTypes` is the current spelling; the singular `donationType` is
+  // what every link shared before the filter became multi-select carries, so
+  // both are read and merged rather than one superseding the other.
+  const donationTypesInput = [
+    searchParams.get("donationTypes") ?? "",
+    searchParams.get("donationType") ?? "",
+  ]
+    .filter(Boolean)
+    .join(",");
+  if (donationTypesInput.length > 512) issues.push("donationTypes is too long");
+  const rawDonationTypes = donationTypesInput.length <= 512
+    ? donationTypesInput
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : [];
+  const donationTypes = [...new Set(rawDonationTypes)];
+  if (donationTypes.length > 16) issues.push("at most 16 donation types are allowed");
+  for (const donationType of donationTypes) {
+    if (!VALID_DONATION_TYPES.has(donationType)) {
+      issues.push(`unsupported donationType: ${donationType}`);
+    }
   }
 
   const queryInput = searchParams.get("q");
@@ -426,7 +445,7 @@ export function parseMapQuery(searchParams: URLSearchParams): MapQuery {
     bbox,
     zoom,
     categories: categories as InstitutionCategory[],
-    donationType: donationType as DonationType | null,
+    donationTypes: donationTypes as DonationType[],
     onlyZagreb,
     onlyUrgent,
     onlyOnboarded,
@@ -514,7 +533,9 @@ export function buildMapQueryString(query: MapQuery): string {
   if (query.categories.length > 0) {
     params.set("categories", [...query.categories].sort().join(","));
   }
-  if (query.donationType) params.set("donationType", query.donationType);
+  if (query.donationTypes.length > 0) {
+    params.set("donationTypes", [...query.donationTypes].sort().join(","));
+  }
   if (query.onlyZagreb) params.set("onlyZagreb", "true");
   if (query.onlyUrgent) params.set("onlyUrgent", "true");
   if (query.onlyOnboarded) params.set("onlyOnboarded", "true");
@@ -561,7 +582,7 @@ export function buildBrowserMapParams({
   zoom: number;
   filters: Pick<
     MapQuery,
-    "categories" | "donationType" | "onlyZagreb" | "onlyUrgent" | "onlyOnboarded"
+    "categories" | "donationTypes" | "onlyZagreb" | "onlyUrgent" | "onlyOnboarded"
   > & { onlySocial: boolean };
   query: string | null;
   selectedId: string | null;
@@ -576,7 +597,9 @@ export function buildBrowserMapParams({
   if (filters.categories.length > 0) {
     params.set("categories", [...filters.categories].sort().join(","));
   }
-  if (filters.donationType) params.set("donationType", filters.donationType);
+  if (filters.donationTypes.length > 0) {
+    params.set("donationTypes", [...filters.donationTypes].sort().join(","));
+  }
   if (filters.onlyZagreb) params.set("onlyZagreb", "true");
   if (filters.onlyUrgent) params.set("onlyUrgent", "true");
   if (filters.onlyOnboarded) params.set("onlyOnboarded", "true");

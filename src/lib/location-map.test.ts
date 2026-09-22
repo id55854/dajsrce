@@ -49,7 +49,7 @@ describe("map query contract", () => {
       bbox: [13, 42, 20, 47],
       zoom: 7,
       categories: ["soup_kitchen", "caritas"],
-      donationType: "food",
+      donationTypes: ["food"],
       onlyZagreb: false,
       onlyUrgent: true,
       onlyOnboarded: true,
@@ -59,6 +59,39 @@ describe("map query contract", () => {
       query: "pučka kuhinja",
       limit: MAP_FEATURE_LIMIT,
     });
+  });
+
+  it("reads several donation types, and still honours a single-type link", () => {
+    const many = validParams();
+    many.set("donationTypes", "food,hygiene,food");
+    expect(parseMapQuery(many).donationTypes).toEqual(["food", "hygiene"]);
+
+    // Links shared before the filter became multi-select carry the singular
+    // spelling; it has to keep resolving to the same filter.
+    const legacy = validParams();
+    legacy.set("donationType", "clothes");
+    expect(parseMapQuery(legacy).donationTypes).toEqual(["clothes"]);
+
+    // Both spellings at once merge rather than one winning.
+    const both = validParams();
+    both.set("donationTypes", "food");
+    both.set("donationType", "clothes");
+    expect(parseMapQuery(both).donationTypes).toEqual(["food", "clothes"]);
+
+    const none = validParams();
+    expect(parseMapQuery(none).donationTypes).toEqual([]);
+
+    const invalid = validParams();
+    invalid.set("donationTypes", "food,not_a_donation_type");
+    expect(() => parseMapQuery(invalid)).toThrow(/unsupported donationType/);
+  });
+
+  it("sends the donation types to the API as one sorted list", () => {
+    const query = parseMapQuery(validParams());
+    expect(buildMapQueryString({ ...query, donationTypes: ["hygiene", "food"] })).toContain(
+      "donationTypes=food%2Chygiene"
+    );
+    expect(buildMapQueryString(query)).not.toContain("donationTypes");
   });
 
   it("rejects unbounded, invalid and excessive requests", () => {

@@ -230,7 +230,7 @@ function MapSurface() {
       bbox: viewport.bbox,
       zoom: viewport.zoom,
       categories: filters.categories,
-      donationType: filters.donationType,
+      donationTypes: filters.donationTypes,
       city: filters.city,
       onlyZagreb: filters.onlyZagreb,
       onlyUrgent: filters.onlyUrgent,
@@ -483,7 +483,7 @@ function MapSurface() {
 
   const activeFilterCount =
     filters.categories.length +
-    (filters.donationType ? 1 : 0) +
+    filters.donationTypes.length +
     (filters.city ? 1 : 0) +
     (filters.onlyZagreb ? 1 : 0) +
     (filters.onlyUrgent ? 1 : 0);

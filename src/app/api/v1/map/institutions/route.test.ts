@@ -97,6 +97,30 @@ describe("GET /api/v1/map/institutions", () => {
     expect(rpc).toHaveBeenCalledWith("map_association_registry_v2", expect.any(Object));
   });
 
+  it("filters by donation type under whichever argument the deployed function has", async () => {
+    const empty = { error: null, data: [] };
+
+    rpc.mockResolvedValue(empty);
+    await GET(new NextRequest(`${url}&donationTypes=food`));
+    // One type keeps the original scalar argument, so the filter survives a
+    // schema that predates the multi-select migration.
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_donation_type: "food" });
+    expect(rpc.mock.calls[0][1]).not.toHaveProperty("p_donation_types");
+
+    rpc.mockReset();
+    rpc.mockResolvedValue(empty);
+    await GET(new NextRequest(`${url}&donationTypes=food,hygiene`));
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_donation_types: ["food", "hygiene"] });
+    expect(rpc.mock.calls[0][1]).not.toHaveProperty("p_donation_type");
+
+    rpc.mockReset();
+    rpc.mockResolvedValue(empty);
+    await GET(new NextRequest(url));
+    // Nothing selected sends neither argument rather than an explicit null.
+    expect(rpc.mock.calls[0][1]).not.toHaveProperty("p_donation_type");
+    expect(rpc.mock.calls[0][1]).not.toHaveProperty("p_donation_types");
+  });
+
   it("falls back to the complete v1 map during a rolling database deployment", async () => {
     rpc
       .mockResolvedValueOnce({
