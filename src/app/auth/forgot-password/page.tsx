@@ -4,9 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import { sendPasswordRecovery } from "@/lib/auth/password-recovery";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
-import { AUTH_NETWORK_ERROR, AUTH_NOT_CONFIGURED, AUTH_RATE_LIMITED, authErrorKey } from "../auth-validation";
+import { AUTH_NETWORK_ERROR, AUTH_RATE_LIMITED } from "../auth-validation";
 import { AuthAlert, AuthShell, authLinkClasses } from "../auth-ui";
 
 export default function ForgotPasswordPage() {
@@ -37,14 +35,22 @@ export default function ForgotPasswordPage() {
   async function send(address: string) {
     if (loading || Date.now() < retryAt) return;
     setError(null);
-    if (!isSupabaseConfigured) { setError(AUTH_NOT_CONFIGURED); return; }
     setLoading(true);
     try {
-      const { error: failure } = await sendPasswordRecovery(address, window.location.origin);
-      if (failure) {
-        const key = authErrorKey(failure);
-        setError(key === "common.error_generic" ? "auth.forgot_send_failed" : key);
-        if (key === AUTH_RATE_LIMITED) setRetryAt(Date.now() + 60_000);
+      const response = await fetch("/api/auth/password-recovery", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: address }),
+      });
+      if (response.status === 429) {
+        const retryAfter = Number(response.headers.get("retry-after"));
+        setRetryAt(Date.now() + (Number.isFinite(retryAfter) ? retryAfter : 60) * 1000);
+        setError(AUTH_RATE_LIMITED);
+        return;
+      }
+      if (!response.ok) {
+        setError("auth.forgot_send_failed");
         return;
       }
       setRetryAt(Date.now() + 60_000);

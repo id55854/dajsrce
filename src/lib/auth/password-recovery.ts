@@ -1,28 +1,4 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getSupabasePublicConfig } from "@/lib/env";
-
-/** Recovery emails must also work outside the browser that requested them. */
-export async function sendPasswordRecovery(email: string, origin: string) {
-  const { url, anonKey } = getSupabasePublicConfig({
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  });
-  // This isolated client only sends the email. It never stores a session or
-  // changes the normal SSR client's PKCE flow for sign-in and OAuth.
-  const client = createSupabaseClient(url, anonKey, {
-    auth: {
-      flowType: "implicit",
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-      storageKey: "dajsrce-password-recovery-request",
-    },
-  });
-  return client.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/auth/reset-password")}`,
-  });
-}
 
 /** Recovery email verification can issue an `otp` AMR (Supabase verify.go),
  * while PKCE deployments may use `recovery`. Both prove recent email access.

@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
         deadline,
       })
       .select(
-        "*, institution:institutions(id, name, category, address:public_address, city, lat:public_lat, lng:public_lng)"
+        "id,institution_id,title,description,donation_type,urgency,quantity_needed,quantity_pledged,quantity_delivered,photo_url,deadline,is_fulfilled,created_at,institution:institutions(id, name, category, address:public_address, city, lat:public_lat, lng:public_lng)"
       )
       .single();
 

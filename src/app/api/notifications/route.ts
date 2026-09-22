@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabase
       .from("notifications")
-      .select("*")
+      .select("id,user_id,title,body,link,is_read,created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(30);
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   const json = (body: unknown, status = 200) =>
-    NextResponse.json(body, { status, headers: { "x-request-id": requestId } });
+    NextResponse.json(body, { status, headers: { "x-request-id": requestId, ...NO_STORE } });
   const blocked =
     requireSameOrigin(req, requestId) ??
     rateLimit(req, { name: "notifications.patch", limit: 120, windowMs: 60_000 }, requestId);

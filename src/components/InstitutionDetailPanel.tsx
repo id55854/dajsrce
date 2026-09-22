@@ -5,6 +5,7 @@ import type { Institution } from "@/lib/types";
 import type { PublicInstitutionDetail } from "@/lib/location-map";
 import { getCategoryConfig, DONATION_TYPES } from "@/lib/constants";
 import { Badge, Skeleton, buttonClasses } from "@/components/ui";
+import { safeHttpUrl } from "@/components/RegistryRecord";
 import { useLocale, useT } from "@/i18n/client";
 import {
   CheckCircle2,
@@ -30,11 +31,6 @@ export interface InstitutionDetailPanelProps {
    * The standalone page keeps the default framed look.
    */
   framed?: boolean;
-}
-
-function normalizeWebsiteUrl(url: string): string {
-  if (/^https?:\/\//i.test(url)) return url;
-  return `https://${url}`;
 }
 
 export function InstitutionDetailPanel({
@@ -85,6 +81,7 @@ export function InstitutionDetailPanel({
   const telHref = institution.phone
     ? `tel:${institution.phone.replace(/\s/g, "")}`
     : null;
+  const website = safeHttpUrl(institution.website);
   const actionClasses = "min-w-[10rem] flex-1";
 
   return (
@@ -194,9 +191,9 @@ export function InstitutionDetailPanel({
               icon={Globe}
               label={t("institution_detail.website")}
               value={
-                institution.website ? (
+                website ? (
                   <a
-                    href={normalizeWebsiteUrl(institution.website)}
+                    href={website}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded text-brand underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"

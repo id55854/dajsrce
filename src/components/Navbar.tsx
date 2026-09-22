@@ -21,6 +21,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { Menu, buttonClasses, usePresence } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { safeInternalPath } from "@/lib/security/redirects";
 
 // The map is the home page, so its entry points at `/`; `/map` still resolves
 // through a permanent redirect for older links.
@@ -151,6 +152,7 @@ function NotificationPanel({
                 </p>
               ) : (
                 notifications.map((n) => {
+                  const notificationHref = safeInternalPath(n.link, "");
                   const body = (
                     <>
                       <p className="text-sm font-semibold text-ink">{n.title}</p>
@@ -172,9 +174,9 @@ function NotificationPanel({
                           : "bg-transparent"
                       )}
                     >
-                      {n.link ? (
+                      {notificationHref ? (
                         <Link
-                          href={n.link}
+                          href={notificationHref}
                           onClick={() => {
                             if (!n.is_read) onMarkRead(n.id);
                             onClose();

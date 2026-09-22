@@ -1,13 +1,21 @@
 # Password recovery
 
-Recovery requests use an isolated, non-persistent Supabase client with the
-implicit flow. The email's one-use confirmation link can therefore be opened
-on another device without a PKCE verifier cookie from the requesting browser.
-Normal sign-in, signup and OAuth continue to use the cookie-backed PKCE client.
+Recovery requests go through `POST /api/auth/password-recovery`. The route
+requires a same-origin request, validates and normalizes the email, limits by
+both client address and a non-reversible email digest, and returns the same
+accepted response whether or not the account exists. It uses an isolated,
+non-persistent Supabase client with the implicit flow. The email's one-use
+confirmation link can therefore be opened on another device without a PKCE
+verifier cookie from the requesting browser. Normal sign-in, signup and OAuth
+continue to use the cookie-backed PKCE client.
+
+The redirect origin comes only from `NEXT_PUBLIC_APP_URL` on the server. A
+browser caller cannot replace it with an attacker-controlled recovery target.
 
 The default Supabase recovery email must use `{{ .ConfirmationURL }}`. Its
-redirect target is `/auth/callback?next=%2Fauth%2Freset-password` on the requesting
-origin. That URL must be allowed in Supabase Authentication → URL Configuration
+redirect target is `/auth/callback?next=%2Fauth%2Freset-password` on the origin
+configured by `NEXT_PUBLIC_APP_URL`. That URL must be allowed in Supabase
+Authentication → URL Configuration
 (including additional `sb_flow_id` query parameters for older PKCE links).
 The callback forwards fragment-based recovery to `/auth/reset-password` without
 going through login or NGO onboarding. The reset page removes the fragment,

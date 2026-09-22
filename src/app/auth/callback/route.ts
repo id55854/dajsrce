@@ -3,6 +3,14 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizeRole, roleToDashboardPath } from "@/lib/auth/roles";
 import { safeInternalPath } from "@/lib/security/redirects";
 
+function authRedirect(destination: string): NextResponse {
+  const response = NextResponse.redirect(destination);
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Referrer-Policy", "no-referrer");
+  return response;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
@@ -13,7 +21,7 @@ export async function GET(req: NextRequest) {
   const recoveryUrl = `${origin}/auth/reset-password`;
 
   if (isRecovery && searchParams.has("error")) {
-    return NextResponse.redirect(`${recoveryUrl}?error=invalid_recovery`);
+    return authRedirect(`${recoveryUrl}?error=invalid_recovery`);
   }
 
   // Recovery templates can send a token hash directly. Unlike a PKCE code,
@@ -21,7 +29,7 @@ export async function GET(req: NextRequest) {
   if (tokenHash && searchParams.get("type") === "recovery") {
     const supabase = await createServerSupabaseClient();
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
-    return NextResponse.redirect(error ? `${recoveryUrl}?error=invalid_recovery` : recoveryUrl);
+    return authRedirect(error ? `${recoveryUrl}?error=invalid_recovery` : recoveryUrl);
   }
 
   if (code) {
@@ -33,7 +41,7 @@ export async function GET(req: NextRequest) {
     if (!error) {
       // Password recovery takes priority over OAuth/NGO onboarding.
       if (isRecovery || ("redirectType" in data && data.redirectType === "recovery")) {
-        return NextResponse.redirect(recoveryUrl);
+        return authRedirect(recoveryUrl);
       }
       const {
         data: { user },
@@ -63,23 +71,23 @@ export async function GET(req: NextRequest) {
           (pickedNgo && role !== "ngo") || (role === "ngo" && !profile?.institution_id);
 
         if (isNewOAuth || needsNgoOnboarding) {
-          return NextResponse.redirect(`${origin}/auth/setup`);
+          return authRedirect(`${origin}/auth/setup`);
         }
 
         if (next === "/dashboard") {
-          return NextResponse.redirect(`${origin}${roleToDashboardPath(role)}`);
+          return authRedirect(`${origin}${roleToDashboardPath(role)}`);
         }
       }
 
-      return NextResponse.redirect(`${origin}${next}`);
+      return authRedirect(`${origin}${next}`);
     }
   }
 
   if (isRecovery) {
     // A legacy link may carry its session in a URL fragment, invisible to
     // this server route. The browser preserves it across this redirect.
-    return NextResponse.redirect(code ? `${recoveryUrl}?error=invalid_recovery` : recoveryUrl);
+    return authRedirect(code ? `${recoveryUrl}?error=invalid_recovery` : recoveryUrl);
   }
 
-  return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`);
+  return authRedirect(`${origin}/auth/login?error=auth_failed`);
 }

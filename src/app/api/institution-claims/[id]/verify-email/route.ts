@@ -7,6 +7,7 @@ import { hashBearerToken } from "@/lib/security/runtime";
 import { isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 import { getRequestId, logError } from "@/lib/observability";
 import { getLocale } from "@/i18n/server";
+import { requireEnvironmentVariable } from "@/lib/env";
 import type { Locale } from "@/lib/types";
 import {
   CLAIM_EMAIL_TOKEN_BYTES,
@@ -109,6 +110,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
+  const claimLimited = rateLimit(
+    req,
+    {
+      name: "institution_claims.verify_email.claim",
+      limit: 3,
+      windowMs: 15 * 60_000,
+      identifier: `${user.id}:${id}`,
+    },
+    requestId
+  );
+  if (claimLimited) return claimLimited;
+
   const token = randomBytes(CLAIM_EMAIL_TOKEN_BYTES).toString("hex");
   const expiresAt = new Date(
     Date.now() + CLAIM_EMAIL_TOKEN_TTL_HOURS * 60 * 60 * 1000
@@ -154,14 +167,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (typeof name === "string" && name.length > 0) organisationName = name;
   }
 
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+  const appOrigin = new URL(requireEnvironmentVariable("NEXT_PUBLIC_APP_URL")).origin;
   const locale: Locale = await getLocale();
   const emailResult = await sendChallengeEmail({
     to: claim.contact_email ?? "",
     locale,
     organisationName,
     applicantName: profile?.name ?? profile?.email ?? "A DajSrce account",
-    confirmUrl: `${base}/auth/setup?claim_token=${encodeURIComponent(token)}`,
+    // Keep the raw bearer token in the fragment. Fragments are not sent in
+    // HTTP requests or Referer headers, and the setup page removes it before
+    // making the confirmation request.
+    confirmUrl: `${appOrigin}/auth/setup#claim_token=${encodeURIComponent(token)}`,
     expiresAt,
   });
 

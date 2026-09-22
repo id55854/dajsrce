@@ -1,14 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { establishRecoverySession } from "./password-recovery";
 
-const { createClient, resetPasswordForEmail } = vi.hoisted(() => {
-  const resetPasswordForEmail = vi.fn();
-  return { resetPasswordForEmail, createClient: vi.fn(() => ({ auth: { resetPasswordForEmail } })) };
-});
-vi.mock("@supabase/supabase-js", () => ({ createClient }));
-import { establishRecoverySession, sendPasswordRecovery } from "./password-recovery";
-
-beforeEach(() => { vi.clearAllMocks(); });
 
 /** A JWT-shaped string carrying only the claims establishRecoverySession reads. */
 function fakeAccessToken(amr: { method: string; timestamp: number }[]): string {
@@ -23,21 +16,6 @@ const STALE_RECOVERY_TOKEN = fakeAccessToken([
 ]);
 
 describe("portable password recovery", () => {
-  it("sends an email without tying the link to the requesting browser's PKCE storage", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test-key");
-    try {
-      await sendPasswordRecovery("person@example.test", "https://dajsrce.test");
-      expect(createClient).toHaveBeenCalledWith("https://test.supabase.co", "test-key", {
-        auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false,
-          detectSessionInUrl: false, storageKey: "dajsrce-password-recovery-request" },
-      });
-      expect(resetPasswordForEmail).toHaveBeenCalledWith("person@example.test", {
-        redirectTo: "https://dajsrce.test/auth/callback?next=%2Fauth%2Freset-password",
-      });
-    } finally { vi.unstubAllEnvs(); }
-  });
-
   function setup(accessToken: string | null) {
     const setSession = vi.fn().mockResolvedValue({ error: null });
     const session = accessToken

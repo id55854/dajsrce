@@ -15,9 +15,12 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 import { GET } from "./route";
 
+async function callbackResponse(query: string) {
+  return GET(new NextRequest(`https://dajsrce.test/auth/callback${query}`));
+}
+
 async function destination(query: string) {
-  const response = await GET(new NextRequest(`https://dajsrce.test/auth/callback${query}`));
-  return response.headers.get("location");
+  return (await callbackResponse(query)).headers.get("location");
 }
 
 beforeEach(() => {
@@ -31,6 +34,13 @@ beforeEach(() => {
 });
 
 describe("auth callback recovery", () => {
+  it("prevents recovery redirects from being cached or leaking their URL as a referrer", async () => {
+    const response = await callbackResponse("?code=code&next=/auth/reset-password");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("pragma")).toBe("no-cache");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+  });
+
   it("prioritizes password reset over pending NGO onboarding", async () => {
     expect(await destination("?code=code&next=/auth/reset-password"))
       .toBe("https://dajsrce.test/auth/reset-password");

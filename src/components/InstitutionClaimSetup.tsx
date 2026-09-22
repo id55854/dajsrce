@@ -106,9 +106,19 @@ export function InstitutionClaimSetup({ ensureNgoRole, onApproved }: Props) {
   const tokenHandled = useRef(false);
   useEffect(() => {
     if (tokenHandled.current || typeof window === "undefined") return;
-    const token = new URLSearchParams(window.location.search).get("claim_token");
+    const url = new URL(window.location.href);
+    const token =
+      url.searchParams.get("claim_token") ??
+      new URLSearchParams(url.hash.slice(1)).get("claim_token");
     if (!token) return;
     tokenHandled.current = true;
+
+    // Remove the bearer before awaiting or issuing any request. Query links
+    // remain supported for already-sent email, while new links use a fragment
+    // so the token never reaches the initial HTTP request.
+    url.searchParams.delete("claim_token");
+    url.hash = "";
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
 
     void (async () => {
       try {
@@ -126,9 +136,6 @@ export function InstitutionClaimSetup({ ensureNgoRole, onApproved }: Props) {
       } catch {
         toast({ tone: "error", title: t("claims.email_confirm_failed") });
       } finally {
-        const url = new URL(window.location.href);
-        url.searchParams.delete("claim_token");
-        window.history.replaceState(null, "", url.toString());
         await loadClaim();
       }
     })();
