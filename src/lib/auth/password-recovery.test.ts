@@ -41,11 +41,12 @@ describe("portable password recovery", () => {
   function setup(accessToken: string | null) {
     const setSession = vi.fn().mockResolvedValue({ error: null });
     const session = accessToken
-      ? { access_token: accessToken, user: { email: "owner@example.test" } }
+      ? { access_token: accessToken, user: { id: "owner", email: "owner@example.test" } }
       : null;
     const getSession = vi.fn().mockResolvedValue({ data: { session }, error: null });
-    const client = { auth: { setSession, getSession } } as unknown as SupabaseClient;
-    return { client, setSession, getSession };
+    const getUser = vi.fn().mockResolvedValue({ data: { user: session?.user ?? null }, error: null });
+    const client = { auth: { setSession, getSession, getUser } } as unknown as SupabaseClient;
+    return { client, setSession, getSession, getUser };
   }
 
   it("establishes a session in a fresh browser, clearing tokens before network calls", async () => {
@@ -56,6 +57,21 @@ describe("portable password recovery", () => {
     expect(result).toBe("owner@example.test");
     expect(setSession).toHaveBeenCalledWith({ access_token: "access", refresh_token: "refresh" });
     expect(clear.mock.invocationCallOrder[0]).toBeLessThan(setSession.mock.invocationCallOrder[0]);
+  });
+
+  it("accepts the fresh OTP claim actually issued for email recovery", async () => {
+    const { client } = setup(fakeAccessToken([{ method: "otp", timestamp: Date.now() / 1000 }]));
+    expect(await establishRecoverySession(client,
+      "https://dajsrce.test/auth/reset-password#type=recovery&access_token=access&refresh_token=refresh", vi.fn())).toBe("owner@example.test");
+    expect(await establishRecoverySession(client, "https://dajsrce.test/auth/reset-password", vi.fn())).toBe("owner@example.test");
+  });
+
+  it("rejects stale OTP proof and a session that Auth cannot verify", async () => {
+    const old = setup(fakeAccessToken([{ method: "otp", timestamp: Date.now() / 1000 - 7200 }]));
+    expect(await establishRecoverySession(old.client, "https://dajsrce.test/auth/reset-password", vi.fn())).toBeNull();
+    const invalid = setup(RECOVERY_TOKEN);
+    invalid.getUser.mockResolvedValue({ data: { user: null }, error: { code: "session_not_found" } });
+    expect(await establishRecoverySession(invalid.client, "https://dajsrce.test/auth/reset-password", vi.fn())).toBeNull();
   });
 
   it("accepts a verified session established by the server callback", async () => {

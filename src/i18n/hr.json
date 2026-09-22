@@ -177,6 +177,8 @@
     "forgot_sent_body": "Ako račun za {email} postoji, poslali smo poveznicu za postavljanje nove lozinke. Poveznica vrijedi ograničeno vrijeme.",
     "forgot_sent_toast": "Poveznica za obnovu lozinke je poslana",
     "forgot_change_email": "Promijeni e-mail",
+    "forgot_retry_in": "Pošalji ponovno za {seconds} s",
+    "forgot_send_failed": "Servis trenutačno ne može poslati e-mail za obnovu lozinke. Pokušajte ponovno kasnije.",
     "forgot_resend": "Pošalji ponovno",
     "reset_title": "Nova lozinka",
     "reset_subtitle": "Odaberite novu lozinku za svoj račun.",

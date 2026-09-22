@@ -12,5 +12,11 @@ export function createClient() {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   });
-  return createBrowserClient(url, anonKey);
+  return createBrowserClient(url, anonKey, {
+    auth: {
+      // The reset page explicitly consumes and clears its fragment once.
+      // Automatic URL detection can otherwise race that operation.
+      detectSessionInUrl: typeof window === "undefined" || window.location.pathname !== "/auth/reset-password",
+    },
+  });
 }

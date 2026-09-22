@@ -79,6 +79,10 @@ export function authErrorKey(error: unknown): string {
     if (typeof code === "string" && CODE_KEYS[code]) return CODE_KEYS[code];
   }
 
+  if (typeof error === "object" && error !== null && "status" in error && error.status === 429) {
+    return AUTH_RATE_LIMITED;
+  }
+
   const message =
     error instanceof Error
       ? error.message

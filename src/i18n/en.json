@@ -177,6 +177,8 @@
     "forgot_sent_body": "If an account for {email} exists, we've sent a link to set a new password. The link is valid for a limited time.",
     "forgot_sent_toast": "Password reset link sent",
     "forgot_change_email": "Change email",
+    "forgot_retry_in": "Send again in {seconds}s",
+    "forgot_send_failed": "The service cannot send a password reset email right now. Please try again later.",
     "forgot_resend": "Send again",
     "reset_title": "New password",
     "reset_subtitle": "Choose a new password for your account.",
