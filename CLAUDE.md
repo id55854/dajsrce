@@ -4,7 +4,7 @@
 
 ## Product snapshot
 
-DajSrce is a nationwide Croatian donation and volunteering platform. The production branch is `main`; Vercel deploys it. Stack: Next.js 15.5, React 19, strict TypeScript, Tailwind 4, Supabase/Postgres/PostGIS/Storage, Leaflet and Resend.
+DajSrce is a nationwide Croatian donation and volunteering platform. The production branch is `main`; Vercel deploys it. Stack: Next.js 15.5, React 19, strict TypeScript, Tailwind 4, Supabase/Postgres/PostGIS/Storage, MapLibre and Resend.
 
 Core domains:
 
@@ -43,7 +43,7 @@ The pledge and volunteer-signup status machinery was removed from the applicatio
 
 - <= 200 map features per response; HTTP default 150.
 - <= 60 result rows in the DOM.
-- the map is the home page (`/`); `/map` is a permanent redirect. The browser URL carries a compact `@lat,lng,zoom` and only non-default state, and nothing is fetched until Leaflet reports its first bounds.
+- the map is the home page (`/`); `/map` is a permanent redirect. The browser URL carries a compact `@lat,lng,zoom` and only non-default state, and nothing is fetched until MapLibre reports its first bounds.
 - `map_association_registry_v*` clusters when matches exceed the feature budget, on a grid capped at 6x6. Detail is lazy-loaded.
 - pin fill encodes registry / onboarded / verified, not category; category moves to a disc inside the pin.
 - AbortController plus stale-sequence protection on viewport changes.
@@ -52,10 +52,10 @@ The pledge and volunteer-signup status machinery was removed from the applicatio
 - `/api/needs` and `/api/volunteer-events` GET read through the stateless anon client and are CDN-cached (`s-maxage=60`); anything that reads cookies stays `no-store`.
 - read-only authenticated paths (middleware, `/api/me`, own-pledge/signup/notification lists) verify the session JWT locally via `getVerifiedClaims` (ES256 + cached JWKS). Every mutation, review and token issuance keeps `auth.getUser()`.
 - every API route is rate limited per client address (`src/lib/security/http.ts`); unsafe methods also require same-origin.
-- `npm run perf:map:bundle` now weighs the chunks **exclusive** to the map route plus its dynamic imports (238,251 bytes against a 327,680 budget). It used to subtract only what the `/page` redirect loaded, so figures recorded before the map moved to `/` are not comparable. The script fails loudly if it measures nothing.
+- `npm run perf:map:bundle` weighs map-only chunks and worker modules: limits are 1280 KiB raw renderer chunks, 600 KiB raw workers, and 500 KiB combined gzip. Shared framework chunks are excluded; an empty measurement fails.
 - hidden locations use stable coarse `public_location`; filtering also uses that projection.
 
-Do not reintroduce root cookie access, global middleware matching, remote Google fonts, global Leaflet CSS, wildcard Lucide imports, automatic geolocation or global notification polling.
+Do not reintroduce root cookie access, global middleware matching, remote Google fonts, global MapLibre CSS, wildcard Lucide imports, automatic geolocation or global notification polling.
 
 ## New migration order
 
@@ -102,7 +102,7 @@ Never reuse a migration version. Add a new sortable timestamp migration for foll
 
 ## Environment and operations
 
-Required in production: Supabase URL/anon/service keys, HTTPS app URL and a 32+ character `CRON_SECRET`. The map basemap needs `NEXT_PUBLIC_CARTO_API_KEY` (free non-profit key from carto.com/basemaps/apikey; CARTO watermarks key-less tiles). Without it `src/lib/basemap.ts` falls back to OpenStreetMap raster tiles, which is fine for a clone or a short outage but not the intended production basemap. Configure a POST-capable scheduler for:
+Required in production: Supabase URL/anon/service keys, HTTPS app URL and a 32+ character `CRON_SECRET`. The map uses stock OpenFreeMap Liberty (light) and Dark vector styles without an API key. Worker modules are copied locally before dev/build. Configure a POST-capable scheduler for:
 
 - `POST /api/cron/process-notification-jobs`
 - `POST /api/cron/event-reminders` (once a day: reminds volunteers signed up for tomorrow's event)

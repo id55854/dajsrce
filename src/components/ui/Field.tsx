@@ -2,6 +2,7 @@
 
 import type {
   InputHTMLAttributes,
+  Ref,
   ReactNode,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
@@ -114,6 +115,7 @@ export function Input({
   interactive,
   ...rest
 }: InputHTMLAttributes<HTMLInputElement> & {
+  ref?: Ref<HTMLInputElement>;
   invalid?: boolean;
   /** Pointer + grey hover. Use on search / pickers, not passwords. */
   interactive?: boolean;

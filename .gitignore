@@ -51,3 +51,5 @@ node_modules
 ~$*.ppt*
 *.tmp
 .gstack/
+
+/public/maplibre/

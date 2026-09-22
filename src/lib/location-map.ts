@@ -55,7 +55,7 @@ export type PublicMapCitiesResponse = { cities: PublicMapCity[] };
  * accepts donations.
  *
  * These live here rather than beside the marker code so the legend can render
- * them without pulling Leaflet into the initial bundle.
+ * them without pulling MapLibre into the initial bundle.
  */
 /**
  * A map feature that has no account here is identified by its official

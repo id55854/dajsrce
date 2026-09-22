@@ -8,7 +8,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://tiles.openfreemap.org",
   "frame-src 'self'",
   "worker-src 'self' blob:",
   "object-src 'none'",

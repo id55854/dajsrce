@@ -9,6 +9,7 @@ const eslintConfig = [
     ignores: [
       ".next/**",
       ".next-dev/**",
+      "public/maplibre/**",
       "node_modules/**",
       "mock-reports/**",
       "coverage/**",

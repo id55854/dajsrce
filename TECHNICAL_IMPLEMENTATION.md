@@ -17,7 +17,7 @@ DajSrce connects individuals, volunteers, NGOs and social institutions. The plat
 
 - Next.js 15.5 App Router, React 19, strict TypeScript and Tailwind CSS 4.
 - Supabase Auth, Postgres, PostGIS, RLS and private Storage.
-- Leaflet/react-leaflet for the map.
+- MapLibre GL JS 6 for the map, with OpenFreeMap Liberty (light) and Dark vector styles. Worker modules are copied from the installed package before dev/build; public viewport/API zoom keeps its previous 256px convention.
 - Resend transactional email.
 - ESLint 9, Vitest and GitHub Actions.
 
@@ -45,7 +45,7 @@ Public requests use a stateless anonymous Supabase client and do not read auth c
 ### Source layout
 
 - `src/app`: pages and thin HTTP route adapters.
-- `src/components`: interactive UI; map-only Leaflet code stays map-local.
+- `src/components`: interactive UI; map-only MapLibre code stays map-local.
 - `src/lib`: validation, authorization, observability and domain helpers.
 - `supabase/migrations`: the only authoritative schema/RLS history.
 - `scripts`: registry import/geocoding/classification/promotion and read-only benchmarks.

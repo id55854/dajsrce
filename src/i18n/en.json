@@ -128,6 +128,7 @@
     "switch_to_dark": "Switch to dark mode"
   },
   "auth": {
+    "forgot_sending": "Sending reset link…",
     "email_label_ngo": "Your sign-in email",
     "email_hint_ngo": "The address you sign in with and confirm the account from. Your association's official email is entered later, in the association verification step.",
     "email_label": "Email",
@@ -591,6 +592,10 @@
     "filters": "Filters"
   },
   "map_ui": {
+    "status_verified": "Verified organisation",
+    "status_onboarded": "On DajSrce",
+    "status_registry": "In the register",
+    "webgl_unavailable": "The map requires WebGL. Enable hardware acceleration or open the page in another browser.",
     "distance": "Distance from you",
     "verified": "Verified",
     "approximate_area": "Approximate area",
