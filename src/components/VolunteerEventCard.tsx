@@ -28,6 +28,8 @@ export type VolunteerEventCardProps = {
    * user is signed up. Renders the "Already registered" banner unconditionally.
    */
   isRegistered?: boolean;
+  /** Show the event while its private signup state is still being resolved. */
+  registrationPending?: boolean;
   /**
    * Called after a successful sign-up (or after the API reports 409 duplicate).
    * The parent should bump volunteers_signed_up locally and add the event id
@@ -47,6 +49,7 @@ export type VolunteerEventCardProps = {
 export function VolunteerEventCard({
   event,
   isRegistered = false,
+  registrationPending = false,
   onSignUp,
   readOnly,
   readOnlyLabel,
@@ -200,7 +203,7 @@ export function VolunteerEventCard({
             </p>
           ) : (
             <>
-              <Button onClick={handleSignUp} loading={loading} fullWidth>
+              <Button onClick={handleSignUp} loading={loading || registrationPending} fullWidth>
                 {loading
                   ? t("volunteer_card.signing_up")
                   : t("volunteer_card.sign_up")}

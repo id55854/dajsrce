@@ -2,15 +2,24 @@
 
 import { Suspense, useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
-import { QuickStartWizard } from "@/components/QuickStartWizard";
 import { NeedsClient } from "@/app/needs/needs-client";
-import { NewNeedForm } from "@/components/NewNeedForm";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchMe } from "@/lib/me-client";
 import { Button, Card, PageHeader, PageShell, Skeleton } from "@/components/ui";
 import { useT } from "@/i18n/client";
+
+// Fetch optional flows only when the visitor opens them.
+const QuickStartWizard = dynamic(
+  () => import("@/components/QuickStartWizard").then((module) => module.QuickStartWizard),
+  { loading: () => <Skeleton className="h-64 w-full" /> }
+);
+const NewNeedForm = dynamic(
+  () => import("@/components/NewNeedForm").then((module) => module.NewNeedForm),
+  { loading: () => <Skeleton className="h-64 w-full" /> }
+);
 
 /**
  * One page for giving.

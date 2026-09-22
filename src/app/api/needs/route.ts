@@ -42,6 +42,7 @@ function publicFixtureNeed(need: ReturnType<typeof getLocalNeeds>[number]) {
 }
 
 export async function GET(req: NextRequest) {
+  const startedAt = performance.now();
   const { searchParams } = new URL(req.url);
   const requestId = getRequestId(req.headers);
   const donationType = searchParams.get("donation_type");
@@ -67,6 +68,21 @@ export async function GET(req: NextRequest) {
 
   const blocked = rateLimit(req, { name: "needs.get", limit: 120, windowMs: 60_000 }, requestId);
   if (blocked) return blocked;
+
+  // Explicit local demo mode must never wait for a failed database request.
+  if (areLocalFixturesEnabled()) {
+    let needs = getLocalNeeds();
+    if (categories.length) needs = needs.filter((need) => need.institution && categories.includes(need.institution.category));
+    if (donationType) needs = needs.filter((n) => n.donation_type === donationType);
+    if (urgency) needs = needs.filter((n) => n.urgency === urgency);
+    if (institutionId) needs = needs.filter((n) => n.institution_id === institutionId);
+    needs = needs.slice(0, limitResult.value);
+
+    return NextResponse.json(
+      { needs: needs.map(publicFixtureNeed), fixture: true, request_id: requestId },
+      { headers: { "cache-control": "no-store", "x-request-id": requestId } }
+    );
+  }
 
   try {
     // The open-needs list is the same for every visitor (RLS: needs are
@@ -95,31 +111,22 @@ export async function GET(req: NextRequest) {
 
     query = query.limit(limitResult.value);
 
+    const queryStartedAt = performance.now();
     const { data, error } = await query;
+    const queryMs = performance.now() - queryStartedAt;
     if (error) throw error;
     if (data) {
-      return publicListResponse(req, { needs: data }, requestId);
+      return publicListResponse(req, { needs: data }, requestId, {
+        queryMs, totalMs: performance.now() - startedAt,
+      });
     }
   } catch (error) {
     logError("needs.list_failed", error, { request_id: requestId });
-    if (!areLocalFixturesEnabled()) {
-      return NextResponse.json(
-        { error: "Needs are temporarily unavailable", request_id: requestId },
-        { status: 503, headers: { "x-request-id": requestId } }
-      );
-    }
   }
 
-  let needs = getLocalNeeds();
-  if (categories.length) needs = needs.filter((need) => need.institution && categories.includes(need.institution.category));
-  if (donationType) needs = needs.filter((n) => n.donation_type === donationType);
-  if (urgency) needs = needs.filter((n) => n.urgency === urgency);
-  if (institutionId) needs = needs.filter((n) => n.institution_id === institutionId);
-  needs = needs.slice(0, limitResult.value);
-
   return NextResponse.json(
-    { needs: needs.map(publicFixtureNeed), fixture: true, request_id: requestId },
-    { headers: { "cache-control": "no-store", "x-request-id": requestId } }
+    { error: "Needs are temporarily unavailable", request_id: requestId },
+    { status: 503, headers: { "x-request-id": requestId } }
   );
 }
 

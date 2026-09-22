@@ -59,6 +59,29 @@ describe("portable password recovery", () => {
     expect(clear.mock.invocationCallOrder[0]).toBeLessThan(setSession.mock.invocationCallOrder[0]);
   });
 
+  it("uses mail2 from its recovery link even when mail1 was already signed in", async () => {
+    const { client, setSession, getSession, getUser } = setup(PASSWORD_TOKEN);
+    const mail2Session = {
+      access_token: RECOVERY_TOKEN,
+      user: { id: "mail2-account", email: "mail2@example.test" },
+    };
+    setSession.mockImplementation(async () => {
+      getSession.mockResolvedValue({ data: { session: mail2Session }, error: null });
+      getUser.mockResolvedValue({ data: { user: mail2Session.user }, error: null });
+      return { error: null };
+    });
+    expect(await establishRecoverySession(client,
+      "https://dajsrce.test/auth/reset-password#type=recovery&access_token=mail2-access&refresh_token=mail2-refresh", vi.fn()))
+      .toBe("mail2@example.test");
+    expect(setSession).toHaveBeenCalledWith({ access_token: "mail2-access", refresh_token: "mail2-refresh" });
+  });
+
+  it("rejects a different account returned by Auth while verifying recovery", async () => {
+    const { client, getUser } = setup(RECOVERY_TOKEN);
+    getUser.mockResolvedValue({ data: { user: { id: "other-account", email: "mail1@example.test" } }, error: null });
+    expect(await establishRecoverySession(client, "https://dajsrce.test/auth/reset-password", vi.fn())).toBeNull();
+  });
+
   it("accepts the fresh OTP claim actually issued for email recovery", async () => {
     const { client } = setup(fakeAccessToken([{ method: "otp", timestamp: Date.now() / 1000 }]));
     expect(await establishRecoverySession(client,

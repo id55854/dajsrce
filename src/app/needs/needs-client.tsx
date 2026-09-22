@@ -16,6 +16,7 @@ import {
 } from "@/components/YourPledgesSection";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMe } from "@/lib/me-client";
+import { readPublicList, rememberPublicList } from "@/lib/public-list-cache";
 import { useT } from "@/i18n/client";
 import {
   Button,
@@ -70,14 +71,14 @@ function NeedCardSkeleton() {
 export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const t = useT();
   const [categories, setCategories] = useState<InstitutionCategory[]>([]);
-  const [needs, setNeeds] = useState<NeedCardNeed[]>([]);
+  const [needs, setNeeds] = useState<NeedCardNeed[]>(() => readPublicList<NeedCardNeed[]>("/api/needs?") ?? []);
   const [donationType, setDonationType] = useState<DonationType | "all">("all");
   const [urgency, setUrgency] = useState<UrgencyLevel | "all">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Skeletons are for the cold load only. A filter change dims the results
   // that are already on screen instead of destroying and rebuilding the grid.
-  const [settled, setSettled] = useState(false);
+  const [settled, setSettled] = useState(() => readPublicList("/api/needs?") !== undefined);
   const [retry, setRetry] = useState(0);
 
   // "Your pledges" state, separate fetch, only when authenticated.
@@ -105,15 +106,18 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
         return;
       }
       setLoggedIn(true);
-      const profile = await fetchMe();
-      // A failed role lookup leaves the CTA in place; the API still refuses.
-      if (!cancelled && profile?.role === "ngo") setIsNgo(true);
+      // Profile and promises are independent; neither waits for the other.
+      void fetchMe().then((profile) => {
+        if (!cancelled && profile?.role === "ngo") setIsNgo(true);
+      });
       try {
         const res = await fetch("/api/pledges", { credentials: "include" });
         if (res.ok) {
           const json = (await res.json()) as { pledges?: YourPledgeRow[] };
           if (!cancelled) setUserPledges(json.pledges ?? []);
         }
+      } catch {
+        // A private request failure must not prevent browsing public needs.
       } finally {
         if (!cancelled) setPledgesLoading(false);
       }
@@ -126,6 +130,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   // 2. Fetch the public needs list. Re-runs on filter change.
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     (async () => {
       setLoading(true);
       setError(null);
@@ -134,13 +139,22 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
         if (donationType !== "all") params.set("donation_type", donationType);
         if (urgency !== "all") params.set("urgency", urgency);
         if (categories.length) params.set("categories", categories.join(","));
-        const res = await fetch(`/api/needs?${params.toString()}`);
+        const key = `/api/needs?${params.toString()}` as const;
+        const cached = readPublicList<NeedCardNeed[]>(key);
+        if (cached) {
+          setNeeds(cached);
+          setSettled(true);
+        }
+        const res = await fetch(key, { signal: controller.signal });
         const json = (await res.json()) as {
           needs?: NeedCardNeed[];
           error?: string;
         };
         if (!res.ok) throw new Error();
-        if (!cancelled) setNeeds(json.needs ?? []);
+        if (!cancelled) {
+          rememberPublicList(key, json.needs ?? []);
+          setNeeds(json.needs ?? []);
+        }
       } catch {
         if (!cancelled) {
           setError("needs_page.error_loading");
@@ -154,6 +168,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     })();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [donationType, categories, urgency, retry, refreshKey]);
 

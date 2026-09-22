@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { readPublicList, rememberPublicList } from "@/lib/public-list-cache";
 import { AlertTriangle, CalendarHeart } from "lucide-react";
 import {
   VolunteerEventCard,
@@ -49,51 +51,60 @@ function EventCardSkeleton() {
 export function VolunteerClient() {
   const t = useT();
   const [period, setPeriod] = useState<"all" | "week" | "month">("all");
-  const [events, setEvents] = useState<EventRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<EventRow[]>(() => readPublicList<EventRow[]>("/api/volunteer-events") ?? []);
+  const [loading, setLoading] = useState(() => readPublicList("/api/volunteer-events") === undefined);
+  const [signupsLoading, setSignupsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState<Set<string>>(() => new Set());
   const [retry, setRetry] = useState(0);
 
-  // Load events + the user's existing signups in parallel so the page
-  // shows the correct state immediately on first render.
+  // Public events can render before the independent private signup lookup.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
+    const controller = new AbortController();
+    const cached = readPublicList<EventRow[]>("/api/volunteer-events");
+    setLoading(!cached);
+    if (cached) setEvents(cached);
+    setError(null);
+    void (async () => {
       try {
-        const [eventsRes, signupsRes] = await Promise.all([
-          fetch("/api/volunteer-events"),
-          fetch("/api/volunteer-signups", { credentials: "include" }),
-        ]);
-        const eventsJson = (await eventsRes.json()) as {
-          events?: EventRow[];
-          error?: string;
-        };
-        if (!eventsRes.ok) throw new Error();
-
-        // Signups endpoint never errors (returns empty list when not logged in).
-        const signupsJson = (await signupsRes.json().catch(() => ({}))) as {
-          signups?: { event_id: string }[];
-        };
-
-        if (cancelled) return;
-        setEvents(eventsJson.events ?? []);
-        setRegistered(
-          new Set((signupsJson.signups ?? []).map((s) => s.event_id))
-        );
+        const response = await fetch("/api/volunteer-events", { signal: controller.signal });
+        if (!response.ok) throw new Error();
+        const json = (await response.json()) as { events?: EventRow[] };
+        if (controller.signal.aborted) return;
+        rememberPublicList("/api/volunteer-events", json.events ?? []);
+        setEvents(json.events ?? []);
       } catch {
-        if (!cancelled) {
-          setError("volunteer_page.error_loading");
-        }
+        if (!controller.signal.aborted) setError("volunteer_page.error_loading");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
+  }, [retry]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setSignupsLoading(true);
+    void (async () => {
+      try {
+        if (!isSupabaseConfigured) return;
+        const { data: { session } } = await createClient().auth.getSession();
+        if (controller.signal.aborted || !session?.user) return;
+        const response = await fetch("/api/volunteer-signups", {
+          credentials: "include", signal: controller.signal,
+        });
+        if (!response.ok) throw new Error();
+        const json = (await response.json()) as { signups?: { event_id: string }[] };
+        if (!controller.signal.aborted) {
+          setRegistered(new Set((json.signups ?? []).map((signup) => signup.event_id)));
+        }
+      } catch {
+        // Public browsing remains available; the signup API verifies duplicates.
+      } finally {
+        if (!controller.signal.aborted) setSignupsLoading(false);
+      }
+    })();
+    return () => controller.abort();
   }, [retry]);
 
   const handleSignUp = useCallback((eventId: string) => {
@@ -216,6 +227,7 @@ export function VolunteerClient() {
                   key={event.id}
                   event={event}
                   isRegistered={registered.has(event.id)}
+                  registrationPending={signupsLoading}
                   onSignUp={handleSignUp}
                   htmlId={eventCardId(event.id)}
                 />

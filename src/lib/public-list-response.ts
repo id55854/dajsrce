@@ -16,7 +16,8 @@ export const PUBLIC_LIST_CACHE_CONTROL = "public, s-maxage=60, stale-while-reval
 export function publicListResponse(
   req: NextRequest,
   payload: Record<string, unknown>,
-  requestId: string
+  requestId: string,
+  timings?: { queryMs: number; totalMs: number }
 ): NextResponse {
   const body = JSON.stringify({ ...payload, request_id: requestId });
   const etag = `"${createHash("sha256").update(JSON.stringify(payload)).digest("base64url")}"`;
@@ -25,6 +26,11 @@ export function publicListResponse(
     ETag: etag,
     Vary: "Accept-Encoding",
     "x-request-id": requestId,
+    ...(timings ? {
+      // Includes the Supabase HTTP round trip, not only SQL execution. On CDN
+      // hits this describes the cached origin response; inspect x-vercel-cache.
+      "Server-Timing": `supabase;dur=${timings.queryMs.toFixed(1)}, handler;dur=${timings.totalMs.toFixed(1)}`,
+    } : {}),
   };
   if (req.headers.get("if-none-match") === etag) {
     return new NextResponse(null, { status: 304, headers });
