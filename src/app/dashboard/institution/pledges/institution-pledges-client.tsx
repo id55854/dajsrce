@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import { NewNeedForm } from "@/components/NewNeedForm";
-import { Plus } from "lucide-react";
-import { useT } from "@/i18n/client";
-import { RosterGrid, RosterGroup, RosterPerson } from "@/components/Roster";
+import { CalendarClock, Plus } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { enUS, hr } from "date-fns/locale";
+import { useLocale, useT } from "@/i18n/client";
+import { RosterFact, RosterGrid, RosterGroup, RosterPerson, RosterSection } from "@/components/Roster";
 import {
   Button,
+  Dialog,
   EmptyState,
   PageHeader,
   PageShell,
@@ -22,7 +25,14 @@ type PledgeRow = {
   amount_eur: number | null;
   created_at: string;
   donor: { id: string; name: string; email: string };
-  need: { title: string; quantity_needed?: number | null; quantity_pledged?: number | null } | null;
+  need: {
+    title: string;
+    description?: string | null;
+    deadline?: string | null;
+    urgency?: string | null;
+    quantity_needed?: number | null;
+    quantity_pledged?: number | null;
+  } | null;
 };
 
 type InstitutionPledgesClientProps = {
@@ -51,6 +61,8 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
   const [pledges, setPledges] = useState<PledgeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  /** The need whose details are open; the roster header opens it. */
+  const [openNeedId, setOpenNeedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -117,6 +129,8 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
                 key={needId}
                 title={need?.title ?? t("institution.pledges_need")}
                 meta={t("institution.pledges_count", { count: rows.length })}
+                onOpen={need ? () => setOpenNeedId(needId) : undefined}
+                openLabel={t("institution.roster_details")}
                 count={
                   needed
                     ? t("institution.pledges_fill", { pledged, needed })
@@ -151,6 +165,10 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
           })}
         </div>
       )}
+      <NeedDetailsDialog
+        rows={openNeedId ? byNeed.get(openNeedId) ?? [] : []}
+        onClose={() => setOpenNeedId(null)}
+      />
     </>
   );
 
@@ -169,5 +187,50 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
       {publishing ? <div className="mb-6"><NewNeedForm panelId={panelId} onClose={() => setPublishing(false)} onPosted={() => void load()} /></div> : null}
       {body}
     </PageShell>
+  );
+}
+
+function NeedDetailsDialog({ rows, onClose }: { rows: PledgeRow[]; onClose: () => void }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const need = rows[0]?.need;
+  if (!need) return null;
+  const needed = need.quantity_needed ?? null;
+  const pledged = need.quantity_pledged ?? rows.reduce((sum, row) => sum + row.quantity, 0);
+  const deadline = need.deadline
+    ? format(parseISO(need.deadline.slice(0, 10)), "EEEE, d. MMMM yyyy.", { locale: locale === "hr" ? hr : enUS })
+    : null;
+  const urgencyKey = need.urgency === "urgent"
+    ? "need_card.urgent"
+    : need.urgency === "needed_soon"
+      ? "need_card.needed_soon"
+      : need.urgency === "routine"
+        ? "need_card.routine"
+        : null;
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={need.title}
+      description={needed ? t("institution.pledges_fill", { pledged, needed }) : t("institution.pledges_total", { pledged })}
+      closeLabel={t("common.close")}
+      variant="sheet-on-mobile"
+    >
+      <div className="space-y-5">
+        {deadline || urgencyKey ? (
+          <dl className="space-y-2.5 text-sm">
+            <RosterFact icon={<CalendarClock className="h-4 w-4" aria-hidden />} label={t("institution.roster_deadline")}>
+              {deadline ?? t("institution.roster_no_deadline")}
+              {urgencyKey ? <span className="block text-ink-secondary">{t(urgencyKey)}</span> : null}
+            </RosterFact>
+          </dl>
+        ) : null}
+        {need.description ? (
+          <RosterSection title={t("profile_calendar.about_need")}>{need.description}</RosterSection>
+        ) : (
+          <p className="text-sm text-ink-tertiary">{t("institution.roster_no_description")}</p>
+        )}
+      </div>
+    </Dialog>
   );
 }

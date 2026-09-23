@@ -353,7 +353,11 @@
     "volunteers_fill": "{signed} / {needed} volontera",
     "pledges_fill": "{pledged} / {needed} prikupljeno",
     "pledges_total": "Ukupno: {pledged}",
-    "pledge_qty": "× {qty}"
+    "pledge_qty": "× {qty}",
+    "roster_details": "Pojedinosti i opis",
+    "roster_no_description": "Opis nije upisan.",
+    "roster_deadline": "Rok",
+    "roster_no_deadline": "Bez roka"
   },
   "notifications": {
     "title": "Obavijesti",

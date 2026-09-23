@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       quantity,
       amount_eur,
       created_at,
-      need:needs(title, quantity_needed, quantity_pledged)
+      need:needs(title, description, deadline, urgency, quantity_needed, quantity_pledged)
     `
     )
     .in("need_id", needIds)

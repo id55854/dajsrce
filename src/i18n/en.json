@@ -353,7 +353,11 @@
     "volunteers_fill": "{signed} / {needed} volunteers",
     "pledges_fill": "{pledged} / {needed} pledged",
     "pledges_total": "Total: {pledged}",
-    "pledge_qty": "× {qty}"
+    "pledge_qty": "× {qty}",
+    "roster_details": "Details and description",
+    "roster_no_description": "No description was added.",
+    "roster_deadline": "Deadline",
+    "roster_no_deadline": "No deadline"
   },
   "notifications": {
     "title": "Notifications",

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui";
 
 /**
@@ -11,27 +12,78 @@ export function RosterGroup({
   title,
   meta,
   count,
+  onOpen,
+  openLabel,
   children,
 }: {
   title: ReactNode;
   meta?: ReactNode;
   /** The fill level, e.g. "3 / 8 volunteers"; shown as a pill. */
   count: ReactNode;
+  /** Makes the header open the event's or need's details. */
+  onOpen?: () => void;
+  /** Visible hint under the meta line when `onOpen` is set. */
+  openLabel?: string;
   children: ReactNode;
 }) {
+  const heading = (
+    <>
+      <div className="min-w-0">
+        <h2 className="line-clamp-2 text-base font-semibold leading-snug text-ink">{title}</h2>
+        {meta ? <p className="mt-0.5 text-xs text-ink-secondary">{meta}</p> : null}
+        {onOpen && openLabel ? (
+          <p className="mt-1 inline-flex items-center gap-0.5 text-xs font-semibold text-brand">
+            {openLabel}
+            <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          </p>
+        ) : null}
+      </div>
+      <span className="shrink-0 rounded-full bg-surface-sunken px-2.5 py-1 text-xs font-semibold tabular-nums text-ink-secondary">
+        {count}
+      </span>
+    </>
+  );
   return (
     <Card padding="none" as="section">
-      <header className="flex items-start justify-between gap-3 border-b border-border-subtle px-4 py-3">
-        <div className="min-w-0">
-          <h2 className="line-clamp-2 text-base font-semibold leading-snug text-ink">{title}</h2>
-          {meta ? <p className="mt-0.5 text-xs text-ink-secondary">{meta}</p> : null}
-        </div>
-        <span className="shrink-0 rounded-full bg-surface-sunken px-2.5 py-1 text-xs font-semibold tabular-nums text-ink-secondary">
-          {count}
-        </span>
-      </header>
+      {onOpen ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-haspopup="dialog"
+          className="flex w-full items-start justify-between gap-3 rounded-t-card border-b border-border-subtle px-4 py-3 text-left transition-colors hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
+        >
+          {heading}
+        </button>
+      ) : (
+        <header className="flex items-start justify-between gap-3 border-b border-border-subtle px-4 py-3">
+          {heading}
+        </header>
+      )}
       {children}
     </Card>
+  );
+}
+
+/** One labelled line in a roster details dialog; omitted when empty. */
+export function RosterFact({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
+  return (
+    <div className="flex gap-2.5">
+      <span className="mt-0.5 shrink-0 text-ink-tertiary">{icon}</span>
+      <div className="min-w-0">
+        <dt className="sr-only">{label}</dt>
+        <dd className="text-ink">{children}</dd>
+      </div>
+    </div>
+  );
+}
+
+/** A titled prose block (description, requirements) in a details dialog. */
+export function RosterSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary">{title}</h3>
+      <p className="mt-1.5 whitespace-pre-line text-base leading-7 text-ink">{children}</p>
+    </section>
   );
 }
 
