@@ -370,6 +370,60 @@ export function Navbar() {
     return () => controller.abort();
   }, [user, panelOpen, markAllRead]);
 
+  // New notifications arrive over one Realtime channel per signed-in visitor,
+  // so the bell updates without a refresh and without polling. RLS decides
+  // which rows reach the channel; the event is only a signal, and the list is
+  // re-read through the API so it keeps that route's column list. This does
+  // not mark anything read, even with the panel open.
+  useEffect(() => {
+    if (!user || !isSupabaseConfigured) return;
+    const supabase = createClient();
+    let controller: AbortController | null = null;
+
+    async function refresh() {
+      controller?.abort();
+      const current = new AbortController();
+      controller = current;
+      const response = await fetch("/api/notifications", {
+        credentials: "include",
+        signal: current.signal,
+      }).catch(() => null);
+      if (!response?.ok) return;
+      const data = (await response.json().catch(() => null)) as
+        | { notifications?: Notification[] }
+        | null;
+      if (data && !current.signal.aborted) setNotifications(data.notifications ?? []);
+    }
+
+    // The first subscription follows the initial load above; only a
+    // resubscription after a dropped connection can have missed inserts.
+    let subscribedBefore = false;
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          void refresh();
+        }
+      )
+      .subscribe((status) => {
+        if (status !== "SUBSCRIBED") return;
+        if (subscribedBefore) void refresh();
+        subscribedBefore = true;
+      });
+
+    return () => {
+      controller?.abort();
+      void supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   async function handleLogout() {
     if (!isSupabaseConfigured) {
       setUser(null);
