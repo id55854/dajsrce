@@ -50,7 +50,7 @@ import {
 import { distanceKm } from "@/lib/utils";
 import { MapSearchField } from "./map-search-field";
 import { ResultsMeta, LoadErrorNotice } from "./results-status";
-import { DEFAULT_FILTERS, defaultMeta, initialState, type MapMeta } from "./map-state";
+import { DEFAULT_FILTERS, defaultMeta, initialState, type MapMeta, type MapBootstrap } from "./map-state";
 
 const Map = dynamic(() => import("@/components/Map"), {
   ssr: false,
@@ -85,10 +85,10 @@ const SHEET_FULL = SHEET_DETENTS.length - 1;
  * The layout itself stays CSS-driven (so it never flashes the wrong shape on
  * first paint); this only decides *which* container the rows are mounted into,
  * because rendering them in both would put 120 cards in the DOM against a
- * 60-row budget. It resolves before any data arrives, so nothing visibly moves.
+ * 60-row budget. Until measured, one responsive server-rendered list is visible.
  */
-function useCompactViewport(): boolean {
-  const [compact, setCompact] = useState(false);
+function useCompactViewport(): boolean | null {
+  const [compact, setCompact] = useState<boolean | null>(null);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 767px)");
@@ -125,15 +125,15 @@ function MapPageLoading() {
  * The map is the site's home page (`/`); `/map` is kept as a permanent
  * redirect so older links and bookmarks still resolve.
  */
-export default function MapExperience() {
+export default function MapExperience({ bootstrap = null }: { bootstrap?: MapBootstrap | null }) {
   return (
     <Suspense fallback={<MapPageLoading />}>
-      <MapSurface />
+      <MapSurface bootstrap={bootstrap} />
     </Suspense>
   );
 }
 
-function MapSurface() {
+function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
   const t = useT();
   const { locale } = useLocale();
   const compact = useCompactViewport();
@@ -145,9 +145,8 @@ function MapSurface() {
   const [viewport, setViewport] = useState<MapViewport>(initial.viewport);
   /**
    * Leaflet reports the real bounds on mount, and they are rarely the ones a
-   * URL implies. Waiting for that first report costs nothing perceptible and
-   * removes a whole nationwide query per page load, which used to be thrown
-   * away a frame later.
+   * URL implies. The server snapshot is already visible; only the client
+   * refresh waits for this report so it uses the actual viewport.
    */
   const [viewportReady, setViewportReady] = useState(false);
   const [filters, setFilters] = useState<MapFilters>(initial.filters);
@@ -156,17 +155,17 @@ function MapSurface() {
   const [settledSearch, setSettledSearch] = useState(
     initial.search.trim().length >= 2 ? initial.search.trim() : ""
   );
-  const [features, setFeatures] = useState<PublicMapFeature[]>([]);
-  const [meta, setMeta] = useState<MapMeta>(defaultMeta);
+  const [features, setFeatures] = useState<PublicMapFeature[]>(bootstrap?.response.features ?? []);
+  const [meta, setMeta] = useState<MapMeta>(() => bootstrap?.response.meta ?? defaultMeta());
   const [selectedId, setSelectedId] = useState<string | null>(initial.selectedId);
   const [selectedDetail, setSelectedDetail] = useState<MapDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!bootstrap);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
-  const [sheetDetent, setSheetDetent] = useState(SHEET_PEEK);
+  const [sheetDetent, setSheetDetent] = useState(bootstrap ? SHEET_MIDDLE : SHEET_PEEK);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const closeFilterPanel = useCallback(() => setFilterPanelOpen(false), []);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
@@ -180,6 +179,7 @@ function MapSurface() {
   /** Mirrors `viewportReady` for the callback, which must not re-create. */
   const viewportReadyRef = useRef(false);
   const requestSequenceRef = useRef(0);
+  const bootstrapKeyRef = useRef(bootstrap?.queryKey ?? null);
   /** Last selection this component wrote to history; guards push/pop loops. */
   const historySelectionRef = useRef<string | null>(initial.selectedId);
   /** True while a history entry we pushed for the open selection is on top. */
@@ -331,6 +331,12 @@ function MapSurface() {
     // Nothing is fetched against the placeholder viewport; the map's first
     // bounds report is what starts the data flow.
     if (!viewportReady) return;
+
+    // Reuse the server snapshot when the actual viewport has the same key.
+    // Consume once: later pans/filter changes and explicit retries stay fresh.
+    const bootstrapKey = bootstrapKeyRef.current;
+    bootstrapKeyRef.current = null;
+    if (retryToken === 0 && bootstrapKey === buildMapQueryString(apiMapQuery)) return;
 
     const controller = new AbortController();
     const sequence = ++requestSequenceRef.current;
@@ -734,7 +740,7 @@ function MapSurface() {
         {/* Phones: one sheet over a live map. Search, filters and the result
             count live in the header, so nothing is gated behind a view swap. */}
         <Sheet
-          className="md:hidden"
+          className={compact === null ? "hidden" : "md:hidden"}
           detents={SHEET_DETENTS}
           detentIndex={sheetDetent}
           onDetentChange={setSheetDetent}
@@ -794,7 +800,7 @@ function MapSurface() {
               {compact ? results : null}
             </div>
             <DetailOverlay
-              open={detailOpen && compact}
+              open={detailOpen && compact === true}
               variant="inline"
               detail={selectedDetail}
               loading={detailLoading}
@@ -838,7 +844,10 @@ function MapSurface() {
           than replacing it, so scroll position and the clicked card survive.
           Opening a pin must not grow this column; the map keeps its 60%
           and the chrome stays mounted underneath so query and filters survive. */}
-      <aside className="relative hidden min-h-0 w-full flex-col overflow-hidden bg-surface md:flex md:h-full md:w-[40%]">
+      <aside className={clsx(
+        "min-h-0 w-full flex-col overflow-hidden bg-surface md:relative md:flex md:h-full md:w-[40%]",
+        compact === null ? "absolute inset-x-0 bottom-0 flex h-[70%]" : "relative hidden"
+      )}>
         <div
           className={clsx(
             "flex min-h-0 flex-1 flex-col",

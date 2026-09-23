@@ -1,6 +1,10 @@
 import type { MapFilters, MapViewport } from "@/components/Map";
 import {
   MAP_FEATURE_LIMIT,
+  CROATIA_INITIAL_VIEW,
+  buildMapQueryString,
+  resolveMapCategories,
+  type MapQuery,
   maxBboxAreaForZoom,
   parseBrowserMapView,
   parseMapQuery,
@@ -107,3 +111,27 @@ export function initialState(searchParams: URLSearchParams): {
     };
   }
 }
+
+/** Same default filters and national search semantics as the interactive map. */
+export function initialMapQuery(params: URLSearchParams): MapQuery {
+  const state = initialState(params);
+  const search = state.search.trim();
+  const query: MapQuery = {
+    ...state.viewport,
+    ...state.filters,
+    categories: resolveMapCategories(state.filters),
+    query: search.length >= 2 ? search : null,
+    limit: MAP_FEATURE_LIMIT,
+  };
+  if (query.query) {
+    query.bbox = CROATIA_INITIAL_VIEW.bbox;
+    query.zoom = CROATIA_INITIAL_VIEW.zoom;
+  }
+  // Match the normalized browser/API request, and validate before any DB work.
+  return parseMapQuery(new URLSearchParams(buildMapQueryString(query)));
+}
+
+export type MapBootstrap = {
+  queryKey: string;
+  response: PublicMapResponse;
+};

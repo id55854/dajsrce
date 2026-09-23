@@ -43,7 +43,7 @@ The pledge and volunteer-signup status machinery was removed from the applicatio
 
 - <= 200 map features per response; HTTP default 150.
 - <= 60 result rows in the DOM.
-- the map is the home page (`/`); `/map` is a permanent redirect. The browser URL carries a compact `@lat,lng,zoom` and only non-default state, and nothing is fetched until Leaflet reports its first bounds.
+- the map is the home page (`/`); `/map` is a permanent redirect. The browser URL carries a compact `@lat,lng,zoom` and only non-default state, and the server supplies a bounded public snapshot in HTML (five-minute data cache). Client refresh waits for Leaflet to report its actual bounds.
 - `map_association_registry_v*` clusters when matches exceed the feature budget, on a grid capped at 6x6. Detail is lazy-loaded.
 - pin fill encodes registry / onboarded / verified, not category; category moves to a disc inside the pin.
 - the donation-type filter is multi-select and means "accepts any of these". The RPC takes both the original scalar `p_donation_type` and the newer `p_donation_types` array and unions them, so a single-type filter still resolves against a schema that predates `20260922120000`; two or more types need that migration and otherwise degrade to the bounded fallback.

@@ -1,13 +1,15 @@
 import MapExperience from "./map/map-experience";
+import { initialMapQuery } from "./map/map-state";
+import { getMapBootstrap } from "@/lib/public-map-bootstrap";
 
-/**
- * The map is the product, so it is the home page: `dajsrce.hr` opens straight
- * onto it rather than redirecting to `/map`. `/map` is kept as a permanent
- * redirect for links and bookmarks that predate this.
- *
- * Title and description come from the root layout's `generateMetadata`, which
- * already describes the map.
- */
-export default function Home() {
-  return <MapExperience />;
+export default async function Home({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (typeof value === "string") params.set(key, value);
+    else if (Array.isArray(value)) value.forEach((entry) => params.append(key, entry));
+  }
+  const bootstrap = await getMapBootstrap(initialMapQuery(params));
+  return <MapExperience bootstrap={bootstrap} />;
 }

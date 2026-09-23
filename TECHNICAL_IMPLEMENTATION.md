@@ -53,6 +53,8 @@ Public requests use a stateless anonymous Supabase client and do not read auth c
 
 ## 3. Nationwide location fast path
 
+The home page now obtains its initial public projection on the server through the same query service as the map API. Only bounded public DTOs are cached for 300 seconds, keyed by the normalized viewport and filters; cookies and private profiles never enter this cache. Results render in HTML before the map bundle loads, including a mobile layout before hydration. The actual browser viewport refreshes those results after Leaflet starts. This is data caching, not full-page ISR: the existing locale-aware layout still makes the page dynamic. Failed database reads are not cached as empty lists.
+
 The retired `/api/institutions` catalogue endpoint returns `410 Gone`. The browser must not fetch a national list.
 
 1. `/api/v1/map/institutions` requires a bounded viewport and validated zoom/filter inputs.
