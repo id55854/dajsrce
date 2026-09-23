@@ -297,7 +297,11 @@
     "network_error": "Network error. Please try again.",
     "auth_action": "donate or offer help",
     "amount_eur_label": "Estimated value (EUR)",
-    "amount_eur_hint": "Optional. Needed for annual donation receipts."
+    "amount_eur_hint": "Optional. Needed for annual donation receipts.",
+    "full": "Fully pledged",
+    "full_now": "This need was just fully covered.",
+    "exceeds_remaining": "That is more than is still needed. Lower the quantity.",
+    "remaining_hint": "Still needed: {remaining}"
   },
   "institution": {
     "event_no_signups": "Event published. No volunteers have signed up yet.",
@@ -345,7 +349,11 @@
     "dashboard_toast_event_posted": "Volunteer event posted",
     "dashboard_error_event_failed": "Failed to post event",
     "volunteers_count": "{count} signed up",
-    "volunteers_signed_up": "Signed up {when}"
+    "volunteers_signed_up": "Signed up {when}",
+    "volunteers_fill": "{signed} / {needed} volunteers",
+    "pledges_fill": "{pledged} / {needed} pledged",
+    "pledges_total": "Total: {pledged}",
+    "pledge_qty": "× {qty}"
   },
   "notifications": {
     "title": "Notifications",
@@ -468,7 +476,17 @@
     "sign_up": "Sign up",
     "signing_up": "Signing up",
     "failed": "Sign-up failed. Please try again.",
-    "auth_action": "Volunteer"
+    "auth_action": "Volunteer",
+    "full": "Full, no places left",
+    "full_now": "The last place was just taken.",
+    "ended": "This event has ended.",
+    "details": "More about this event",
+    "when": "When",
+    "where": "Where",
+    "contact": "Contact",
+    "about": "About the event",
+    "requirements": "What to know",
+    "view_organisation": "View the organisation"
   },
   "volunteer_calendar": {
     "upcoming_count": "Upcoming events: {count}",

@@ -5,6 +5,7 @@ import { HeartHandshake } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { AuthActionDialog } from "@/components/AuthActionDialog";
 import { useT } from "@/i18n/client";
+import type { CapacityErrorCode } from "@/lib/capacity-errors";
 import {
   Button,
   Dialog,
@@ -45,9 +46,26 @@ type PledgeButtonProps = {
    * appends `payload.pledge` to its userPledges list.
    */
   onPledgeSuccess?: (payload: PledgeSuccessPayload) => void;
+  /**
+   * Units still needed, or null when the need has no target. The dialog caps
+   * the quantity at it; the pledge RPC enforces the same limit under a lock.
+   */
+  remaining?: number | null;
+  /** The need is fully pledged: the button stays visible but cannot open. */
+  full?: boolean;
+  /** The server refused for capacity; the card refreshes its counts. */
+  onCapacityError?: (code: CapacityErrorCode) => void;
 };
 
-export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: PledgeButtonProps) {
+export function PledgeButton({
+  needId,
+  needTitle,
+  onPledge,
+  onPledgeSuccess,
+  remaining = null,
+  full = false,
+  onCapacityError,
+}: PledgeButtonProps) {
   const t = useT();
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -68,8 +86,15 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
     setAmountEur("");
   }, []);
 
-  /** At least one whole unit; an empty or junk field means a single unit. */
-  const parsedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
+  /**
+   * At least one whole unit and never more than is still needed; an empty or
+   * junk field means a single unit.
+   */
+  const maxQuantity = remaining != null && remaining > 0 ? remaining : null;
+  const parsedQuantity = Math.min(
+    maxQuantity ?? Number.MAX_SAFE_INTEGER,
+    Math.max(1, Math.floor(Number(quantity) || 1))
+  );
 
   const submit = async () => {
     setLoading(true);
@@ -92,7 +117,17 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
       if (!res.ok) {
         // The API's `error` field is an internal, untranslated string (and the
         // old fallback rendered a raw `Error (500)` at the user). Neither
-        // belongs on screen.
+        // belongs on screen; the stable `code` does.
+        const body = (await res.json().catch(() => null)) as { code?: CapacityErrorCode } | null;
+        if (body?.code === "need_fulfilled" || body?.code === "exceeds_remaining") {
+          toast({
+            tone: "error",
+            title: t(body.code === "need_fulfilled" ? "pledge.full_now" : "pledge.exceeds_remaining"),
+          });
+          onCapacityError?.(body.code);
+          if (body.code === "need_fulfilled") closeModal();
+          return;
+        }
         toast({ tone: "error", title: t("common.error_generic") });
         return;
       }
@@ -107,6 +142,18 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
       setLoading(false);
     }
   };
+
+  if (full) {
+    return (
+      <Button
+        disabled
+        variant="secondary"
+        icon={<HeartHandshake className="h-4 w-4" strokeWidth={2} aria-hidden="true" />}
+      >
+        {t("pledge.full")}
+      </Button>
+    );
+  }
 
   return (
     <>
@@ -150,7 +197,10 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
         }
       >
         <div className="space-y-4">
-          <Field label={t("pledge.quantity")}>
+          <Field
+            label={t("pledge.quantity")}
+            hint={maxQuantity != null ? t("pledge.remaining_hint", { remaining: maxQuantity }) : undefined}
+          >
             {(props) => (
               <Input
                 {...props}
@@ -159,6 +209,7 @@ export function PledgeButton({ needId, needTitle, onPledge, onPledgeSuccess }: P
                 data-dialog-initial-focus
                 type="number"
                 min={1}
+                max={maxQuantity ?? undefined}
                 step={1}
                 inputMode="numeric"
                 value={quantity}

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
-import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
+import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin, withRequestId } from "@/lib/security/http";
+import { capacityErrorCode } from "@/lib/capacity-errors";
 
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
@@ -82,6 +83,14 @@ export async function POST(req: NextRequest) {
         request_id: requestId,
         code: error.code ?? null,
       });
+      // The card needs to tell "already yours" from "full" from "over".
+      const code = capacityErrorCode(error);
+      if (code) {
+        return NextResponse.json(
+          { error: "Could not sign up for this event", code, request_id: requestId },
+          { status, headers: withRequestId(NO_STORE, requestId) }
+        );
+      }
       return jsonError("Could not sign up for this event", status, requestId, NO_STORE);
     }
 

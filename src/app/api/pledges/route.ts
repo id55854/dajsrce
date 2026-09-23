@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
+import { capacityErrorCode } from "@/lib/capacity-errors";
 
 const TAX_CATEGORIES = new Set([
   "cultural",
@@ -152,8 +153,9 @@ export async function POST(req: NextRequest) {
         request_id: requestId,
         code: error.code,
       });
+      const code = capacityErrorCode(error);
       return NextResponse.json(
-        { error: "Pledge could not be created", request_id: requestId },
+        { error: "Pledge could not be created", ...(code ? { code } : {}), request_id: requestId },
         { status }
       );
     }

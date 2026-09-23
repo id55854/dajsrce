@@ -297,7 +297,11 @@
     "network_error": "Mrežna pogreška. Pokušajte ponovno.",
     "auth_action": "doniranje ili ponudu pomoći",
     "amount_eur_label": "Procijenjena vrijednost (EUR)",
-    "amount_eur_hint": "Nije obavezno. Potrebno za godišnje potvrde o donaciji."
+    "amount_eur_hint": "Nije obavezno. Potrebno za godišnje potvrde o donaciji.",
+    "full": "Prikupljeno",
+    "full_now": "Ova potreba je upravo u potpunosti pokrivena.",
+    "exceeds_remaining": "Toliko više nije potrebno. Smanjite količinu.",
+    "remaining_hint": "Još je potrebno: {remaining}"
   },
   "institution": {
     "event_no_signups": "Događaj je objavljen. Još nema prijavljenih volontera.",
@@ -345,7 +349,11 @@
     "dashboard_toast_event_posted": "Volonterski događaj objavljen",
     "dashboard_error_event_failed": "Objava događaja nije uspjela",
     "volunteers_count": "Prijavljenih: {count}",
-    "volunteers_signed_up": "Prijava {when}"
+    "volunteers_signed_up": "Prijava {when}",
+    "volunteers_fill": "{signed} / {needed} volontera",
+    "pledges_fill": "{pledged} / {needed} prikupljeno",
+    "pledges_total": "Ukupno: {pledged}",
+    "pledge_qty": "× {qty}"
   },
   "notifications": {
     "title": "Obavijesti",
@@ -468,7 +476,17 @@
     "sign_up": "Prijavi se",
     "signing_up": "Prijava u tijeku",
     "failed": "Prijava nije uspjela. Pokušajte ponovno.",
-    "auth_action": "Volontiranje"
+    "auth_action": "Volontiranje",
+    "full": "Popunjeno, nema slobodnih mjesta",
+    "full_now": "Upravo je popunjeno posljednje mjesto.",
+    "ended": "Ovaj termin je završio.",
+    "details": "Više o događaju",
+    "when": "Kada",
+    "where": "Gdje",
+    "contact": "Kontakt",
+    "about": "O događaju",
+    "requirements": "Što trebate znati",
+    "view_organisation": "Pogledaj profil udruge"
   },
   "volunteer_calendar": {
     "upcoming_count": "Nadolazeći događaji: {count}",

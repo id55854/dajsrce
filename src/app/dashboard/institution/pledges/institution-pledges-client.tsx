@@ -4,9 +4,9 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { NewNeedForm } from "@/components/NewNeedForm";
 import { Plus } from "lucide-react";
 import { useT } from "@/i18n/client";
+import { RosterGrid, RosterGroup, RosterPerson } from "@/components/Roster";
 import {
   Button,
-  Card,
   EmptyState,
   PageHeader,
   PageShell,
@@ -22,7 +22,7 @@ type PledgeRow = {
   amount_eur: number | null;
   created_at: string;
   donor: { id: string; name: string; email: string };
-  need: { title: string } | null;
+  need: { title: string; quantity_needed?: number | null; quantity_pledged?: number | null } | null;
 };
 
 type InstitutionPledgesClientProps = {
@@ -107,62 +107,46 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
       ) : pledges.length === 0 ? (
         <EmptyState title={t("institution.pledges_empty")} />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {Array.from(byNeed.entries()).map(([needId, rows]) => {
             const need = rows[0]?.need;
+            const needed = need?.quantity_needed ?? null;
+            const pledged = need?.quantity_pledged ?? rows.reduce((sum, row) => sum + row.quantity, 0);
             return (
-              <Card key={needId} padding="none">
-                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border-subtle p-5">
-                  <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-ink">
-                      {need?.title ?? t("institution.pledges_need")}
-                    </h2>
-                  </div>
-                  <p className="shrink-0 text-sm text-ink-secondary">
-                    {t("institution.pledges_count", { count: rows.length })}
-                  </p>
-                </div>
-
-                <ul className="divide-y divide-border-subtle">
+              <RosterGroup
+                key={needId}
+                title={need?.title ?? t("institution.pledges_need")}
+                meta={t("institution.pledges_count", { count: rows.length })}
+                count={
+                  needed
+                    ? t("institution.pledges_fill", { pledged, needed })
+                    : t("institution.pledges_total", { pledged })
+                }
+              >
+                <RosterGrid>
                   {rows.map((p) => (
-                    <li
+                    <RosterPerson
                       key={p.id}
-                      className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-ink">{p.donor.name}</p>
-                        <p className="truncate text-sm text-ink-secondary">{p.donor.email}</p>
-                        <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs">
-                          <div>
-                            <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
-                              {t("your_pledges.qty_label")}:{" "}
-                            </dt>
-                            <dd className="inline font-semibold tabular-nums text-ink">
-                              {p.quantity}
-                            </dd>
-                          </div>
+                      name={p.donor.name}
+                      email={p.donor.email}
+                      when={p.created_at}
+                      whenLabel={timeAgo(p.created_at)}
+                      aside={
+                        <>
+                          <p className="text-sm font-semibold tabular-nums text-ink">
+                            {t("institution.pledge_qty", { qty: p.quantity })}
+                          </p>
                           {p.amount_eur != null ? (
-                            <div>
-                              <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
-                                {t("institution.pledges_amount")}:{" "}
-                              </dt>
-                              <dd className="inline font-semibold tabular-nums text-ink">
-                                {`€${Number(p.amount_eur).toFixed(2)}`}
-                              </dd>
-                            </div>
+                            <p className="text-xs tabular-nums text-ink-tertiary">
+                              {`€${Number(p.amount_eur).toFixed(2)}`}
+                            </p>
                           ) : null}
-                        </dl>
-                      </div>
-                      <time
-                        dateTime={p.created_at}
-                        className="shrink-0 text-xs text-ink-tertiary"
-                      >
-                        {timeAgo(p.created_at)}
-                      </time>
-                    </li>
+                        </>
+                      }
+                    />
                   ))}
-                </ul>
-              </Card>
+                </RosterGrid>
+              </RosterGroup>
             );
           })}
         </div>

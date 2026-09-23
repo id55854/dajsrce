@@ -99,6 +99,8 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 37. `20260825120000_fix_map_onboarded_regression.sql`
 38. `20260906120000_audit_transaction_coverage.sql` (applied to production by hand on 2026-09-06)
 39. `20260922120000_map_multi_donation_types.sql` (map donation-type filter is multi-select; drops and recreates `map_association_registry_v1`/`v2` with a trailing `p_donation_types text[]`)
+40. `20260923120000_notifications_realtime.sql` (adds `public.notifications` to the `supabase_realtime` publication; the navbar subscribes per signed-in user instead of polling, and RLS limits each subscriber to their own rows)
+41. `20260923130000_capacity_realtime.sql` (adds `public.needs` and `public.volunteer_events` to `supabase_realtime`; `useLiveCapacity` shares one channel per table and reads only the counter columns, while the pledge/signup RPCs still enforce capacity under a row lock)
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 

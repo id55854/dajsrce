@@ -5,7 +5,10 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { NewVolunteerEventForm } from "@/components/NewVolunteerEventForm";
 import { Plus } from "lucide-react";
-import { useT } from "@/i18n/client";
+import { format, parseISO } from "date-fns";
+import { enUS, hr } from "date-fns/locale";
+import { useLocale, useT } from "@/i18n/client";
+import { RosterEmpty, RosterGrid, RosterGroup, RosterPerson } from "@/components/Roster";
 import {
   Button,
   Card,
@@ -23,7 +26,14 @@ type SignupRow = {
   event_id: string;
   created_at: string;
   volunteer: { id: string; name: string; email: string };
-  event: { id: string; title: string; event_date: string; start_time: string; end_time: string } | null;
+  event: {
+    id: string;
+    title: string;
+    event_date: string;
+    start_time: string;
+    end_time: string;
+    volunteers_needed?: number | null;
+  } | null;
 };
 
 type InstitutionVolunteersClientProps = {
@@ -51,6 +61,7 @@ export function InstitutionVolunteersClient({
   refreshKey = 0,
 }: InstitutionVolunteersClientProps) {
   const t = useT();
+  const { locale } = useLocale();
   const panelId = useId();
   const [publishing, setPublishing] = useState(false);
   const [events, setEvents] = useState<NonNullable<SignupRow["event"]>[]>([]);
@@ -134,46 +145,40 @@ export function InstitutionVolunteersClient({
       ) : byEvent.size === 0 ? (
         <EmptyState title={t("institution.volunteers_empty")} />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {Array.from(byEvent.entries()).map(([eventId, rows]) => {
             const ev = events.find((event) => event.id === eventId) ?? rows[0]?.event;
+            const needed = ev?.volunteers_needed ?? null;
+            const date = ev?.event_date
+              ? format(parseISO(ev.event_date), "EEE, d. MMM yyyy.", { locale: locale === "hr" ? hr : enUS })
+              : null;
             return (
-              <Card key={eventId} padding="none">
-                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border-subtle p-5">
-                  <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-ink">{ev?.title ?? "—"}</h2>
-                    <p className="mt-1 text-sm text-ink-secondary">
-                      {ev?.event_date} · {ev?.start_time}–{ev?.end_time}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-sm text-ink-secondary">
-                    {t("institution.volunteers_count", { count: rows.length })}
-                  </p>
-                </div>
-
-                {rows.length === 0 ? <p className="p-5 text-sm text-ink-secondary">{t("institution.event_no_signups")}</p> : null}
-                <ul className="divide-y divide-border-subtle">
-                  {rows.map((s) => (
-                    <li
-                      key={s.id}
-                      className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-ink">{s.volunteer.name}</p>
-                        <p className="truncate text-sm text-ink-secondary">
-                          {s.volunteer.email}
-                        </p>
-                      </div>
-                      <time
-                        dateTime={s.created_at}
-                        className="shrink-0 text-xs text-ink-tertiary"
-                      >
-                        {t("institution.volunteers_signed_up", { when: timeAgo(s.created_at) })}
-                      </time>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+              <RosterGroup
+                key={eventId}
+                title={ev?.title ?? "—"}
+                meta={date ? `${date} · ${ev?.start_time}–${ev?.end_time}` : null}
+                count={
+                  needed
+                    ? t("institution.volunteers_fill", { signed: rows.length, needed })
+                    : t("institution.volunteers_count", { count: rows.length })
+                }
+              >
+                {rows.length === 0 ? (
+                  <RosterEmpty>{t("institution.event_no_signups")}</RosterEmpty>
+                ) : (
+                  <RosterGrid>
+                    {rows.map((s) => (
+                      <RosterPerson
+                        key={s.id}
+                        name={s.volunteer.name}
+                        email={s.volunteer.email}
+                        when={s.created_at}
+                        whenLabel={timeAgo(s.created_at)}
+                      />
+                    ))}
+                  </RosterGrid>
+                )}
+              </RosterGroup>
             );
           })}
         </div>

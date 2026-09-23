@@ -16,6 +16,7 @@ import { enUS, hr } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
 import { Badge, Card, type BadgeTone } from "@/components/ui";
 import { PledgeButton, type PledgeSuccessPayload } from "./PledgeButton";
+import { useLiveCapacity } from "@/lib/live-capacity";
 import { DonationTypeIcon } from "@/components/DonationTypeIcon";
 
 export type NeedCardNeed = Need & {
@@ -67,15 +68,28 @@ export function NeedCard({
       ? categoryVars(inst.category)
       : undefined;
   const urgency = URGENCY[need.urgency];
-  const needed = need.quantity_needed ?? 0;
-  const pledged = need.quantity_pledged;
+  // Counts follow other donors live, and this donor's own pledge immediately
+  // (the parent may or may not patch its list); see useLiveCapacity.
+  const [counts, applyCounts] = useLiveCapacity("needs", need.id, {
+    quantity_needed: need.quantity_needed,
+    quantity_pledged: need.quantity_pledged,
+    is_fulfilled: need.is_fulfilled,
+  });
+  const needed = counts.quantity_needed ?? 0;
+  const pledged = counts.quantity_pledged;
   const pct =
     needed > 0
       ? Math.min(100, Math.round((pledged / needed) * 100))
       : pledged > 0
         ? 100
         : 0;
-  const fulfilled = needed > 0 && pct >= 100;
+  const fulfilled = counts.is_fulfilled || (needed > 0 && pledged >= needed);
+  const remaining = needed > 0 ? Math.max(0, needed - pledged) : null;
+
+  const handlePledgeSuccess = (payload: PledgeSuccessPayload) => {
+    if (payload.need) applyCounts({ quantity_pledged: payload.need.quantity_pledged });
+    onPledgeSuccess?.(payload);
+  };
   const mine = Boolean(myPledgedQty && myPledgedQty > 0);
 
   const posted = formatDistanceToNow(new Date(need.created_at), {
@@ -87,8 +101,9 @@ export function NeedCard({
     <Card
       as="article"
       className={clsx(
-        "flex h-full flex-col",
-        mine && "border-success ring-1 ring-success/30"
+        "flex h-full flex-col transition-[opacity,filter] duration-300 ease-out",
+        mine && "border-success ring-1 ring-success/30",
+        fulfilled && "opacity-60 grayscale"
       )}
     >
       {inst ? (
@@ -186,7 +201,13 @@ export function NeedCard({
           <PledgeButton
             needId={need.id}
             needTitle={need.title}
-            onPledgeSuccess={onPledgeSuccess}
+            onPledgeSuccess={handlePledgeSuccess}
+            remaining={remaining}
+            full={fulfilled}
+            onCapacityError={(code) => {
+              // Nothing more fits; the exact count arrives over Realtime.
+              if (code === "need_fulfilled") applyCounts({ is_fulfilled: true });
+            }}
           />
         ) : null}
         <time className="text-sm text-ink-tertiary" dateTime={need.created_at}>
