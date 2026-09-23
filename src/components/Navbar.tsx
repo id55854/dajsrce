@@ -85,6 +85,7 @@ function NavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
+      prefetch={navLinks.some((link) => link.href === href) ? true : undefined}
       aria-current={active ? "page" : undefined}
       className={clsx(
         "cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-medium",
@@ -560,6 +561,7 @@ export function Navbar() {
                 <Link
                   key={href}
                   href={href}
+                  prefetch={navLinks.some((link) => link.href === href) ? true : undefined}
                   aria-current={active ? "page" : undefined}
                   className={clsx(
                     "cursor-pointer rounded-control px-3 py-3 text-base font-medium transition-colors",

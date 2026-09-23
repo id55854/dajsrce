@@ -42,6 +42,10 @@ flowchart LR
 
 Public requests use a stateless anonymous Supabase client and do not read auth cookies. Middleware runs only on protected route families. Authenticated writes resolve the real user with `auth.getUser()`, authorize the relevant tenant/institution, and then call a service-only transactional RPC for multi-row state changes.
 
+### Navigation latency
+
+Vercel functions run in `dub1` (Ireland), alongside the documented production Supabase region `eu-west-1`; keep `vercel.json` aligned if the database moves. Previously production response headers showed `iad1` (USA), adding a transatlantic round trip to European page requests and database reads. The root loading boundary keeps navigation responsive while server work completes, and the three main public navigation links prefetch their full routes. Private routes retain Next.js default prefetch behaviour.
+
 ### Source layout
 
 - `src/app`: pages and thin HTTP route adapters.

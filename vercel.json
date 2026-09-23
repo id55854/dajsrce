@@ -1,3 +1,6 @@
 {
-  "crons": []
+  "crons": [],
+  "regions": [
+    "dub1"
+  ]
 }
