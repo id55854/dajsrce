@@ -449,7 +449,12 @@
     "error": "The calendar could not be loaded. Please try again.",
     "truncated": "A limited number of recent records is shown; older activities may not be included.",
     "deadline_field": "Donation deadline",
-    "deadline_hint": "Optional. Appears in the calendar of the person who pledges a donation."
+    "deadline_hint": "Optional. Appears in the calendar of the person who pledges a donation.",
+    "open_volunteers": "Signed-up volunteers",
+    "open_pledges": "Pledged donations",
+    "organisation": "Organisation",
+    "about_need": "About the need",
+    "pledged": "Pledged"
   },
   "volunteer_page": {
     "period_label": "Event period",

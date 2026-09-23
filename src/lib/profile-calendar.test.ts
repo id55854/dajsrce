@@ -9,7 +9,7 @@ describe("profile calendars", () => {
     expect(calendarDate("2026-09-22T23:00:00Z")).toBe("2026-09-23");
   });
   it("shows actual deadlines and signup dates, never pledge creation dates", () => {
-    expect(individualCalendarEntries([{ id: "p1", need }], [{ id: "s1", event }])).toEqual([
+    expect(individualCalendarEntries([{ id: "p1", need }], [{ id: "s1", event }]).map(({ details: _details, ...entry }) => entry)).toEqual([
       { id: "pledge-p1", title: "Hrana", date: "2026-10-01", kind: "donation", href: "#pledge-p1" },
       { id: "signup-s1", title: "Volontiranje", date: "2026-10-02", time: "09:00", kind: "volunteer", href: "#signup-s1" },
     ]);
@@ -31,6 +31,32 @@ describe("profile calendars", () => {
       { kind: "volunteer", date: "2026-10-02" },
     ]);
     expect(new Set(entries.map((entry) => entry.id)).size).toBe(4);
+  });
+  it("carries what the details dialog shows, including an embedded organisation", () => {
+    const [entry] = individualCalendarEntries([], [{
+      id: "s1",
+      event: {
+        ...event,
+        end_time: "12:00",
+        description: "Podjela obroka",
+        requirements: "Udobna obuća",
+        volunteers_needed: 8,
+        volunteers_signed_up: 3,
+        institution: [{ name: "Pučka kuhinja" }],
+      },
+    }]);
+    expect(entry.details).toEqual({
+      subject: "volunteer",
+      description: "Podjela obroka",
+      startTime: "09:00",
+      endTime: "12:00",
+      requirements: "Udobna obuća",
+      organisation: "Pučka kuhinja",
+      filled: 3,
+      needed: 8,
+    });
+    const [pledge] = individualCalendarEntries([{ id: "p1", quantity: 2, need: { ...need, quantity_needed: 10, quantity_pledged: 6 } }], []);
+    expect(pledge.details).toMatchObject({ subject: "donation", filled: 6, needed: 10, mine: 2 });
   });
   it("keeps publication history when a need is fulfilled, without an active deadline", () => {
     expect(institutionCalendarEntries([{ ...need, is_fulfilled: true }], []).map((entry) => entry.kind)).toEqual(["publication"]);

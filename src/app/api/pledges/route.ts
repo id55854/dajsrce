@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase
       .from("pledges")
       .select(
-        "id, need_id, quantity, message, status, tax_category, amount_eur, delivered_at, fulfilled_at, created_at, need:needs(id, title, donation_type, deadline, is_fulfilled, urgency, quantity_needed, quantity_pledged, institution:institutions(id, name, category))"
+        "id, need_id, quantity, message, status, tax_category, amount_eur, delivered_at, fulfilled_at, created_at, need:needs(id, title, description, donation_type, deadline, is_fulfilled, urgency, quantity_needed, quantity_pledged, institution:institutions(id, name, category))"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });

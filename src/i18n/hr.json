@@ -449,7 +449,12 @@
     "error": "Kalendar se nije uspio učitati. Pokušajte ponovno.",
     "truncated": "Prikazan je ograničen broj posljednjih zapisa; starije aktivnosti možda nisu uključene.",
     "deadline_field": "Rok za donacije",
-    "deadline_hint": "Neobavezno. Prikazuje se u kalendaru osobe koja obeća donaciju."
+    "deadline_hint": "Neobavezno. Prikazuje se u kalendaru osobe koja obeća donaciju.",
+    "open_volunteers": "Prijavljeni volonteri",
+    "open_pledges": "Obećane donacije",
+    "organisation": "Organizacija",
+    "about_need": "O potrebi",
+    "pledged": "Obećano"
   },
   "volunteer_page": {
     "period_label": "Razdoblje događaja",

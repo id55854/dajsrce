@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
     if (profile?.role !== "ngo" || !profile.institution_id) return jsonError("Institution access required", 403, requestId, NO_STORE);
     // Both explicit ownership and RLS scope this private profile calendar.
     const [needs, events] = await Promise.all([
-      supabase.from("needs").select("id, title, deadline, is_fulfilled, created_at").eq("institution_id", profile.institution_id).order("created_at", { ascending: false }).limit(LIMIT + 1),
-      supabase.from("volunteer_events").select("id, title, event_date, start_time, created_at").eq("institution_id", profile.institution_id).order("created_at", { ascending: false }).limit(LIMIT + 1),
+      supabase.from("needs").select("id, title, description, deadline, is_fulfilled, quantity_needed, quantity_pledged, created_at").eq("institution_id", profile.institution_id).order("created_at", { ascending: false }).limit(LIMIT + 1),
+      supabase.from("volunteer_events").select("id, title, description, event_date, start_time, end_time, requirements, volunteers_needed, volunteers_signed_up, created_at").eq("institution_id", profile.institution_id).order("created_at", { ascending: false }).limit(LIMIT + 1),
     ]);
     if (needs.error) throw needs.error;
     if (events.error) throw events.error;

@@ -34,6 +34,9 @@ type PledgeRow = Pledge & {
     donation_type: string;
     deadline?: string | null;
     is_fulfilled?: boolean;
+    description?: string | null;
+    quantity_needed?: number | null;
+    quantity_pledged?: number | null;
     institution?: { id: string; name: string; category: string };
   };
   shipment?: Shipment | null;
@@ -50,6 +53,12 @@ type SignupEvent = {
   title: string;
   event_date: string;
   start_time: string | null;
+  end_time?: string | null;
+  description?: string | null;
+  requirements?: string | null;
+  volunteers_needed?: number | null;
+  volunteers_signed_up?: number | null;
+  institution?: { name?: string | null } | { name?: string | null }[] | null;
 };
 
 type SignupRow = {
@@ -124,7 +133,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
         const { data, error } = await supabase
           .from("volunteer_signups")
           .select(
-            "id, event_id, created_at, event:volunteer_events(id, title, event_date, start_time)"
+            "id, event_id, created_at, event:volunteer_events(id, title, description, event_date, start_time, end_time, requirements, volunteers_needed, volunteers_signed_up, institution:institutions(name))"
           )
           .eq("user_id", profile.id)
           .is("cancelled_at", null)
