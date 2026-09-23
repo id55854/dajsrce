@@ -1,0 +1,13 @@
+{
+  "keys": [
+    {
+      "kty": "EC",
+      "x": "hvUflIAzmY8yRZwZHVd9Viy_BxumOxouFm0m75efAu8",
+      "y": "2nM8gFWctcNHGWlqPJ_xr7WqnRJCiMhnstITMS_xW1k",
+      "crv": "P-256",
+      "kid": "dajsrce-data-api-2026-09-23-8b00469f",
+      "alg": "ES256",
+      "use": "sig"
+    }
+  ]
+}
