@@ -33,6 +33,33 @@ describe("createDataApiFetch", () => {
     expect(headers.get("authorization")).toBe("Bearer data-token");
   });
 
+  it("matches an env URL with stray whitespace or a trailing slash", async () => {
+    const baseFetch = vi.fn(async () => new Response("[]"));
+    const fetcher = createDataApiFetch({
+      supabaseUrl: `${SUPABASE}/\n`,
+      dataApiUrl: NEON,
+      getToken: async () => "data-token",
+      baseFetch,
+    });
+
+    await fetcher(`${SUPABASE}/rest/v1/rpc/map?x=1`, { method: "POST" });
+
+    expect((baseFetch.mock.calls[0] as unknown[])[0]).toBe(`${NEON}/rpc/map?x=1`);
+  });
+
+  it("refuses to send a database request to the Supabase host it cannot route", async () => {
+    const baseFetch = vi.fn(async () => new Response("[]"));
+    const fetcher = createDataApiFetch({
+      supabaseUrl: `${SUPABASE}/base`,
+      dataApiUrl: NEON,
+      getToken: async () => "data-token",
+      baseFetch,
+    });
+
+    await expect(fetcher(`${SUPABASE}/rest/v1/needs`)).rejects.toThrow(/retired Supabase database/);
+    expect(baseFetch).not.toHaveBeenCalled();
+  });
+
   it("leaves Supabase Auth traffic untouched", async () => {
     const baseFetch = vi.fn(async () => new Response("{}"));
     const getToken = vi.fn(async () => "data-token");

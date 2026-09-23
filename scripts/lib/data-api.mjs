@@ -57,16 +57,27 @@ export function dataApiUrl() {
   return value.replace(/\/+$/, "");
 }
 
-/** supabase-js `global.fetch` that sends database calls to Neon as `role`. */
+
+/**
+ * supabase-js `global.fetch` that sends database calls to Neon as `role`.
+ * Parsed, fail-closed match; keep in step with src/lib/data-api/fetch.ts.
+ */
 export function dataApiFetch(supabaseUrl, role) {
-  const prefix = `${supabaseUrl.replace(/\/+$/, "")}/rest/v1`;
+  const base = new URL(supabaseUrl.trim());
+  const prefix = `${base.origin}${base.pathname.replace(/\/+$/, "")}/rest/v1`;
   const target = dataApiUrl();
   return async (input, init) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (!url.startsWith(prefix)) return fetch(input, init);
+    const parsed = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    const path = `${parsed.origin}${parsed.pathname}`;
+    if (!(path === prefix || path.startsWith(`${prefix}/`))) {
+      if (parsed.origin === base.origin && /\/rest\/v1(?=\/|$)/.test(parsed.pathname)) {
+        throw new Error("Refusing to send a database request to the retired Supabase database");
+      }
+      return fetch(input, init);
+    }
     const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
     headers.delete("apikey");
     headers.set("Authorization", `Bearer ${await dataApiToken(role)}`);
-    return fetch(target + url.slice(prefix.length), { ...init, headers });
+    return fetch(target + path.slice(prefix.length) + parsed.search, { ...init, headers });
   };
 }

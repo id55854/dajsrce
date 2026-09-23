@@ -7,6 +7,11 @@
  * Supabase key for a Data API token, and passes everything else, including
  * every Auth call, through untouched. Call sites keep their `.from()`/`.rpc()`
  * code; only the client factories change.
+ *
+ * URLs are compared parsed, not as strings: supabase-js normalises the project
+ * URL itself, so an env value with stray whitespace or a trailing slash must
+ * still match. And it fails closed: a `/rest/v1` request that does not match
+ * the configured project throws instead of reaching the retired database.
  */
 
 type FetchLike = typeof fetch;
@@ -31,21 +36,29 @@ function requestUrl(input: RequestInfo | URL): string {
   return input.url;
 }
 
+const REST_SEGMENT = /\/rest\/v1(?=\/|$)/;
+
 export function createDataApiFetch({
   supabaseUrl,
   dataApiUrl,
   getToken,
   baseFetch,
 }: DataApiFetchOptions): FetchLike {
-  const restPrefix = `${supabaseUrl.replace(/\/+$/, "")}/rest/v1`;
-  const target = dataApiUrl.replace(/\/+$/, "");
+  const base = new URL(supabaseUrl.trim());
+  const restPrefix = `${base.origin}${base.pathname.replace(/\/+$/, "")}/rest/v1`;
+  const target = dataApiUrl.trim().replace(/\/+$/, "");
 
   return async (input, init) => {
     const doFetch = baseFetch ?? fetch;
-    const url = requestUrl(input);
-    if (!url.startsWith(restPrefix)) return doFetch(input, init);
-    const rest = url.slice(restPrefix.length);
-    if (rest !== "" && !rest.startsWith("/") && !rest.startsWith("?")) return doFetch(input, init);
+    const parsed = new URL(requestUrl(input));
+    const path = `${parsed.origin}${parsed.pathname}`;
+    const matches = path === restPrefix || path.startsWith(`${restPrefix}/`);
+    if (!matches) {
+      if (parsed.origin === base.origin && REST_SEGMENT.test(parsed.pathname)) {
+        throw new Error("Refusing to send a database request to the retired Supabase database");
+      }
+      return doFetch(input, init);
+    }
 
     const headers = new Headers(
       init?.headers ?? (input instanceof Request ? input.headers : undefined)
@@ -54,9 +67,10 @@ export function createDataApiFetch({
     headers.delete("apikey");
     headers.set("Authorization", `Bearer ${await getToken()}`);
 
+    const destination = `${target}${path.slice(restPrefix.length)}${parsed.search}`;
     if (input instanceof Request && !init) {
-      return doFetch(new Request(target + rest, input), { headers });
+      return doFetch(new Request(destination, input), { headers });
     }
-    return doFetch(target + rest, { ...init, headers });
+    return doFetch(destination, { ...init, headers });
   };
 }
