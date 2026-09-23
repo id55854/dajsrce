@@ -27,4 +27,19 @@ describe("public server snapshot", () => {
     load.mockResolvedValueOnce({ response: { features: ["recovered"] } });
     expect((await getMapBootstrap(query))?.response.features).toEqual(["recovered"]);
   });
+  it("sends the page without a snapshot when the database is slower than the budget", async () => {
+    let finish: (value: unknown) => void = () => {};
+    load.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const started = Date.now();
+    expect(await getMapBootstrap(initialMapQuery(new URLSearchParams()), 20)).toBeNull();
+    expect(Date.now() - started).toBeLessThan(1000);
+    finish({ response: { features: [] } });
+  });
+  it("does not leave a late database failure unhandled", async () => {
+    let fail: (error: Error) => void = () => {};
+    load.mockReturnValueOnce(new Promise((_, reject) => { fail = reject; }));
+    expect(await getMapBootstrap(initialMapQuery(new URLSearchParams()), 5)).toBeNull();
+    fail(new Error("late timeout"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
 });
