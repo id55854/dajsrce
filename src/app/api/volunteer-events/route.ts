@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from("volunteer_events")
-      .select("id,institution_id,title,description,event_date,start_time,end_time,volunteers_needed,volunteers_signed_up,requirements,contact_person,contact_phone,is_past,created_at,institution:institutions(id, name, category, address:public_address, city)")
+      .select("id,institution_id,title,description,event_date,start_time,end_time,volunteers_needed,volunteers_signed_up,requirements,contact_person,contact_phone,created_at,institution:institutions(id, name, category, address:public_address, city)")
       .gte("event_date", new Date().toISOString().split("T")[0])
       .order("event_date", { ascending: true })
       .limit(30);
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
         requirements,
       })
       .select(
-        "id,institution_id,title,description,event_date,start_time,end_time,volunteers_needed,volunteers_signed_up,requirements,contact_person,contact_phone,is_past,created_at,institution:institutions(id, name, category, address:public_address, city, lat:public_lat, lng:public_lng)"
+        "id,institution_id,title,description,event_date,start_time,end_time,volunteers_needed,volunteers_signed_up,requirements,contact_person,contact_phone,created_at,institution:institutions(id, name, category, address:public_address, city, lat:public_lat, lng:public_lng)"
       )
       .single();
 
