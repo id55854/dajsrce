@@ -2,16 +2,17 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CalendarDays, Phone } from "lucide-react";
 import { NewVolunteerEventForm } from "@/components/NewVolunteerEventForm";
 import { Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
-import { RosterEmpty, RosterGrid, RosterGroup, RosterPerson } from "@/components/Roster";
+import { RosterEmpty, RosterFact, RosterGrid, RosterGroup, RosterPerson, RosterSection } from "@/components/Roster";
 import {
   Button,
   Card,
+  Dialog,
   EmptyState,
   PageHeader,
   PageShell,
@@ -33,6 +34,10 @@ type SignupRow = {
     start_time: string;
     end_time: string;
     volunteers_needed?: number | null;
+    description?: string | null;
+    requirements?: string | null;
+    contact_person?: string | null;
+    contact_phone?: string | null;
   } | null;
 };
 
@@ -69,6 +74,8 @@ export function InstitutionVolunteersClient({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  /** The event whose details are open; the roster header opens it. */
+  const [openEventId, setOpenEventId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -152,11 +159,14 @@ export function InstitutionVolunteersClient({
             const date = ev?.event_date
               ? format(parseISO(ev.event_date), "EEE, d. MMM yyyy.", { locale: locale === "hr" ? hr : enUS })
               : null;
+            const time = ev ? timeRange(ev.start_time, ev.end_time) : "";
             return (
               <RosterGroup
                 key={eventId}
                 title={ev?.title ?? "—"}
-                meta={date ? `${date} · ${ev?.start_time}–${ev?.end_time}` : null}
+                meta={date ? `${date} · ${time}` : null}
+                onOpen={ev ? () => setOpenEventId(eventId) : undefined}
+                openLabel={t("institution.roster_details")}
                 count={
                   needed
                     ? t("institution.volunteers_fill", { signed: rows.length, needed })
@@ -183,6 +193,11 @@ export function InstitutionVolunteersClient({
           })}
         </div>
       )}
+      <EventDetailsDialog
+        event={events.find((event) => event.id === openEventId) ?? null}
+        signed={openEventId ? byEvent.get(openEventId)?.length ?? 0 : 0}
+        onClose={() => setOpenEventId(null)}
+      />
     </>
   );
 
@@ -201,5 +216,56 @@ export function InstitutionVolunteersClient({
       {publishing ? <div className="mb-6"><NewVolunteerEventForm panelId={panelId} onClose={() => setPublishing(false)} onPosted={() => void load()} /></div> : null}
       {body}
     </PageShell>
+  );
+}
+
+/** "09:00:00" and "12:00:00" read as "09:00–12:00". */
+function timeRange(start?: string | null, end?: string | null): string {
+  const clip = (value?: string | null) => (value ? value.slice(0, 5) : "");
+  return [clip(start), clip(end)].filter(Boolean).join("–");
+}
+
+function EventDetailsDialog({ event, signed, onClose }: {
+  event: NonNullable<SignupRow["event"]> | null;
+  signed: number;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const { locale } = useLocale();
+  if (!event) return null;
+  const date = format(parseISO(event.event_date), "EEEE, d. MMMM yyyy.", { locale: locale === "hr" ? hr : enUS });
+  const needed = event.volunteers_needed ?? null;
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={event.title}
+      description={needed ? t("institution.volunteers_fill", { signed, needed }) : t("institution.volunteers_count", { count: signed })}
+      closeLabel={t("common.close")}
+      variant="sheet-on-mobile"
+    >
+      <div className="space-y-5">
+        <dl className="space-y-2.5 text-sm">
+          <RosterFact icon={<CalendarDays className="h-4 w-4" aria-hidden />} label={t("volunteer_card.when")}>
+            {date}
+            <span className="block text-ink-secondary">{timeRange(event.start_time, event.end_time)}</span>
+          </RosterFact>
+          {event.contact_person || event.contact_phone ? (
+            <RosterFact icon={<Phone className="h-4 w-4" aria-hidden />} label={t("volunteer_card.contact")}>
+              {event.contact_person}
+              {event.contact_phone ? <span className="block text-ink-secondary">{event.contact_phone}</span> : null}
+            </RosterFact>
+          ) : null}
+        </dl>
+        {event.description ? (
+          <RosterSection title={t("volunteer_card.about")}>{event.description}</RosterSection>
+        ) : (
+          <p className="text-sm text-ink-tertiary">{t("institution.roster_no_description")}</p>
+        )}
+        {event.requirements ? (
+          <RosterSection title={t("volunteer_card.requirements")}>{event.requirements}</RosterSection>
+        ) : null}
+      </div>
+    </Dialog>
   );
 }

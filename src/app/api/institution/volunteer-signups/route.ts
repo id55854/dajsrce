@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   const { data: events, error: eErr } = await supabase
     .from("volunteer_events")
-    .select("id, title, event_date, start_time, end_time, volunteers_needed")
+    .select("id, title, description, event_date, start_time, end_time, volunteers_needed, requirements, contact_person, contact_phone")
     .eq("institution_id", instId)
     .order("event_date", { ascending: false })
     .limit(80);
