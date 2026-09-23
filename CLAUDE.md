@@ -4,7 +4,18 @@
 
 ## Product snapshot
 
-DajSrce is a nationwide Croatian donation and volunteering platform. The production branch is `main`; Vercel deploys it. Stack: Next.js 15.5, React 19, strict TypeScript, Tailwind 4, Supabase/Postgres/PostGIS/Storage, Leaflet and Resend.
+DajSrce is a nationwide Croatian donation and volunteering platform. The production branch is `main`; Vercel deploys it. Stack: Next.js 15.5, React 19, strict TypeScript, Tailwind 4, Neon Postgres/PostGIS (via the Neon Data API), Supabase Auth, Leaflet and Resend.
+
+## Database: Neon, identity: Supabase Auth
+
+Postgres moved from Supabase to Neon (project `broad-term-74317717`, branch `production`, eu-central-1) on 2026-09-23; Supabase now provides **Auth only**. The app keeps supabase-js for its query builder, but every client factory (`src/lib/supabase/{server,public,client,admin}.ts`, `src/middleware.ts`, `scripts/lib/supabase-admin.mjs`) passes a `global.fetch` from `src/lib/data-api/fetch.ts` that rewrites `/rest/v1` onto `NEXT_PUBLIC_DATA_API_URL` and leaves `/auth/v1` on Supabase. Call sites do not change.
+
+- Neon verifies ES256 tokens the app signs with `DATA_API_JWT_PRIVATE_JWK` (server-only) against `public/.well-known/jwks.json` (audience `dajsrce-data-api`). `role` picks one of `anon`, `authenticated` (with `sub` = Supabase user id, so `auth.uid()` and all RLS work unchanged; pg_session_jwt provides it) or `service_role` (BYPASSRLS, server/scripts only). `authenticator` is a member of no other role. Rotate the key pair together.
+- A user token is minted only after the Supabase JWT verifies (`getVerifiedClaims` server-side; `auth.getUser()` in `/api/auth/data-token`, the browser's only way to get one). Never mint from request input.
+- `auth.users` stayed in Supabase: `profiles_id_fkey` and the `on_auth_user_created` trigger are gone. `ensure_own_profile()` (called once per process per user from `src/lib/data-api/session.ts`) does the same least-privileged insert.
+- Neon has no Realtime. Capacity counters poll `/api/capacity` (CDN-cached 15 s) and the bell polls `/api/notifications` every 60 s, both only while the tab is visible, plus an immediate re-read on return. This is the deliberate replacement for Realtime; do not widen it.
+- Direct SQL (migrations, maintenance) uses `DATABASE_URL_UNPOOLED` as `neondb_owner`. The app itself never opens a Postgres connection.
+- The old Supabase database is no longer written by the app. Do not point anything back at it.
 
 Core domains:
 
@@ -56,7 +67,7 @@ The pledge and volunteer-signup status machinery was removed from the applicatio
 - `npm run perf:map:bundle` now weighs the chunks **exclusive** to the map route plus its dynamic imports (243,734 bytes against a 327,680 budget). It used to subtract only what the `/page` redirect loaded, so figures recorded before the map moved to `/` are not comparable. The script fails loudly if it measures nothing.
 - hidden locations use stable coarse `public_location`; filtering also uses that projection.
 
-Do not reintroduce root cookie access, global middleware matching, remote Google fonts, global Leaflet CSS, wildcard Lucide imports, automatic geolocation or global notification polling.
+Do not reintroduce root cookie access, global middleware matching, remote Google fonts, global Leaflet CSS, wildcard Lucide imports or automatic geolocation. Notification polling is limited to the visible-tab bell poll described above; do not add others.
 
 ## New migration order
 
@@ -101,19 +112,22 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 39. `20260922120000_map_multi_donation_types.sql` (map donation-type filter is multi-select; drops and recreates `map_association_registry_v1`/`v2` with a trailing `p_donation_types text[]`)
 40. `20260923120000_notifications_realtime.sql` (adds `public.notifications` to the `supabase_realtime` publication; the navbar subscribes per signed-in user instead of polling, and RLS limits each subscriber to their own rows)
 41. `20260923130000_capacity_realtime.sql` (adds `public.needs` and `public.volunteer_events` to `supabase_realtime`; `useLiveCapacity` shares one channel per table and reads only the counter columns, while the pledge/signup RPCs still enforce capacity under a row lock)
+42. `20260923140000_neon_data_api.sql` (Neon: `anon`/`service_role` roles and their `authenticator` grants, Supabase-style default privileges, drops `profiles_id_fkey`, adds `ensure_own_profile()`). Migrations 40-41 are Supabase-only and are no-ops on Neon; the Neon database was seeded from a `pg_dump` of production, not by replaying this list.
+
+Apply new migrations to Neon with `DATABASE_URL_UNPOOLED` (psql or `neon psql`), then `neon data-api refresh-schema --database neondb` so the Data API sees new functions and columns.
 
 Never reuse a migration version. Add a new sortable timestamp migration for follow-up database work. The application and these migrations must be staged together; new application code intentionally fails closed on an old schema.
 
 ## Environment and operations
 
-Required in production: Supabase URL/anon/service keys, HTTPS app URL and a 32+ character `CRON_SECRET`. The map basemap needs `NEXT_PUBLIC_CARTO_API_KEY` (CARTO Basemaps key from carto.com/basemaps/apikey; CARTO watermarks key-less raster tiles). Without it `src/lib/basemap.ts` falls back to OpenStreetMap raster tiles, which is fine for a clone or a short outage but not the intended production basemap. Configure a POST-capable scheduler for:
+Required in production: Supabase URL/anon key (Auth), `NEXT_PUBLIC_DATA_API_URL`, `DATA_API_JWT_PRIVATE_JWK`, HTTPS app URL and a 32+ character `CRON_SECRET`. The map basemap needs `NEXT_PUBLIC_CARTO_API_KEY` (CARTO Basemaps key from carto.com/basemaps/apikey; CARTO watermarks key-less raster tiles). Without it `src/lib/basemap.ts` falls back to OpenStreetMap raster tiles, which is fine for a clone or a short outage but not the intended production basemap. Configure a POST-capable scheduler for:
 
 - `POST /api/cron/process-notification-jobs`
 - `POST /api/cron/event-reminders` (once a day: reminds volunteers signed up for tomorrow's event)
 
-Both use `Authorization: Bearer <CRON_SECRET>`. `.github/workflows/notification-cron.yml` schedules both via GitHub Actions (`process-notification-jobs` every 15 min, the reminders daily); it needs repo secrets `PRODUCTION_APP_URL` and `CRON_SECRET` alongside the existing `PRODUCTION_SUPABASE_*` ones. Vercel's GET-only cron stays disabled. `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
+Both use `Authorization: Bearer <CRON_SECRET>`. `.github/workflows/notification-cron.yml` schedules both via GitHub Actions (`process-notification-jobs` every 15 min, the reminders daily); it needs repo secrets `PRODUCTION_APP_URL` and `CRON_SECRET` alongside `PRODUCTION_DATA_API_URL` and `PRODUCTION_DATA_API_JWT_PRIVATE_JWK` (used by `registry-sync.yml`). Vercel's GET-only cron stays disabled. `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
 
-Institution-claim review needs `SUPABASE_SERVICE_ROLE_KEY`; the mailbox challenge additionally needs `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. A delivery failure is logged and never counts as verification.
+Institution-claim review needs `DATA_API_JWT_PRIVATE_JWK` (service-role Data API token); the mailbox challenge additionally needs `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. A delivery failure is logged and never counts as verification.
 
 `docs/SUPABASE_OPERATIONS_CHECKLIST.md` lists the dashboard-side work (auth settings, MFA, backups, monitoring, buckets, RLS) with what was verified live on 2026-09-06. Two Supabase Auth settings are still unset and cannot be fixed in code; the client rules they mirror are bypassable by calling the Auth API directly. See `docs/AUTH_PASSWORD_OPERATIONS.md` for the exact paths and the release checklist: minimum password length raised to 12, and Leaked Password Protection enabled. MFA is documented there as a prerequisite toggle plus unbuilt enrolment/`aal2` work; do not record it as done.
 

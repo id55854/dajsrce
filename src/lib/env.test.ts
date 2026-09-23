@@ -8,7 +8,8 @@ import {
 const validEnvironment = {
   NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key-value",
-  SUPABASE_SERVICE_ROLE_KEY: "service-role-key-value",
+  NEXT_PUBLIC_DATA_API_URL: "https://ep-example.apirest.neon.tech/neondb/rest/v1",
+  DATA_API_JWT_PRIVATE_JWK: "{\"kty\":\"EC\"}",
   NEXT_PUBLIC_APP_URL: "https://dajsrce.example",
   CRON_SECRET: "long-random-cron-secret-at-least-32-chars",
   ALLOW_LOCAL_FIXTURES: "false",

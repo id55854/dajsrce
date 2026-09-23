@@ -1,5 +1,11 @@
 # Supabase operations checklist (dashboard-side work)
 
+> **2026-09-23: the database moved to Neon.** Supabase now serves Auth only, so
+> the Auth, MFA and redirect-URL items below still apply. The database items
+> (backups, RLS, buckets, Realtime, monitoring) describe the retired Supabase
+> database; their equivalents now live in the Neon project `broad-term-74317717`
+> (branch `production`). See `CLAUDE.md` → "Database: Neon, identity: Supabase Auth".
+
 Everything here lives in the Supabase project, not in this repository. It is
 the list of things a release owner must do or confirm by hand, with what was
 verified on 2026-09-06 and how.

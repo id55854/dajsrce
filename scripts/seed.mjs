@@ -1,14 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!url || !key) {
-  console.error("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (e.g. in .env.local)");
-  process.exit(1);
-}
-
-const supabase = createClient(url, key);
+// Service-role writes go to the Neon Data API; see scripts/lib/supabase-admin.mjs.
+import { supabaseAdmin as supabase } from "./lib/supabase-admin.mjs";
 
 const { INSTITUTIONS } = await import("../src/lib/institutions-seed.ts");
 const { buildSampleNeeds, buildSampleVolunteerEvents } = await import(

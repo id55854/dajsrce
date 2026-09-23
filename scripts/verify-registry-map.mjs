@@ -2,16 +2,9 @@
 // for the active official-registry map projection.
 
 import assert from "node:assert/strict";
-import { createClient } from "@supabase/supabase-js";
-import { supabaseAdmin } from "./lib/supabase-admin.mjs";
+import { createPublicDataClient, supabaseAdmin } from "./lib/supabase-admin.mjs";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-if (!url || !anonKey) throw new Error("Missing public Supabase URL or anon key");
-
-const publicClient = createClient(url, anonKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const publicClient = createPublicDataClient();
 
 const { data: facets, error: facetsError } = await publicClient.rpc(
   "association_registry_facets_v1"

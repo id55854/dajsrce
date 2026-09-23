@@ -33,7 +33,8 @@ export function getProductionEnvironmentIssues(
   const required = [
     "NEXT_PUBLIC_SUPABASE_URL",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY",
+    "NEXT_PUBLIC_DATA_API_URL",
+    "DATA_API_JWT_PRIVATE_JWK",
     "NEXT_PUBLIC_APP_URL",
   ];
 
@@ -49,6 +50,11 @@ export function getProductionEnvironmentIssues(
   const supabaseUrl = valueOf(env, "NEXT_PUBLIC_SUPABASE_URL");
   if (supabaseUrl && !isValidUrl(supabaseUrl, true)) {
     issues.push({ key: "NEXT_PUBLIC_SUPABASE_URL", reason: "must be a valid HTTPS URL" });
+  }
+
+  const dataApiUrl = valueOf(env, "NEXT_PUBLIC_DATA_API_URL");
+  if (dataApiUrl && !isValidUrl(dataApiUrl, true)) {
+    issues.push({ key: "NEXT_PUBLIC_DATA_API_URL", reason: "must be a valid HTTPS URL" });
   }
 
   const appUrl = valueOf(env, "NEXT_PUBLIC_APP_URL");
@@ -69,7 +75,7 @@ export function getProductionEnvironmentIssues(
 }
 
 /**
- * The two variables every anonymous read path needs, and which of them this
+ * The variables every anonymous read path needs, and which of them this
  * process is missing or has left on an `.env.example` placeholder.
  *
  * `.env.local` is git-ignored, so a fresh clone can only ever get one by hand.
@@ -81,6 +87,9 @@ export function getProductionEnvironmentIssues(
 export const PUBLIC_SUPABASE_KEYS = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  // Public reads run on the Neon Data API with a server-minted anon token.
+  "NEXT_PUBLIC_DATA_API_URL",
+  "DATA_API_JWT_PRIVATE_JWK",
 ] as const;
 
 export function missingPublicSupabaseKeys(

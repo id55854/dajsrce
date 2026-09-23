@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { getVerifiedClaims } from "@/lib/auth/claims";
 import { normalizeRole } from "@/lib/auth/roles";
+import { createDataApiFetch, getDataApiUrl } from "@/lib/data-api/fetch";
+import { sessionDataApiToken } from "@/lib/data-api/session";
 
 export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -37,6 +39,14 @@ export async function middleware(request: NextRequest) {
             supabaseResponse.cookies.set(name, value, options)
           );
         },
+      },
+      // The profile read below runs on the Neon Data API as this user.
+      global: {
+        fetch: createDataApiFetch({
+          supabaseUrl,
+          dataApiUrl: getDataApiUrl(),
+          getToken: (): Promise<string> => sessionDataApiToken(supabase),
+        }),
       },
     }
   );

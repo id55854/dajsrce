@@ -1,11 +1,17 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabasePublicConfig } from "@/lib/env";
+import { createDataApiFetch, getDataApiUrl } from "@/lib/data-api/fetch";
+import { sessionDataApiToken } from "@/lib/data-api/session";
 
+/**
+ * Cookie-bound client: Auth calls go to Supabase, table/RPC calls go to the
+ * Neon Data API as the signed-in user (or `anon` without a session).
+ */
 export async function createServerSupabaseClient() {
   const { url, anonKey } = getSupabasePublicConfig();
   const cookieStore = await cookies();
-  return createServerClient(
+  const client = createServerClient(
     url,
     anonKey,
     {
@@ -25,6 +31,14 @@ export async function createServerSupabaseClient() {
           }
         },
       },
+      global: {
+        fetch: createDataApiFetch({
+          supabaseUrl: url,
+          dataApiUrl: getDataApiUrl(),
+          getToken: (): Promise<string> => sessionDataApiToken(client),
+        }),
+      },
     }
   );
+  return client;
 }

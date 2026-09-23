@@ -14,7 +14,8 @@ const envPath = path.join(root, ".env.local");
 const REQUIRED = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  "SUPABASE_SERVICE_ROLE_KEY",
+  "NEXT_PUBLIC_DATA_API_URL",
+  "DATA_API_JWT_PRIVATE_JWK",
   "NEXT_PUBLIC_APP_URL",
 ];
 

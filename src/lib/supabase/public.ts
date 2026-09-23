@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { missingPublicSupabaseKeys } from "@/lib/env";
+import { createDataApiFetch, getDataApiUrl } from "@/lib/data-api/fetch";
+import { anonDataApiToken } from "@/lib/data-api/token";
 
 /**
  * Raised when the process has no usable public Supabase credentials.
@@ -31,17 +33,18 @@ export function createPublicSupabaseClient() {
     throw new PublicSupabaseConfigError(missing);
   }
 
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
-    {
-      auth: {
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-        persistSession: false,
-      },
-    }
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+  return createClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string, {
+    auth: {
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      persistSession: false,
+    },
+    // Reads run on the Neon Data API as the `anon` role.
+    global: {
+      fetch: createDataApiFetch({ supabaseUrl: url, dataApiUrl: getDataApiUrl(), getToken: anonDataApiToken }),
+    },
+  });
 }
 
 /** Postgres `query_canceled` — the statement hit the role's timeout. */

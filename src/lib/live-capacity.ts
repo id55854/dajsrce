@@ -1,17 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 /**
- * Live pledge and volunteer counts for the cards that show them.
+ * Near-live pledge and volunteer counts for the cards that show them.
  *
- * One Realtime channel per table, shared by every card on the page and closed
- * when the last card unmounts, so a list of forty events is one subscription,
- * not forty. Only the counter columns are read from the change payload; both
- * tables are public (`... are viewable by everyone`), so the payload carries
- * nothing the public API does not already return.
+ * One poller per table, shared by every card on the page and stopped when the
+ * last card unmounts, so a list of forty events is one request per interval,
+ * not forty. It runs only while the tab is visible and catches up as soon as
+ * the tab is shown again. The database moved to Neon, which has no Realtime
+ * channel; `/api/capacity` returns only the counter columns of these public
+ * tables and is CDN-cached for a few seconds, so many viewers share one read.
  */
 export type CapacityTable = "needs" | "volunteer_events";
 
@@ -27,29 +26,65 @@ export type CapacityCounts<T extends CapacityTable> = {
 type Row = Record<string, unknown>;
 type Listener = (row: Row) => void;
 
+const POLL_INTERVAL_MS = 30_000;
+/** The endpoint's own cap; a longer list is read in several requests. */
+const IDS_PER_REQUEST = 60;
+
 const listeners: Record<CapacityTable, Map<string, Set<Listener>>> = {
   needs: new Map(),
   volunteer_events: new Map(),
 };
-const channels: Partial<Record<CapacityTable, RealtimeChannel>> = {};
+const pollers: Partial<Record<CapacityTable, () => void>> = {};
 
-function openChannel(table: CapacityTable) {
-  if (channels[table] || !isSupabaseConfigured) return;
-  channels[table] = createClient()
-    .channel(`capacity:${table}`)
-    .on("postgres_changes", { event: "UPDATE", schema: "public", table }, (payload) => {
-      const row = payload.new as Row;
-      if (typeof row.id !== "string") return;
+async function poll(table: CapacityTable, signal: AbortSignal) {
+  const ids = [...listeners[table].keys()].sort();
+  for (let offset = 0; offset < ids.length; offset += IDS_PER_REQUEST) {
+    const chunk = ids.slice(offset, offset + IDS_PER_REQUEST);
+    const query = new URLSearchParams({ table, ids: chunk.join(",") });
+    const response = await fetch(`/api/capacity?${query}`, { signal }).catch(() => null);
+    if (!response?.ok || signal.aborted) return;
+    const body = (await response.json().catch(() => null)) as { rows?: Row[] } | null;
+    for (const row of body?.rows ?? []) {
+      if (typeof row.id !== "string") continue;
       listeners[table].get(row.id)?.forEach((listener) => listener(row));
-    })
-    .subscribe();
+    }
+  }
 }
 
-function closeChannelIfIdle(table: CapacityTable) {
-  const channel = channels[table];
-  if (!channel || listeners[table].size > 0) return;
-  delete channels[table];
-  void createClient().removeChannel(channel);
+function startPoller(table: CapacityTable) {
+  if (pollers[table] || typeof document === "undefined") return;
+  let controller: AbortController | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    timer = document.visibilityState === "visible" ? setTimeout(run, POLL_INTERVAL_MS) : null;
+  };
+  const run = () => {
+    controller?.abort();
+    const current = new AbortController();
+    controller = current;
+    void poll(table, current.signal).finally(() => {
+      if (controller === current) schedule();
+    });
+  };
+  // A tab shown again may have missed several intervals; refresh at once.
+  const onVisibility = () => (document.visibilityState === "visible" ? run() : schedule());
+
+  document.addEventListener("visibilitychange", onVisibility);
+  schedule();
+  pollers[table] = () => {
+    document.removeEventListener("visibilitychange", onVisibility);
+    if (timer) clearTimeout(timer);
+    controller?.abort();
+  };
+}
+
+function stopPollerIfIdle(table: CapacityTable) {
+  const stop = pollers[table];
+  if (!stop || listeners[table].size > 0) return;
+  delete pollers[table];
+  stop();
 }
 
 function subscribe(table: CapacityTable, id: string, listener: Listener): () => void {
@@ -57,11 +92,11 @@ function subscribe(table: CapacityTable, id: string, listener: Listener): () => 
   const set = byId.get(id) ?? new Set<Listener>();
   set.add(listener);
   byId.set(id, set);
-  openChannel(table);
+  startPoller(table);
   return () => {
     set.delete(listener);
     if (set.size === 0) byId.delete(id);
-    closeChannelIfIdle(table);
+    stopPollerIfIdle(table);
   };
 }
 

@@ -26,10 +26,10 @@ export function register() {
     console.warn(
       [
         "",
-        "  Supabase is not configured, so the map will load zero pins.",
+        "  The database is not configured, so the map will load zero pins.",
         `  Missing or still on a placeholder: ${missing.join(", ")}`,
-        "  Copy .env.example to .env.local, fill in your project URL and anon",
-        "  key from Supabase → Project Settings → API, then restart this server.",
+        "  Copy .env.example to .env.local, fill in the Supabase Auth URL/anon key",
+        "  and the Neon Data API URL/signing key, then restart this server.",
         "",
       ].join("\n")
     );

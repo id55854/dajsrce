@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { dataApiFetch } from "./data-api.mjs";
 
 function loadEnvLocal() {
   // Try cwd/.env.local first, then walk up.
@@ -35,16 +36,27 @@ function loadEnvLocal() {
 
 loadEnvLocal();
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!url || !key) {
-  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
+// The database is Neon; supabase-js is kept for its query builder only. Its
+// requests reach the Neon Data API as service_role (BYPASSRLS). The URL is just
+// the prefix the fetch rewrites, so no Supabase credential is needed here.
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://supabase.invalid";
+if (!process.env.NEXT_PUBLIC_DATA_API_URL || !process.env.DATA_API_JWT_PRIVATE_JWK) {
+  console.error("Missing NEXT_PUBLIC_DATA_API_URL or DATA_API_JWT_PRIVATE_JWK in .env.local");
   process.exit(1);
 }
 
-export const supabaseAdmin = createClient(url, key, {
+export const supabaseAdmin = createClient(url, "service-role-via-data-api", {
   auth: { autoRefreshToken: false, persistSession: false },
+  global: { fetch: dataApiFetch(url, "service_role") },
 });
+
+/** A stateless client that reads as the public `anon` role. */
+export function createPublicDataClient() {
+  return createClient(url, "anon-via-data-api", {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: dataApiFetch(url, "anon") },
+  });
+}
 
 export async function getCursor(jobName) {
   const { data, error } = await supabaseAdmin

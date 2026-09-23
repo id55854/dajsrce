@@ -34,6 +34,9 @@ import { safeInternalPath } from "@/lib/security/redirects";
 // same rows by name and by OIB, so a second entry point answered a question
 // the map was answering better; `/organisations` itself stays routable, and
 // is still reached from the map's own detail panel and from existing links.
+/** Bell refresh cadence for a visible tab; hidden tabs do not poll at all. */
+const NOTIFICATION_POLL_MS = 60_000;
+
 const navLinks = [
   { href: "/", labelKey: "nav.map" },
   { href: "/doniraj", labelKey: "nav.donate" },
@@ -370,15 +373,15 @@ export function Navbar() {
     return () => controller.abort();
   }, [user, panelOpen, markAllRead]);
 
-  // New notifications arrive over one Realtime channel per signed-in visitor,
-  // so the bell updates without a refresh and without polling. RLS decides
-  // which rows reach the channel; the event is only a signal, and the list is
-  // re-read through the API so it keeps that route's column list. This does
-  // not mark anything read, even with the panel open.
+  // New notifications are picked up by a light poll while the tab is visible,
+  // plus an immediate re-read whenever the tab is shown or focused again. The
+  // database moved to Neon, which has no Realtime channel. The list is read
+  // through the API so it keeps that route's column list; this does not mark
+  // anything read, even with the panel open.
   useEffect(() => {
-    if (!user || !isSupabaseConfigured) return;
-    const supabase = createClient();
+    if (!user) return;
     let controller: AbortController | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     async function refresh() {
       controller?.abort();
@@ -395,32 +398,28 @@ export function Navbar() {
       if (data && !current.signal.aborted) setNotifications(data.notifications ?? []);
     }
 
-    // The first subscription follows the initial load above; only a
-    // resubscription after a dropped connection can have missed inserts.
-    let subscribedBefore = false;
-    const channel = supabase
-      .channel(`notifications:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          void refresh();
-        }
-      )
-      .subscribe((status) => {
-        if (status !== "SUBSCRIBED") return;
-        if (subscribedBefore) void refresh();
-        subscribedBefore = true;
-      });
+    function schedule() {
+      if (timer) clearTimeout(timer);
+      timer =
+        document.visibilityState === "visible"
+          ? setTimeout(() => void refresh().finally(schedule), NOTIFICATION_POLL_MS)
+          : null;
+    }
 
+    function onReturn() {
+      if (document.visibilityState !== "visible") return schedule();
+      void refresh().finally(schedule);
+    }
+
+    // The first read is the load effect above; this only keeps it current.
+    schedule();
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
     return () => {
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
+      if (timer) clearTimeout(timer);
       controller?.abort();
-      void supabase.removeChannel(channel);
     };
   }, [user]);
 

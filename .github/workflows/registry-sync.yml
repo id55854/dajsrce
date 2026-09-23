@@ -23,8 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PRODUCTION_SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PRODUCTION_SUPABASE_SERVICE_ROLE_KEY }}
+      # The database is Neon; scripts reach it through the Data API as service_role.
+      NEXT_PUBLIC_DATA_API_URL: ${{ secrets.PRODUCTION_DATA_API_URL }}
+      DATA_API_JWT_PRIVATE_JWK: ${{ secrets.PRODUCTION_DATA_API_JWT_PRIVATE_JWK }}
       REGISTRY_USER_AGENT: DajSrce/1.0 (+https://dajsrce.vercel.app; official-registry-sync)
     steps:
       - uses: actions/checkout@v7
@@ -36,8 +37,8 @@ jobs:
       - name: Validate required secrets
         shell: bash
         run: |
-          test -n "$NEXT_PUBLIC_SUPABASE_URL"
-          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          test -n "$NEXT_PUBLIC_DATA_API_URL"
+          test -n "$DATA_API_JWT_PRIVATE_JWK"
       - name: Sync all active official associations
         shell: bash
         run: |

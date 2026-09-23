@@ -31,6 +31,8 @@
   },
   "dependencies": {
     "@fontsource/noto-sans": "^5.3.0",
+    "@neon/config": "^1.7.3",
+    "@neon/env": "^1.4.4",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
     "@vercel/analytics": "^2.0.1",
