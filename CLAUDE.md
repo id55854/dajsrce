@@ -15,7 +15,9 @@ Postgres moved from Supabase to Neon (project `broad-term-74317717`, branch `pro
 - `auth.users` stayed in Supabase: `profiles_id_fkey` and the `on_auth_user_created` trigger are gone. `ensure_own_profile()` (called once per process per user from `src/lib/data-api/session.ts`) does the same least-privileged insert.
 - Neon has no Realtime. Capacity counters poll `/api/capacity` (CDN-cached 15 s) and the bell polls `/api/notifications` every 60 s, both only while the tab is visible, plus an immediate re-read on return. This is the deliberate replacement for Realtime; do not widen it.
 - Direct SQL (migrations, maintenance) uses `DATABASE_URL_UNPOOLED` as `neondb_owner`. The app itself never opens a Postgres connection.
-- The old Supabase database is no longer written by the app. Do not point anything back at it.
+- Production (dajsrce.hr) cut over to Neon on 2026-09-23 (`74a2408`, fixed in `feb0bc2`). The old Supabase database is no longer read or written by the app; `createDataApiFetch` throws rather than send a `/rest/v1` request to it. Do not point anything back at it.
+- The Data API verifies against `https://raw.githubusercontent.com/id55854/dajsrce/main/public/.well-known/jwks.json` (the same file the app serves at `/.well-known/jwks.json`). Changing the JWKS URL means `neon data-api delete` + `create` (a brief Data API outage) followed by `grant anon, service_role to authenticator`.
+- The scheduled registry sync is paused (`registry-sync.yml` keeps `workflow_dispatch` only).
 
 Core domains:
 
