@@ -113,6 +113,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 40. `20260923120000_notifications_realtime.sql` (adds `public.notifications` to the `supabase_realtime` publication; the navbar subscribes per signed-in user instead of polling, and RLS limits each subscriber to their own rows)
 41. `20260923130000_capacity_realtime.sql` (adds `public.needs` and `public.volunteer_events` to `supabase_realtime`; `useLiveCapacity` shares one channel per table and reads only the counter columns, while the pledge/signup RPCs still enforce capacity under a row lock)
 42. `20260923140000_neon_data_api.sql` (Neon: `anon`/`service_role` roles and their `authenticator` grants, Supabase-style default privileges, drops `profiles_id_fkey`, adds `ensure_own_profile()`). Migrations 40-41 are Supabase-only and are no-ops on Neon; the Neon database was seeded from a `pg_dump` of production, not by replaying this list.
+43. `20260923150000_jev_registry_classification.sql` (`apply_registry_classifications` also refreshes the current snapshot's directory category; `merge_registry_import_batch` keeps a Jev classification while the organisation's text is unchanged)
 
 Apply new migrations to Neon with `DATABASE_URL_UNPOOLED` (psql or `neon psql`), then `neon data-api refresh-schema --database neondb` so the Data API sees new functions and columns.
 
@@ -151,10 +152,12 @@ Before release, restore a production backup into staging, apply migrations, exer
 - `npm run registry:maintain`
 - `npm run registry:reclaim` (`--dry-run`, `--full`)
 - `npm run registry:districts` (`--dry-run`)
-- `npm run registry:remap`
+- `npm run registry:classify` (Jev; `--eval`, `--dry-run`, `--limit`, `--all`). Needs `TYPESAFE_API_KEY`.
 - `npm run registry:geocode`
 - `npm run registry:promote -- --dry-run`
 
 Post-sync maintenance is not optional and must run after a **failed** sync too. The importer stages and projects as it goes, so a run that dies before finalization leaves a full partial projection behind; `cleanup_registry_snapshot_storage_batch` is the only thing that reclaims it. Deleting those rows does not shrink the files; follow up with `registry:reclaim` when the plan's storage ceiling is in sight.
 
 `registry:sync` must mirror every `AKTIVAN` row in the CTS snapshot and purge canonical rows outside that active snapshot. Production imports require `--active-only`; `--limit` and `--zg` remain dry-run-only. `UDR_ID` is the official canonical key and OIB is optional source data, so optional-field warnings do not remove an otherwise valid active organisation. Publication is one pointer update over immutable batch membership/directory rows; the legacy `source_present` flag is reconciled and inactive canonical rows are deleted afterward in timeout-safe batches. Configure GitHub Actions secrets `PRODUCTION_SUPABASE_URL` and `PRODUCTION_SUPABASE_SERVICE_ROLE_KEY` for scheduled sync. The workflow runs `registry:verify` after every publication. Use dry-run/coverage before promotion. Nominatim requires a real identifying user agent/contact and <= 1 request/second. Never infer public donation acceptance from category defaults.
+
+Categories come from TypeSafe's Jev, not the keyword rules (see `docs/REGISTRY_CLASSIFICATION.md`: 95% care precision vs 43% for the rules on a held-out hand-labelled sample). The importer never publishes a rule guess: new or changed rows arrive `unmapped`/`pending:jev` and `registry:classify` (run by `registry-sync.yml` after every sync) classifies them. Change the rubric only with a version bump and a `--eval` run.

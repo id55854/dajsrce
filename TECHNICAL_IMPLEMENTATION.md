@@ -148,7 +148,7 @@ verification or donation-acceptance claim.
 - The compatibility reconciler aligns the legacy `source_present` flag after atomic publication in timeout-safe batches so geocoding, remapping and promotion see the same snapshot without delaying public cutover.
 - After publication, bounded cleanup removes non-current membership/directory projections and canonical rows outside the active snapshot. Canonical legacy trigram and ineffective city/form composites are absent so refreshes retain Free-tier storage headroom.
 - Unfiltered pages read their exact total from immutable snapshot facets instead of rescanning tens of thousands of rows, keeping cold deep-page requests below the API statement budget.
-- `registry:remap`: keyset-scans and sends bounded classifications to a set-based RPC.
+- `registry:classify`: classifies rows not on the current Jev version with TypeSafe's Jev and writes them through `apply_registry_classifications` (see docs/REGISTRY_CLASSIFICATION.md). Replaces the old rule-based `registry:remap`.
 - Classification distinguishes eligibility, category candidates and donation candidates. Cultural, sports, equestrian, hobby and professional entity shapes cannot auto-publish from a broad keyword hit.
 - `registry:geocode`: durable pending/in-progress/succeeded/retryable/permanent state, capped attempts/backoff and Nominatim identification/rate limits.
 - `registry:promote`: one set-based transaction; only active, valid, strongly classified, street/exact-geocoded rows qualify. Curated content wins. Donation types remain unconfirmed until the organization explicitly confirms them.

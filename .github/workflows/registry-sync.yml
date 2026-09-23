@@ -26,6 +26,8 @@ jobs:
       # The database is Neon; scripts reach it through the Data API as service_role.
       NEXT_PUBLIC_DATA_API_URL: ${{ secrets.PRODUCTION_DATA_API_URL }}
       DATA_API_JWT_PRIVATE_JWK: ${{ secrets.PRODUCTION_DATA_API_JWT_PRIVATE_JWK }}
+      # Jev (TypeSafe) classifies new and changed organisations after each sync.
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
       REGISTRY_USER_AGENT: DajSrce/1.0 (+https://dajsrce.vercel.app; official-registry-sync)
     steps:
       - uses: actions/checkout@v7
@@ -39,6 +41,7 @@ jobs:
         run: |
           test -n "$NEXT_PUBLIC_DATA_API_URL"
           test -n "$DATA_API_JWT_PRIVATE_JWK"
+          test -n "$TYPESAFE_API_KEY"
       - name: Sync all active official associations
         shell: bash
         run: |
@@ -54,6 +57,12 @@ jobs:
       - name: Reclaim storage from any partial snapshot
         if: always()
         run: npm run registry:maintain -- --batch-size 500
+
+      # New or changed organisations arrive unmapped; unchanged ones keep their
+      # Jev category through the merge. Only rows not on the current Jev
+      # version are sent, so a quiet day costs a handful of requests.
+      - name: Classify new and changed organisations with Jev
+        run: npm run registry:classify
 
       - name: Verify active registry publication
         run: npm run registry:verify

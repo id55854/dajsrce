@@ -11,10 +11,10 @@ import { parseCsvStream } from "./lib/csv-stream.mjs";
 import {
   scoreRow,
   parseSjediste,
-  inferAcceptsDonations,
 } from "./lib/category-rules.mjs";
 import { isValidOib } from "./lib/oib.mjs";
 import { supabaseAdmin, setCursor } from "./lib/supabase-admin.mjs";
+import { PENDING_CLASSIFICATION_VERSION } from "./lib/jev-classifier.mjs";
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -126,14 +126,21 @@ function normalizeRegistryRow(raw) {
     skr_naziv_na_drugim_jezicima: (raw.SKR_NAZIV_NA_DRUGIM_JEZICIMA || "").trim() || null,
     street,
     city,
-    mapped_category: score.category,
-    mapped_confidence: score.confidence,
-    mapped_rule: score.rule,
-    classification_status: score.classificationStatus,
-    classification_reasons: score.reviewReasons,
-    classification_candidates: score.candidateCategories,
-    classification_version: score.classificationVersion,
-    donation_candidates: inferAcceptsDonations(score.category, `${activityText}\n${groups}`),
+    // Categories come from Jev (npm run registry:classify, run after every
+    // sync). A row the merge does not recognise as unchanged since its Jev
+    // classification arrives unmapped, so the keyword rules (about 43%
+    // precise on the hand-labelled sample) never publish a category. Their
+    // guess is kept as a reference candidate only.
+    mapped_category: null,
+    mapped_confidence: null,
+    mapped_rule: null,
+    classification_status: "unmapped",
+    classification_reasons: ["awaiting Jev classification"],
+    classification_candidates: score.category
+      ? [{ category: score.category, source: "rules", confidence: score.confidence }]
+      : [],
+    classification_version: PENDING_CLASSIFICATION_VERSION,
+    donation_candidates: [],
   };
 }
 

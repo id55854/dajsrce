@@ -42,7 +42,7 @@ describe("createDataApiFetch", () => {
     await fetcher(`${SUPABASE}/auth/v1/user`, init);
     await fetcher(`${SUPABASE}/rest/v1beta/needs`, init);
 
-    expect(baseFetch.mock.calls.map(([url]) => url)).toEqual([
+    expect(baseFetch.mock.calls.map((call) => (call as unknown[])[0])).toEqual([
       `${SUPABASE}/auth/v1/user`,
       `${SUPABASE}/rest/v1beta/needs`,
     ]);
