@@ -103,6 +103,8 @@ export interface VolunteerEvent {
   volunteers_needed: number;
   volunteers_signed_up: number;
   requirements: string | null;
+  /** Where the event happens; null means at the organisation's address. */
+  location?: string | null;
   contact_person: string | null;
   contact_phone: string | null;
   is_past: boolean;

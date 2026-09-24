@@ -141,7 +141,11 @@ export function VolunteerEventCard({
     }
   }
 
-  const timeLabel = `${event.start_time} – ${event.end_time}`;
+  const timeLabel = `${event.start_time.slice(0, 5)} – ${event.end_time.slice(0, 5)}`;
+  // The event's own place when the organisation gave one, else its address.
+  const place =
+    event.location?.trim() ||
+    [institution?.address, institution?.city].filter(Boolean).join(", ");
 
   const progress = (
     <div>
@@ -254,6 +258,12 @@ export function VolunteerEventCard({
 
           <p className="mt-2 text-sm text-ink-secondary">{dateLabel}</p>
           <p className="mt-1 text-base text-ink">{timeLabel}</p>
+          {event.location?.trim() ? (
+            <p className="mt-1 inline-flex items-center gap-1 text-sm text-ink-secondary">
+              <MapPin className="h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
+              <span className="truncate">{event.location}</span>
+            </p>
+          ) : null}
 
           {event.description ? (
             <p className="mt-3 line-clamp-3 whitespace-pre-line text-sm leading-6 text-ink-secondary">
@@ -312,14 +322,12 @@ export function VolunteerEventCard({
                 <dd className="text-ink-secondary">{timeLabel}</dd>
               </div>
             </div>
-            {institution?.address || institution?.city ? (
+            {place ? (
               <div className="flex gap-2.5">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
                 <div>
                   <dt className="text-xs text-ink-tertiary">{t("volunteer_card.where")}</dt>
-                  <dd className="text-ink">
-                    {[institution.address, institution.city].filter(Boolean).join(", ")}
-                  </dd>
+                  <dd className="text-ink">{place}</dd>
                 </div>
               </div>
             ) : null}

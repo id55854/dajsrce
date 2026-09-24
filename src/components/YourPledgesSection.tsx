@@ -2,7 +2,7 @@
 
 import { useId, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, ChevronDown, Heart, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Heart, Trash2, X } from "lucide-react";
 import { useLocale, useT } from "@/i18n/client";
 import { timeAgo } from "@/lib/utils";
 import { RosterIcon, RosterItem, RosterQuantity } from "@/components/Roster";
@@ -171,6 +171,26 @@ export function CancelActionButton(
       variant="ghost"
       confirmVariant="danger"
       onDone={onCancelled}
+    />
+  );
+}
+
+/** The same confirm-then-DELETE control, worded and drawn as a deletion. */
+export function DeleteActionButton(
+  props: Omit<
+    Parameters<typeof ConfirmActionButton>[0],
+    "method" | "icon" | "variant" | "confirmVariant" | "onDone"
+  > & { onDeleted: () => void }
+) {
+  const { onDeleted, ...rest } = props;
+  return (
+    <ConfirmActionButton
+      {...rest}
+      method="DELETE"
+      icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+      variant="ghost"
+      confirmVariant="danger"
+      onDone={onDeleted}
     />
   );
 }

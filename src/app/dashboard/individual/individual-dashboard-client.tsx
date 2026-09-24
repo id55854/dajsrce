@@ -69,6 +69,7 @@ type SignupEvent = {
   end_time?: string | null;
   description?: string | null;
   requirements?: string | null;
+  location?: string | null;
   contact_person?: string | null;
   contact_phone?: string | null;
   volunteers_needed?: number | null;
@@ -158,7 +159,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
         const { data, error } = await supabase
           .from("volunteer_signups")
           .select(
-            "id, event_id, created_at, event:volunteer_events(id, title, description, event_date, start_time, end_time, requirements, contact_person, contact_phone, volunteers_needed, volunteers_signed_up, institution:institutions(id, name, address:public_address, city))"
+            "id, event_id, created_at, event:volunteer_events(id, title, description, event_date, start_time, end_time, requirements, location, contact_person, contact_phone, volunteers_needed, volunteers_signed_up, institution:institutions(id, name, address:public_address, city))"
           )
           .eq("user_id", profile.id)
           .is("cancelled_at", null)
@@ -387,7 +388,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
                         )
                       }
                       title={event?.title ?? "—"}
-                      subtitle={[organisation?.name, organisation?.city].filter(Boolean).join(" · ")}
+                      subtitle={[organisation?.name, event?.location || organisation?.city].filter(Boolean).join(" · ")}
                       detail={
                         event ? (
                           <>
@@ -443,7 +444,7 @@ function SignupDetailsDialog({ signup, onClose }: { signup: SignupRow | null; on
   const event = signup?.event;
   if (!signup || !event) return null;
   const institution = embeddedInstitution(event.institution);
-  const place = [institution?.address, institution?.city].filter(Boolean).join(", ");
+  const place = event.location || [institution?.address, institution?.city].filter(Boolean).join(", ");
   const date = format(parseISO(event.event_date), "EEEE, d. MMMM yyyy.", { locale: locale === "hr" ? hr : enUS });
   const time = [event.start_time?.slice(0, 5), event.end_time?.slice(0, 5)].filter(Boolean).join("–");
   const needed = event.volunteers_needed ?? null;

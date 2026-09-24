@@ -51,6 +51,7 @@ type CalendarEvent = {
   end_time?: string | null;
   description?: string | null;
   requirements?: string | null;
+  location?: string | null;
   volunteers_needed?: number | null;
   volunteers_signed_up?: number | null;
   institution?: EmbeddedName;
@@ -92,7 +93,7 @@ function eventDetails(event: CalendarEvent): CalendarDetails {
     endTime: event.end_time ?? null,
     requirements: event.requirements ?? null,
     organisation: embeddedName(event.institution),
-    location: embeddedLocation(event.institution),
+    location: event.location || embeddedLocation(event.institution),
     filled: event.volunteers_signed_up ?? null,
     needed: event.volunteers_needed ?? null,
   };

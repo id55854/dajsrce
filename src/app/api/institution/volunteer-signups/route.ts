@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
+import { personActivityTotals } from "@/lib/institution-person-activity";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
 
 export async function GET(req: NextRequest) {
@@ -31,9 +32,10 @@ export async function GET(req: NextRequest) {
 
   const { data: events, error: eErr } = await supabase
     .from("volunteer_events")
-    .select("id, title, description, event_date, start_time, end_time, volunteers_needed, requirements, contact_person, contact_phone")
+    .select("id, title, description, event_date, start_time, end_time, volunteers_needed, requirements, location, contact_person, contact_phone, created_at")
     .eq("institution_id", instId)
-    .order("event_date", { ascending: false })
+    // Newest posted first, the same order as the needs roster.
+    .order("created_at", { ascending: false })
     .limit(80);
 
   if (eErr) {
@@ -81,5 +83,7 @@ export async function GET(req: NextRequest) {
     event: events?.find((e) => e.id === s.event_id) ?? null,
   }));
 
-  return NextResponse.json({ events: events ?? [], signups: enriched });
+  const activity = await personActivityTotals(supabaseAdmin, userIds);
+
+  return NextResponse.json({ events: events ?? [], signups: enriched, activity });
 }

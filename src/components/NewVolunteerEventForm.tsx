@@ -18,6 +18,9 @@ export function NewVolunteerEventForm({ panelId, onClose, onPosted }: {
   const [evStart, setEvStart] = useState("09:00");
   const [evEnd, setEvEnd] = useState("12:00");
   const [evVolunteers, setEvVolunteers] = useState("5");
+  // Empty means "at our address"; the organisation only types a place when
+  // the event happens somewhere else.
+  const [evLocation, setEvLocation] = useState("");
   const [evSubmitting, setEvSubmitting] = useState(false);
   const [evError, setEvError] = useState<string | null>(null);
 
@@ -37,6 +40,7 @@ export function NewVolunteerEventForm({ panelId, onClose, onPosted }: {
           start_time: evStart,
           end_time: evEnd,
           volunteers_needed: Number(evVolunteers),
+          location: evLocation.trim() || null,
         }),
       });
       if (!res.ok) {
@@ -54,6 +58,7 @@ export function NewVolunteerEventForm({ panelId, onClose, onPosted }: {
       setEvDescription("");
       setEvDate("");
       setEvVolunteers("5");
+      setEvLocation("");
       onClose();
       onPosted?.();
     } catch (err) {
@@ -153,6 +158,20 @@ export function NewVolunteerEventForm({ panelId, onClose, onPosted }: {
             )}
           </Field>
         </div>
+        <Field
+          label={t("institution.dashboard_field_location")}
+          hint={t("institution.dashboard_field_location_hint")}
+        >
+          {(field) => (
+            <Input
+              {...field}
+              maxLength={300}
+              placeholder={t("institution.dashboard_field_location_placeholder")}
+              value={evLocation}
+              onChange={(e) => setEvLocation(e.target.value)}
+            />
+          )}
+        </Field>
         <Field
           label={t("institution.dashboard_field_volunteers_needed")}
           required

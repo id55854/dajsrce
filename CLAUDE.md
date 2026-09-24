@@ -116,6 +116,8 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 41. `20260923130000_capacity_realtime.sql` (adds `public.needs` and `public.volunteer_events` to `supabase_realtime`; `useLiveCapacity` shares one channel per table and reads only the counter columns, while the pledge/signup RPCs still enforce capacity under a row lock)
 42. `20260923140000_neon_data_api.sql` (Neon: `anon`/`service_role` roles and their `authenticator` grants, Supabase-style default privileges, drops `profiles_id_fkey`, adds `ensure_own_profile()`). Migrations 40-41 are Supabase-only and are no-ops on Neon; the Neon database was seeded from a `pg_dump` of production, not by replaying this list.
 43. `20260923150000_jev_registry_classification.sql` (`apply_registry_classifications` also refreshes the current snapshot's directory category; `merge_registry_import_batch` keeps a Jev classification while the organisation's text is unchanged)
+44. `20260924100000_volunteer_event_location.sql` (optional free-text `volunteer_events.location`, 1-300 chars; NULL means "at the organisation's address"; never geocoded, no coordinate). The volunteer event API selects it, so apply before deploying.
+45. `20260924110000_delete_needs_and_events.sql` (`delete_need_transaction` / `delete_volunteer_event_transaction`, service_role only: ownership from the actor's `ngo` profile, notifies donors/volunteers with standing pledges/signups before the ON DELETE CASCADE removes them, audits the counts)
 
 Apply new migrations to Neon with `DATABASE_URL_UNPOOLED` (psql or `neon psql`), then `neon data-api refresh-schema --database neondb` so the Data API sees new functions and columns.
 

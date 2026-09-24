@@ -6,7 +6,17 @@ import { CalendarClock, Heart, Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
-import { RosterFact, RosterGroup, RosterList, RosterPerson, RosterSection } from "@/components/Roster";
+import {
+  RosterEmpty,
+  RosterFact,
+  RosterGroup,
+  RosterList,
+  RosterPerson,
+  RosterPersonDialog,
+  RosterSection,
+  type RosterPersonDetails,
+} from "@/components/Roster";
+import type { PersonActivity } from "@/lib/institution-person-activity";
 import {
   Button,
   Dialog,
@@ -16,6 +26,19 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
+import { DeleteActionButton } from "@/components/YourPledgesSection";
+
+type NeedRow = {
+  id: string;
+  title: string;
+  description?: string | null;
+  deadline?: string | null;
+  urgency?: string | null;
+  quantity_needed?: number | null;
+  quantity_pledged?: number | null;
+  is_fulfilled?: boolean;
+  created_at: string;
+};
 
 type PledgeRow = {
   id: string;
@@ -25,14 +48,6 @@ type PledgeRow = {
   amount_eur: number | null;
   created_at: string;
   donor: { id: string; name: string; email: string };
-  need: {
-    title: string;
-    description?: string | null;
-    deadline?: string | null;
-    urgency?: string | null;
-    quantity_needed?: number | null;
-    quantity_pledged?: number | null;
-  } | null;
 };
 
 type InstitutionPledgesClientProps = {
@@ -46,13 +61,15 @@ type InstitutionPledgesClientProps = {
 };
 
 /**
- * What has been promised to this organisation, and by whom.
+ * Every need this organisation has posted, and what has been promised to
+ * each, by whom.
  *
  * It used to be a small workflow: mark a pledge delivered, then acknowledge
  * it, each step a status the donor then had to interpret. That whole ladder
  * is gone. A promise is a promise; this page reports the ones that stand,
- * grouped by need the same way the volunteer roster groups by event, so an
- * organisation can see who to actually expect a donation from.
+ * grouped by need the same way the volunteer roster groups by event. A need
+ * nobody has pledged to yet is listed too, so a freshly posted one shows up
+ * straight away instead of looking unsaved.
  */
 /**
  * One row per donor within a need: several pledges from the same person read
@@ -95,7 +112,10 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
   const { locale } = useLocale();
   const panelId = useId();
   const [publishing, setPublishing] = useState(false);
+  const [needs, setNeeds] = useState<NeedRow[]>([]);
   const [pledges, setPledges] = useState<PledgeRow[]>([]);
+  const [activity, setActivity] = useState<Record<string, PersonActivity>>({});
+  const [openPerson, setOpenPerson] = useState<RosterPersonDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   /** The need whose details are open; the roster header opens it. */
@@ -110,7 +130,9 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
         return;
       }
       setLoadError(null);
+      setNeeds(data.needs ?? []);
       setPledges(data.pledges ?? []);
+      setActivity(data.activity ?? {});
     } catch {
       setLoadError(t("common.error_generic"));
     } finally {
@@ -153,23 +175,27 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
             </Button>
           }
         />
-      ) : pledges.length === 0 ? (
-        <EmptyState title={t("institution.pledges_empty")} />
+      ) : needs.length === 0 ? (
+        <EmptyState title={t("institution.needs_empty")} />
       ) : (
         <div className="space-y-4">
-          {Array.from(byNeed.entries()).map(([needId, rows]) => {
-            const need = rows[0]?.need;
-            const needed = need?.quantity_needed ?? null;
-            const pledged = need?.quantity_pledged ?? rows.reduce((sum, row) => sum + row.quantity, 0);
+          {needs.map((need) => {
+            const rows = byNeed.get(need.id) ?? [];
+            const needed = need.quantity_needed ?? null;
+            const pledged = need.quantity_pledged ?? rows.reduce((sum, row) => sum + row.quantity, 0);
             return (
               <RosterGroup
-                key={needId}
+                key={need.id}
                 icon={<Heart className="h-4 w-4" />}
                 tone="brand"
-                title={need?.title ?? t("institution.pledges_need")}
-                meta={t("institution.pledges_count", { count: rows.length })}
+                title={need.title}
+                meta={
+                  rows.length
+                    ? t("institution.pledges_count", { count: rows.length })
+                    : t("institution.need_posted", { when: timeAgo(need.created_at, locale) })
+                }
                 progress={needed ? (pledged / needed) * 100 : null}
-                onOpen={need ? () => setOpenNeedId(needId) : undefined}
+                onOpen={() => setOpenNeedId(need.id)}
                 openLabel={t("institution.roster_details")}
                 count={
                   needed
@@ -177,34 +203,56 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
                     : t("institution.pledges_total", { pledged })
                 }
               >
-                <RosterList>
-                  {byDonor(rows).map((d) => (
-                    <RosterPerson
-                      key={d.userId}
-                      name={d.donor.name}
-                      email={d.donor.email}
-                      when={d.latest}
-                      whenLabel={timeAgo(d.latest, locale)}
-                      note={d.pledges > 1 ? t("institution.pledges_count", { count: d.pledges }) : null}
-                      aside={
-                        <>
-                          <p className="text-base font-semibold tabular-nums text-ink">{d.quantity}</p>
-                          <p className="text-xs text-ink-tertiary">
-                            {d.amountEur != null ? `€${Number(d.amountEur).toFixed(2)}` : t("institution.roster_quantity")}
-                          </p>
-                        </>
-                      }
-                    />
-                  ))}
-                </RosterList>
+                {rows.length === 0 ? (
+                  <RosterEmpty>{t("institution.need_no_pledges")}</RosterEmpty>
+                ) : (
+                  <RosterList>
+                    {byDonor(rows).map((d) => (
+                      <RosterPerson
+                        key={d.userId}
+                        name={d.donor.name}
+                        onOpen={() =>
+                          setOpenPerson({
+                            name: d.donor.name,
+                            email: d.donor.email,
+                            pledges: activity[d.userId]?.pledges ?? d.pledges,
+                            signups: activity[d.userId]?.signups ?? 0,
+                            since: t("institution.person_pledged", { when: timeAgo(d.latest, locale) }),
+                          })
+                        }
+                        aside={
+                          <span className="text-sm font-semibold tabular-nums text-ink">
+                            {t("institution.pledge_qty", { qty: d.quantity })}
+                          </span>
+                        }
+                      />
+                    ))}
+                  </RosterList>
+                )}
               </RosterGroup>
             );
           })}
         </div>
       )}
+      <RosterPersonDialog
+        person={openPerson}
+        onClose={() => setOpenPerson(null)}
+        labels={{
+          close: t("common.close"),
+          email: t("dashboard_individual.email_label"),
+          pledges: t("institution.person_pledges"),
+          signups: t("institution.person_signups"),
+        }}
+      />
       <NeedDetailsDialog
+        need={needs.find((need) => need.id === openNeedId) ?? null}
         rows={openNeedId ? byNeed.get(openNeedId) ?? [] : []}
         onClose={() => setOpenNeedId(null)}
+        onDeleted={(id) => {
+          setOpenNeedId(null);
+          setNeeds((current) => current.filter((need) => need.id !== id));
+          setPledges((current) => current.filter((pledge) => pledge.need_id !== id));
+        }}
       />
     </>
   );
@@ -227,10 +275,14 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
   );
 }
 
-function NeedDetailsDialog({ rows, onClose }: { rows: PledgeRow[]; onClose: () => void }) {
+function NeedDetailsDialog({ need, rows, onClose, onDeleted }: {
+  need: NeedRow | null;
+  rows: PledgeRow[];
+  onClose: () => void;
+  onDeleted: (needId: string) => void;
+}) {
   const t = useT();
   const { locale } = useLocale();
-  const need = rows[0]?.need;
   if (!need) return null;
   const needed = need.quantity_needed ?? null;
   const pledged = need.quantity_pledged ?? rows.reduce((sum, row) => sum + row.quantity, 0);
@@ -252,6 +304,23 @@ function NeedDetailsDialog({ rows, onClose }: { rows: PledgeRow[]; onClose: () =
       description={needed ? t("institution.pledges_fill", { pledged, needed }) : t("institution.pledges_total", { pledged })}
       closeLabel={t("common.close")}
       variant="sheet-on-mobile"
+      footer={
+        <DeleteActionButton
+          endpoint={`/api/needs/${need.id}`}
+          label={t("institution.need_delete")}
+          title={t("institution.need_delete_title")}
+          description={
+            rows.length
+              ? t("institution.need_delete_body_pledges", { count: rows.length })
+              : t("institution.need_delete_body")
+          }
+          confirmLabel={t("institution.need_delete_confirm")}
+          successTitle={t("institution.need_delete_success")}
+          errorTitle={t("institution.need_delete_error")}
+          conflictDescription={t("common.error_generic")}
+          onDeleted={() => onDeleted(need.id)}
+        />
+      }
     >
       <div className="space-y-5">
         {deadline || urgencyKey ? (

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
-import { Card } from "@/components/ui";
+import { Card, Dialog } from "@/components/ui";
 
 export type RosterTone = "brand" | "info" | "success";
 
@@ -230,48 +230,81 @@ export function RosterQuantity({ value, label }: { value: ReactNode; label: Reac
   );
 }
 
+/**
+ * A person in a roster: just the name, and a click for the rest. Email,
+ * dates and counts live in RosterPersonDialog, so the list stays a quiet
+ * column of names.
+ */
 export function RosterPerson({
   name,
-  email,
-  when,
-  whenLabel,
-  note,
+  onOpen,
   aside,
 }: {
   name: string;
-  email: string;
-  /** ISO timestamp of the (latest) signup or pledge. */
-  when: string;
-  /** Human "prije 2 sata" text for `when`. */
-  whenLabel: string;
-  /** Extra detail after the time, e.g. "2 obećanja". */
-  note?: ReactNode;
+  onOpen: () => void;
   /** Right-hand figure, e.g. the pledged quantity. */
   aside?: ReactNode;
 }) {
   return (
-    <li className="flex min-w-0 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-sunken/60">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink">{name}</p>
-        {email ? (
-          <a
-            href={`mailto:${email}`}
-            title={email}
-            className="block truncate text-xs text-ink-secondary underline-offset-2 hover:text-brand hover:underline"
-          >
-            {email}
-          </a>
-        ) : null}
-        <p className="text-xs text-ink-tertiary sm:hidden">
-          <time dateTime={when}>{whenLabel}</time>
-          {note ? <> · {note}</> : null}
-        </p>
-      </div>
-      <div className="hidden shrink-0 text-right text-xs text-ink-tertiary sm:block">
-        <time dateTime={when}>{whenLabel}</time>
-        {note ? <p>{note}</p> : null}
-      </div>
-      {aside ? <div className="w-16 shrink-0 text-right">{aside}</div> : null}
+    <li className="flex min-w-0 items-center gap-3 px-4 py-2 transition-colors hover:bg-surface-sunken/60">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-haspopup="dialog"
+        className="min-w-0 flex-1 truncate rounded-control text-left text-sm font-medium text-ink hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        {name}
+      </button>
+      {aside ? <div className="shrink-0 text-right">{aside}</div> : null}
     </li>
+  );
+}
+
+export type RosterPersonDetails = {
+  name: string;
+  email: string;
+  /** Standing pledges and active signups with this organisation. */
+  pledges: number;
+  signups: number;
+  /** "Prijava prije 2 sata" or similar, for the row they were opened from. */
+  since?: string;
+};
+
+/** A small card of who someone is, opened from their name. */
+export function RosterPersonDialog({
+  person,
+  onClose,
+  labels,
+}: {
+  person: RosterPersonDetails | null;
+  onClose: () => void;
+  labels: { close: string; email: string; pledges: string; signups: string };
+}) {
+  if (!person) return null;
+  return (
+    <Dialog open onClose={onClose} title={person.name} description={person.since} closeLabel={labels.close}>
+      <dl className="space-y-3 text-sm">
+        {person.email ? (
+          <div>
+            <dt className="text-xs text-ink-tertiary">{labels.email}</dt>
+            <dd>
+              <a href={`mailto:${person.email}`} className="break-all text-brand underline-offset-2 hover:underline">
+                {person.email}
+              </a>
+            </dd>
+          </div>
+        ) : null}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-control bg-brand-soft px-3 py-2 text-brand-on-soft">
+            <dd className="text-xl font-semibold tabular-nums">{person.pledges}</dd>
+            <dt className="text-xs">{labels.pledges}</dt>
+          </div>
+          <div className="rounded-control bg-info-soft px-3 py-2 text-info-on-soft">
+            <dd className="text-xl font-semibold tabular-nums">{person.signups}</dd>
+            <dt className="text-xs">{labels.signups}</dt>
+          </div>
+        </div>
+      </dl>
+    </Dialog>
   );
 }

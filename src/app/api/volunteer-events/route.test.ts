@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,6 +21,13 @@ import { GET, POST } from "./route";
 const schema = readFileSync("supabase/migrations/001_initial_schema.sql", "utf8");
 const columns = schema.split("create table public.volunteer_events (")[1]
   .split("\n);")[0].trim().split("\n").map((line) => line.trim().split(" ")[0]);
+// Columns later migrations add to the table are part of the same contract.
+for (const file of readdirSync("supabase/migrations")) {
+  const sql = readFileSync(`supabase/migrations/${file}`, "utf8");
+  for (const match of sql.matchAll(/ALTER TABLE public\.volunteer_events\s+ADD COLUMN IF NOT EXISTS (\w+)/gi)) {
+    columns.push(match[1]);
+  }
+}
 function expectDatabaseProjection() {
   const selection = query.select.mock.calls.find(([value]) => value.includes("event_date"))?.[0];
   expect(selection).toBeDefined();

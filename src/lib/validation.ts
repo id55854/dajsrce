@@ -110,6 +110,8 @@ export type VolunteerEventInput = {
   end_time: string;
   volunteers_needed: number;
   requirements: string | null;
+  /** Where the event happens, when not at the organisation's address. */
+  location: string | null;
 };
 
 export function parseVolunteerEventInput(value: unknown): ValidationResult<VolunteerEventInput> {
@@ -121,6 +123,8 @@ export function parseVolunteerEventInput(value: unknown): ValidationResult<Volun
   if (!description.ok) return description;
   const requirements = text(body.requirements, "requirements", 1, 2000, true);
   if (!requirements.ok) return requirements;
+  const location = text(body.location, "location", 1, 300, true);
+  if (!location.ok) return location;
   const eventDate = parseISODate(body.event_date);
   if (!eventDate) return { ok: false, error: "event_date must be a real YYYY-MM-DD date" };
   const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
@@ -145,6 +149,7 @@ export function parseVolunteerEventInput(value: unknown): ValidationResult<Volun
       end_time: body.end_time,
       volunteers_needed: volunteers.value!,
       requirements: requirements.value,
+      location: location.value,
     },
   };
 }

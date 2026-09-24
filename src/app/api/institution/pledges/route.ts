@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
+import { personActivityTotals } from "@/lib/institution-person-activity";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
 
 export async function GET(req: NextRequest) {
@@ -27,14 +28,27 @@ export async function GET(req: NextRequest) {
     return jsonError("Institution access only", 403, requestId, NO_STORE);
   }
 
-  const { data: needs } = await supabase
+  // Every need the organisation has posted, newest first, including the ones
+  // nobody has pledged to yet: a roster that only listed needs with pledges
+  // made a freshly posted need look as if it had not been saved.
+  const { data: needs, error: needsError } = await supabase
     .from("needs")
-    .select("id")
-    .eq("institution_id", profile.institution_id);
+    .select("id, title, description, deadline, urgency, quantity_needed, quantity_pledged, is_fulfilled, created_at")
+    .eq("institution_id", profile.institution_id)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (needsError) {
+    logError("institution.needs_failed", needsError, {
+      request_id: requestId,
+      code: needsError.code ?? null,
+    });
+    return jsonError("Needs are temporarily unavailable", 500, requestId, NO_STORE);
+  }
 
   const needIds = (needs ?? []).map((n) => n.id);
   if (needIds.length === 0) {
-    return NextResponse.json({ pledges: [] });
+    return NextResponse.json({ needs: [], pledges: [] });
   }
 
   // Statuses and acknowledgements are no longer part of the product, so they
@@ -82,5 +96,7 @@ export async function GET(req: NextRequest) {
     donor: byUser.get(p.user_id) ?? { id: p.user_id, name: "Donor", email: "" },
   }));
 
-  return NextResponse.json({ pledges: enriched });
+  const activity = await personActivityTotals(supabaseAdmin, userIds);
+
+  return NextResponse.json({ needs, pledges: enriched, activity });
 }

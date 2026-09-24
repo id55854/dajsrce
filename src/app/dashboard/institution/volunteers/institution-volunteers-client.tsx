@@ -2,13 +2,23 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, CalendarHeart, Phone } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarHeart, MapPin, Phone } from "lucide-react";
 import { NewVolunteerEventForm } from "@/components/NewVolunteerEventForm";
 import { Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
-import { RosterEmpty, RosterFact, RosterGroup, RosterList, RosterPerson, RosterSection } from "@/components/Roster";
+import {
+  RosterEmpty,
+  RosterFact,
+  RosterGroup,
+  RosterList,
+  RosterPerson,
+  RosterPersonDialog,
+  RosterSection,
+  type RosterPersonDetails,
+} from "@/components/Roster";
+import type { PersonActivity } from "@/lib/institution-person-activity";
 import {
   Button,
   Card,
@@ -20,6 +30,7 @@ import {
   buttonClasses,
 } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
+import { DeleteActionButton } from "@/components/YourPledgesSection";
 
 type SignupRow = {
   id: string;
@@ -36,6 +47,7 @@ type SignupRow = {
     volunteers_needed?: number | null;
     description?: string | null;
     requirements?: string | null;
+    location?: string | null;
     contact_person?: string | null;
     contact_phone?: string | null;
   } | null;
@@ -71,6 +83,8 @@ export function InstitutionVolunteersClient({
   const [publishing, setPublishing] = useState(false);
   const [events, setEvents] = useState<NonNullable<SignupRow["event"]>[]>([]);
   const [signups, setSignups] = useState<SignupRow[]>([]);
+  const [activity, setActivity] = useState<Record<string, PersonActivity>>({});
+  const [openPerson, setOpenPerson] = useState<RosterPersonDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -90,6 +104,7 @@ export function InstitutionVolunteersClient({
       if (!res.ok) throw new Error(data.error ?? "Failed to load");
       setSignups((data.signups ?? []) as SignupRow[]);
       setEvents(data.events ?? []);
+      setActivity(data.activity ?? {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -184,9 +199,15 @@ export function InstitutionVolunteersClient({
                       <RosterPerson
                         key={s.id}
                         name={s.volunteer.name}
-                        email={s.volunteer.email}
-                        when={s.created_at}
-                        whenLabel={timeAgo(s.created_at, locale)}
+                        onOpen={() =>
+                          setOpenPerson({
+                            name: s.volunteer.name,
+                            email: s.volunteer.email,
+                            pledges: activity[s.user_id]?.pledges ?? 0,
+                            signups: activity[s.user_id]?.signups ?? 1,
+                            since: t("institution.person_signed_up", { when: timeAgo(s.created_at, locale) }),
+                          })
+                        }
                       />
                     ))}
                   </RosterList>
@@ -196,10 +217,25 @@ export function InstitutionVolunteersClient({
           })}
         </div>
       )}
+      <RosterPersonDialog
+        person={openPerson}
+        onClose={() => setOpenPerson(null)}
+        labels={{
+          close: t("common.close"),
+          email: t("dashboard_individual.email_label"),
+          pledges: t("institution.person_pledges"),
+          signups: t("institution.person_signups"),
+        }}
+      />
       <EventDetailsDialog
         event={events.find((event) => event.id === openEventId) ?? null}
         signed={openEventId ? byEvent.get(openEventId)?.length ?? 0 : 0}
         onClose={() => setOpenEventId(null)}
+        onDeleted={(id) => {
+          setOpenEventId(null);
+          setEvents((current) => current.filter((event) => event.id !== id));
+          setSignups((current) => current.filter((signup) => signup.event_id !== id));
+        }}
       />
     </>
   );
@@ -228,10 +264,11 @@ function timeRange(start?: string | null, end?: string | null): string {
   return [clip(start), clip(end)].filter(Boolean).join("–");
 }
 
-function EventDetailsDialog({ event, signed, onClose }: {
+function EventDetailsDialog({ event, signed, onClose, onDeleted }: {
   event: NonNullable<SignupRow["event"]> | null;
   signed: number;
   onClose: () => void;
+  onDeleted: (eventId: string) => void;
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -246,12 +283,32 @@ function EventDetailsDialog({ event, signed, onClose }: {
       description={needed ? t("institution.volunteers_fill", { signed, needed }) : t("institution.volunteers_count", { count: signed })}
       closeLabel={t("common.close")}
       variant="sheet-on-mobile"
+      footer={
+        <DeleteActionButton
+          endpoint={`/api/volunteer-events/${event.id}`}
+          label={t("institution.event_delete")}
+          title={t("institution.event_delete_title")}
+          description={
+            signed
+              ? t("institution.event_delete_body_signups", { count: signed })
+              : t("institution.event_delete_body")
+          }
+          confirmLabel={t("institution.event_delete_confirm")}
+          successTitle={t("institution.event_delete_success")}
+          errorTitle={t("institution.event_delete_error")}
+          conflictDescription={t("common.error_generic")}
+          onDeleted={() => onDeleted(event.id)}
+        />
+      }
     >
       <div className="space-y-5">
         <dl className="space-y-2.5 text-sm">
           <RosterFact icon={<CalendarDays className="h-4 w-4" aria-hidden />} label={t("volunteer_card.when")}>
             {date}
             <span className="block text-ink-secondary">{timeRange(event.start_time, event.end_time)}</span>
+          </RosterFact>
+          <RosterFact icon={<MapPin className="h-4 w-4" aria-hidden />} label={t("volunteer_card.where")}>
+            {event.location?.trim() || t("institution.event_at_our_address")}
           </RosterFact>
           {event.contact_person || event.contact_phone ? (
             <RosterFact icon={<Phone className="h-4 w-4" aria-hidden />} label={t("volunteer_card.contact")}>
