@@ -497,7 +497,8 @@
     "contact": "Contact",
     "about": "About the event",
     "requirements": "What to know",
-    "view_organisation": "View the organisation"
+    "view_organisation": "View the organisation",
+    "organiser": "Organiser"
   },
   "volunteer_calendar": {
     "upcoming_count": "Upcoming events: {count}",

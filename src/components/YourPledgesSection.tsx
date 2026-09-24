@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown, X } from "lucide-react";
 import { useLocale, useT } from "@/i18n/client";
 import { timeAgo } from "@/lib/utils";
+import { RosterItem, RosterQuantity } from "@/components/Roster";
 import { Button, Dialog, Skeleton, useToast } from "@/components/ui";
 
 /**
@@ -248,63 +249,39 @@ export function YourPledgesSection({
           className="divide-y divide-border-subtle"
           role="list"
         >
-          {visible.map((p) => {
-            return (
-              <li key={p.id} className="py-3">
-                <article className="relative flex flex-col sm:pr-44">
-                  <div className="mb-1 flex items-start gap-2">
-                    <time className="shrink-0 text-xs text-ink-tertiary" dateTime={p.created_at}>
-                      {timeAgo(p.created_at, locale)}
-                    </time>
-                  </div>
-                  <h3 className="line-clamp-2 text-sm font-semibold text-ink">
-                    {p.need?.title ?? "—"}
-                  </h3>
-                  {p.need?.institution?.name ? (
-                    <p className="mt-0.5 line-clamp-1 text-xs text-ink-secondary">
-                      {p.need.institution.name}
-                    </p>
-                  ) : null}
-                  <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    <div>
-                      <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
-                        {t("your_pledges.qty_label")}:{" "}
-                      </dt>
-                      <dd className="inline font-semibold tabular-nums text-ink">{p.quantity}</dd>
-                    </div>
-                    {p.amount_eur != null ? (
-                      <div>
-                        <dt className="inline font-medium uppercase tracking-wide text-ink-tertiary">
-                          {t("your_pledges.amount_label")}:{" "}
-                        </dt>
-                        <dd className="inline font-semibold tabular-nums text-ink">
-                          {formatEur(p.amount_eur)}
-                        </dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                  <div className="mt-1 flex flex-wrap gap-2 sm:absolute sm:right-0 sm:top-0 sm:mt-0">
-                    <CancelActionButton
-                      endpoint={`/api/pledges/${p.id}`}
-                      label={t("your_pledges.cancel")}
-                      title={t("your_pledges.cancel_title")}
-                      description={t("your_pledges.cancel_body", {
-                        title: p.need?.title ?? "",
-                      })}
-                      confirmLabel={t("your_pledges.cancel_confirm")}
-                      successTitle={t("your_pledges.cancel_success")}
-                      errorTitle={t("your_pledges.cancel_error")}
-                      conflictDescription={t("your_pledges.cancel_error_locked")}
-                      onCancelled={() => {
-                        setCancelledIds((prev) => new Set(prev).add(p.id));
-                        onCancelled?.(p.id);
-                      }}
-                    />
-                  </div>
-                </article>
-              </li>
-            );
-          })}
+          {visible.map((p) => (
+            <RosterItem
+              key={p.id}
+              flush
+              title={p.need?.title ?? "—"}
+              subtitle={p.need?.institution?.name}
+              detail={<time dateTime={p.created_at}>{timeAgo(p.created_at, locale)}</time>}
+              aside={
+                <RosterQuantity
+                  value={p.quantity}
+                  label={p.amount_eur != null ? formatEur(p.amount_eur) : t("your_pledges.qty_label")}
+                />
+              }
+              action={
+                <CancelActionButton
+                  endpoint={`/api/pledges/${p.id}`}
+                  label={t("your_pledges.cancel")}
+                  title={t("your_pledges.cancel_title")}
+                  description={t("your_pledges.cancel_body", {
+                    title: p.need?.title ?? "",
+                  })}
+                  confirmLabel={t("your_pledges.cancel_confirm")}
+                  successTitle={t("your_pledges.cancel_success")}
+                  errorTitle={t("your_pledges.cancel_error")}
+                  conflictDescription={t("your_pledges.cancel_error_locked")}
+                  onCancelled={() => {
+                    setCancelledIds((prev) => new Set(prev).add(p.id));
+                    onCancelled?.(p.id);
+                  }}
+                />
+              }
+            />
+          ))}
         </ul>
       )}
       {overflow > 0 ? (

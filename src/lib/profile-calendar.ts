@@ -13,6 +13,8 @@ export type CalendarDetails = {
   endTime?: string | null;
   requirements?: string | null;
   organisation?: string | null;
+  /** Where it happens: the organisation's public address and city. */
+  location?: string | null;
   /** Filled places or pledged units, against `needed`. */
   filled?: number | null;
   needed?: number | null;
@@ -55,11 +57,20 @@ type CalendarEvent = {
 };
 
 /** PostgREST may answer a to-one embed as an object or a one-element list. */
-type EmbeddedName = { name?: string | null } | { name?: string | null }[] | null;
+type EmbeddedInstitution = { name?: string | null; address?: string | null; city?: string | null };
+type EmbeddedName = EmbeddedInstitution | EmbeddedInstitution[] | null;
+
+function embedded(value: EmbeddedName | undefined): EmbeddedInstitution | null {
+  return (Array.isArray(value) ? value[0] : value) ?? null;
+}
 
 function embeddedName(value: EmbeddedName | undefined): string | null {
-  const row = Array.isArray(value) ? value[0] : value;
-  return row?.name ?? null;
+  return embedded(value)?.name ?? null;
+}
+
+function embeddedLocation(value: EmbeddedName | undefined): string | null {
+  const row = embedded(value);
+  return [row?.address, row?.city].filter(Boolean).join(", ") || null;
 }
 
 function needDetails(need: CalendarNeed, mine?: number | null): CalendarDetails {
@@ -81,6 +92,7 @@ function eventDetails(event: CalendarEvent): CalendarDetails {
     endTime: event.end_time ?? null,
     requirements: event.requirements ?? null,
     organisation: embeddedName(event.institution),
+    location: embeddedLocation(event.institution),
     filled: event.volunteers_signed_up ?? null,
     needed: event.volunteers_needed ?? null,
   };

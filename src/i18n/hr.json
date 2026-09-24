@@ -497,7 +497,8 @@
     "contact": "Kontakt",
     "about": "O događaju",
     "requirements": "Što trebate znati",
-    "view_organisation": "Pogledaj profil udruge"
+    "view_organisation": "Pogledaj profil udruge",
+    "organiser": "Organizator"
   },
   "volunteer_calendar": {
     "upcoming_count": "Nadolazeći događaji: {count}",

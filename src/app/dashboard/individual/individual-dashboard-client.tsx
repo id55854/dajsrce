@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
-import { CalendarHeart, Heart, MapPin } from "lucide-react";
+import { CalendarHeart, Heart, Mail, MapPin } from "lucide-react";
 import type { AuthProfile } from "@/lib/auth/profile";
 import type { Pledge, Shipment } from "@/lib/types";
 import { DONATION_TYPES } from "@/lib/constants";
@@ -14,16 +14,15 @@ import { CancelActionButton } from "@/components/YourPledgesSection";
 import { ProfileCalendar } from "@/components/ProfileCalendar";
 import { individualCalendarEntries } from "@/lib/profile-calendar";
 import { SignOutButton } from "@/components/SignOutButton";
+import { ProfileChip, ProfileHeader } from "@/components/ProfileHeader";
+import { RosterGroup, RosterItem, RosterList, RosterQuantity } from "@/components/Roster";
+import { timeAgo } from "@/lib/utils";
 import type { AppRole } from "@/lib/auth/roles";
 import {
   Button,
-  Card,
   EmptyState,
-  PageHeader,
   PageShell,
-  SectionHeader,
   Skeleton,
-  Stat,
   buttonClasses,
 } from "@/components/ui";
 
@@ -58,8 +57,15 @@ type SignupEvent = {
   requirements?: string | null;
   volunteers_needed?: number | null;
   volunteers_signed_up?: number | null;
-  institution?: { name?: string | null } | { name?: string | null }[] | null;
+  institution?: SignupInstitution | SignupInstitution[] | null;
 };
+
+type SignupInstitution = { name?: string | null; address?: string | null; city?: string | null };
+
+/** PostgREST may answer the to-one embed as an object or a one-element list. */
+function embeddedInstitution(value: SignupEvent["institution"] | undefined): SignupInstitution | null {
+  return (Array.isArray(value) ? value[0] : value) ?? null;
+}
 
 type SignupRow = {
   id: string;
@@ -133,7 +139,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
         const { data, error } = await supabase
           .from("volunteer_signups")
           .select(
-            "id, event_id, created_at, event:volunteer_events(id, title, description, event_date, start_time, end_time, requirements, volunteers_needed, volunteers_signed_up, institution:institutions(name))"
+            "id, event_id, created_at, event:volunteer_events(id, title, description, event_date, start_time, end_time, requirements, volunteers_needed, volunteers_signed_up, institution:institutions(name, address:public_address, city))"
           )
           .eq("user_id", profile.id)
           .is("cancelled_at", null)
@@ -161,44 +167,42 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
   // count. Nothing else about a pledge is a state the donor has to track.
   const current = pledges.filter((item) => item.status !== "cancelled");
   const recent = current;
-  const active = current.length;
 
   return (
-    <PageShell width="content">
-      <PageHeader
-        title={t("dashboard_individual.title")}
-        subtitle={t("dashboard_individual.subtitle")}
-        actions={
-          <Link href="/map" className={buttonClasses()}>
-            <MapPin className="h-4 w-4" aria-hidden="true" />
-            {t("dashboard_individual.find_places")}
-          </Link>
-        }
-      />
-
-      <div className="space-y-8">
-        <Card padding="lg" aria-labelledby="account-heading">
-          <SectionHeader
-            title={
-              <span id="account-heading">{t("dashboard_individual.your_account")}</span>
-            }
-          />
-          <p className="text-lg font-semibold text-ink">{profile.name}</p>
-          <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">
-                {t("dashboard_individual.email_label")}
-              </dt>
-              <dd className="mt-0.5 break-all text-base text-ink">{profile.email || "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">
-                {t("dashboard_individual.role_label")}
-              </dt>
-              <dd className="mt-0.5 text-base text-ink">{t(roleTranslationKey(profile.role))}</dd>
-            </div>
-          </dl>
-        </Card>
+    <PageShell width="wide">
+      <div className="space-y-6">
+        <ProfileHeader
+          title={profile.name || profile.email}
+          facts={
+            <>
+              <ProfileChip>{t(roleTranslationKey(profile.role))}</ProfileChip>
+              {profile.email ? (
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <Mail className="h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
+                  <span className="truncate">{profile.email}</span>
+                </span>
+              ) : null}
+            </>
+          }
+          links={
+            <Link href="/" className={buttonClasses({ variant: "ghost", size: "sm" })}>
+              <MapPin className="h-4 w-4" aria-hidden />
+              {t("dashboard_individual.find_places")}
+            </Link>
+          }
+          actions={
+            <>
+              <Link href="/doniraj" className={buttonClasses()}>
+                <Heart className="h-4 w-4" aria-hidden />
+                {t("nav.donate")}
+              </Link>
+              <Link href="/volunteer" className={buttonClasses({ variant: "secondary" })}>
+                <CalendarHeart className="h-4 w-4" aria-hidden />
+                {t("nav.volunteer")}
+              </Link>
+            </>
+          }
+        />
 
         <ProfileCalendar
           entries={individualCalendarEntries(current, signups)}
@@ -208,25 +212,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
           onRetry={() => { setLoading(true); setSignupsLoading(true); setReload((value) => value + 1); }}
         />
 
-        {/* The volunteer-hours tile went with the check-in flow that was the
-            only thing that could ever have filled it. It had always shown an
-            em-dash; now nothing records hours at all, so a tile promising
-            them would be a promise the product no longer makes. */}
-        <section className="grid gap-4 sm:grid-cols-2">
-          <Stat
-            icon={<Heart className="h-4 w-4" aria-hidden="true" />}
-            label={t("dashboard_individual.stat_donations")}
-            value={loading ? <Skeleton className="h-8 w-12" /> : active}
-          />
-          <Stat
-            icon={<CalendarHeart className="h-4 w-4" aria-hidden="true" />}
-            label={t("dashboard_individual.stat_volunteer_signups")}
-            value={signupsLoading ? <Skeleton className="h-8 w-12" /> : signups.length}
-          />
-        </section>
-
         <section>
-          <SectionHeader title={t("dashboard_individual.donation_history")} />
           {loading ? (
             <ul className="space-y-3" aria-busy="true">
               {[0, 1, 2].map((i) => (
@@ -263,64 +249,52 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
               {recent.length === 0 ? (
                 <p className="text-sm text-ink-secondary">{t("your_pledges.empty")}</p>
               ) : (
-                <ul className="space-y-3">
-                  {recent.map((pl) => {
-                    const need = pl.need;
-                    const typeLabel = need
-                      ? DONATION_TYPES[need.donation_type as keyof typeof DONATION_TYPES]
-                          ?.label ?? need.donation_type
-                      : "";
-                    const when = formatDistanceToNow(new Date(pl.created_at), {
-                      addSuffix: true,
-                    });
-                    return (
-                      <li
-                        id={`pledge-${pl.id}`}
-                        key={pl.id}
-                        className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised"
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-ink">{need?.title ?? "—"}</p>
-                            <p className="text-sm text-ink-secondary">
-                              {need?.institution?.name ?? "—"}
-                            </p>
-                            <p className="mt-1 text-xs text-ink-tertiary">{typeLabel}</p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
-                            <time dateTime={pl.created_at} className="text-xs text-ink-tertiary">
-                              {when}
-                            </time>
-                          </div>
-                        </div>
-                        <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
-                          <CancelActionButton
-                            endpoint={`/api/pledges/${pl.id}`}
-                            label={t("your_pledges.cancel")}
-                            title={t("your_pledges.cancel_title")}
-                            description={t("your_pledges.cancel_body", {
-                              title: need?.title ?? "",
-                            })}
-                            confirmLabel={t("your_pledges.cancel_confirm")}
-                            successTitle={t("your_pledges.cancel_success")}
-                            errorTitle={t("your_pledges.cancel_error")}
-                            conflictDescription={t("your_pledges.cancel_error_locked")}
-                            onCancelled={() =>
-                              setPledges((prev) => prev.filter((row) => row.id !== pl.id))
-                            }
-                          />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <RosterGroup
+                  title={t("dashboard_individual.donation_history")}
+                  count={t("institution.pledges_count", { count: recent.length })}
+                >
+                  <RosterList>
+                    {recent.map((pl) => {
+                      const need = pl.need;
+                      const type = need ? DONATION_TYPES[need.donation_type as keyof typeof DONATION_TYPES] : null;
+                      const typeLabel = type ? (locale === "hr" ? type.labelHr : type.label) : need?.donation_type ?? "";
+                      return (
+                        <RosterItem
+                          id={`pledge-${pl.id}`}
+                          key={pl.id}
+                          title={need?.title ?? "—"}
+                          subtitle={[need?.institution?.name, typeLabel].filter(Boolean).join(" · ")}
+                          detail={<time dateTime={pl.created_at}>{timeAgo(pl.created_at, locale)}</time>}
+                          aside={
+                            <RosterQuantity
+                              value={pl.quantity}
+                              label={pl.amount_eur != null ? `€${Number(pl.amount_eur).toFixed(2)}` : t("institution.roster_quantity")}
+                            />
+                          }
+                          action={
+                            <CancelActionButton
+                              endpoint={`/api/pledges/${pl.id}`}
+                              label={t("your_pledges.cancel")}
+                              title={t("your_pledges.cancel_title")}
+                              description={t("your_pledges.cancel_body", { title: need?.title ?? "" })}
+                              confirmLabel={t("your_pledges.cancel_confirm")}
+                              successTitle={t("your_pledges.cancel_success")}
+                              errorTitle={t("your_pledges.cancel_error")}
+                              conflictDescription={t("your_pledges.cancel_error_locked")}
+                              onCancelled={() => setPledges((prev) => prev.filter((row) => row.id !== pl.id))}
+                            />
+                          }
+                        />
+                      );
+                    })}
+                  </RosterList>
+                </RosterGroup>
               )}
             </>
           )}
         </section>
 
         <section>
-          <SectionHeader title={t("dashboard_individual.volunteer_signups")} />
           {signupsLoading ? (
             <ul className="space-y-3" aria-busy="true">
               {[0, 1].map((i) => (
@@ -356,52 +330,49 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
               }
             />
           ) : (
-            <ul className="space-y-3">
-              {signups.map((signup) => {
-                return (
-                  <li
-                    id={`signup-${signup.id}`}
-                    key={signup.id}
-                    className="rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-ink">
-                          {signup.event?.title ?? "—"}
-                        </p>
-                        {signup.event ? (
-                          <p className="text-sm text-ink-secondary">
-                            <time dateTime={signup.event.event_date}>
-                              {format(parseISO(signup.event.event_date), "PPP", {
-                                locale: dateLocale,
-                              })}
+            <RosterGroup
+              title={t("dashboard_individual.volunteer_signups")}
+              count={t("institution.volunteers_count", { count: signups.length })}
+            >
+              <RosterList>
+                {signups.map((signup) => {
+                  const event = signup.event;
+                  const organisation = embeddedInstitution(event?.institution);
+                  return (
+                    <RosterItem
+                      id={`signup-${signup.id}`}
+                      key={signup.id}
+                      title={event?.title ?? "—"}
+                      subtitle={[organisation?.name, organisation?.city].filter(Boolean).join(" · ")}
+                      detail={
+                        event ? (
+                          <>
+                            <time dateTime={event.event_date}>
+                              {format(parseISO(event.event_date), "EEE, d. MMM yyyy.", { locale: dateLocale })}
                             </time>
-                            {signup.event.start_time ? ` · ${signup.event.start_time}` : ""}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex justify-end border-t border-border-subtle pt-3">
-                      <CancelActionButton
-                        endpoint={`/api/volunteer-signups/${signup.id}`}
-                        label={t("volunteer_signup.cancel")}
-                        title={t("volunteer_signup.cancel_title")}
-                        description={t("volunteer_signup.cancel_body", {
-                          title: signup.event?.title ?? "",
-                        })}
-                        confirmLabel={t("volunteer_signup.cancel_confirm")}
-                        successTitle={t("volunteer_signup.cancel_success")}
-                        errorTitle={t("volunteer_signup.cancel_error")}
-                        conflictDescription={t("volunteer_signup.cancel_error_locked")}
-                        onCancelled={() =>
-                          setSignups((prev) => prev.filter((row) => row.id !== signup.id))
-                        }
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                            {event.start_time ? ` · ${event.start_time.slice(0, 5)}` : ""}
+                            {event.end_time ? `–${event.end_time.slice(0, 5)}` : ""}
+                          </>
+                        ) : null
+                      }
+                      action={
+                        <CancelActionButton
+                          endpoint={`/api/volunteer-signups/${signup.id}`}
+                          label={t("volunteer_signup.cancel")}
+                          title={t("volunteer_signup.cancel_title")}
+                          description={t("volunteer_signup.cancel_body", { title: event?.title ?? "" })}
+                          confirmLabel={t("volunteer_signup.cancel_confirm")}
+                          successTitle={t("volunteer_signup.cancel_success")}
+                          errorTitle={t("volunteer_signup.cancel_error")}
+                          conflictDescription={t("volunteer_signup.cancel_error_locked")}
+                          onCancelled={() => setSignups((prev) => prev.filter((row) => row.id !== signup.id))}
+                        />
+                      }
+                    />
+                  );
+                })}
+              </RosterList>
+            </RosterGroup>
           )}
         </section>
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
-import { CalendarDays, CheckCircle2, MapPin, Phone } from "lucide-react";
+import { Building2, CalendarDays, CheckCircle2, MapPin, Phone } from "lucide-react";
 import type { InstitutionCategory, VolunteerEvent } from "@/lib/types";
 import clsx from "clsx";
 import { CATEGORY_CONFIG, categoryVars } from "@/lib/constants";
@@ -46,6 +46,12 @@ export type VolunteerEventCardProps = {
   readOnlyHref?: string;
   /** Optional id passed through to the article element so the calendar can scroll to it. */
   htmlId?: string;
+  /**
+   * Leave the organisation out of the card's own header, where the page
+   * around it already names it (the map's organisation panel). The details
+   * dialog still says who posted the event and where.
+   */
+  hideInstitutionHeader?: boolean;
 };
 
 export function VolunteerEventCard({
@@ -57,6 +63,7 @@ export function VolunteerEventCard({
   readOnlyLabel,
   readOnlyHref,
   htmlId,
+  hideInstitutionHeader = false,
 }: VolunteerEventCardProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -209,7 +216,7 @@ export function VolunteerEventCard({
         )}
       >
         <div className="flex min-h-0 flex-1 flex-col">
-          {institution ? (
+          {institution && !hideInstitutionHeader ? (
             <div className="mb-3 flex flex-wrap items-center gap-2">
               {/* The id was already in props; the name used to be a dead <span>. */}
               <Link
@@ -281,10 +288,26 @@ export function VolunteerEventCard({
       >
         <div className="space-y-5">
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            {institution ? (
+              <div className="flex gap-2.5">
+                <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
+                <div className="min-w-0">
+                  <dt className="text-xs text-ink-tertiary">{t("volunteer_card.organiser")}</dt>
+                  <dd>
+                    <Link
+                      href={`/institution/${institution.id}`}
+                      className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
+                    >
+                      {institution.name}
+                    </Link>
+                  </dd>
+                </div>
+              </div>
+            ) : null}
             <div className="flex gap-2.5">
               <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
               <div>
-                <dt className="sr-only">{t("volunteer_card.when")}</dt>
+                <dt className="text-xs text-ink-tertiary">{t("volunteer_card.when")}</dt>
                 <dd className="text-ink">{dateLabel}</dd>
                 <dd className="text-ink-secondary">{timeLabel}</dd>
               </div>
@@ -293,7 +316,7 @@ export function VolunteerEventCard({
               <div className="flex gap-2.5">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
                 <div>
-                  <dt className="sr-only">{t("volunteer_card.where")}</dt>
+                  <dt className="text-xs text-ink-tertiary">{t("volunteer_card.where")}</dt>
                   <dd className="text-ink">
                     {[institution.address, institution.city].filter(Boolean).join(", ")}
                   </dd>
@@ -304,7 +327,7 @@ export function VolunteerEventCard({
               <div className="flex gap-2.5">
                 <Phone className="mt-0.5 h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
                 <div>
-                  <dt className="sr-only">{t("volunteer_card.contact")}</dt>
+                  <dt className="text-xs text-ink-tertiary">{t("volunteer_card.contact")}</dt>
                   {event.contact_person ? <dd className="text-ink">{event.contact_person}</dd> : null}
                   {event.contact_phone ? (
                     <dd>

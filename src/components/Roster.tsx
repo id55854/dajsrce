@@ -103,6 +103,58 @@ export function RosterList({ children }: { children: ReactNode }) {
   return <ul className="divide-y divide-border-subtle">{children}</ul>;
 }
 
+/**
+ * A generic row in the same list: an event, a need, a pledge. Same rhythm as
+ * RosterPerson so a profile's lists read alike whatever they hold.
+ */
+export function RosterItem({
+  id,
+  title,
+  subtitle,
+  detail,
+  aside,
+  action,
+  flush = false,
+}: {
+  id?: string;
+  title: ReactNode;
+  /** Who or where, e.g. the organisation. */
+  subtitle?: ReactNode;
+  /** When, e.g. "prije 2 dana" or the event date. */
+  detail?: ReactNode;
+  /** Right-hand figure, e.g. the pledged quantity. */
+  aside?: ReactNode;
+  /** A trailing control, e.g. withdraw. */
+  action?: ReactNode;
+  /** Drop the side padding when the list already sits inside padding. */
+  flush?: boolean;
+}) {
+  return (
+    <li
+      id={id}
+      className={`flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 py-2.5 transition-colors hover:bg-surface-sunken/60 sm:flex-nowrap ${flush ? "" : "px-4"}`}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="line-clamp-2 text-sm font-medium text-ink">{title}</p>
+        {subtitle ? <p className="truncate text-xs text-ink-secondary">{subtitle}</p> : null}
+        {detail ? <p className="text-xs text-ink-tertiary">{detail}</p> : null}
+      </div>
+      {aside ? <div className="w-16 shrink-0 text-right">{aside}</div> : null}
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </li>
+  );
+}
+
+/** The quantity figure used on the right of pledge rows. */
+export function RosterQuantity({ value, label }: { value: ReactNode; label: ReactNode }) {
+  return (
+    <>
+      <p className="text-base font-semibold tabular-nums text-ink">{value}</p>
+      <p className="text-xs text-ink-tertiary">{label}</p>
+    </>
+  );
+}
+
 export function RosterPerson({
   name,
   email,

@@ -42,7 +42,7 @@ describe("profile calendars", () => {
         requirements: "Udobna obuća",
         volunteers_needed: 8,
         volunteers_signed_up: 3,
-        institution: [{ name: "Pučka kuhinja" }],
+        institution: [{ name: "Pučka kuhinja", address: "Ilica 1", city: "Zagreb" }],
       },
     }]);
     expect(entry.details).toEqual({
@@ -52,6 +52,7 @@ describe("profile calendars", () => {
       endTime: "12:00",
       requirements: "Udobna obuća",
       organisation: "Pučka kuhinja",
+      location: "Ilica 1, Zagreb",
       filled: 3,
       needed: 8,
     });

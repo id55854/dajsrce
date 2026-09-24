@@ -5,7 +5,7 @@ import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { hr, enUS } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
-import { CalendarDays, Building2 } from "lucide-react";
+import { CalendarDays, Building2, MapPin } from "lucide-react";
 import type { CalendarEntry } from "@/lib/profile-calendar";
 import { VolunteerCalendar } from "./VolunteerCalendar";
 import { Button, Card, Dialog, SectionHeader, Skeleton, buttonClasses } from "./ui";
@@ -130,7 +130,7 @@ function EntryDialog({ entry, institution, onClose }: {
           <div className="flex gap-2.5">
             <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
             <div>
-              <dt className="sr-only">{t("volunteer_card.when")}</dt>
+              <dt className="text-xs text-ink-tertiary">{t("volunteer_card.when")}</dt>
               <dd className="text-ink">{dateLabel}</dd>
               {time ? <dd className="text-ink-secondary">{time}</dd> : null}
             </div>
@@ -139,8 +139,17 @@ function EntryDialog({ entry, institution, onClose }: {
             <div className="flex gap-2.5">
               <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
               <div>
-                <dt className="sr-only">{t("profile_calendar.organisation")}</dt>
+                <dt className="text-xs text-ink-tertiary">{t("volunteer_card.organiser")}</dt>
                 <dd className="text-ink">{details.organisation}</dd>
+              </div>
+            </div>
+          ) : null}
+          {details?.location ? (
+            <div className="flex gap-2.5">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
+              <div>
+                <dt className="text-xs text-ink-tertiary">{t("volunteer_card.where")}</dt>
+                <dd className="text-ink">{details.location}</dd>
               </div>
             </div>
           ) : null}

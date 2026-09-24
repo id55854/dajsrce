@@ -19,9 +19,9 @@ import { NewNeedForm } from "@/components/NewNeedForm";
 import { InstitutionCalendar } from "@/components/InstitutionCalendar";
 import { SignOutButton } from "@/components/SignOutButton";
 import type { PublicInstitutionDetail } from "@/lib/location-map";
+import { ProfileHeader } from "@/components/ProfileHeader";
 import {
   Button,
-  Card,
   PageHeader,
   PageShell,
   Skeleton,
@@ -95,7 +95,7 @@ function InstitutionDashboardExperience() {
         {institutionLoading ? (
           <Skeleton className="h-32 rounded-card" />
         ) : institution ? (
-          <ProfileHeader
+          <InstitutionProfileHeader
             institution={institution}
             panel={panel}
             needPanelId={needPanelId}
@@ -171,7 +171,7 @@ function InstitutionDashboardExperience() {
   );
 }
 
-function ProfileHeader({
+function InstitutionProfileHeader({
   institution,
   panel,
   needPanelId,
@@ -192,36 +192,34 @@ function ProfileHeader({
     .join(", ");
 
   return (
-    <Card>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold leading-tight tracking-[-0.01em] text-ink">
-            {institution.name}
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-secondary">
-            {category ? (
-              <span
-                style={categoryVars(institution.category)}
-                className="category-chip inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
-              >
-                {locale === "hr" ? category.labelHr : category.label}
-              </span>
-            ) : null}
-            {institution.isVerified ? (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-success">
-                <BadgeCheck className="h-4 w-4" aria-hidden />
-                {t("map_ui.verified")}
-              </span>
-            ) : null}
-            {place ? (
-              <span className="inline-flex min-w-0 items-center gap-1">
-                <MapPin className="h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
-                <span className="truncate">{place}</span>
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+    <ProfileHeader
+      title={institution.name}
+      facts={
+        <>
+          {category ? (
+            <span
+              style={categoryVars(institution.category)}
+              className="category-chip inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+            >
+              {locale === "hr" ? category.labelHr : category.label}
+            </span>
+          ) : null}
+          {institution.isVerified ? (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-success">
+              <BadgeCheck className="h-4 w-4" aria-hidden />
+              {t("map_ui.verified")}
+            </span>
+          ) : null}
+          {place ? (
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <MapPin className="h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
+              <span className="truncate">{place}</span>
+            </span>
+          ) : null}
+        </>
+      }
+      links={
+        <>
           <Link
             href={`/institution/${institution.id}`}
             className={buttonClasses({ variant: "ghost", size: "sm" })}
@@ -233,28 +231,29 @@ function ProfileHeader({
             <MapPin className="h-4 w-4" aria-hidden />
             {t("institution.dashboard_view_map")}
           </Link>
-        </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap gap-2 border-t border-border-subtle pt-4">
-        <Button
-          aria-expanded={panel === "need"}
-          aria-controls={needPanelId}
-          onClick={() => onToggle("need")}
-          icon={<Plus className="h-4 w-4" aria-hidden="true" />}
-        >
-          {t("institution.dashboard_new_need")}
-        </Button>
-        <Button
-          variant="secondary"
-          aria-expanded={panel === "event"}
-          aria-controls={eventPanelId}
-          onClick={() => onToggle("event")}
-          icon={<CalendarPlus className="h-4 w-4" aria-hidden="true" />}
-        >
-          {t("institution.dashboard_new_event")}
-        </Button>
-      </div>
-    </Card>
+        </>
+      }
+      actions={
+        <>
+          <Button
+            aria-expanded={panel === "need"}
+            aria-controls={needPanelId}
+            onClick={() => onToggle("need")}
+            icon={<Plus className="h-4 w-4" aria-hidden="true" />}
+          >
+            {t("institution.dashboard_new_need")}
+          </Button>
+          <Button
+            variant="secondary"
+            aria-expanded={panel === "event"}
+            aria-controls={eventPanelId}
+            onClick={() => onToggle("event")}
+            icon={<CalendarPlus className="h-4 w-4" aria-hidden="true" />}
+          >
+            {t("institution.dashboard_new_event")}
+          </Button>
+        </>
+      }
+    />
   );
 }

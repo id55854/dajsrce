@@ -197,12 +197,14 @@ export function InstitutionActivity({ institutionId }: { institutionId: string }
             {t("map_page.activity_events", { count: events.length })}
           </h3>
           <ul className="space-y-3">
-            {events.map(({ institution: _institution, ...event }) => (
+            {events.map((event) => (
               <li key={event.id}>
                 {/* Same reason as the needs above: the card's own header would
-                    repeat the organisation this panel is already about. */}
+                    repeat the organisation this panel is already about. Its
+                    details dialog still names the organiser and the place. */}
                 <VolunteerEventCard
                   event={event}
+                  hideInstitutionHeader
                   isRegistered={registeredEventIds.has(event.id)}
                   onSignUp={handleSignUp}
                 />
