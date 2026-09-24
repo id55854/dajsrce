@@ -182,6 +182,51 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     return map;
   }, [userPledges]);
 
+  // need_id → the ids of my standing pledges to it, for the card's withdraw.
+  const myPledgeIdsByNeed = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const p of userPledges) {
+      if (p.status === "cancelled") continue;
+      map.set(p.need_id, [...(map.get(p.need_id) ?? []), p.id]);
+    }
+    return map;
+  }, [userPledges]);
+
+  const onPledgesCancelled = useCallback((needId: string) => {
+    // Read the released amount before either update is queued: React may
+    // apply the needs update before the pledges one.
+    const released = myPledgedByNeed.get(needId) ?? 0;
+    setUserPledges((prev) =>
+      prev.map((p) =>
+        p.need_id === needId && p.status !== "cancelled" ? { ...p, status: "cancelled" } : p
+      )
+    );
+    setNeeds((prev) =>
+      prev.map((n) =>
+        n.id === needId
+          ? { ...n, quantity_pledged: Math.max(0, n.quantity_pledged - released), is_fulfilled: false }
+          : n
+      )
+    );
+  }, [myPledgedByNeed]);
+
+  // One pledge withdrawn from the "your pledges" summary: keep the need card
+  // below in step with it.
+  const onPledgeCancelled = useCallback((pledgeId: string) => {
+    const pledge = userPledges.find((p) => p.id === pledgeId);
+    if (!pledge) return;
+    setUserPledges((prev) =>
+      prev.map((p) => (p.id === pledgeId ? { ...p, status: "cancelled" } : p))
+    );
+    setNeeds((prev) =>
+      prev.map((n) =>
+        n.id === pledge.need_id
+          ? { ...n, quantity_pledged: Math.max(0, n.quantity_pledged - (pledge.quantity ?? 0)), is_fulfilled: false }
+          : n
+      )
+    );
+  }, [userPledges]);
+
   const filtersActive = donationType !== "all" || urgency !== "all" || categories.length > 0;
 
   const clearFilters = useCallback(() => {
@@ -245,6 +290,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
           loggedIn={loggedIn === true}
           loading={pledgesLoading}
           pledges={userPledges}
+          onCancelled={onPledgeCancelled}
         />
       )}
 
@@ -324,6 +370,8 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
               key={need.id}
               need={need}
               myPledgedQty={myPledgedByNeed.get(need.id) ?? null}
+              myPledgeIds={myPledgeIdsByNeed.get(need.id) ?? []}
+              onPledgesCancelled={onPledgesCancelled}
               onPledgeSuccess={onPledgeSuccess}
               canPledge={!isNgo}
             />

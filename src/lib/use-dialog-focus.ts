@@ -12,6 +12,31 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
+/**
+ * Open dialogs, innermost last. Dialogs nest (a confirm opened from a details
+ * dialog), and both may close in the same commit, in either order. A per-
+ * dialog "restore what I saw" left the page locked whenever the outer one
+ * restored first and the inner one then put back the "hidden" it had seen,
+ * so the scroll lock is shared: taken by the first dialog, released by the
+ * last. Only the innermost dialog answers Escape and Tab.
+ */
+const openDialogs: HTMLElement[] = [];
+let overflowBeforeLock = "";
+
+function lockScroll(dialog: HTMLElement) {
+  if (openDialogs.length === 0) {
+    overflowBeforeLock = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+  openDialogs.push(dialog);
+}
+
+function unlockScroll(dialog: HTMLElement) {
+  const index = openDialogs.lastIndexOf(dialog);
+  if (index !== -1) openDialogs.splice(index, 1);
+  if (openDialogs.length === 0) document.body.style.overflow = overflowBeforeLock;
+}
+
 export function useDialogFocus({
   open,
   dialogRef,
@@ -27,8 +52,7 @@ export function useDialogFocus({
     if (!dialog) return;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    lockScroll(dialog);
 
     const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
     const initial =
@@ -38,6 +62,7 @@ export function useDialogFocus({
     initial.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (openDialogs[openDialogs.length - 1] !== dialog) return;
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
@@ -66,7 +91,7 @@ export function useDialogFocus({
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
+      unlockScroll(dialog);
       previouslyFocused?.focus();
     };
   }, [dialogRef, onClose, open]);

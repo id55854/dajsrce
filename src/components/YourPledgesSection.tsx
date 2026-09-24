@@ -66,8 +66,12 @@ function ConfirmActionButton({
   conflictDescription,
   onDone,
 }: {
-  /** Write target, e.g. `/api/pledges/<id>`. */
-  endpoint: string;
+  /**
+   * Write target, e.g. `/api/pledges/<id>`. Several targets run one after
+   * another (withdrawing every pledge someone made to one need); each is its
+   * own server transaction, and the first refusal stops the rest.
+   */
+  endpoint: string | readonly string[];
   method: "DELETE";
   icon: ReactNode;
   variant: "ghost" | "secondary";
@@ -90,15 +94,17 @@ function ConfirmActionButton({
   async function confirm() {
     setBusy(true);
     try {
-      const res = await fetch(endpoint, { method, credentials: "include" });
-      if (!res.ok) {
-        toast({
-          tone: "error",
-          title: errorTitle,
-          description:
-            res.status === 409 ? conflictDescription : t("common.error_generic"),
-        });
-        return;
+      for (const target of typeof endpoint === "string" ? [endpoint] : endpoint) {
+        const res = await fetch(target, { method, credentials: "include" });
+        if (!res.ok) {
+          toast({
+            tone: "error",
+            title: errorTitle,
+            description:
+              res.status === 409 ? conflictDescription : t("common.error_generic"),
+          });
+          return;
+        }
       }
       toast({ tone: "success", title: successTitle });
       onDone();
@@ -333,6 +339,28 @@ export function YourPledgesSection({
       <PledgeDetailsDialog
         pledge={current.find((p) => p.id === openId) ?? null}
         onClose={() => setOpenId(null)}
+        footer={
+          openId ? (
+            <CancelActionButton
+              endpoint={`/api/pledges/${openId}`}
+              label={t("your_pledges.cancel")}
+              title={t("your_pledges.cancel_title")}
+              description={t("your_pledges.cancel_body", {
+                title: current.find((p) => p.id === openId)?.need?.title ?? "",
+              })}
+              confirmLabel={t("your_pledges.cancel_confirm")}
+              successTitle={t("your_pledges.cancel_success")}
+              errorTitle={t("your_pledges.cancel_error")}
+              conflictDescription={t("your_pledges.cancel_error_locked")}
+              onCancelled={() => {
+                const id = openId;
+                setOpenId(null);
+                setCancelledIds((prev) => new Set(prev).add(id));
+                onCancelled?.(id);
+              }}
+            />
+          ) : null
+        }
       />
     </SectionWrapper>
   );

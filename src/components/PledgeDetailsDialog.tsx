@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
@@ -27,7 +28,16 @@ export type PledgeDetails = {
   } | null;
 };
 
-export function PledgeDetailsDialog({ pledge, onClose }: { pledge: PledgeDetails | null; onClose: () => void }) {
+export function PledgeDetailsDialog({
+  pledge,
+  onClose,
+  footer,
+}: {
+  pledge: PledgeDetails | null;
+  onClose: () => void;
+  /** E.g. the withdraw control, so the pledge can be cancelled from here. */
+  footer?: ReactNode;
+}) {
   const t = useT();
   const { locale } = useLocale();
   const need = pledge?.need;
@@ -47,6 +57,7 @@ export function PledgeDetailsDialog({ pledge, onClose }: { pledge: PledgeDetails
       description={t("your_pledges.you_pledged").replace("{qty}", String(pledge.quantity))}
       closeLabel={t("common.close")}
       variant="sheet-on-mobile"
+      footer={footer}
     >
       <div className="space-y-5">
         <dl className="grid gap-3 text-sm sm:grid-cols-2">

@@ -9,8 +9,8 @@ import { fetchMe } from "@/lib/me-client";
 import { useT } from "@/i18n/client";
 import type { Need, VolunteerEvent } from "@/lib/types";
 
-type MyPledgeRow = { need_id: string; quantity: number; status?: string | null };
-type MySignupRow = { event_id: string };
+type MyPledgeRow = { id: string; need_id: string; quantity: number; status?: string | null };
+type MySignupRow = { id?: string; event_id: string };
 
 /**
  * What this organisation is actually asking for, under its detail panel.
@@ -35,8 +35,12 @@ export function InstitutionActivity({ institutionId }: { institutionId: string }
   const [myPledgedByNeed, setMyPledgedByNeed] = useState<Map<string, number>>(
     () => new Map()
   );
-  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(
-    () => new Set()
+  const [myPledgeIdsByNeed, setMyPledgeIdsByNeed] = useState<Map<string, string[]>>(
+    () => new Map()
+  );
+  /** event id -> the visitor's own signup id (null until the server says). */
+  const [registeredEventIds, setRegisteredEventIds] = useState<Map<string, string | null>>(
+    () => new Map()
   );
   // Giving is a citizen action: an NGO account never pledges, and
   // `/api/pledges` rejects it anyway, so the button is not offered. Unknown
@@ -99,13 +103,16 @@ export function InstitutionActivity({ institutionId }: { institutionId: string }
       setNeeds(needsJson?.needs ?? []);
       setEvents(eventsJson?.events ?? []);
       const pledgedByNeed = new Map<string, number>();
+      const pledgeIdsByNeed = new Map<string, string[]>();
       for (const p of pledgesJson?.pledges ?? []) {
         if (p.status === "cancelled") continue;
         pledgedByNeed.set(p.need_id, (pledgedByNeed.get(p.need_id) ?? 0) + (p.quantity ?? 0));
+        pledgeIdsByNeed.set(p.need_id, [...(pledgeIdsByNeed.get(p.need_id) ?? []), p.id]);
       }
       setMyPledgedByNeed(pledgedByNeed);
+      setMyPledgeIdsByNeed(pledgeIdsByNeed);
       setRegisteredEventIds(
-        new Set((signupsJson?.signups ?? []).map((s) => s.event_id))
+        new Map((signupsJson?.signups ?? []).map((s) => [s.event_id, s.id ?? null]))
       );
       setFailed(!needsJson && !eventsJson);
       setLoading(false);
@@ -122,13 +129,47 @@ export function InstitutionActivity({ institutionId }: { institutionId: string }
       next.set(needId, (next.get(needId) ?? 0) + (payload.pledge.quantity ?? 0));
       return next;
     });
+    setMyPledgeIdsByNeed((prev) => {
+      const next = new Map(prev);
+      const needId = payload.pledge.need_id;
+      next.set(needId, [...(next.get(needId) ?? []), payload.pledge.id]);
+      return next;
+    });
   }, []);
 
-  const handleSignUp = useCallback((eventId: string) => {
+  const handlePledgesCancelled = useCallback((needId: string) => {
+    setMyPledgedByNeed((prev) => {
+      const next = new Map(prev);
+      next.delete(needId);
+      return next;
+    });
+    setMyPledgeIdsByNeed((prev) => {
+      const next = new Map(prev);
+      next.delete(needId);
+      return next;
+    });
+  }, []);
+
+  const handleSignupCancelled = useCallback((eventId: string) => {
     setRegisteredEventIds((prev) => {
-      if (prev.has(eventId)) return prev;
-      const next = new Set(prev);
-      next.add(eventId);
+      const next = new Map(prev);
+      next.delete(eventId);
+      return next;
+    });
+    setEvents((prev) =>
+      prev.map((event) =>
+        event.id === eventId
+          ? { ...event, volunteers_signed_up: Math.max(0, (event.volunteers_signed_up ?? 0) - 1) }
+          : event
+      )
+    );
+  }, []);
+
+  const handleSignUp = useCallback((eventId: string, signupId?: string) => {
+    setRegisteredEventIds((prev) => {
+      if (prev.has(eventId) && !signupId) return prev;
+      const next = new Map(prev);
+      next.set(eventId, signupId ?? prev.get(eventId) ?? null);
       return next;
     });
     setEvents((prev) =>
@@ -183,6 +224,8 @@ export function InstitutionActivity({ institutionId }: { institutionId: string }
                   need={need}
                   canPledge={canPledge}
                   myPledgedQty={myPledgedByNeed.get(need.id) ?? null}
+                  myPledgeIds={myPledgeIdsByNeed.get(need.id) ?? []}
+                  onPledgesCancelled={handlePledgesCancelled}
                   onPledgeSuccess={handlePledgeSuccess}
                 />
               </li>
@@ -206,6 +249,8 @@ export function InstitutionActivity({ institutionId }: { institutionId: string }
                   event={event}
                   hideInstitutionHeader
                   isRegistered={registeredEventIds.has(event.id)}
+                  signupId={registeredEventIds.get(event.id) ?? null}
+                  onCancelled={handleSignupCancelled}
                   onSignUp={handleSignUp}
                 />
               </li>

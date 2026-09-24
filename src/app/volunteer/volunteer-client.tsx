@@ -55,7 +55,8 @@ export function VolunteerClient() {
   const [loading, setLoading] = useState(() => readPublicList("/api/volunteer-events") === undefined);
   const [signupsLoading, setSignupsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [registered, setRegistered] = useState<Set<string>>(() => new Set());
+  /** event id -> the visitor's own signup id (null until the server says). */
+  const [registered, setRegistered] = useState<Map<string, string | null>>(() => new Map());
   const [retry, setRetry] = useState(0);
 
   // Public events can render before the independent private signup lookup.
@@ -94,9 +95,9 @@ export function VolunteerClient() {
           credentials: "include", signal: controller.signal,
         });
         if (!response.ok) throw new Error();
-        const json = (await response.json()) as { signups?: { event_id: string }[] };
+        const json = (await response.json()) as { signups?: { id?: string; event_id: string }[] };
         if (!controller.signal.aborted) {
-          setRegistered(new Set((json.signups ?? []).map((signup) => signup.event_id)));
+          setRegistered(new Map((json.signups ?? []).map((signup) => [signup.event_id, signup.id ?? null])));
         }
       } catch {
         // Public browsing remains available; the signup API verifies duplicates.
@@ -107,14 +108,14 @@ export function VolunteerClient() {
     return () => controller.abort();
   }, [retry]);
 
-  const handleSignUp = useCallback((eventId: string) => {
+  const handleSignUp = useCallback((eventId: string, signupId?: string) => {
     // Source-of-truth update for both the registered set and the event's
     // counter, counter only bumps when this is a fresh registration to
     // avoid double-counting the 409 (already-registered) path.
     setRegistered((prev) => {
-      if (prev.has(eventId)) return prev;
-      const next = new Set(prev);
-      next.add(eventId);
+      if (prev.has(eventId) && !signupId) return prev;
+      const next = new Map(prev);
+      next.set(eventId, signupId ?? prev.get(eventId) ?? null);
       return next;
     });
     setEvents((prev) =>
@@ -124,6 +125,21 @@ export function VolunteerClient() {
               ...ev,
               volunteers_signed_up: (ev.volunteers_signed_up ?? 0) + 1,
             }
+          : ev
+      )
+    );
+  }, []);
+
+  const handleCancelled = useCallback((eventId: string) => {
+    setRegistered((prev) => {
+      const next = new Map(prev);
+      next.delete(eventId);
+      return next;
+    });
+    setEvents((prev) =>
+      prev.map((ev) =>
+        ev.id === eventId
+          ? { ...ev, volunteers_signed_up: Math.max(0, (ev.volunteers_signed_up ?? 0) - 1) }
           : ev
       )
     );
@@ -229,6 +245,8 @@ export function VolunteerClient() {
                   isRegistered={registered.has(event.id)}
                   registrationPending={signupsLoading}
                   onSignUp={handleSignUp}
+                  signupId={registered.get(event.id) ?? null}
+                  onCancelled={handleCancelled}
                   htmlId={eventCardId(event.id)}
                 />
               ))}

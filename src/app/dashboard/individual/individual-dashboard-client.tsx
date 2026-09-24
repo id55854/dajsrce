@@ -424,10 +424,35 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
         <PledgeDetailsDialog
           pledge={current.find((row) => row.id === openPledgeId) ?? null}
           onClose={() => setOpenPledgeId(null)}
+          footer={
+            openPledgeId ? (
+              <CancelActionButton
+                endpoint={`/api/pledges/${openPledgeId}`}
+                label={t("your_pledges.cancel")}
+                title={t("your_pledges.cancel_title")}
+                description={t("your_pledges.cancel_body", {
+                  title: current.find((row) => row.id === openPledgeId)?.need?.title ?? "",
+                })}
+                confirmLabel={t("your_pledges.cancel_confirm")}
+                successTitle={t("your_pledges.cancel_success")}
+                errorTitle={t("your_pledges.cancel_error")}
+                conflictDescription={t("your_pledges.cancel_error_locked")}
+                onCancelled={() => {
+                  const id = openPledgeId;
+                  setOpenPledgeId(null);
+                  setPledges((prev) => prev.filter((row) => row.id !== id));
+                }}
+              />
+            ) : null
+          }
         />
         <SignupDetailsDialog
           signup={signups.find((row) => row.id === openSignupId) ?? null}
           onClose={() => setOpenSignupId(null)}
+          onCancelled={(id) => {
+            setOpenSignupId(null);
+            setSignups((prev) => prev.filter((row) => row.id !== id));
+          }}
         />
 
         <div className="border-t border-border-subtle pt-6">
@@ -438,7 +463,11 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
   );
 }
 
-function SignupDetailsDialog({ signup, onClose }: { signup: SignupRow | null; onClose: () => void }) {
+function SignupDetailsDialog({ signup, onClose, onCancelled }: {
+  signup: SignupRow | null;
+  onClose: () => void;
+  onCancelled: (signupId: string) => void;
+}) {
   const t = useT();
   const { locale } = useLocale();
   const event = signup?.event;
@@ -457,6 +486,19 @@ function SignupDetailsDialog({ signup, onClose }: { signup: SignupRow | null; on
       description={t("volunteer_card.registered")}
       closeLabel={t("common.close")}
       variant="sheet-on-mobile"
+      footer={
+        <CancelActionButton
+          endpoint={`/api/volunteer-signups/${signup.id}`}
+          label={t("volunteer_signup.cancel")}
+          title={t("volunteer_signup.cancel_title")}
+          description={t("volunteer_signup.cancel_body", { title: event.title })}
+          confirmLabel={t("volunteer_signup.cancel_confirm")}
+          successTitle={t("volunteer_signup.cancel_success")}
+          errorTitle={t("volunteer_signup.cancel_error")}
+          conflictDescription={t("volunteer_signup.cancel_error_locked")}
+          onCancelled={() => onCancelled(signup.id)}
+        />
+      }
     >
       <div className="space-y-5">
         <dl className="grid gap-3 text-sm sm:grid-cols-2">

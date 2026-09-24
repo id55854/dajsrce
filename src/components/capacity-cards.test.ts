@@ -90,4 +90,24 @@ describe("capacity on the public cards", () => {
     expect(html).not.toContain("grayscale");
     expect(html).toContain("Mogu pomoći");
   });
+
+  it("offers withdraw on a registered event only when it knows the signup", () => {
+    const registered = { event: { ...event, volunteers_signed_up: 2 }, isRegistered: true };
+    expect(render(createElement(VolunteerEventCard, registered))).not.toContain("Otkaži prijavu");
+    const html = render(createElement(VolunteerEventCard, { ...registered, signupId: "s1", onCancelled: () => {} }));
+    expect(html).toContain("Prijavljeni ste");
+    expect(html).toContain("Otkaži prijavu");
+  });
+
+  it("offers withdraw on a need only to someone who pledged to it", () => {
+    const open = { ...need, quantity_pledged: 4 };
+    expect(render(createElement(NeedCard, { need: open, onPledgesCancelled: () => {} }))).not.toContain("Otkaži obećanje");
+    const html = render(createElement(NeedCard, {
+      need: open,
+      myPledgedQty: 2,
+      myPledgeIds: ["p1", "p2"],
+      onPledgesCancelled: () => {},
+    }));
+    expect(html).toContain("Otkaži obećanje");
+  });
 });

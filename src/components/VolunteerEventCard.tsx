@@ -13,6 +13,7 @@ import { AuthActionDialog } from "@/components/AuthActionDialog";
 import { useLocale, useT } from "@/i18n/client";
 import { Badge, Button, Card, Dialog, buttonClasses } from "@/components/ui";
 import { useLiveCapacity } from "@/lib/live-capacity";
+import { CancelActionButton } from "@/components/YourPledgesSection";
 import type { CapacityErrorCode } from "@/lib/capacity-errors";
 
 export type VolunteerEventCardProps = {
@@ -37,7 +38,13 @@ export type VolunteerEventCardProps = {
    * The parent should bump volunteers_signed_up locally and add the event id
    * to its registered set so the UI updates without a page refresh.
    */
-  onSignUp?: (eventId: string) => void;
+  onSignUp?: (eventId: string, signupId?: string) => void;
+  /**
+   * The visitor's own signup for this event, when the parent knows it. With
+   * `onCancelled` it adds a withdraw control under "You're registered".
+   */
+  signupId?: string | null;
+  onCancelled?: (eventId: string) => void;
   /** When true, hides API sign-up; use `readOnlyHref` for a CTA link (e.g. pitch pages). */
   readOnly?: boolean;
   /** Label when `readOnly` is true (plain text or link label). */
@@ -64,6 +71,8 @@ export function VolunteerEventCard({
   readOnlyHref,
   htmlId,
   hideInstitutionHeader = false,
+  signupId = null,
+  onCancelled,
 }: VolunteerEventCardProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -133,7 +142,8 @@ export function VolunteerEventCard({
         setErrorKey(body?.code === "event_ended" ? "volunteer_card.ended" : "volunteer_card.failed");
         return;
       }
-      onSignUp?.(event.id);
+      const created = (await res.json().catch(() => null)) as { signup?: { id?: string } } | null;
+      onSignUp?.(event.id, created?.signup?.id);
     } catch {
       setErrorKey("volunteer_card.failed");
     } finally {
@@ -182,10 +192,31 @@ export function VolunteerEventCard({
       </p>
     )
   ) : isRegistered ? (
-    <p className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-success-soft px-5 py-2.5 text-center text-sm font-semibold text-success-on-soft">
-      <CheckCircle2 className="h-4 w-4" aria-hidden />
-      {t("volunteer_card.registered")}
-    </p>
+    <div className="w-full space-y-2">
+      <p className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-success-soft px-5 py-2.5 text-center text-sm font-semibold text-success-on-soft">
+        <CheckCircle2 className="h-4 w-4" aria-hidden />
+        {t("volunteer_card.registered")}
+      </p>
+      {signupId && onCancelled ? (
+        <div className="flex justify-center">
+          <CancelActionButton
+            endpoint={`/api/volunteer-signups/${signupId}`}
+            label={t("volunteer_signup.cancel")}
+            title={t("volunteer_signup.cancel_title")}
+            description={t("volunteer_signup.cancel_body", { title: event.title })}
+            confirmLabel={t("volunteer_signup.cancel_confirm")}
+            successTitle={t("volunteer_signup.cancel_success")}
+            errorTitle={t("volunteer_signup.cancel_error")}
+            conflictDescription={t("volunteer_signup.cancel_error_locked")}
+            onCancelled={() => {
+              applyCounts({ volunteers_signed_up: Math.max(0, signed - 1) });
+              setDetailsOpen(false);
+              onCancelled(event.id);
+            }}
+          />
+        </div>
+      ) : null}
+    </div>
   ) : (
     <div className="w-full">
       {full ? (

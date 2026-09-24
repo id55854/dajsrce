@@ -17,6 +17,7 @@ import { useLocale, useT } from "@/i18n/client";
 import { Badge, Card, type BadgeTone } from "@/components/ui";
 import { PledgeButton, type PledgeSuccessPayload } from "./PledgeButton";
 import { useLiveCapacity } from "@/lib/live-capacity";
+import { CancelActionButton } from "@/components/YourPledgesSection";
 import { DonationTypeIcon } from "@/components/DonationTypeIcon";
 
 export type NeedCardNeed = Need & {
@@ -42,6 +43,12 @@ type NeedCardProps = {
    * a 403. The parent resolves the role once, rather than every card asking.
    */
   canPledge?: boolean;
+  /**
+   * The visitor's own standing pledges to this need. With
+   * `onPledgesCancelled` the card offers to withdraw them.
+   */
+  myPledgeIds?: readonly string[];
+  onPledgesCancelled?: (needId: string) => void;
 };
 
 /** One status→tone map, so urgency reads the same wherever a need appears. */
@@ -56,6 +63,8 @@ export function NeedCard({
   myPledgedQty = null,
   onPledgeSuccess,
   canPledge = true,
+  myPledgeIds = [],
+  onPledgesCancelled,
 }: NeedCardProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -197,6 +206,25 @@ export function NeedCard({
           canPledge ? "justify-between" : "justify-end"
         )}
       >
+        {mine && myPledgeIds.length > 0 && onPledgesCancelled ? (
+          <CancelActionButton
+            endpoint={myPledgeIds.map((id) => `/api/pledges/${id}`)}
+            label={t("your_pledges.cancel")}
+            title={t("your_pledges.cancel_title")}
+            description={t("your_pledges.cancel_body", { title: need.title })}
+            confirmLabel={t("your_pledges.cancel_confirm")}
+            successTitle={t("your_pledges.cancel_success")}
+            errorTitle={t("your_pledges.cancel_error")}
+            conflictDescription={t("your_pledges.cancel_error_locked")}
+            onCancelled={() => {
+              applyCounts({
+                quantity_pledged: Math.max(0, pledged - (myPledgedQty ?? 0)),
+                is_fulfilled: false,
+              });
+              onPledgesCancelled(need.id);
+            }}
+          />
+        ) : null}
         {canPledge ? (
           <PledgeButton
             needId={need.id}
