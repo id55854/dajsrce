@@ -201,6 +201,42 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* A clickable control shows a hand. Anchors already do this in the browser;
+   buttons, summaries and ARIA widgets do not. Zero specificity inside the
+   base layer so a utility still wins: cursor-grab on the map, and
+   disabled:cursor-not-allowed on a control that cannot be used. */
+@layer base {
+  :where(
+    a[href],
+    area[href],
+    button:enabled,
+    summary,
+    select:enabled,
+    label:is([for], :has(:is(input, select, button))),
+    input:enabled:is(
+      [type="button"],
+      [type="submit"],
+      [type="reset"],
+      [type="checkbox"],
+      [type="radio"],
+      [type="file"],
+      [type="range"]
+    ),
+    [role="button"]:not([aria-disabled="true"]),
+    [role="link"],
+    [role="tab"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"],
+    [role="switch"],
+    [role="checkbox"],
+    [role="radio"]
+  ) {
+    cursor: pointer;
+  }
+}
+
 /* Small print everywhere: the 12px-and-under sizes. Skipped under the
    dyslexia setting, whose own font must win. */
 html:not(.dyslexia-font) body :is(.text-xs, .text-\[11px\], .text-\[10px\]) {

@@ -35,7 +35,7 @@ export function Card({
         "rounded-card border border-border-subtle bg-surface-raised shadow-raised",
         PADDING[padding],
         interactive && [
-          "transition-[box-shadow,transform,border-color] duration-150 ease-out",
+          "cursor-pointer transition-[box-shadow,transform,border-color] duration-150 ease-out",
           "hover:border-border-strong hover:shadow-overlay",
           "motion-safe:active:scale-[0.99]",
         ],

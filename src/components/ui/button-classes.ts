@@ -41,7 +41,7 @@ export function buttonClasses({
   className?: string;
 } = {}): string {
   return clsx(
-    "inline-flex items-center justify-center rounded-full font-semibold",
+    "inline-flex cursor-pointer items-center justify-center rounded-full font-semibold",
     "transition-[background-color,border-color,color,box-shadow,transform,filter]",
     "duration-150 ease-out",
     // Feedback lands on press, not on release.
