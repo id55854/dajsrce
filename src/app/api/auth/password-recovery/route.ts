@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { sendPasswordRecovery } from "@/lib/auth/password-recovery-server";
 import { getRequestId, logError } from "@/lib/observability";
-import { NO_STORE, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
+import { NO_STORE, jsonError, requireSameOrigin } from "@/lib/security/http";
+import { rateLimitDurable } from "@/lib/security/rate-limit-durable";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +30,11 @@ export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   const blocked =
     requireSameOrigin(req, requestId) ??
-    rateLimit(
+    (await rateLimitDurable(
       req,
       { name: "auth.password_recovery.ip", limit: 5, windowMs: 15 * 60_000 },
       requestId
-    );
+    ));
   if (blocked) return blocked;
 
   let body: { email?: unknown };
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
   const email = parseEmail(body.email);
   if (!email) return jsonError("Email is invalid", 400, requestId, NO_STORE);
 
-  const emailLimited = rateLimit(
+  const emailLimited = await rateLimitDurable(
     req,
     {
       name: "auth.password_recovery.email",

@@ -16,6 +16,8 @@
  * review and token issuance keeps calling `auth.getUser()`.
  */
 
+import { parseAuthenticatorLevel, type AuthenticatorLevel } from "@/lib/auth/mfa";
+
 type ClaimsCapableClient = {
   auth: {
     getClaims: (...args: never[]) => PromiseLike<{
@@ -30,6 +32,8 @@ export type VerifiedClaims = {
   email: string | null;
   /** Signup intent and display hints only. Never a source of authorization. */
   userMetadata: Record<string, unknown>;
+  /** Supabase Auth assurance level. Copied onto the Neon token so RLS can read it. */
+  authenticatorLevel: AuthenticatorLevel;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,6 +57,9 @@ export async function getVerifiedClaims(
         claims.user_metadata && typeof claims.user_metadata === "object"
           ? (claims.user_metadata as Record<string, unknown>)
           : {},
+      authenticatorLevel: parseAuthenticatorLevel(
+        typeof claims.aal === "string" ? claims.aal : null
+      ),
     };
   } catch {
     return null;

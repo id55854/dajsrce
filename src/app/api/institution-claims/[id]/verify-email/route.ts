@@ -4,7 +4,8 @@ import { Resend } from "resend";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { hashBearerToken } from "@/lib/security/runtime";
-import { isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
+import { isUuid, jsonError, requireSameOrigin } from "@/lib/security/http";
+import { rateLimitDurable } from "@/lib/security/rate-limit-durable";
 import { getRequestId, logError } from "@/lib/observability";
 import { getLocale } from "@/i18n/server";
 import { requireEnvironmentVariable } from "@/lib/env";
@@ -96,7 +97,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   const blocked =
     requireSameOrigin(req, requestId) ??
-    rateLimit(req, { name: "institution_claims.verify_email", limit: 5, windowMs: 60_000 }, requestId);
+    (await rateLimitDurable(
+      req,
+      { name: "institution_claims.verify_email", limit: 5, windowMs: 60_000 },
+      requestId
+    ));
   if (blocked) return blocked;
 
   const supabase = await createServerSupabaseClient();
@@ -110,7 +115,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
-  const claimLimited = rateLimit(
+  const claimLimited = await rateLimitDurable(
     req,
     {
       name: "institution_claims.verify_email.claim",

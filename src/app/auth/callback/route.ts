@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { mfaGateDecision, parseAuthenticatorLevel } from "@/lib/auth/mfa";
 import { normalizeRole, roleToDashboardPath } from "@/lib/auth/roles";
 import { safeInternalPath } from "@/lib/security/redirects";
 
@@ -74,9 +75,23 @@ export async function GET(req: NextRequest) {
           return authRedirect(`${origin}/auth/setup`);
         }
 
-        if (next === "/dashboard") {
-          return authRedirect(`${origin}${roleToDashboardPath(role)}`);
+        const destination = next === "/dashboard" ? roleToDashboardPath(role) : next;
+        let decision: ReturnType<typeof mfaGateDecision> = null;
+        try {
+          const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          decision = mfaGateDecision({
+            role,
+            hasInstitution: Boolean(profile?.institution_id),
+            currentLevel: parseAuthenticatorLevel(assurance?.currentLevel),
+            nextLevel: parseAuthenticatorLevel(assurance?.nextLevel),
+          });
+        } catch {
+          decision = null;
         }
+        if (decision) {
+          return authRedirect(`${origin}/auth/mfa?next=${encodeURIComponent(destination)}`);
+        }
+        return authRedirect(`${origin}${destination}`);
       }
 
       return authRedirect(`${origin}${next}`);

@@ -1,9 +1,30 @@
 # Supabase Auth settings the release owner must enable
 
-**Status: NOT APPLIED.** Everything below is a provider/dashboard setting, not
-application code. It was deliberately left out of the code change because
-faking it in the client would be security theatre; the client can be bypassed
-entirely by calling the Supabase Auth API directly.
+**Status: CODE SHIPPED, LIVE PROJECT NOT CHANGED.** The application half
+(nonce CSP, MFA enrolment page, shared rate-limit client, and the three SQL
+files under `supabase/migrations/2026092421*.sql`) is in the repo. Nothing
+below was executed against the live project. This environment has no
+`SUPABASE_ACCESS_TOKEN` and no `DATABASE_URL_UNPOOLED`, so the Auth dashboard
+and Neon cannot be changed from here.
+
+## Not applied, because there is no database or Auth-admin access
+
+Read on 2026-09-06 and still the live values. Pushing this commit does not
+change them.
+
+| What | Still live | Needs |
+| --- | --- | --- |
+| `password_min_length` | `6` (target `12`) | `SUPABASE_ACCESS_TOKEN`, Management API |
+| `password_hibp_enabled` | `false` | same |
+| `mailer_autoconfirm` | `true` (confirmation off) | same |
+| `consume_rate_limit` and `rate_limit_buckets` | not created | `DATABASE_URL_UNPOOLED` on Neon, run `20260924210000_shared_rate_limit.sql` |
+| `authenticated` grants on `donor_offers` / `offer_claims` | still granted | same, run `20260924210100_revoke_dormant_donor_offer_access.sql` |
+| `aal` on the needs and volunteer-event insert policies | not required | same, run `20260924210200_mfa_aal2_for_publishing.sql` |
+
+Until those three SQL files run, the app keeps working: the shared limiter
+fails open when `consume_rate_limit` is missing, and publishing still uses the
+existing policies. Captcha stays off on purpose; there is no Turnstile or
+hCaptcha secret to turn it on.
 
 ## Live values, read from the project on 2026-09-06
 
@@ -152,23 +173,11 @@ publish needs, accept pledges and read donor contact details; a company owner
 account controls a billing relationship. Those are exactly the accounts where a
 second factor pays for itself.
 
-**Important caveat; the toggle alone enforces nothing.** Enabling the provider
-setting only makes enrolment *possible*. Actually requiring MFA is application
-and database work that is **not implemented**, and needs to be scheduled
-deliberately:
-
-1. Enrolment and challenge UI using `supabase.auth.mfa.enroll()`,
-   `.challenge()` and `.verify()`; there is no such screen in the app today.
-2. Enforcement at the data layer: Supabase encodes the achieved factor level in
-   the JWT `aal` claim (`aal1` = password only, `aal2` = password + second
-   factor). Privileged RLS policies and the service-role RPCs would gate on
-   `auth.jwt() ->> 'aal' = 'aal2'` rather than trusting a client flag; which is
-   consistent with the project invariant that roles and entitlements are never
-   derived from user metadata or request bodies.
-3. A recovery path, agreed with support, for a user who loses their device.
-
-Enabling the toggle before that work exists is harmless and is a prerequisite,
-but do not record MFA as "done" at that point.
+The enrolment screen is `/auth/mfa`. Middleware sends a linked NGO or a
+superadmin there until the session is `aal2`, and the same check covers the
+publishing APIs. The Neon token copies `aal` from the Supabase session so the
+RLS migration can read it. That migration is **not applied**. Until it is,
+a direct Data API insert still succeeds on a password-only session.
 
 ---
 
@@ -183,4 +192,5 @@ but do not record MFA as "done" at that point.
 - [ ] Staging: Security Advisor shows no leaked-password lint.
 - [ ] Production: repeat both settings.
 - [ ] Production: re-run the sign-in regression check above.
-- [ ] Backlog ticket opened for MFA enrolment UI + `aal2` enforcement.
+- [ ] Neon: apply `20260924210000`, `20260924210100`, and `20260924210200`.
+- [ ] MFA enrolment UI is shipped. `aal2` on the publishing policies is not, until the migration above runs.

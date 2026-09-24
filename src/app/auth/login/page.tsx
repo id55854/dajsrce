@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Chrome } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { mfaGateDecision, parseAuthenticatorLevel } from "@/lib/auth/mfa";
+import { normalizeRole } from "@/lib/auth/roles";
 import { safeInternalPath } from "@/lib/security/redirects";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
@@ -23,6 +25,29 @@ import {
 } from "../auth-ui";
 
 const FORM_ERROR_ID = "login-form-error";
+
+async function pathAfterPassword(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  destination: string
+): Promise<string> {
+  try {
+    const [{ data: assurance }, { data: profile }] = await Promise.all([
+      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+      supabase.from("profiles").select("role, institution_id").eq("id", userId).maybeSingle(),
+    ]);
+    const decision = mfaGateDecision({
+      role: normalizeRole(profile?.role),
+      hasInstitution: Boolean(profile?.institution_id),
+      currentLevel: parseAuthenticatorLevel(assurance?.currentLevel),
+      nextLevel: parseAuthenticatorLevel(assurance?.nextLevel),
+    });
+    if (!decision) return destination;
+    return `/auth/mfa?next=${encodeURIComponent(destination)}`;
+  } catch {
+    return destination;
+  }
+}
 
 function LoginForm() {
   const t = useT();
@@ -50,9 +75,10 @@ function LoginForm() {
       return;
     }
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
       const target = safeInternalPath(searchParams.get("next"));
-      if (data.user) router.replace(target);
+      router.replace(await pathAfterPassword(supabase, data.user.id, target));
     });
   }, [searchParams, router]);
 
@@ -82,7 +108,9 @@ function LoginForm() {
       setCredentialError(true);
       return;
     }
-    router.push(safeInternalPath(searchParams.get("next")));
+    const destination = safeInternalPath(searchParams.get("next"));
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    router.push(userId ? await pathAfterPassword(supabase, userId, destination) : destination);
     router.refresh();
   }
 

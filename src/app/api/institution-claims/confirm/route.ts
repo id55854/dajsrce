@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { hashBearerToken } from "@/lib/security/runtime";
-import { rateLimit, requireSameOrigin } from "@/lib/security/http";
+import { requireSameOrigin } from "@/lib/security/http";
+import { rateLimitDurable } from "@/lib/security/rate-limit-durable";
 import { getRequestId, logError } from "@/lib/observability";
 import { claimErrorStatus, isRawClaimToken } from "@/lib/institution-claims";
 
@@ -27,7 +28,11 @@ export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   const blocked =
     requireSameOrigin(req, requestId) ??
-    rateLimit(req, { name: "institution_claims.confirm", limit: 20, windowMs: 60_000 }, requestId);
+    (await rateLimitDurable(
+      req,
+      { name: "institution_claims.confirm", limit: 20, windowMs: 60_000 },
+      requestId
+    ));
   if (blocked) return blocked;
 
   let token = "";

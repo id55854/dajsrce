@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -29,13 +30,18 @@ export function SignOutButton() {
   }
 
   return (
-    <Button
-      variant="secondary"
-      onClick={handleSignOut}
-      loading={loading}
-      icon={<LogOut className="h-4 w-4" aria-hidden="true" />}
-    >
-      {t("nav.sign_out")}
-    </Button>
+    <div className="flex flex-col items-start gap-3">
+      <Link href="/auth/mfa" className="text-sm font-semibold text-brand hover:underline">
+        {t("auth.mfa_settings")}
+      </Link>
+      <Button
+        variant="secondary"
+        onClick={handleSignOut}
+        loading={loading}
+        icon={<LogOut className="h-4 w-4" aria-hidden="true" />}
+      >
+        {t("nav.sign_out")}
+      </Button>
+    </div>
   );
 }
