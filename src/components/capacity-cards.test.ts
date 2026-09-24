@@ -56,7 +56,7 @@ describe("capacity on the public cards", () => {
   it("greys out a full event and offers no signup", () => {
     const html = render(createElement(VolunteerEventCard, { event }));
     expect(html).toContain("grayscale");
-    expect(html).toContain("Popunjeno, nema slobodnih mjesta");
+    expect(html).toContain(">Popunjeno<");
     expect(html).not.toContain(">Prijavi se<");
     expect(html).toMatch(/<button[^>]*disabled/);
   });

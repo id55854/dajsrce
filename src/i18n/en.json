@@ -488,7 +488,7 @@
     "signing_up": "Signing up",
     "failed": "Sign-up failed. Please try again.",
     "auth_action": "Volunteer",
-    "full": "Full, no places left",
+    "full": "Full",
     "full_now": "The last place was just taken.",
     "ended": "This event has ended.",
     "details": "More about this event",

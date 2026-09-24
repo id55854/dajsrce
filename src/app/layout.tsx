@@ -15,7 +15,7 @@ import { Analytics } from "@vercel/analytics/next";
 // provider exists. Keep these two entries in sync with the i18n dictionaries.
 const ROOT_METADATA = {
   hr: {
-    title: "DajSrce, Povežite darivatelje s onima kojima je pomoć potrebna",
+    title: "DajSrce, Povežite donatore s onima kojima je pomoć potrebna",
     description:
       "Karta ustanova, udruga i volonterskih prilika u Hrvatskoj. Pronađite gdje donirati, volontirati i pomoći.",
   },
