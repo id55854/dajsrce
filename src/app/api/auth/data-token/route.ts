@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { anonDataApiToken } from "@/lib/data-api/token";
 import { userTokenForClaims } from "@/lib/data-api/session";
+import { parseAuthenticatorLevel } from "@/lib/auth/mfa";
 import { getRequestId } from "@/lib/observability";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
 
@@ -37,10 +38,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ token, exp }, { headers: NO_STORE });
     }
 
+    const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     const { token, exp } = await userTokenForClaims({
       id: user.id,
       email: user.email ?? null,
       userMetadata: user.user_metadata ?? {},
+      authenticatorLevel: parseAuthenticatorLevel(assurance?.currentLevel),
     });
     return NextResponse.json({ token, exp }, { headers: NO_STORE });
   } catch {
