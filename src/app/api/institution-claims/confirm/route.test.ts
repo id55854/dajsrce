@@ -36,7 +36,7 @@ describe("POST /api/institution-claims/confirm", () => {
       const response = await POST(confirm({ token }));
       expect(response.status, String(token)).toBe(400);
     }
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc.mock.calls.filter((call) => call[0] !== "consume_rate_limit")).toEqual([]);
   });
 
   it("sends only the SHA-256 digest to the database, never the raw token", async () => {

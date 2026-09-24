@@ -47,7 +47,7 @@ describe("GET /api/institution-claims", () => {
     const response = await GET(new NextRequest("http://localhost/api/institution-claims"));
     expect(response.status).toBe(401);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc.mock.calls.filter((call) => call[0] !== "consume_rate_limit")).toEqual([]);
   });
 
   it("returns the caller's own claim through the service-only RPC", async () => {
@@ -75,7 +75,7 @@ describe("POST /api/institution-claims", () => {
     anonymous();
     const response = await POST(post(VALID));
     expect(response.status).toBe(401);
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc.mock.calls.filter((call) => call[0] !== "consume_rate_limit")).toEqual([]);
   });
 
   it("validates the body before any database access", async () => {
@@ -88,7 +88,7 @@ describe("POST /api/institution-claims", () => {
       const response = await POST(post(body));
       expect(response.status).toBe(400);
     }
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc.mock.calls.filter((call) => call[0] !== "consume_rate_limit")).toEqual([]);
   });
 
   it("passes the signed-in id as the actor, never a body-supplied one", async () => {
