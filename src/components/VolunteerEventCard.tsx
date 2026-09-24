@@ -211,10 +211,14 @@ export function VolunteerEventCard({
         id={htmlId}
         as="article"
         tabIndex={-1}
+        onClick={() => setDetailsOpen(true)}
         className={clsx(
           // The transition is what makes the calendar's "here it is" highlight
-          // ring fade in and out instead of blinking on for 1.5s.
-          "flex h-full min-h-0 flex-col outline-none transition-[box-shadow,border-color,opacity,filter] duration-300 ease-out",
+          // ring fade in and out instead of blinking on for 1.5s. Hover grows
+          // the card slightly so a pointer and a lift say the event opens.
+          "relative flex h-full min-h-0 cursor-pointer flex-col outline-none",
+          "transition-[box-shadow,border-color,opacity,filter,transform] duration-200 ease-out",
+          "hover:z-10 hover:shadow-overlay motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.99]",
           isRegistered && "border-success ring-1 ring-success/30",
           full && "opacity-60 grayscale"
         )}
@@ -225,6 +229,7 @@ export function VolunteerEventCard({
               {/* The id was already in props; the name used to be a dead <span>. */}
               <Link
                 href={`/institution/${institution.id}`}
+                onClick={(click) => click.stopPropagation()}
                 className="rounded-control text-sm font-semibold text-ink underline-offset-2 transition-colors hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
               >
                 {institution.name}
@@ -281,7 +286,7 @@ export function VolunteerEventCard({
           </button>
         </div>
 
-        <div className="mt-auto w-full shrink-0 pt-4">
+        <div className="mt-auto w-full shrink-0 pt-4" onClick={(click) => click.stopPropagation()}>
           {progress}
           <div className="pt-5">{action}</div>
         </div>
