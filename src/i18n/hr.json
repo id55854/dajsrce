@@ -358,7 +358,8 @@
     "roster_no_description": "Opis nije upisan.",
     "roster_deadline": "Rok",
     "roster_no_deadline": "Bez roka",
-    "roster_quantity": "količina"
+    "roster_quantity": "količina",
+    "dashboard_public_profile": "Javni profil"
   },
   "notifications": {
     "title": "Obavijesti",

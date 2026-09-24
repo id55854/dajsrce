@@ -4,26 +4,27 @@ import { Suspense, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
+  BadgeCheck,
   CalendarPlus,
+  ExternalLink,
   MapPin,
   Plus,
 } from "lucide-react";
 import { InstitutionPledgesClient } from "./pledges/institution-pledges-client";
 import { InstitutionVolunteersClient } from "./volunteers/institution-volunteers-client";
-import { useT } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
+import { CATEGORY_CONFIG, categoryVars } from "@/lib/constants";
 import { NewVolunteerEventForm } from "@/components/NewVolunteerEventForm";
 import { NewNeedForm } from "@/components/NewNeedForm";
 import { InstitutionCalendar } from "@/components/InstitutionCalendar";
 import { SignOutButton } from "@/components/SignOutButton";
-import {
-  InstitutionDetailPanel,
-  InstitutionDetailSkeleton,
-} from "@/components/InstitutionDetailPanel";
 import type { PublicInstitutionDetail } from "@/lib/location-map";
 import {
   Button,
+  Card,
   PageHeader,
   PageShell,
+  Skeleton,
   buttonClasses,
 } from "@/components/ui";
 
@@ -86,46 +87,27 @@ function InstitutionDashboardExperience() {
 
   return (
     <PageShell width="wide">
-      <PageHeader
-        title={t("institution.dashboard_title")}
-        subtitle={t("institution.dashboard_subtitle")}
-      />
-
       <div className="space-y-6">
-        {/* Who the account is acting as, laid out the same way a visitor sees
-            it on the public page: the console below had every lever for
-            running the organisation but never said which one it was. */}
+        {/* Who the account is acting as, in one compact header. The full
+            public detail panel used to sit here, which pushed everything the
+            organisation actually works with below the fold; the public page
+            is one click away. */}
         {institutionLoading ? (
-          <InstitutionDetailSkeleton />
+          <Skeleton className="h-32 rounded-card" />
         ) : institution ? (
-          <InstitutionDetailPanel institution={institution} showCloseButton={false} />
-        ) : null}
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button
-            size="lg"
-            fullWidth
-            aria-expanded={panel === "need"}
-            aria-controls={needPanelId}
-            onClick={() => setPanel((current) => (current === "need" ? null : "need"))}
-            icon={<Plus className="h-5 w-5" aria-hidden="true" />}
-          >
-            {t("institution.dashboard_new_need")}
-          </Button>
-          <Button
-            size="lg"
-            variant="secondary"
-            fullWidth
-            aria-expanded={panel === "event"}
-            aria-controls={eventPanelId}
-            onClick={() => {
-              setPanel((current) => (current === "event" ? null : "event"));
-            }}
-            icon={<CalendarPlus className="h-5 w-5" aria-hidden="true" />}
-          >
-            {t("institution.dashboard_new_event")}
-          </Button>
-        </div>
+          <ProfileHeader
+            institution={institution}
+            panel={panel}
+            needPanelId={needPanelId}
+            eventPanelId={eventPanelId}
+            onToggle={(next) => setPanel((current) => (current === next ? null : next))}
+          />
+        ) : (
+          <PageHeader
+            title={t("institution.dashboard_title")}
+            subtitle={t("institution.dashboard_subtitle")}
+          />
+        )}
 
         {/* These were in-page cards wearing modal-weight `shadow-lg` with no
             focus move, no Escape, no scrim and no dialog role. They are honest
@@ -137,16 +119,6 @@ function InstitutionDashboardExperience() {
         {panel === "event" ? (
           <NewVolunteerEventForm panelId={eventPanelId} onClose={() => setPanel(null)} onPosted={refreshActivity} />
         ) : null}
-
-        <div>
-          <Link
-            href="/"
-            className={buttonClasses({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}
-          >
-            <MapPin className="h-5 w-5" aria-hidden="true" />
-            {t("institution.dashboard_view_map")}
-          </Link>
-        </div>
 
         <InstitutionCalendar refreshKey={refreshKey} />
 
@@ -196,5 +168,93 @@ function InstitutionDashboardExperience() {
         </div>
       </div>
     </PageShell>
+  );
+}
+
+function ProfileHeader({
+  institution,
+  panel,
+  needPanelId,
+  eventPanelId,
+  onToggle,
+}: {
+  institution: PublicInstitutionDetail;
+  panel: "need" | "event" | null;
+  needPanelId: string;
+  eventPanelId: string;
+  onToggle: (panel: "need" | "event") => void;
+}) {
+  const t = useT();
+  const { locale } = useLocale();
+  const category = institution.category in CATEGORY_CONFIG ? CATEGORY_CONFIG[institution.category] : null;
+  const place = [institution.isLocationHidden ? null : institution.address, institution.city]
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    <Card>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold leading-tight tracking-[-0.01em] text-ink">
+            {institution.name}
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-secondary">
+            {category ? (
+              <span
+                style={categoryVars(institution.category)}
+                className="category-chip inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+              >
+                {locale === "hr" ? category.labelHr : category.label}
+              </span>
+            ) : null}
+            {institution.isVerified ? (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-success">
+                <BadgeCheck className="h-4 w-4" aria-hidden />
+                {t("map_ui.verified")}
+              </span>
+            ) : null}
+            {place ? (
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <MapPin className="h-4 w-4 shrink-0 text-ink-tertiary" aria-hidden />
+                <span className="truncate">{place}</span>
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Link
+            href={`/institution/${institution.id}`}
+            className={buttonClasses({ variant: "ghost", size: "sm" })}
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden />
+            {t("institution.dashboard_public_profile")}
+          </Link>
+          <Link href="/" className={buttonClasses({ variant: "ghost", size: "sm" })}>
+            <MapPin className="h-4 w-4" aria-hidden />
+            {t("institution.dashboard_view_map")}
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-2 border-t border-border-subtle pt-4">
+        <Button
+          aria-expanded={panel === "need"}
+          aria-controls={needPanelId}
+          onClick={() => onToggle("need")}
+          icon={<Plus className="h-4 w-4" aria-hidden="true" />}
+        >
+          {t("institution.dashboard_new_need")}
+        </Button>
+        <Button
+          variant="secondary"
+          aria-expanded={panel === "event"}
+          aria-controls={eventPanelId}
+          onClick={() => onToggle("event")}
+          icon={<CalendarPlus className="h-4 w-4" aria-hidden="true" />}
+        >
+          {t("institution.dashboard_new_event")}
+        </Button>
+      </div>
+    </Card>
   );
 }
