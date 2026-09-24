@@ -4,6 +4,7 @@ import {
   CROATIA_INITIAL_VIEW,
   buildMapQueryString,
   resolveMapCategories,
+  socialCategoriesOnly,
   type MapQuery,
   maxBboxAreaForZoom,
   parseBrowserMapView,
@@ -86,17 +87,20 @@ export function initialState(searchParams: URLSearchParams): {
 
   try {
     const parsed = parseMapQuery(params);
+    const onlySocial = params.get("social") !== "0";
     return {
       center,
       viewport: { bbox, zoom },
       filters: {
-        categories: parsed.categories,
+        // An older link can still carry `association`, which the social view
+        // no longer offers; keep it out of the menu's selection too.
+        categories: onlySocial ? socialCategoriesOnly(parsed.categories) : parsed.categories,
         donationTypes: parsed.donationTypes,
         city: parsed.city,
         onlyZagreb: parsed.onlyZagreb,
         onlyUrgent: parsed.onlyUrgent,
         onlyOnboarded: parsed.onlyOnboarded,
-        onlySocial: params.get("social") !== "0",
+        onlySocial,
       },
       search: params.get("q") ?? "",
       selectedId: params.get("institution"),

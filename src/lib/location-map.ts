@@ -93,15 +93,30 @@ export const SOCIAL_MAP_CATEGORIES: InstitutionCategory[] = (
  * the register's own engaged listing, which has no such default, showed all
  * three. The noise the default exists to suppress cannot occur here, because
  * every row already has a person behind it.
+ *
+ * Under "social only" an explicit `association` is dropped. It is the
+ * catch-all every unclassified register row resolves to, so choosing "Udruga"
+ * from the category menu used to reopen the ~39,000 rows the default exists to
+ * hide; the social view can never answer with more than its twelve categories.
  */
 export function resolveMapCategories(filters: {
   categories: InstitutionCategory[];
   onlySocial: boolean;
   onlyOnboarded: boolean;
 }): InstitutionCategory[] {
-  if (filters.categories.length > 0) return filters.categories;
+  if (!filters.onlySocial) return filters.categories;
+  const chosen = socialCategoriesOnly(filters.categories);
+  if (chosen.length > 0) return chosen;
   if (filters.onlyOnboarded) return [];
-  return filters.onlySocial ? SOCIAL_MAP_CATEGORIES : [];
+  return SOCIAL_MAP_CATEGORIES;
+}
+
+export function socialCategoriesOnly(
+  categories: InstitutionCategory[]
+): InstitutionCategory[] {
+  return categories.includes("association")
+    ? categories.filter((category) => category !== "association")
+    : categories;
 }
 
 export const REGISTRY_ID_PREFIX = "registry:";

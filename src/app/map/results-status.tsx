@@ -12,7 +12,7 @@ export function ResultsMeta({
   totalMatches,
   listCount,
   showTruncation,
-  searchActive,
+  nationwide,
   locale,
   onZoomIn,
 }: {
@@ -22,7 +22,8 @@ export function ResultsMeta({
   totalMatches: number;
   listCount: number;
   showTruncation: boolean;
-  searchActive: boolean;
+  /** The count answers for all of Croatia rather than the viewport. */
+  nationwide: boolean;
   locale: string;
   onZoomIn: () => void;
 }) {
@@ -35,7 +36,7 @@ export function ResultsMeta({
         <p aria-live="polite" className="min-w-0 truncate">
           {loading
             ? t("map_page.loading")
-            : searchActive
+            : nationwide
               ? t("map_page.search_count", { count })
               : mode === "clusters"
               ? t("map_page.clusters_count", { count })

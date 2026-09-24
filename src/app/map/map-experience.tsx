@@ -39,6 +39,7 @@ import {
   isInstitutionFeature,
   resolveMapCategories,
   splitRegistryFeatureId,
+  type MapBounds,
   type MapQuery,
   type PublicInstitutionDetail,
   type PublicMapCity,
@@ -68,6 +69,26 @@ const CityPickerDialog = dynamic(
   () => import("./location-start").then((module) => module.CityPickerDialog),
   { ssr: false }
 );
+
+/** The smallest box around every returned pin and cluster, or null if none. */
+function featureBounds(features: PublicMapFeature[]): MapBounds | null {
+  if (features.length === 0) return null;
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+  for (const feature of features) {
+    const [west, south, east, north] =
+      feature.kind === "cluster"
+        ? feature.bounds
+        : [feature.longitude, feature.latitude, feature.longitude, feature.latitude];
+    minLng = Math.min(minLng, west);
+    minLat = Math.min(minLat, south);
+    maxLng = Math.max(maxLng, east);
+    maxLat = Math.max(maxLat, north);
+  }
+  return [minLng, minLat, maxLng, maxLat];
+}
 
 /**
  * Peek shows the sheet header (search, filters, count); the middle shows the
@@ -189,6 +210,32 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
 
   const initialCenter = initial.center;
 
+  /**
+   * A new search or filter answers for the whole country, not for whatever
+   * happened to be in view when it was chosen; once those results arrive the
+   * map fits itself around them. Moving the map afterwards narrows the answer
+   * to the viewport again, so zooming into a cluster still resolves it.
+   *
+   * `narrowedScope` is the search/filter state the viewport last took over
+   * from. While it differs from the current one, the query is national. A
+   * shared link with a search keeps its old nationwide behaviour and its own
+   * view (no fit); one without a search starts bounded, as before.
+   */
+  const scopeKey = JSON.stringify([filters, settledSearch]);
+  const scopeKeyRef = useRef(scopeKey);
+  const [narrowedScope, setNarrowedScope] = useState<string | null>(() =>
+    initial.search.trim().length >= 2 ? null : scopeKey
+  );
+  const nationalScope = narrowedScope !== scopeKey;
+  /** Set when the visitor changes the scope; the next national answer is fitted. */
+  const fitPendingRef = useRef(false);
+
+  useEffect(() => {
+    if (scopeKeyRef.current === scopeKey) return;
+    scopeKeyRef.current = scopeKey;
+    fitPendingRef.current = true;
+  }, [scopeKey]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const trimmed = deferredSearch.trim();
@@ -198,13 +245,15 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
   }, [deferredSearch]);
 
   const handleViewportChange = useCallback((nextViewport: MapViewport) => {
-    const commit = () => {
+    const commit = (narrow: boolean) => {
       setViewport((current) => {
         const nextKey = `${nextViewport.zoom}:${nextViewport.bbox.map((value) => value.toFixed(4)).join(",")}`;
         const currentKey = `${current.zoom}:${current.bbox.map((value) => value.toFixed(4)).join(",")}`;
         return nextKey === currentKey ? current : nextViewport;
       });
       setViewportReady(true);
+      // Leaflet's own mount report is not the visitor moving the map.
+      if (narrow) setNarrowedScope(scopeKeyRef.current);
     };
 
     if (viewportTimerRef.current) window.clearTimeout(viewportTimerRef.current);
@@ -212,10 +261,10 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     // behind the pan debounce; only subsequent moves are coalesced.
     if (!viewportReadyRef.current) {
       viewportReadyRef.current = true;
-      commit();
+      commit(false);
       return;
     }
-    viewportTimerRef.current = window.setTimeout(commit, 160);
+    viewportTimerRef.current = window.setTimeout(() => commit(true), 160);
   }, []);
 
   useEffect(
@@ -242,9 +291,9 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
   );
   // `mapQuery` is what the URL describes; this is what the API is asked. The
   // two differ in two places, and both differences are deliberately kept out
-  // of the address bar: a search covers the whole country regardless of the
-  // viewport, and "social only" expands into the twelve real categories rather
-  // than writing all twelve into the URL.
+  // of the address bar: a fresh search or filter covers the whole country
+  // regardless of the viewport (see `nationalScope`), and "social only" expands
+  // into the twelve real categories rather than writing all twelve into the URL.
   const apiMapQuery = useMemo<MapQuery>(() => {
     const categories = resolveMapCategories({
       categories: mapQuery.categories,
@@ -253,14 +302,14 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     });
     const withCategories =
       categories === mapQuery.categories ? mapQuery : { ...mapQuery, categories };
-    return withCategories.query
+    return nationalScope
       ? {
           ...withCategories,
           bbox: CROATIA_INITIAL_VIEW.bbox,
           zoom: CROATIA_INITIAL_VIEW.zoom,
         }
       : withCategories;
-  }, [mapQuery, filters.onlySocial]);
+  }, [mapQuery, filters.onlySocial, nationalScope]);
 
   // Pan/zoom/filter/search stay on replaceState (they must not spam history).
   // Opening a selection pushes exactly one entry so Back closes the detail panel.
@@ -368,6 +417,13 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
         if (controller.signal.aborted || sequence !== requestSequenceRef.current) return;
         setFeatures(result.features);
         setMeta(result.meta);
+        if (nationalScope && fitPendingRef.current) {
+          fitPendingRef.current = false;
+          const bounds = featureBounds(result.features);
+          if (bounds) {
+            setMapCommand({ token: ++mapCommandTokenRef.current, kind: "fitBounds", bounds });
+          }
+        }
       } catch (error) {
         if (controller.signal.aborted || sequence !== requestSequenceRef.current) return;
         setLoadError(error instanceof Error ? error.message : "map_page.load_error");
@@ -618,7 +674,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
       totalMatches={meta.totalMatches}
       listCount={listCount}
       showTruncation={showTruncation}
-      searchActive={Boolean(settledSearch)}
+      nationwide={nationalScope}
       locale={locale}
       onZoomIn={() => zoomBy(1)}
     />

@@ -226,6 +226,28 @@ describe("map query contract", () => {
     ).toEqual(["soup_kitchen"]);
   });
 
+  it("never lets the catch-all association category widen the social view", () => {
+    // Unclassified register rows all resolve to `association`, so asking for it
+    // under "social only" used to return the whole ~39,000-row remainder.
+    expect(
+      resolveMapCategories({ categories: ["association"], onlySocial: true, onlyOnboarded: false })
+    ).toEqual(SOCIAL_MAP_CATEGORIES);
+    expect(
+      resolveMapCategories({
+        categories: ["association", "soup_kitchen"],
+        onlySocial: true,
+        onlyOnboarded: false,
+      })
+    ).toEqual(["soup_kitchen"]);
+    expect(
+      resolveMapCategories({ categories: ["association"], onlySocial: true, onlyOnboarded: true })
+    ).toEqual([]);
+    // Outside the social view it is an ordinary category again.
+    expect(
+      resolveMapCategories({ categories: ["association"], onlySocial: false, onlyOnboarded: false })
+    ).toEqual(["association"]);
+  });
+
   it("reduces a typed OIB to its bare digits", () => {
     // The register's search text holds the plain eleven digits, so every
     // shape a person might paste has to arrive as those digits.

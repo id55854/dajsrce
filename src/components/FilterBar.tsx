@@ -7,6 +7,7 @@ import clsx from "clsx";
 import { useT } from "@/i18n/client";
 import { CityFilter } from "@/components/CityFilter";
 import { CategoryFilter } from "@/components/CategoryFilter";
+import { SOCIAL_MAP_CATEGORIES } from "@/lib/location-map";
 
 import { DonationFilter } from "@/components/DonationFilter";
 
@@ -118,7 +119,13 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
       </label>
       <CityFilter value={filters.city} onChange={(city) => onChange({ ...filters, city })} />
       <div className="flex flex-wrap gap-3">
-        <CategoryFilter value={filters.categories} onChange={(categories) => onChange({ ...filters, categories })} />
+        {/* The social view never offers the catch-all "Udruga": every unclassified
+            register row is one, so picking it would reopen the whole register. */}
+        <CategoryFilter
+          value={filters.categories}
+          onChange={(categories) => onChange({ ...filters, categories })}
+          categories={filters.onlySocial ? SOCIAL_MAP_CATEGORIES : undefined}
+        />
         <DonationFilter multiple value={filters.donationTypes} onChange={(donationTypes) => onChange({ ...filters, donationTypes })} />
       </div>
     </div>
