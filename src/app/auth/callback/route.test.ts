@@ -1,17 +1,16 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { exchangeCodeForSession, verifyOtp, getUser, getAuthenticatorAssuranceLevel, from, maybeSingle } = vi.hoisted(() => {
+const { exchangeCodeForSession, verifyOtp, getUser, from, maybeSingle } = vi.hoisted(() => {
   const maybeSingle = vi.fn();
   return {
     exchangeCodeForSession: vi.fn(), verifyOtp: vi.fn(), getUser: vi.fn(), maybeSingle,
-    getAuthenticatorAssuranceLevel: vi.fn(),
     from: vi.fn(() => ({ select: () => ({ eq: () => ({ maybeSingle }) }) })),
   };
 });
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabaseClient: async () => ({
-    auth: { exchangeCodeForSession, verifyOtp, getUser, mfa: { getAuthenticatorAssuranceLevel } }, from,
+    auth: { exchangeCodeForSession, verifyOtp, getUser }, from,
   }),
 }));
 import { GET } from "./route";
@@ -32,10 +31,6 @@ beforeEach(() => {
     id: "ngo-1", app_metadata: { provider: "email" }, user_metadata: { role: "ngo" },
   } } });
   maybeSingle.mockResolvedValue({ data: { role: "ngo", institution_id: null } });
-  getAuthenticatorAssuranceLevel.mockResolvedValue({
-    data: { currentLevel: "aal1", nextLevel: "aal1" },
-    error: null,
-  });
 });
 
 describe("auth callback recovery", () => {

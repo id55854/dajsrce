@@ -22,7 +22,6 @@ export function identityFromClaims(claims: VerifiedClaims) {
     id: claims.id,
     email: claims.email,
     name: typeof name === "string" && name.trim() ? name.trim().slice(0, 200) : null,
-    authenticatorLevel: claims.authenticatorLevel,
   };
 }
 

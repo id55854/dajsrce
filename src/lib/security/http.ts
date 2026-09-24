@@ -3,7 +3,7 @@ import { safeInternalPath } from "./redirects";
 
 type HeadersInit = NonNullable<ConstructorParameters<typeof Headers>[0]>;
 
-export type RateLimitOptions = {
+type RateLimitOptions = {
   name: string;
   limit: number;
   windowMs: number;

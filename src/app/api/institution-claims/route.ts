@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getRequestId, logError } from "@/lib/observability";
-import { requireSameOrigin } from "@/lib/security/http";
-import { rateLimitDurable } from "@/lib/security/rate-limit-durable";
+import { rateLimit, requireSameOrigin } from "@/lib/security/http";
 import {
   claimErrorStatus,
   parseClaimRequestInput,
@@ -59,11 +58,7 @@ export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   const blocked =
     requireSameOrigin(req, requestId) ??
-    (await rateLimitDurable(
-      req,
-      { name: "institution_claims.post", limit: 10, windowMs: 60_000 },
-      requestId
-    ));
+    rateLimit(req, { name: "institution_claims.post", limit: 10, windowMs: 60_000 }, requestId);
   if (blocked) return blocked;
 
   const actorId = await requireActor();

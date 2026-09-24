@@ -1,221 +1,130 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { getVerifiedClaims } from "@/lib/auth/claims";
-import { isMfaGatedApiPath, mfaGateDecision, parseAuthenticatorLevel } from "@/lib/auth/mfa";
 import { normalizeRole } from "@/lib/auth/roles";
 import { createDataApiFetch, getDataApiUrl } from "@/lib/data-api/fetch";
 import { sessionDataApiToken } from "@/lib/data-api/session";
-import { contentSecurityPolicy } from "@/lib/security/csp";
-import { safeInternalPath } from "@/lib/security/redirects";
-
-function dataApiOrigin(): string {
-  try {
-    return new URL(process.env.NEXT_PUBLIC_DATA_API_URL ?? "").origin;
-  } catch {
-    return "";
-  }
-}
 
 export async function middleware(request: NextRequest) {
-  const nonce = btoa(crypto.randomUUID());
-  const csp = contentSecurityPolicy({
-    nonce,
-    development: process.env.NODE_ENV !== "production",
-    connectOrigins: [dataApiOrigin()],
-  });
-
-  const requestHeaders = () => {
-    const headers = new Headers(request.headers);
-    headers.set("x-nonce", nonce);
-    headers.set("Content-Security-Policy", csp);
-    return headers;
-  };
-
-  const withCsp = (response: NextResponse) => {
-    response.headers.set("Content-Security-Policy", csp);
-    return response;
-  };
-
-  const continueRequest = () => {
-    const response = NextResponse.next({ request: { headers: requestHeaders() } });
-    return withCsp(response);
-  };
-
-  const pathname = request.nextUrl.pathname;
-  const gatedApi = isMfaGatedApiPath(pathname);
-  const gatedPage = pathname.startsWith("/dashboard");
-
-  if (!gatedPage && !gatedApi) {
-    return continueRequest();
-  }
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  // Allow local development without Supabase env configuration.
   if (!supabaseUrl || !supabaseAnonKey) {
-    return continueRequest();
+    return NextResponse.next({ request });
   }
 
-  let supabaseResponse = continueRequest();
+  let supabaseResponse = NextResponse.next({ request });
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
+  const supabase = createServerClient(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options: CookieOptions;
+          }[]
+        ) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
       },
-      setAll(
-        cookiesToSet: {
-          name: string;
-          value: string;
-          options: CookieOptions;
-        }[]
-      ) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        supabaseResponse = continueRequest();
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options)
-        );
+      // The profile read below runs on the Neon Data API as this user.
+      global: {
+        fetch: createDataApiFetch({
+          supabaseUrl,
+          dataApiUrl: getDataApiUrl(),
+          getToken: (): Promise<string> => sessionDataApiToken(supabase),
+        }),
       },
-    },
-    global: {
-      fetch: createDataApiFetch({
-        supabaseUrl,
-        dataApiUrl: getDataApiUrl(),
-        getToken: (): Promise<string> => sessionDataApiToken(supabase),
-      }),
-    },
-  });
+    }
+  );
 
+  // This guard runs on every dashboard navigation. The JWT is verified locally
+  // against the project's cached JWKS instead of a round trip to Supabase
+  // Auth; the profile row below, not the token, still decides the role. A
+  // revoked session is honoured here once its token expires (1 h); every
+  // state-changing API route re-checks with auth.getUser().
   const user = await getVerifiedClaims(supabase);
 
-  if (gatedPage && !user) {
+  const pathname = request.nextUrl.pathname;
+  const requiresAuth = pathname.startsWith("/dashboard");
+
+  if (requiresAuth && !user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/auth/login";
     loginUrl.searchParams.set("next", pathname);
-    return withCsp(NextResponse.redirect(loginUrl));
+    return NextResponse.redirect(loginUrl);
   }
 
-  if (!user) return supabaseResponse;
-
-  if (gatedPage && pathname.startsWith("/dashboard/")) {
+  if (user && pathname.startsWith("/dashboard/")) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, institution_id")
       .eq("id", user.id)
       .maybeSingle();
+    // user_metadata is user-controlled and must never grant an application
+    // role. A missing profile is treated as least privileged.
     const role = normalizeRole(profile?.role ?? null);
     const isNgoRoute =
       pathname.startsWith("/dashboard/ngo") || pathname.startsWith("/dashboard/institution");
 
     if (pathname.startsWith("/dashboard/admin") && role !== "superadmin") {
-      return withCsp(NextResponse.redirect(new URL("/dashboard", request.url)));
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     if (isNgoRoute && role !== "ngo") {
-      return withCsp(NextResponse.redirect(new URL("/dashboard", request.url)));
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
+    // An `ngo` role with no institution_id has not lodged (or had approved)
+    // its UDR_ID claim yet -- see institution_claims. The dashboard has
+    // nothing to show that account; send it back to finish onboarding
+    // instead of rendering an institution-less page.
     if (isNgoRoute && role === "ngo" && !profile?.institution_id) {
-      return withCsp(NextResponse.redirect(new URL("/auth/setup", request.url)));
+      return NextResponse.redirect(new URL("/auth/setup", request.url));
     }
+    // The step before that one: someone who picked "NGO" at signup but never
+    // ran complete_profile_setup is still `individual`, so neither the rule
+    // above nor the role redirects can see them -- they just land on the
+    // individual dashboard with nothing pointing back at onboarding. Signing
+    // in with a password never passes through /auth/callback, which is the
+    // only other place that recovers this.
+    //
+    // Reading `user_metadata.role` here grants nothing: it is signup intent
+    // used for routing only, the same way /auth/callback and /auth/setup
+    // already read it. The role still comes solely from complete_profile_setup
+    // and publishing still needs an approved UDR_ID claim. `setup_completed`
+    // is what completeIndividualSetup() writes when someone deliberately
+    // finishes as an individual, so choosing that on /auth/setup clears this
+    // for good and no one can be trapped in a loop.
     if (
       role === "individual" &&
       user.userMetadata.role === "ngo" &&
       user.userMetadata.setup_completed !== true
     ) {
-      return withCsp(NextResponse.redirect(new URL("/auth/setup", request.url)));
+      return NextResponse.redirect(new URL("/auth/setup", request.url));
     }
-    if (pathname.startsWith("/dashboard/individual") && role !== "individual") {
-      return withCsp(NextResponse.redirect(new URL("/dashboard", request.url)));
+    if (
+      pathname.startsWith("/dashboard/individual") &&
+      role !== "individual"
+    ) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   }
-
-  const blocked = await mfaResponse(
-    supabase as unknown as Parameters<typeof mfaResponse>[0],
-    user.id,
-    request,
-    gatedApi
-  );
-  if (blocked) return withCsp(blocked);
 
   return supabaseResponse;
 }
 
-async function mfaResponse(
-  supabase: {
-    from: (table: string) => {
-      select: (columns: string) => {
-        eq: (column: string, value: string) => {
-          maybeSingle: () => PromiseLike<{ data: { role: string | null; institution_id: string | null } | null }>;
-        };
-      };
-    };
-    auth: {
-      mfa: {
-        getAuthenticatorAssuranceLevel: () => PromiseLike<{
-          data: { currentLevel?: string | null; nextLevel?: string | null } | null;
-          error: unknown;
-        }>;
-      };
-    };
-  },
-  userId: string,
-  request: NextRequest,
-  asJson: boolean
-): Promise<NextResponse | null> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, institution_id")
-    .eq("id", userId)
-    .maybeSingle();
-  const { data: assurance, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-
-  if (error || !assurance) {
-    if (asJson) {
-      return NextResponse.json(
-        { error: "Multi-factor authentication is temporarily unavailable" },
-        { status: 503, headers: { "Cache-Control": "no-store" } }
-      );
-    }
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/mfa";
-    url.searchParams.set("error", "unavailable");
-    url.searchParams.set("next", safeInternalPath(request.nextUrl.pathname));
-    return NextResponse.redirect(url);
-  }
-
-  const decision = mfaGateDecision({
-    role: normalizeRole(profile?.role ?? null),
-    hasInstitution: Boolean(profile?.institution_id),
-    currentLevel: parseAuthenticatorLevel(assurance.currentLevel),
-    nextLevel: parseAuthenticatorLevel(assurance.nextLevel),
-  });
-  if (!decision) return null;
-
-  if (asJson) {
-    return NextResponse.json(
-      {
-        error:
-          decision === "enroll"
-            ? "Multi-factor enrolment is required"
-            : "Multi-factor authentication is required",
-      },
-      { status: 403, headers: { "Cache-Control": "no-store" } }
-    );
-  }
-
-  const url = request.nextUrl.clone();
-  url.pathname = "/auth/mfa";
-  url.searchParams.set("next", safeInternalPath(request.nextUrl.pathname));
-  return NextResponse.redirect(url);
-}
-
 export const config = {
-  matcher: [
-    {
-      source: "/((?!_next/static|_next/image|favicon.ico|icon.svg).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
-  ],
+  matcher: ["/dashboard/:path*"],
 };

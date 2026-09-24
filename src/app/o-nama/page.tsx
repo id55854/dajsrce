@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { Building2, HeartHandshake, MapPinned, ShieldCheck } from "lucide-react";
 import { getLocale, getTranslator } from "@/i18n/server";
 import {
@@ -38,7 +37,6 @@ const TEAM = [
 export default async function AboutPage() {
   const t = await getTranslator();
   const locale = await getLocale();
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const jsonLd = organisationJsonLd(locale, "https://dajsrce.hr/o-nama");
 
   return (
@@ -46,7 +44,6 @@ export default async function AboutPage() {
       {/* Structured data mirrors the register facts rendered below, so a
           machine reader and a person see the same identity. */}
       <script
-        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />

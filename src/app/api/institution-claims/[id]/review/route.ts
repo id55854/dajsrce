@@ -3,8 +3,7 @@ import { getCurrentUserProfile } from "@/lib/auth/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getRequestId, logError } from "@/lib/observability";
 import { claimErrorStatus, parseClaimReviewInput } from "@/lib/institution-claims";
-import { isUuid, jsonError, requireSameOrigin } from "@/lib/security/http";
-import { rateLimitDurable } from "@/lib/security/rate-limit-durable";
+import { isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   const blocked =
     requireSameOrigin(req, requestId) ??
-    (await rateLimitDurable(
-      req,
-      { name: "institution_claims.review", limit: 30, windowMs: 60_000 },
-      requestId
-    ));
+    rateLimit(req, { name: "institution_claims.review", limit: 30, windowMs: 60_000 }, requestId);
   if (blocked) return blocked;
 
   const profile = await getCurrentUserProfile();

@@ -43,7 +43,7 @@ describe("POST /api/institution-claims/[id]/review", () => {
     getCurrentUserProfile.mockResolvedValue(null);
     const response = await POST(review({ decision: "approve" }), { params });
     expect(response.status).toBe(401);
-    expect(rpc.mock.calls.filter((call) => call[0] !== "consume_rate_limit")).toEqual([]);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("refuses a non-admin and never reaches the database", async () => {
@@ -52,20 +52,20 @@ describe("POST /api/institution-claims/[id]/review", () => {
       const response = await POST(review({ decision: "approve" }), { params });
       expect(response.status, role).toBe(403);
     }
-    expect(rpc.mock.calls.filter((call) => call[0] !== "consume_rate_limit")).toEqual([]);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("requires a reason when rejecting", async () => {
     signedInAs("superadmin");
     const response = await POST(review({ decision: "reject" }), { params });
     expect(response.status).toBe(400);
-    expect(rpc.mock.calls.filter((call) => call[0] !== "consume_rate_limit")).toEqual([]);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("rejects an unknown decision", async () => {
     signedInAs("superadmin");
     expect((await POST(review({ decision: "maybe" }), { params })).status).toBe(400);
-    expect(rpc.mock.calls.filter((call) => call[0] !== "consume_rate_limit")).toEqual([]);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("routes an approval to the approval transaction with the reviewer id", async () => {

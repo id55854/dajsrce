@@ -2,6 +2,31 @@ import type { NextConfig } from "next";
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 
+// Signed-in pages query the Neon Data API from the browser (see
+// src/lib/supabase/client.ts); Supabase remains for Auth only.
+function dataApiOrigin(): string {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_DATA_API_URL ?? "").origin;
+  } catch {
+    return "";
+  }
+}
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self' data:",
+  "img-src 'self' data: blob: https://*.supabase.co https://basemaps.cartocdn.com https://tile.openstreetmap.org",
+  `connect-src 'self' https://*.supabase.co ${dataApiOrigin()} https://nominatim.openstreetmap.org`.replace(/  +/g, " "),
+  "frame-src 'none'",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   // Builds must not overwrite the files used by a running local dev server.
   distDir: isDevelopment ? ".next-dev" : ".next",
@@ -19,6 +44,7 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: [
+          { key: "Content-Security-Policy", value: contentSecurityPolicy },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },

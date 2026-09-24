@@ -17,8 +17,6 @@
  * reach anything else. WebCrypto keeps this usable from middleware too.
  */
 
-import type { AuthenticatorLevel } from "@/lib/auth/mfa";
-
 export const DATA_API_AUDIENCE = "dajsrce-data-api";
 export const DATA_API_ISSUER = "dajsrce";
 
@@ -34,8 +32,6 @@ export type DataApiIdentity = {
   email: string | null;
   /** Display hint only, used to seed a new profile's name. Never authorization. */
   name?: string | null;
-  /** Copied from the verified Supabase session so `auth.jwt() ->> 'aal'` is real. */
-  authenticatorLevel?: AuthenticatorLevel | null;
 };
 
 type SigningKey = { key: CryptoKey; kid: string };
@@ -118,7 +114,6 @@ export async function userDataApiToken(identity: DataApiIdentity): Promise<{ tok
     sub: identity.id,
     email: identity.email ?? undefined,
     user_metadata: identity.name ? { name: identity.name } : undefined,
-    ...(identity.authenticatorLevel ? { aal: identity.authenticatorLevel } : {}),
   });
 }
 

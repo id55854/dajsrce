@@ -127,16 +127,6 @@ describe("Data API tokens", () => {
       email: "a@example.com",
       user_metadata: { name: "A" },
     });
-    expect(claims.aal).toBeUndefined();
-  });
-
-  it("copies the authenticator level so publishing policies can read it", async () => {
-    const { token } = await userDataApiToken({
-      id: "11111111-1111-4111-8111-111111111111",
-      email: null,
-      authenticatorLevel: "aal2",
-    });
-    expect(decode(token).claims.aal).toBe("aal2");
   });
 
   it("reuses the shared anon and service tokens while they are fresh", async () => {
