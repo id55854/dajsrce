@@ -18,7 +18,7 @@ Measured on the hand-labelled sample (below), the organisations the rules publis
   - A care answer with confidence ≥ **0.6** is `auto_eligible`, and only `auto_eligible` is shown on the map.
   - A care answer below that is `needs_review`, and so is any name matching `AUTO_PUBLISH_EXCLUSIONS` (invariant 8).
   - An `association` answer with confidence < 0.5 goes to review, with the closest care category noted. Otherwise it is `unmapped`.
-- **Write:** `apply_registry_classifications` updates `ngo_registry` and, in the same transaction, the current snapshot's `registry_directory_entries.category`. Curated institutions still win.
+- **Write:** `apply_registry_classifications` updates `ngo_registry`, the rule-promoted institutions (`source = 'registry'`, no account) linked to those rows, and the current snapshot's `registry_directory_entries.category`, in one transaction. Only curated and claimed institutions keep a category of their own.
 - **Sync:** `merge_registry_import_batch` keeps a Jev classification while name, goals, activities and target groups are unchanged. The importer stamps new or changed rows `pending:jev` / `unmapped`, so rule guesses are never published. The rule output is kept only as a reference candidate. `registry-sync.yml` runs `npm run registry:classify` after every sync; it sends only rows not on the current `JEV_CLASSIFICATION_VERSION`.
 
 Cost: about 1,600 input tokens per organisation. A full pass is about 69M tokens, roughly $3 at $0.042/Mtok, and takes about 35 minutes at concurrency 16.
