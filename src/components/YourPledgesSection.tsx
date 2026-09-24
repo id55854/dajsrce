@@ -2,10 +2,14 @@
 
 import { useId, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, ChevronDown, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Heart, X } from "lucide-react";
 import { useLocale, useT } from "@/i18n/client";
 import { timeAgo } from "@/lib/utils";
-import { RosterItem, RosterQuantity } from "@/components/Roster";
+import { RosterIcon, RosterItem, RosterQuantity } from "@/components/Roster";
+import { DonationTypeIcon } from "@/components/DonationTypeIcon";
+import { PledgeDetailsDialog } from "@/components/PledgeDetailsDialog";
+import { DONATION_TYPES } from "@/lib/constants";
+import type { DonationType } from "@/lib/types";
 import { Button, Dialog, Skeleton, useToast } from "@/components/ui";
 
 /**
@@ -27,7 +31,12 @@ export type YourPledgeRow = {
   need?: {
     id: string;
     title: string;
-    institution?: { id: string; name: string } | null;
+    description?: string | null;
+    donation_type?: string | null;
+    deadline?: string | null;
+    quantity_needed?: number | null;
+    quantity_pledged?: number | null;
+    institution?: { id: string; name: string; address?: string | null; city?: string | null } | null;
   } | null;
 };
 
@@ -186,6 +195,7 @@ export function YourPledgesSection({
 
   const listId = useId();
   const [expanded, setExpanded] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const isWithdrawn = (p: YourPledgeRow) =>
     cancelledIds.has(p.id) || p.status === "cancelled";
@@ -253,8 +263,20 @@ export function YourPledgesSection({
             <RosterItem
               key={p.id}
               flush
+              onOpen={() => setOpenId(p.id)}
+              leading={
+                <RosterIcon tone="brand">
+                  {p.need?.donation_type && p.need.donation_type in DONATION_TYPES ? (
+                    <DonationTypeIcon type={p.need.donation_type as DonationType} className="h-4 w-4" />
+                  ) : (
+                    <Heart className="h-4 w-4" />
+                  )}
+                </RosterIcon>
+              }
               title={p.need?.title ?? "—"}
-              subtitle={p.need?.institution?.name}
+              subtitle={[p.need?.institution?.name, donationTypeLabel(p.need?.donation_type, locale)]
+                .filter(Boolean)
+                .join(" · ")}
               detail={<time dateTime={p.created_at}>{timeAgo(p.created_at, locale)}</time>}
               aside={
                 <RosterQuantity
@@ -288,6 +310,10 @@ export function YourPledgesSection({
         <p className="mt-2 text-xs text-ink-tertiary">{t("your_pledges.more_count", { count: overflow })}</p>
       ) : null}
       </div>
+      <PledgeDetailsDialog
+        pledge={current.find((p) => p.id === openId) ?? null}
+        onClose={() => setOpenId(null)}
+      />
     </SectionWrapper>
   );
 }
@@ -305,17 +331,22 @@ function SectionWrapper({
 }) {
   return (
     <section
-      className="mb-4 rounded-control border border-border-subtle bg-surface-raised px-4 py-2.5"
+      className="mb-4 rounded-card border border-border-subtle bg-surface-raised px-4 py-3 shadow-raised"
       aria-labelledby="your-pledges-heading"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 id="your-pledges-heading" className="text-sm font-semibold text-ink">
-            {title}
-          </h2>
-          {subtitle ? (
-            <p className="mt-1 text-sm text-ink-secondary">{subtitle}</p>
-          ) : null}
+        <div className="flex items-start gap-3">
+          <span aria-hidden className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-on-soft">
+            <Heart className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 id="your-pledges-heading" className="text-base font-semibold text-ink">
+              {title}
+            </h2>
+            {subtitle ? (
+              <p className="mt-1 text-sm text-ink-secondary">{subtitle}</p>
+            ) : null}
+          </div>
         </div>
         {action}
       </div>
@@ -330,4 +361,10 @@ function formatEur(value: number): string {
     currency: "EUR",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function donationTypeLabel(type: string | null | undefined, locale: "hr" | "en"): string | null {
+  if (!type || !(type in DONATION_TYPES)) return null;
+  const config = DONATION_TYPES[type as keyof typeof DONATION_TYPES];
+  return locale === "hr" ? config.labelHr : config.label;
 }
