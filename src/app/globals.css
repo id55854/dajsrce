@@ -192,9 +192,22 @@
   --font-app-sans: "Noto Sans", system-ui, sans-serif;
 }
 
+/* The next/font variables live on <body>, so the stacks are composed there;
+   see the note on the font loaders in layout.tsx. */
 body {
+  --font-app-sans: var(--font-app-latin), var(--font-app-latin-ext), system-ui, sans-serif;
+  --font-small: var(--font-small-latin), var(--font-small-latin-ext), var(--font-app-sans);
   font-family: var(--font-app-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Small print everywhere: the 12px-and-under sizes. Skipped under the
+   dyslexia setting, whose own font must win. */
+html:not(.dyslexia-font) body :is(.text-xs, .text-\[11px\], .text-\[10px\]) {
+  font-family: var(--font-small);
+  /* Source Sans has a shorter x-height than Noto Sans; match Noto's so the
+     small print is not visibly smaller than before at the same size. */
+  font-size-adjust: 0.536;
 }
 
 .dark body,

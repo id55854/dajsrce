@@ -52,28 +52,65 @@ export const viewport: Viewport = {
   ],
 };
 
-const appFont = localFont({
+// Fontsource ships each face as two files: `latin` (a-z, digits,
+// punctuation) and `latin-ext` (č, ć, đ, š, ž and the rest). The unicode-range
+// that normally joins them is not emitted by next/font/local, so each file is
+// its own family and the stack below lists both. Loading `latin-ext` alone
+// used to draw every ordinary letter in the size-adjusted Arial fallback and
+// only the diacritics in Noto Sans. `adjustFontFallback: false` keeps that
+// fallback out of the stack, where it would win over the `latin-ext` family.
+const appLatin = localFont({
   src: [
-    {
-      path: "../../node_modules/@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff2",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "../../node_modules/@fontsource/noto-sans/files/noto-sans-latin-ext-600-normal.woff2",
-      weight: "600",
-      style: "normal",
-    },
-    {
-      path: "../../node_modules/@fontsource/noto-sans/files/noto-sans-latin-ext-700-normal.woff2",
-      weight: "700",
-      style: "normal",
-    },
+    { path: "../../node_modules/@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../../node_modules/@fontsource/noto-sans/files/noto-sans-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "../../node_modules/@fontsource/noto-sans/files/noto-sans-latin-700-normal.woff2", weight: "700", style: "normal" },
   ],
   display: "swap",
-  variable: "--font-app-sans",
-  fallback: ["system-ui", "sans-serif"],
+  variable: "--font-app-latin",
+  adjustFontFallback: false,
 });
+
+const appLatinExt = localFont({
+  src: [
+    { path: "../../node_modules/@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../../node_modules/@fontsource/noto-sans/files/noto-sans-latin-ext-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "../../node_modules/@fontsource/noto-sans/files/noto-sans-latin-ext-700-normal.woff2", weight: "700", style: "normal" },
+  ],
+  display: "swap",
+  variable: "--font-app-latin-ext",
+  adjustFontFallback: false,
+  preload: false,
+});
+
+// Small print (helper text, meta lines, counts) is set in Source Sans 3: a
+// warmer, more open face at 12px than Noto Sans, with a plain zero so dates
+// and counts read normally.
+const smallLatin = localFont({
+  src: [
+    { path: "../../node_modules/@fontsource/source-sans-3/files/source-sans-3-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../../node_modules/@fontsource/source-sans-3/files/source-sans-3-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "../../node_modules/@fontsource/source-sans-3/files/source-sans-3-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
+  display: "swap",
+  variable: "--font-small-latin",
+  adjustFontFallback: false,
+});
+
+const smallLatinExt = localFont({
+  src: [
+    { path: "../../node_modules/@fontsource/source-sans-3/files/source-sans-3-latin-ext-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../../node_modules/@fontsource/source-sans-3/files/source-sans-3-latin-ext-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "../../node_modules/@fontsource/source-sans-3/files/source-sans-3-latin-ext-700-normal.woff2", weight: "700", style: "normal" },
+  ],
+  display: "swap",
+  variable: "--font-small-latin-ext",
+  adjustFontFallback: false,
+  preload: false,
+});
+
+const fontVariables = [appLatin, appLatinExt, smallLatin, smallLatinExt]
+  .map((font) => font.variable)
+  .join(" ");
 
 // Applied before first paint so neither the theme nor the accessibility
 // settings flash their default state on load. Mirrors the contracts in
@@ -91,7 +128,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: PRE_PAINT_SCRIPT }} />
       </head>
-      <body className={`${appFont.variable} bg-surface text-ink`}>
+      <body className={`${fontVariables} bg-surface text-ink`}>
         <LocaleProvider initialLocale={locale}>
           <ToastProvider>
             <div id="app-content" className="flex min-h-dvh flex-col">
