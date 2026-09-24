@@ -16,12 +16,12 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { fetchMe, invalidateMe } from "@/lib/me-client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 import type { Notification } from "@/lib/types";
-import { formatDistanceToNow } from "date-fns";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { Menu, buttonClasses, usePresence } from "@/components/ui";
-import { useT } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
 import { safeInternalPath } from "@/lib/security/redirects";
+import { timeAgo } from "@/lib/utils";
 
 // The map is the home page, so its entry points at `/`; `/map` still resolves
 // through a permanent redirect for older links.
@@ -124,6 +124,7 @@ function NotificationPanel({
   triggerRef: React.RefObject<HTMLElement | null>;
 }) {
   const t = useT();
+  const { locale } = useLocale();
 
   return (
     // The gutter wrapper gives the popover the page's horizontal inset while
@@ -164,7 +165,7 @@ function NotificationPanel({
                         {n.body}
                       </p>
                       <p className="mt-1 text-xs text-ink-tertiary">
-                        {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                        {timeAgo(n.created_at, locale)}
                       </p>
                     </>
                   );

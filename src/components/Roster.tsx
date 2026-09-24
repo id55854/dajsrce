@@ -5,13 +5,14 @@ import { Card } from "@/components/ui";
 /**
  * The organisation's "who is coming / who promised what" lists, one group per
  * event or need. Shared by the volunteer and pledge tabs so both read the
- * same: a compact header with the fill level, then small name cards in a
- * grid instead of one full-width row per person.
+ * same: a header with the fill level, then a quiet list of people, one row
+ * each, separated by hairlines rather than boxed one by one.
  */
 export function RosterGroup({
   title,
   meta,
   count,
+  progress,
   onOpen,
   openLabel,
   children,
@@ -20,6 +21,8 @@ export function RosterGroup({
   meta?: ReactNode;
   /** The fill level, e.g. "3 / 8 volunteers"; shown as a pill. */
   count: ReactNode;
+  /** 0-100 fill for the thin bar under the header; omitted without a target. */
+  progress?: number | null;
   /** Makes the header open the event's or need's details. */
   onOpen?: () => void;
   /** Visible hint under the meta line when `onOpen` is set. */
@@ -44,7 +47,7 @@ export function RosterGroup({
     </>
   );
   return (
-    <Card padding="none" as="section">
+    <Card padding="none" as="section" className="overflow-hidden">
       {onOpen ? (
         <button
           type="button"
@@ -59,6 +62,11 @@ export function RosterGroup({
           {heading}
         </header>
       )}
+      {progress != null ? (
+        <div className="h-1 bg-surface-sunken" aria-hidden>
+          <div className="h-full bg-brand" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+        </div>
+      ) : null}
       {children}
     </Card>
   );
@@ -91,8 +99,8 @@ export function RosterEmpty({ children }: { children: ReactNode }) {
   return <p className="px-4 py-3 text-sm text-ink-tertiary">{children}</p>;
 }
 
-export function RosterGrid({ children }: { children: ReactNode }) {
-  return <ul className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">{children}</ul>;
+export function RosterList({ children }: { children: ReactNode }) {
+  return <ul className="divide-y divide-border-subtle">{children}</ul>;
 }
 
 function initials(name: string): string {
@@ -106,41 +114,49 @@ export function RosterPerson({
   email,
   when,
   whenLabel,
+  note,
   aside,
 }: {
   name: string;
   email: string;
-  /** ISO timestamp of the signup or pledge. */
+  /** ISO timestamp of the (latest) signup or pledge. */
   when: string;
-  /** Human "2 h ago" text for `when`. */
+  /** Human "prije 2 sata" text for `when`. */
   whenLabel: string;
-  /** Right-hand detail, e.g. the pledged quantity. */
+  /** Extra detail after the time, e.g. "2 obećanja". */
+  note?: ReactNode;
+  /** Right-hand figure, e.g. the pledged quantity. */
   aside?: ReactNode;
 }) {
   return (
-    <li className="flex min-w-0 items-center gap-3 rounded-control border border-border-subtle px-3 py-2">
+    <li className="flex min-w-0 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-sunken/60">
       <span
         aria-hidden
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-on-soft"
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-on-soft"
       >
         {initials(name)}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{name}</p>
-        <p className="flex min-w-0 items-center gap-1.5 text-xs text-ink-tertiary">
+        {email ? (
           <a
             href={`mailto:${email}`}
-            className="truncate text-ink-secondary underline-offset-2 hover:text-brand hover:underline"
+            title={email}
+            className="block truncate text-xs text-ink-secondary underline-offset-2 hover:text-brand hover:underline"
           >
             {email}
           </a>
-          <span aria-hidden>·</span>
-          <time dateTime={when} className="shrink-0">
-            {whenLabel}
-          </time>
+        ) : null}
+        <p className="text-xs text-ink-tertiary sm:hidden">
+          <time dateTime={when}>{whenLabel}</time>
+          {note ? <> · {note}</> : null}
         </p>
       </div>
-      {aside ? <div className="shrink-0 text-right">{aside}</div> : null}
+      <div className="hidden shrink-0 text-right text-xs text-ink-tertiary sm:block">
+        <time dateTime={when}>{whenLabel}</time>
+        {note ? <p>{note}</p> : null}
+      </div>
+      {aside ? <div className="w-16 shrink-0 text-right">{aside}</div> : null}
     </li>
   );
 }

@@ -357,7 +357,8 @@
     "roster_details": "Details and description",
     "roster_no_description": "No description was added.",
     "roster_deadline": "Deadline",
-    "roster_no_deadline": "No deadline"
+    "roster_no_deadline": "No deadline",
+    "roster_quantity": "quantity"
   },
   "notifications": {
     "title": "Notifications",

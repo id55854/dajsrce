@@ -3,7 +3,7 @@
 import { useId, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, X } from "lucide-react";
-import { useT } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
 import { timeAgo } from "@/lib/utils";
 import { Button, Dialog, Skeleton, useToast } from "@/components/ui";
 
@@ -178,6 +178,7 @@ export function YourPledgesSection({
   onCancelled?: (pledgeId: string) => void;
 }) {
   const t = useT();
+  const { locale } = useLocale();
   // The list belongs to the parent, so a row withdrawn here is remembered
   // locally and dropped from the list until the parent refetches.
   const [cancelledIds, setCancelledIds] = useState<Set<string>>(() => new Set());
@@ -253,7 +254,7 @@ export function YourPledgesSection({
                 <article className="relative flex flex-col sm:pr-44">
                   <div className="mb-1 flex items-start gap-2">
                     <time className="shrink-0 text-xs text-ink-tertiary" dateTime={p.created_at}>
-                      {timeAgo(p.created_at)}
+                      {timeAgo(p.created_at, locale)}
                     </time>
                   </div>
                   <h3 className="line-clamp-2 text-sm font-semibold text-ink">

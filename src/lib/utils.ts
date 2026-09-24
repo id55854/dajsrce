@@ -1,7 +1,12 @@
 import { formatDistanceToNow } from "date-fns";
+import { enUS, hr } from "date-fns/locale";
 
-export function timeAgo(dateStr: string): string {
-  return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
+/** "prije 2 sata" / "2 hours ago"; the locale must come from the UI, not the browser. */
+export function timeAgo(dateStr: string, locale: "hr" | "en" = "hr"): string {
+  return formatDistanceToNow(new Date(dateStr), {
+    addSuffix: true,
+    locale: locale === "en" ? enUS : hr,
+  });
 }
 
 export function distanceKm(

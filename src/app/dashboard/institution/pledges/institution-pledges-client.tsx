@@ -6,7 +6,7 @@ import { CalendarClock, Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
-import { RosterFact, RosterGrid, RosterGroup, RosterPerson, RosterSection } from "@/components/Roster";
+import { RosterFact, RosterGroup, RosterList, RosterPerson, RosterSection } from "@/components/Roster";
 import {
   Button,
   Dialog,
@@ -54,8 +54,45 @@ type InstitutionPledgesClientProps = {
  * grouped by need the same way the volunteer roster groups by event, so an
  * organisation can see who to actually expect a donation from.
  */
+/**
+ * One row per donor within a need: several pledges from the same person read
+ * as one promise of the combined quantity, dated by the latest.
+ */
+type DonorRow = {
+  userId: string;
+  donor: PledgeRow["donor"];
+  quantity: number;
+  amountEur: number | null;
+  pledges: number;
+  latest: string;
+};
+
+function byDonor(rows: PledgeRow[]): DonorRow[] {
+  const donors = new Map<string, DonorRow>();
+  for (const row of rows) {
+    const current = donors.get(row.user_id);
+    if (!current) {
+      donors.set(row.user_id, {
+        userId: row.user_id,
+        donor: row.donor,
+        quantity: row.quantity,
+        amountEur: row.amount_eur,
+        pledges: 1,
+        latest: row.created_at,
+      });
+      continue;
+    }
+    current.quantity += row.quantity;
+    current.pledges += 1;
+    if (row.amount_eur != null) current.amountEur = (current.amountEur ?? 0) + Number(row.amount_eur);
+    if (row.created_at > current.latest) current.latest = row.created_at;
+  }
+  return [...donors.values()].sort((a, b) => b.latest.localeCompare(a.latest));
+}
+
 export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: InstitutionPledgesClientProps) {
   const t = useT();
+  const { locale } = useLocale();
   const panelId = useId();
   const [publishing, setPublishing] = useState(false);
   const [pledges, setPledges] = useState<PledgeRow[]>([]);
@@ -129,6 +166,7 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
                 key={needId}
                 title={need?.title ?? t("institution.pledges_need")}
                 meta={t("institution.pledges_count", { count: rows.length })}
+                progress={needed ? (pledged / needed) * 100 : null}
                 onOpen={need ? () => setOpenNeedId(needId) : undefined}
                 openLabel={t("institution.roster_details")}
                 count={
@@ -137,29 +175,26 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
                     : t("institution.pledges_total", { pledged })
                 }
               >
-                <RosterGrid>
-                  {rows.map((p) => (
+                <RosterList>
+                  {byDonor(rows).map((d) => (
                     <RosterPerson
-                      key={p.id}
-                      name={p.donor.name}
-                      email={p.donor.email}
-                      when={p.created_at}
-                      whenLabel={timeAgo(p.created_at)}
+                      key={d.userId}
+                      name={d.donor.name}
+                      email={d.donor.email}
+                      when={d.latest}
+                      whenLabel={timeAgo(d.latest, locale)}
+                      note={d.pledges > 1 ? t("institution.pledges_count", { count: d.pledges }) : null}
                       aside={
                         <>
-                          <p className="text-sm font-semibold tabular-nums text-ink">
-                            {t("institution.pledge_qty", { qty: p.quantity })}
+                          <p className="text-base font-semibold tabular-nums text-ink">{d.quantity}</p>
+                          <p className="text-xs text-ink-tertiary">
+                            {d.amountEur != null ? `€${Number(d.amountEur).toFixed(2)}` : t("institution.roster_quantity")}
                           </p>
-                          {p.amount_eur != null ? (
-                            <p className="text-xs tabular-nums text-ink-tertiary">
-                              {`€${Number(p.amount_eur).toFixed(2)}`}
-                            </p>
-                          ) : null}
                         </>
                       }
                     />
                   ))}
-                </RosterGrid>
+                </RosterList>
               </RosterGroup>
             );
           })}

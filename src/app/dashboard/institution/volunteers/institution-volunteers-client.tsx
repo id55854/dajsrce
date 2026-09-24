@@ -8,7 +8,7 @@ import { Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
-import { RosterEmpty, RosterFact, RosterGrid, RosterGroup, RosterPerson, RosterSection } from "@/components/Roster";
+import { RosterEmpty, RosterFact, RosterGroup, RosterList, RosterPerson, RosterSection } from "@/components/Roster";
 import {
   Button,
   Card,
@@ -165,6 +165,7 @@ export function InstitutionVolunteersClient({
                 key={eventId}
                 title={ev?.title ?? "—"}
                 meta={date ? `${date} · ${time}` : null}
+                progress={needed ? (rows.length / needed) * 100 : null}
                 onOpen={ev ? () => setOpenEventId(eventId) : undefined}
                 openLabel={t("institution.roster_details")}
                 count={
@@ -176,17 +177,17 @@ export function InstitutionVolunteersClient({
                 {rows.length === 0 ? (
                   <RosterEmpty>{t("institution.event_no_signups")}</RosterEmpty>
                 ) : (
-                  <RosterGrid>
+                  <RosterList>
                     {rows.map((s) => (
                       <RosterPerson
                         key={s.id}
                         name={s.volunteer.name}
                         email={s.volunteer.email}
                         when={s.created_at}
-                        whenLabel={timeAgo(s.created_at)}
+                        whenLabel={timeAgo(s.created_at, locale)}
                       />
                     ))}
-                  </RosterGrid>
+                  </RosterList>
                 )}
               </RosterGroup>
             );
