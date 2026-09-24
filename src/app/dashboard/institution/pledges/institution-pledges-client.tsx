@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import { NewNeedForm } from "@/components/NewNeedForm";
-import { CalendarClock, Plus } from "lucide-react";
+import { CalendarClock, Heart, Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
 import { useLocale, useT } from "@/i18n/client";
@@ -164,6 +164,8 @@ export function InstitutionPledgesClient({ embedded = false, refreshKey = 0 }: I
             return (
               <RosterGroup
                 key={needId}
+                icon={<Heart className="h-4 w-4" />}
+                tone="brand"
                 title={need?.title ?? t("institution.pledges_need")}
                 meta={t("institution.pledges_count", { count: rows.length })}
                 progress={needed ? (pledged / needed) * 100 : null}

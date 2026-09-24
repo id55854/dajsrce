@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, Phone } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarHeart, Phone } from "lucide-react";
 import { NewVolunteerEventForm } from "@/components/NewVolunteerEventForm";
 import { Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -163,6 +163,8 @@ export function InstitutionVolunteersClient({
             return (
               <RosterGroup
                 key={eventId}
+                icon={<CalendarHeart className="h-4 w-4" />}
+                tone="info"
                 title={ev?.title ?? "—"}
                 meta={date ? `${date} · ${time}` : null}
                 progress={needed ? (rows.length / needed) * 100 : null}
