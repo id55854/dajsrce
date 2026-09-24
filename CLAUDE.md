@@ -119,6 +119,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 44. `20260924100000_volunteer_event_location.sql` (optional free-text `volunteer_events.location`, 1-300 chars; NULL means "at the organisation's address"; never geocoded, no coordinate). The volunteer event API selects it, so apply before deploying.
 45. `20260924110000_delete_needs_and_events.sql` (`delete_need_transaction` / `delete_volunteer_event_transaction`, service_role only: ownership from the actor's `ngo` profile, notifies donors/volunteers with standing pledges/signups before the ON DELETE CASCADE removes them, audits the counts)
 46. `20260924120000_rule_promoted_institutions_follow_jev.sql` (institutions the old rule promoter created, `source = 'registry'` with no account, now follow the Jev classification instead of overriding it; only `curated` and claimed institutions keep their own category. Old values in `ops.institutions_category_before_jev`)
+47. `20260924130000_curated_institutions_on_map.sql` (`map_association_registry_v1` also returns reviewed curated institutions that no register row links to: `source = 'curated' AND is_verified`, same filters/clustering, hidden locations as their public point only. Typed-name test institutions stay off the map. Adds `idx_registry_directory_entries_batch_city`)
 
 Apply new migrations to Neon with `DATABASE_URL_UNPOOLED` (psql or `neon psql`), then `neon data-api refresh-schema --database neondb` so the Data API sees new functions and columns.
 
