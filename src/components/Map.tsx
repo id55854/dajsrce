@@ -14,7 +14,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
-import { Minus, Plus } from "lucide-react";
+import { Info, Minus, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PIN_STATUS_FILL,
@@ -363,6 +363,40 @@ function MapZoomControl() {
   );
 }
 
+/**
+ * Phones: the attribution folds behind a small "i" in the top-left corner,
+ * which OpenStreetMap's attribution guidelines allow on small screens. Open,
+ * it is Leaflet's own control, so the credited text is exactly the desktop's.
+ */
+function CompactAttribution() {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const node = buttonRef.current;
+    if (!node) return;
+    L.DomEvent.disableClickPropagation(node);
+  }, []);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-label={t("map_ui.attribution")}
+        title={t("map_ui.attribution")}
+        className="absolute left-2 top-2 z-[800] inline-flex h-7 w-7 items-center justify-center rounded-full border border-border-subtle bg-chrome text-ink-secondary shadow-overlay backdrop-blur-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        <Info className="h-4 w-4" aria-hidden />
+      </button>
+      {open ? <AttributionControl position="topleft" /> : null}
+    </>
+  );
+}
+
 function MapFlyToSelection({
   selectedId,
   institutions,
@@ -422,12 +456,23 @@ function MapCommandRunner({ command }: { command: MapCommand | null }) {
   return null;
 }
 
-function ClusterMarker({ cluster }: { cluster: PublicMapCluster }) {
+function ClusterMarker({
+  cluster,
+  showCaption,
+}: {
+  cluster: PublicMapCluster;
+  /**
+   * Draw the place name under the count. Off on phones, where dozens of
+   * captions overlap into an unreadable layer; the sheet lists the same
+   * names, and the tooltip and accessible name still carry them.
+   */
+  showCaption: boolean;
+}) {
   const t = useT();
   const map = useMap();
   const icon = useMemo(
-    () => createClusterIcon(cluster.count, cluster.hasUrgentNeed, cluster.placeName),
-    [cluster.count, cluster.hasUrgentNeed, cluster.placeName]
+    () => createClusterIcon(cluster.count, cluster.hasUrgentNeed, showCaption ? cluster.placeName : null),
+    [cluster.count, cluster.hasUrgentNeed, cluster.placeName, showCaption]
   );
   // A named group says where it is; the grid fallback can only say how many.
   const label = cluster.placeName
@@ -639,7 +684,7 @@ export default function Map({
       />
       {/* Attribution leaves the bottom corner on phones, where the results
           sheet peeks over it, and stays bottom-right on the desktop split. */}
-      <AttributionControl position={compact ? "topleft" : "bottomright"} />
+      {compact ? <CompactAttribution /> : <AttributionControl position="bottomright" />}
       <MapZoomControl />
       <MapViewportObserver onChange={onViewportChange} />
       <MapFlyToSelection selectedId={selectedId} institutions={institutions} />
@@ -654,7 +699,7 @@ export default function Map({
       ) : null}
       {features.map((feature) => {
         if (feature.kind === "cluster") {
-          return <ClusterMarker key={feature.id} cluster={feature} />;
+          return <ClusterMarker key={feature.id} cluster={feature} showCaption={!compact} />;
         }
         return (
           <InstitutionLayer

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  Accessibility,
   Bell,
   Heart,
   MapPin,
@@ -18,6 +19,7 @@ import type { User as SupaUser } from "@supabase/supabase-js";
 import type { Notification } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { OPEN_A11Y_EVENT } from "@/components/AccessibilityMenu";
 import { Menu, buttonClasses, usePresence } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/client";
 import { safeInternalPath } from "@/lib/security/redirects";
@@ -482,11 +484,11 @@ export function Navbar() {
         // Glass, not a rule. Light mode uses a soft dark wash; dark mode
         // cannot, black-on-near-black is invisible, so a faint light lip
         // is what reads as the glass edge.
-        "bg-chrome pt-2 shadow-raised backdrop-blur-xl backdrop-saturate-150",
+        "bg-chrome shadow-raised backdrop-blur-xl backdrop-saturate-150 md:pt-2",
         "dark:shadow-[0_1px_0_0_rgb(255_255_255/0.08),0_12px_24px_-8px_rgb(0_0_0/0.45)]"
       )}
     >
-      <div className="relative flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+      <div className="relative flex h-14 items-center justify-between gap-3 px-4 sm:px-6 md:h-16 lg:px-8">
         <Link
           href="/"
           className="flex shrink-0 cursor-pointer items-center gap-2 rounded-full py-1 pl-0.5 pr-2.5 transition-colors duration-150 hover:bg-ink/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
@@ -633,9 +635,29 @@ export function Navbar() {
             })}
 
             <div className="my-2 h-px bg-border-subtle" />
-            <div className="px-1 pb-2">
+            <div className="flex items-center justify-between gap-2 px-1 pb-2">
               <LocaleSwitcher />
+              {/* The floating accessibility button and the legal strip are
+                  desktop-only; on a phone both are reached from here. */}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileOpen(false);
+                  window.dispatchEvent(new Event(OPEN_A11Y_EVENT));
+                }}
+                className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-medium text-ink-secondary transition-colors hover:bg-ink/[0.08] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:hidden"
+              >
+                <Accessibility className="h-4 w-4" aria-hidden />
+                {t("a11y.title")}
+              </button>
             </div>
+            <Link
+              href="/o-nama"
+              className="rounded-control px-3 py-2.5 text-sm font-medium text-ink-secondary transition-colors hover:bg-ink/[0.08] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:hidden"
+              onClick={() => setMobileOpen(false)}
+            >
+              {t("nav.about")}
+            </Link>
 
             {user ? (
               <>

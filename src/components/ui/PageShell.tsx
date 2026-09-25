@@ -25,7 +25,7 @@ export function PageShell({
   return (
     <div
       className={clsx(
-        "mx-auto px-4 py-8 sm:px-6 sm:py-10 lg:px-8",
+        "mx-auto px-4 py-5 sm:px-6 sm:py-10 lg:px-8",
         WIDTHS[width],
         className
       )}
@@ -55,7 +55,7 @@ export function PageHeader({
   return (
     <div
       className={clsx(
-        "mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between",
+        "mb-5 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-4",
         className
       )}
     >
@@ -65,11 +65,11 @@ export function PageHeader({
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-ink sm:text-4xl">
+        <h1 className="text-2xl font-bold leading-tight tracking-[-0.02em] text-ink sm:text-4xl">
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-3 max-w-3xl text-base leading-7 text-ink-secondary">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-secondary sm:mt-3 sm:text-base sm:leading-7">
             {subtitle}
           </p>
         ) : null}

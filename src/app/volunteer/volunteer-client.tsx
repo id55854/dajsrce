@@ -220,7 +220,7 @@ export function VolunteerClient() {
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-5">
             <div role="group" aria-label={t("volunteer_page.period_label")} className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto">
               {(["all", "week", "month"] as const).map((value) => (
-                <Button key={value} className="px-2 text-xs sm:px-5 sm:text-sm" variant={period === value ? "primary" : "secondary"} aria-pressed={period === value} onClick={() => setPeriod(value)}>
+                <Button key={value} className="whitespace-nowrap px-1.5 text-xs sm:px-5 sm:text-sm" variant={period === value ? "primary" : "secondary"} aria-pressed={period === value} onClick={() => setPeriod(value)}>
                   {t(`volunteer_page.period_${value}`)}
                 </Button>
               ))}

@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { AlertTriangle, PackageSearch } from "lucide-react";
+import { AlertTriangle, PackageSearch, SlidersHorizontal } from "lucide-react";
 import type { DonationType, InstitutionCategory, UrgencyLevel } from "@/lib/types";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { DonationFilter } from "@/components/DonationFilter";
@@ -228,6 +228,10 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   }, [userPledges]);
 
   const filtersActive = donationType !== "all" || urgency !== "all" || categories.length > 0;
+  const activeFilterCount =
+    (donationType !== "all" ? 1 : 0) + (urgency !== "all" ? 1 : 0) + (categories.length > 0 ? 1 : 0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersId = useId();
 
   const clearFilters = useCallback(() => {
     setDonationType("all");
@@ -285,7 +289,9 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     <>
       {/* An NGO account cannot pledge, so this panel would sit at the top of
           the page permanently empty for one. */}
-      {isNgo ? null : (
+      {/* Signed out it only said "sign in to see your pledges", which cost a
+          phone its first screen; the nav already offers signing in. */}
+      {isNgo || loggedIn !== true ? null : (
         <YourPledgesSection
           loggedIn={loggedIn === true}
           loading={pledgesLoading}
@@ -294,7 +300,37 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
         />
       )}
 
-      <div className="mb-6 rounded-card border border-border-subtle bg-surface-sunken p-4">
+      {/* Phones fold the three filters behind one button, the same pattern as
+          the map sheet, so the first need is on the first screen. */}
+      <div className="mb-4 flex items-center justify-between gap-2 md:hidden">
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<SlidersHorizontal className="h-4 w-4" aria-hidden />}
+          onClick={() => setFiltersOpen((value) => !value)}
+          aria-expanded={filtersOpen}
+          aria-controls={filtersId}
+        >
+          {t("map_page.filters")}
+          {activeFilterCount > 0 ? (
+            <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-bold text-white">
+              {activeFilterCount}
+            </span>
+          ) : null}
+        </Button>
+        {filtersActive ? (
+          <button type="button" onClick={clearFilters} className="min-h-10 rounded-control px-2 text-sm font-semibold text-brand hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+            {t("needs_page.clear_filters")}
+          </button>
+        ) : null}
+      </div>
+      <div
+        id={filtersId}
+        className={clsx(
+          "mb-6 rounded-card border border-border-subtle bg-surface-sunken p-4 md:block",
+          filtersOpen ? "block" : "hidden"
+        )}
+      >
         <div className="flex flex-wrap gap-3">
           <CategoryFilter value={categories} onChange={setCategories} />
           <DonationFilter value={donationType === "all" ? [] : [donationType]} onChange={(value) => setDonationType(value[0] ?? "all")} />
@@ -306,7 +342,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
             onChange={(value) => setUrgency(value[0] ?? "all")}
           />
         </div>
-        {filtersActive ? <button type="button" onClick={clearFilters} className="mt-3 min-h-10 rounded-control px-2 text-sm font-semibold text-brand hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{t("needs_page.clear_filters")}</button> : null}
+        {filtersActive ? <button type="button" onClick={clearFilters} className="mt-3 hidden min-h-10 md:inline-block rounded-control px-2 text-sm font-semibold text-brand hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{t("needs_page.clear_filters")}</button> : null}
       </div>
 
       {coldLoad ? (

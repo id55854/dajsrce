@@ -280,9 +280,12 @@ export function AccessibilityPanel({ onBack }: { onBack?: () => void }) {
   );
 }
 
+/** Dispatched on `window` by the phone menu to open the panel. */
+export const OPEN_A11Y_EVENT = "dajsrce:open-accessibility";
+
 /**
  * The accessibility entry point: a round button pinned to the bottom-left
- * corner of the viewport, on every page and every breakpoint, not folded
+ * corner of the viewport from md up (phones open it from the navbar menu), not folded
  * into the navbar's account menu, so it stays reachable independently of
  * being signed in and never competes for space with profile/notifications.
  * The panel opens upward from it, since the trigger sits at the screen edge.
@@ -292,13 +295,21 @@ export function AccessibilityMenu() {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  // Phones open the panel from the navbar menu instead of a floating button
+  // that sat over the map sheet and the bottom of every card.
+  useEffect(() => {
+    const openFromMenu = () => setOpen(true);
+    window.addEventListener(OPEN_A11Y_EVENT, openFromMenu);
+    return () => window.removeEventListener(OPEN_A11Y_EVENT, openFromMenu);
+  }, []);
+
   return (
     <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-[var(--z-chrome)]">
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle/60 bg-surface-raised text-ink shadow-raised transition-[box-shadow,transform] duration-150 ease-out hover:shadow-overlay motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className="hidden h-12 w-12 items-center justify-center rounded-full border md:inline-flex border-border-subtle/60 bg-surface-raised text-ink shadow-raised transition-[box-shadow,transform] duration-150 ease-out hover:shadow-overlay motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         aria-label={t("a11y.open")}
         aria-expanded={open}
         aria-haspopup="true"

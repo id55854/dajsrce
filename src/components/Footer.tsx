@@ -87,7 +87,9 @@ export function MapLegalStrip() {
   const t = useT();
   const contactEmail = ORGANISATION.contactEmail;
   return (
-    <div className="flex h-8 shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-border-subtle bg-surface px-3">
+    // Phones keep every pixel for the map and sheet; the same identity is on
+    // /o-nama, which the phone menu links to.
+    <div className="hidden h-8 shrink-0 items-center justify-center gap-2 overflow-hidden border-t border-border-subtle bg-surface px-3 md:flex">
       <p className="truncate text-[11px] leading-none text-ink-secondary">
         <span className="font-semibold uppercase tracking-wide">
           {ORGANISATION.legalName}

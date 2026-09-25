@@ -56,7 +56,7 @@
   --scrim: rgb(0 0 0 / 0.45);
 
   /* --- layout ------------------------------------------------------------ */
-  --nav-height: 4.5rem;        /* h-16 + pt-2, keep in sync with Navbar */
+  --nav-height: 3.5rem;        /* h-14 on phones; h-16 + pt-2 from md, keep in sync with Navbar */
 
   /* --- layering ----------------------------------------------------------
      One ladder for the whole app. Leaflet's internal panes (200–700) are
@@ -69,6 +69,12 @@
   --z-sheet: 60;       /* bottom sheets and their scrim                      */
   --z-modal: 70;       /* dialogs and their scrim                            */
   --z-toast: 80;       /* transient notifications, above everything          */
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --nav-height: 4.5rem;
+  }
 }
 
 .dark {
@@ -442,6 +448,17 @@ html:not(.dyslexia-font) body :is(.text-xs, .text-\[11px\], .text-\[10px\]) {
 .dark .leaflet-control-zoom a:hover {
   background: #374151;
 }
+/* Phones open the attribution from the "i" button (CompactAttribution in
+   Map.tsx): set it beside that button, small, instead of across the map. */
+.leaflet-top.leaflet-left .leaflet-control-attribution {
+  margin: 8px 0 0 44px;
+  max-width: calc(100vw - 120px);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
 .dark .leaflet-control-attribution {
   background: rgba(17, 24, 39, 0.8) !important;
   color: #6b7280;

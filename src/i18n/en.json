@@ -672,7 +672,8 @@
     "your_location": "Your location",
     "map_aria": "Interactive institution map",
     "zoom_in": "Zoom in",
-    "zoom_out": "Zoom out"
+    "zoom_out": "Zoom out",
+    "attribution": "Map and data sources"
   },
   "map_start": {
     "title": "Where would you like to start?",

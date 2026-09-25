@@ -124,7 +124,7 @@ function useCompactViewport(): boolean | null {
 
 function MapPageLoading() {
   return (
-    <div className="flex h-[calc(100dvh-4.5rem)] flex-col overflow-hidden bg-surface">
+    <div className="flex h-[calc(100dvh-var(--nav-height))] flex-col overflow-hidden bg-surface">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row md:gap-4 md:px-4 md:pt-4 lg:px-6 lg:pt-5">
         <Skeleton className="min-h-0 flex-1 rounded-none md:mb-4 md:h-auto md:w-[60%] md:rounded-sheet lg:mb-5" />
         <div className="hidden min-h-0 flex-col gap-3 p-3 md:flex md:h-full md:w-[40%]">
@@ -709,7 +709,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     // the registered-name strip closes it. Keeping the strip in flow rather
     // than overlaying it is what stops it colliding with the bottom sheet's
     // peek detent on phones, and the page still never scrolls.
-    <div className="flex h-[calc(100dvh-4.5rem)] flex-col overflow-hidden bg-surface">
+    <div className="flex h-[calc(100dvh-var(--nav-height))] flex-col overflow-hidden bg-surface">
     {/* Bottom spacing lives on the map card, not the container, so the results
         list on the right can scroll all the way down to the legal strip.
         The inset is deliberately slim: it only has to read as a card against
@@ -900,10 +900,18 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
           than replacing it, so scroll position and the clicked card survive.
           Opening a pin must not grow this column; the map keeps its 60%
           and the chrome stays mounted underneath so query and filters survive. */}
+      {/* Before hydration the phone gets this column shaped like the sheet it
+          turns into (same middle detent, rounded top, filters folded away), so
+          nothing jumps when the real sheet takes over. */}
       <aside className={clsx(
-        "min-h-0 w-full flex-col overflow-hidden bg-surface md:relative md:flex md:h-full md:w-[40%]",
-        compact === null ? "absolute inset-x-0 bottom-0 flex h-[70%]" : "relative hidden"
+        "min-h-0 w-full flex-col overflow-hidden bg-surface md:relative md:flex md:h-full md:w-[40%] md:rounded-none md:border-0 md:shadow-none",
+        compact === null
+          ? "absolute inset-x-0 bottom-0 flex h-[56%] rounded-t-sheet border-t border-border-subtle shadow-overlay"
+          : "relative hidden"
       )}>
+        {compact === null ? (
+          <div aria-hidden className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-border-strong/50 md:hidden" />
+        ) : null}
         <div
           className={clsx(
             "flex min-h-0 flex-1 flex-col",
@@ -925,7 +933,9 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
               pending={searchPending}
               onSelect={onSelect}
             />
-            <FilterBar filters={filters} onChange={setFilters} />
+            <div className="hidden md:block">
+              <FilterBar filters={filters} onChange={setFilters} />
+            </div>
             <div className="mt-2">{resultsMeta}</div>
           </div>
 
