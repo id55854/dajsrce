@@ -547,6 +547,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     filters.categories.length +
     filters.donationTypes.length +
     (filters.city ? 1 : 0) +
+    (filters.onlyOnboarded ? 1 : 0) +
     (filters.onlyZagreb ? 1 : 0) +
     (filters.onlyUrgent ? 1 : 0);
 
@@ -851,7 +852,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
             </div>
           }
         >
-          <div className="pb-[10dvh]" aria-busy={refreshing}>
+          <div aria-busy={refreshing}>
             <div className={clsx(detailOpen && "hidden")}>
               {compact ? results : null}
             </div>
@@ -867,7 +868,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
         </Sheet>
 
         <MapFilterPanel
-          open={filterPanelOpen}
+          open={filterPanelOpen && compact === true}
           filters={filters}
           onChange={setFilters}
           onClear={clearFilters}
@@ -914,7 +915,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
         ) : null}
         <div
           className={clsx(
-            "flex min-h-0 flex-1 flex-col",
+            "flex min-h-0 flex-1 flex-col [@media(max-height:600px)]:overflow-y-auto [@media(max-height:600px)]:overscroll-contain",
             detailOpen && "hidden"
           )}
         >
@@ -940,7 +941,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
           </div>
 
           <div
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 [@media(max-height:600px)]:flex-none [@media(max-height:600px)]:overflow-visible"
             aria-busy={refreshing}
           >
             {compact ? null : results}

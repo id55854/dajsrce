@@ -157,7 +157,7 @@ export function MapSearchField({
               // A soft filled rounded rectangle rather than a bordered pill:
               // the fill carries the shape, and the border only appears as the
               // brand focus ring.
-              "h-12 w-full rounded-card border border-transparent pl-10 pr-12 text-sm text-ink outline-none",
+              "h-12 w-full rounded-card border border-transparent pl-10 pr-12 text-base text-ink outline-none md:text-sm",
               "transition-[background-color,border-color,box-shadow] duration-150 ease-out",
               SEARCH_CONTROL_CLASSES,
               "placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:bg-surface-raised focus-visible:ring-2 focus-visible:ring-brand",
@@ -186,7 +186,7 @@ export function MapSearchField({
               onClick={() => {
                 onClear();
                 closeList();
-                inputRef.current?.focus();
+                inputRef.current?.focus({ preventScroll: true });
               }}
               aria-label={t("map_page.clear_search")}
               className="absolute right-1 inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"

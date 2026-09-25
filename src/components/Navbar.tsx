@@ -260,6 +260,28 @@ export function Navbar() {
   const router = useRouter();
   const t = useT();
   const mobileNav = usePresence(mobileOpen);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const dismissOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!mobileNavRef.current?.contains(target) && !mobileTriggerRef.current?.contains(target)) {
+        setMobileOpen(false);
+      }
+    };
+    const dismissWithEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMobileOpen(false);
+      mobileTriggerRef.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener("pointerdown", dismissOutside);
+    document.addEventListener("keydown", dismissWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOutside);
+      document.removeEventListener("keydown", dismissWithEscape);
+    };
+  }, [mobileOpen]);
   // Holds whichever bell opened the panel (there is a desktop and a mobile
   // one), so the popover can ignore clicks on it and hand focus back on Escape.
   const bellRef = useRef<HTMLElement | null>(null);
@@ -480,7 +502,7 @@ export function Navbar() {
     <header
       data-ui-material
       className={clsx(
-        "sticky top-0 z-[var(--z-chrome)] border-b border-transparent",
+        "sticky top-0 z-[var(--z-chrome)]",
         // Glass, not a rule. Light mode uses a soft dark wash; dark mode
         // cannot, black-on-near-black is invisible, so a faint light lip
         // is what reads as the glass edge.
@@ -574,6 +596,7 @@ export function Navbar() {
             className={ICON_BUTTON}
             aria-expanded={mobileOpen}
             aria-controls="mobile-nav"
+            ref={mobileTriggerRef}
             aria-label={mobileOpen ? t("nav.close_menu") : t("nav.open_menu")}
             onClick={() => setMobileOpen((o) => !o)}
           >
@@ -601,11 +624,12 @@ export function Navbar() {
       {mobileNav.present ? (
         <div
           id="mobile-nav"
+          ref={mobileNavRef}
           data-ui-motion
           data-state={mobileNav.state}
           onAnimationEnd={mobileNav.onAnimationEnd}
           className={clsx(
-            "origin-top border-t border-border-subtle bg-surface-overlay px-4 py-4 shadow-overlay",
+            "absolute inset-x-0 top-full max-h-[calc(100dvh-var(--nav-height))] origin-top overflow-y-auto overscroll-contain border-t border-border-subtle bg-surface-overlay px-4 py-4 shadow-overlay",
             compactPanelOnly,
             "data-[state=open]:animate-menu-in data-[state=closed]:animate-menu-out"
           )}

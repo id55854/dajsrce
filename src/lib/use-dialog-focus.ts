@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const FOCUSABLE = [
   "a[href]",
@@ -46,6 +46,11 @@ export function useDialogFocus({
   dialogRef: RefObject<HTMLElement | null>;
   onClose: () => void;
 }) {
+  // Callers often pass an inline closure. A data refresh must not tear down the
+  // trap, restore the trigger, and steal focus from a field or open dropdown.
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
+
   useEffect(() => {
     if (!open) return;
     const dialog = dialogRef.current;
@@ -54,18 +59,19 @@ export function useDialogFocus({
     const previouslyFocused = document.activeElement as HTMLElement | null;
     lockScroll(dialog);
 
-    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
+    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE))
+      .filter((element) => element.getClientRects().length > 0 && !element.closest('[inert]'));
     const initial =
       dialog.querySelector<HTMLElement>("[data-dialog-initial-focus]") ??
       focusable()[0] ??
       dialog;
-    initial.focus();
+    initial.focus({ preventScroll: true });
 
     function handleKeyDown(event: KeyboardEvent) {
       if (openDialogs[openDialogs.length - 1] !== dialog) return;
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        closeRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -73,18 +79,18 @@ export function useDialogFocus({
       const elements = focusable();
       if (elements.length === 0) {
         event.preventDefault();
-        dialog?.focus();
+        dialog?.focus({ preventScroll: true });
         return;
       }
 
       const first = elements[0];
       const last = elements[elements.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && (document.activeElement === first || !dialog?.contains(document.activeElement))) {
         event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+        last.focus({ preventScroll: true });
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog?.contains(document.activeElement))) {
         event.preventDefault();
-        first.focus();
+        first.focus({ preventScroll: true });
       }
     }
 
@@ -92,7 +98,7 @@ export function useDialogFocus({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       unlockScroll(dialog);
-      previouslyFocused?.focus();
+      if (previouslyFocused?.isConnected) previouslyFocused.focus({ preventScroll: true });
     };
-  }, [dialogRef, onClose, open]);
+  }, [dialogRef, open]);
 }

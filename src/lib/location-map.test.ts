@@ -5,6 +5,7 @@ import {
   MAP_LIST_RENDER_LIMIT,
   MapQueryValidationError,
   buildMapQueryString,
+  buildBrowserMapParams,
   mapCacheGridStep,
   maxBboxAreaForZoom,
   normalizeBboxForRequest,
@@ -16,6 +17,7 @@ import {
   type MapBounds,
   type PublicMapResponse,
 } from "@/lib/location-map";
+import { initialState } from "@/app/map/map-state";
 
 function validParams() {
   return new URLSearchParams({
@@ -36,6 +38,25 @@ describe("social category shortcut", () => {
 });
 
 describe("map query contract", () => {
+  it("preserves all selected filters when a map link is reloaded or shared", () => {
+    const filters = {
+      categories: ["soup_kitchen" as const],
+      donationTypes: ["food" as const, "time" as const],
+      city: "Velika Gorica",
+      onlyZagreb: false,
+      onlyUrgent: false,
+      onlyOnboarded: true,
+      onlySocial: true,
+    };
+    const params = buildBrowserMapParams({
+      center: [45.7, 16.1], zoom: 10, filters, query: null, selectedId: null,
+    });
+    expect(initialState(params).filters).toEqual(filters);
+    expect(buildBrowserMapParams({
+      center: [45.7, 16.1], zoom: 10, filters: { ...filters, city: null }, query: null, selectedId: null,
+    }).has("city")).toBe(false);
+  });
+
   it("normalizes, validates and bounds a public map query", () => {
     const params = validParams();
     params.set("categories", "soup_kitchen,caritas,soup_kitchen");

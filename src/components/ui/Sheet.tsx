@@ -20,7 +20,7 @@ export type SheetProps = {
   /** Index into `detents`. Controlled, so the parent can drive it too. */
   detentIndex: number;
   onDetentChange: (index: number) => void;
-  /** Always-visible grab area. The whole header is draggable, not just the pill. */
+  /** Always-visible controls below the draggable handle. */
   header?: ReactNode;
   ariaLabel: string;
   /** Accessible name for the drag handle. */
@@ -87,7 +87,10 @@ export function Sheet({
   const applyTranslate = useCallback((value: number) => {
     translateRef.current = value;
     const node = sheetRef.current;
-    if (node) node.style.transform = `translate3d(0, ${value}px, 0)`;
+    if (node) {
+      node.style.transform = `translate3d(0, ${value}px, 0)`;
+      node.style.setProperty("--sheet-offset", `${value}px`);
+    }
   }, []);
 
   // Measure the container so detents are relative to available space.
@@ -242,15 +245,16 @@ export function Sheet({
       aria-label={ariaLabel}
       data-ui-material
       className={clsx(
-        "absolute inset-x-0 bottom-0 z-[var(--z-sheet)] flex flex-col",
+        "absolute inset-x-0 top-0 z-[var(--z-sheet)] flex flex-col",
         "rounded-t-sheet border-t border-border-subtle bg-chrome shadow-overlay backdrop-blur-xl",
-        // Height is the full container; the transform decides how much shows.
-        "h-full",
         className
       )}
       // Parked off-screen for the single frame before the container is measured.
       style={{
         transform: height > 0 ? `translate3d(0, ${translateRef.current}px, 0)` : "translate3d(0, 100%, 0)",
+        // The scroller ends at the visible bottom at EVERY detent. A full-
+        // height translated sheet left its last rows below the viewport.
+        height: "calc(100% - max(0px, var(--sheet-offset, 100%)))",
       }}
     >
       <div
@@ -285,17 +289,13 @@ export function Sheet({
             />
           </button>
         </div>
-        {header ? <div className="px-3 pb-2">{header}</div> : null}
       </div>
+      {/* Controls and search suggestions must not inherit touch-action:none. */}
+      {header ? <div className="shrink-0 px-3 pb-2">{header}</div> : null}
 
       <div
         ref={scrollRef}
-        // Only the fully-open sheet scrolls its content; below that the gesture
-        // belongs to the sheet, so an inner scroller would swallow it.
-        className={clsx(
-          "min-h-0 flex-1 overscroll-contain px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
-          atFullDetent ? "overflow-y-auto" : "overflow-hidden"
-        )}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
         {children}
       </div>

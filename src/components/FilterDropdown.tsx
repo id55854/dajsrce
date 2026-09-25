@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import clsx from "clsx";
 import { useT } from "@/i18n/client";
@@ -37,6 +37,26 @@ export function FilterDropdown<T extends string>({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState<{ top?: number; bottom?: number; left: number; width: number; maxHeight: number }>({ top: 0, left: 0, width: 300, maxHeight: 400 });
+  const positionPanel = useCallback(() => {
+    if (!trigger.current) return;
+    const rect = trigger.current.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const left = (viewport?.offsetLeft ?? 0) + 12;
+    const top = (viewport?.offsetTop ?? 0) + 12;
+    const viewportWidth = viewport?.width ?? window.innerWidth;
+    const bottom = top + (viewport?.height ?? window.innerHeight) - 24;
+    const width = Math.min(Math.max(rect.width, 300), viewportWidth - 24);
+    const below = Math.max(0, bottom - rect.bottom - 6);
+    const above = Math.max(0, rect.top - top - 6);
+    const openBelow = below >= Math.min(400, above);
+    const maxHeight = Math.min(400, Math.max(0, bottom - top), Math.max(below, above));
+    setPosition({
+      left: Math.max(left, Math.min(rect.left, left + viewportWidth - width - 24)),
+      top: Math.max(top, Math.min(openBelow ? rect.bottom + 6 : rect.top - maxHeight - 6, bottom - maxHeight)),
+      width,
+      maxHeight,
+    });
+  }, []);
   useEffect(() => {
     if (!open) return;
     const dismiss = () => panel.current?.hidePopover();
@@ -45,21 +65,27 @@ export function FilterDropdown<T extends string>({
       event.preventDefault();
       event.stopImmediatePropagation();
       dismiss();
-      trigger.current?.focus();
+      trigger.current?.focus({ preventScroll: true });
     };
     const onScroll = (event: Event) => {
       if (event.target instanceof Node && panel.current?.contains(event.target)) return;
-      dismiss();
+      positionPanel();
     };
     document.addEventListener("keydown", onKeyDown, true);
-    window.addEventListener("resize", dismiss);
+    // A phone keyboard resizes/pans the visual viewport. Keep the picker open
+    // and inside that viewport instead of dismissing it while someone types.
+    window.addEventListener("resize", positionPanel);
+    window.visualViewport?.addEventListener("resize", positionPanel);
+    window.visualViewport?.addEventListener("scroll", positionPanel);
     document.addEventListener("scroll", onScroll, true);
     return () => {
       document.removeEventListener("keydown", onKeyDown, true);
-      window.removeEventListener("resize", dismiss);
+      window.removeEventListener("resize", positionPanel);
+      window.visualViewport?.removeEventListener("resize", positionPanel);
+      window.visualViewport?.removeEventListener("scroll", positionPanel);
       document.removeEventListener("scroll", onScroll, true);
     };
-  }, [open]);
+  }, [open, positionPanel]);
   const selected = options.filter((option) => value.includes(option.value));
   const summary = selectedLabel ?? (selected.length === 0 ? allLabel : selected.length === 1
     ? selected[0].label : t("filters.selected_count", { count: selected.length }));
@@ -68,22 +94,12 @@ export function FilterDropdown<T extends string>({
 
   function close() {
     panel.current?.hidePopover();
-    trigger.current?.focus();
+    trigger.current?.focus({ preventScroll: true });
   }
 
   function toggle() {
     if (open) return close();
-    const rect = trigger.current!.getBoundingClientRect();
-    const width = Math.min(Math.max(rect.width, 300), window.innerWidth - 24);
-    const below = window.innerHeight - rect.bottom - 12;
-    const above = rect.top - 12;
-    const height = Math.min(400, Math.max(below, above));
-    setPosition({
-      left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)),
-      ...(below >= Math.min(400, above) ? { top: rect.bottom + 6 } : { bottom: window.innerHeight - rect.top + 6 }),
-      width,
-      maxHeight: Math.max(160, height - 6),
-    });
+    positionPanel();
     setQuery("");
     onSearchChange?.("");
     panel.current?.showPopover();
@@ -112,12 +128,12 @@ export function FilterDropdown<T extends string>({
         role="group"
         aria-labelledby={`${id}-label`}
         style={{ top: "auto", bottom: "auto", ...position, margin: 0, position: "fixed" }}
-        className="overflow-y-auto rounded-card border border-border-subtle bg-surface-overlay p-2 text-ink shadow-overlay"
+        className="overflow-y-auto overscroll-contain rounded-card border border-border-subtle bg-surface-overlay p-2 text-ink shadow-overlay"
         onToggle={(event) => {
           const expanded = event.newState === "open";
           setOpen(expanded);
           onOpenChange?.(expanded);
-          if (expanded) search.current?.focus();
+          if (expanded) search.current?.focus({ preventScroll: true });
         }}
         onBlur={(event) => {
           if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current) panel.current?.hidePopover();

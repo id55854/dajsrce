@@ -597,7 +597,7 @@ export function buildBrowserMapParams({
   zoom: number;
   filters: Pick<
     MapQuery,
-    "categories" | "donationTypes" | "onlyZagreb" | "onlyUrgent" | "onlyOnboarded"
+    "categories" | "donationTypes" | "city" | "onlyZagreb" | "onlyUrgent" | "onlyOnboarded"
   > & { onlySocial: boolean };
   query: string | null;
   selectedId: string | null;
@@ -616,6 +616,7 @@ export function buildBrowserMapParams({
     params.set("donationTypes", [...filters.donationTypes].sort().join(","));
   }
   if (filters.onlyZagreb) params.set("onlyZagreb", "true");
+  if (filters.city) params.set("city", filters.city);
   if (filters.onlyUrgent) params.set("onlyUrgent", "true");
   if (filters.onlyOnboarded) params.set("onlyOnboarded", "true");
   // Social-only is the default, so only its absence is worth writing down.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Button, usePresence } from "@/components/ui";
 import { FilterBar } from "@/components/FilterBar";
 import { useDialogFocus } from "@/lib/use-dialog-focus";
@@ -39,11 +40,13 @@ export function MapFilterPanel({
   const { present, state, onAnimationEnd } = usePresence(open);
   // Gated on `present` too: on the commit where `open` turns true the panel
   // node has not rendered yet, so the focus trap would find nothing to trap.
-  useDialogFocus({ open: open && present, dialogRef: panelRef, onClose });
+  useDialogFocus({ open: present, dialogRef: panelRef, onClose });
 
   if (!present) return null;
 
-  return (
+  // Escape the map's clipped, isolated container. Focusing a panel inside it
+  // can scroll that container and move both the scrim and the county sheet.
+  return createPortal(
     <div
       data-ui-motion
       data-state={state}
@@ -51,7 +54,7 @@ export function MapFilterPanel({
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      className="absolute inset-0 z-[var(--z-modal)] flex items-end bg-scrim data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out md:hidden"
+      className="fixed inset-0 z-[var(--z-modal)] flex items-end bg-scrim data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out"
     >
       <div
         ref={panelRef}
@@ -61,7 +64,7 @@ export function MapFilterPanel({
         tabIndex={-1}
         data-state={state}
         onMouseDown={(event) => event.stopPropagation()}
-        className="max-h-[85%] w-full overflow-y-auto rounded-t-sheet border-t border-border-subtle bg-surface-overlay p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-modal outline-none data-[state=open]:animate-sheet-in data-[state=closed]:animate-sheet-out"
+        className="max-h-[85dvh] w-full overflow-y-auto overscroll-contain rounded-t-sheet border-t border-border-subtle bg-surface-overlay p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-modal outline-none data-[state=open]:animate-sheet-in data-[state=closed]:animate-sheet-out"
       >
         <h2 id={titleId} className="mb-3 text-base font-semibold text-ink">
           {t("map_page.filters")}
@@ -78,6 +81,7 @@ export function MapFilterPanel({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
