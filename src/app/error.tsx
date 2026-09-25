@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { isChunkLoadError, reloadOnceForChunkError } from "@/lib/chunk-reload";
 
 export default function RouteError({
   error,
@@ -15,6 +16,9 @@ export default function RouteError({
   const t = useT();
 
   useEffect(() => {
+    // A tab left open across a deploy asks for chunks that no longer exist;
+    // loading the current build is the whole fix, so do that once.
+    if (reloadOnceForChunkError(error)) return;
     // The digest is the only safe correlation handle here: the message may
     // carry internals, so it is never rendered to the user.
     console.error("route error", { digest: error.digest });
@@ -29,7 +33,10 @@ export default function RouteError({
         {t("errors.generic_title")}
       </h1>
       <p className="text-base text-ink-secondary">{t("errors.generic_body")}</p>
-      <Button onClick={reset} className="mt-2">
+      <Button
+        onClick={() => (isChunkLoadError(error) ? window.location.reload() : reset())}
+        className="mt-2"
+      >
         {t("errors.retry")}
       </Button>
     </div>
