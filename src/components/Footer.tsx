@@ -19,6 +19,22 @@ function isMapRoute(pathname: string): boolean {
   return pathname === "/" || pathname === "/map" || pathname.startsWith("/map/");
 }
 
+// "O nama" and the three legal documents, in the order a reader looks for them.
+// The legal pages have to be reachable from every page (GDPR Art. 12, DSA
+// Art. 14), so the map carries the two that matter most in its own strip.
+const FOOTER_LINKS = [
+  { href: "/o-nama", labelKey: "nav.about" },
+  { href: "/pravila-privatnosti", labelKey: "legal.privacy" },
+  { href: "/uvjeti-koristenja", labelKey: "legal.terms" },
+  { href: "/kolacici", labelKey: "legal.cookies" },
+] as const;
+
+const MAP_STRIP_LINKS = [
+  { href: "/o-nama", labelKey: "nav.about" },
+  { href: "/pravila-privatnosti", labelKey: "legal.privacy_short" },
+  { href: "/uvjeti-koristenja", labelKey: "legal.terms_short" },
+] as const;
+
 export function Footer() {
   const t = useT();
   const { locale } = useLocale();
@@ -61,12 +77,20 @@ export function Footer() {
           </p>
         ) : null}
 
-        <Link
-          href="/o-nama"
-          className="rounded-control text-sm font-semibold text-brand underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-        >
-          {t("nav.about")}
-        </Link>
+        <nav aria-label={t("legal.footer_nav_label")}>
+          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            {FOOTER_LINKS.map(({ href, labelKey }) => (
+              <li key={href}>
+                <Link
+                  href={href}
+                  className="rounded-control text-sm font-semibold text-brand underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                >
+                  {t(labelKey)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
         <p className="text-sm">{t("footer.public_good", { year })}</p>
       </div>
@@ -115,12 +139,17 @@ export function MapLegalStrip() {
           </>
         ) : null}
       </p>
-      <Link
-        href="/o-nama"
-        className="shrink-0 rounded text-[11px] font-semibold leading-none text-brand underline-offset-2 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-      >
-        {t("nav.about")}
-      </Link>
+      <nav aria-label={t("legal.footer_nav_label")} className="flex shrink-0 items-center gap-3">
+        {MAP_STRIP_LINKS.map(({ href, labelKey }) => (
+          <Link
+            key={href}
+            href={href}
+            className="shrink-0 rounded text-[11px] font-semibold leading-none text-brand underline-offset-2 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            {t(labelKey)}
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }
