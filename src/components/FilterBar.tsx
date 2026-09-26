@@ -113,7 +113,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
         </span>
         <span className="relative inline-flex shrink-0">
           <input type="checkbox" role="switch" checked={filters.onlyOnboarded} onChange={(event) => onChange({ ...filters, onlyOnboarded: event.target.checked })} className="peer sr-only" />
-          <span aria-hidden className="h-6 w-11 rounded-full bg-ink/20 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface" />
+          <span aria-hidden className="h-6 w-11 rounded-full bg-ink/50 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface" />
           <span aria-hidden className="pointer-events-none absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
         </span>
       </label>
