@@ -82,12 +82,14 @@ function rpcRowToFeature(row: RpcMapRow): PublicMapFeature | null {
   }
 
   if (!row.name || !row.category || !row.entity_type) return null;
-  // A hidden row already arrives at its coarse public point. A row in a
-  // protected category that is not hidden would otherwise be pinned at its
-  // registered seat, so it is projected the same way here, before anything is
-  // serialized or cached.
-  const protectedLocation =
-    !row.is_location_hidden && isProtectedLocation(row.category, row.source);
+  // A row in a protected category is always projected here, before anything
+  // is serialized or cached, even when it is already flagged hidden: a
+  // register row arrives at its directory point, and a directory point
+  // computed before its institution was hidden is still the exact seat (the
+  // 2026-09-26 hide of this category did exactly that until
+  // 20260926140000 recomputed the points). Re-projecting a point that is
+  // already coarse keeps it coarse and stable.
+  const protectedLocation = isProtectedLocation(row.category, row.source);
   const point = protectedLocation
     ? projectHiddenLocation(row.feature_id, row.latitude, row.longitude)
     : { latitude: row.latitude, longitude: row.longitude };

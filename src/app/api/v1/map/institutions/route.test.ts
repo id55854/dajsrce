@@ -422,6 +422,24 @@ describe("GET /api/v1/map/institutions", () => {
     expect(again.features[0].longitude).toBe(feature.longitude);
   });
 
+  it("still coarsens a protected register row that arrives flagged hidden at an exact point", async () => {
+    // A directory point projected before its institution was hidden is the
+    // exact seat even though the row now says hidden (2026-09-26).
+    rpc.mockResolvedValue({
+      error: null,
+      data: [institutionRow({ is_location_hidden: true, location_precision: "exact" })],
+    });
+
+    const payload = await (await GET(new NextRequest(`${url}&categories=domestic_violence`))).json();
+    const [feature] = payload.features;
+
+    expect(feature).toMatchObject({ address: null, isLocationHidden: true, locationPrecision: "hidden" });
+    const body = JSON.stringify(payload);
+    expect(body).not.toContain("44.869137");
+    expect(body).not.toContain("13.848412");
+    expect(body).not.toContain("Koparska");
+  });
+
   it("protects an account holder's row in that category too, but not a curated one", async () => {
     rpc.mockResolvedValue({
       error: null,
