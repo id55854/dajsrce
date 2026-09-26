@@ -19,6 +19,8 @@ import { PledgeButton, type PledgeSuccessPayload } from "./PledgeButton";
 import { useLiveCapacity } from "@/lib/live-capacity";
 import { CancelActionButton } from "@/components/YourPledgesSection";
 import { DonationTypeIcon } from "@/components/DonationTypeIcon";
+import { needAnchorId, needPermalink } from "@/lib/pledge-flow";
+import { reportContentHref } from "@/lib/report-content";
 
 export type NeedCardNeed = Need & {
   institution?: {
@@ -49,6 +51,8 @@ type NeedCardProps = {
    */
   myPledgeIds?: readonly string[];
   onPledgesCancelled?: (needId: string) => void;
+  /** The need a link pointed at (`?need=` or a pledge resumed after sign-in). */
+  highlighted?: boolean;
 };
 
 /** One status→tone map, so urgency reads the same wherever a need appears. */
@@ -65,6 +69,7 @@ export function NeedCard({
   canPledge = true,
   myPledgeIds = [],
   onPledgesCancelled,
+  highlighted = false,
 }: NeedCardProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -105,13 +110,18 @@ export function NeedCard({
     addSuffix: true,
     locale: locale === "hr" ? hr : enUS,
   });
+  // Rendered with the need's permalink so server and client agree; the click
+  // swaps in the page the visitor is actually on.
+  const reportHref = reportContentHref({ pageUrl: needPermalink(need.id), needId: need.id });
 
   return (
     <Card
       as="article"
+      id={needAnchorId(need.id)}
       className={clsx(
-        "flex h-full flex-col transition-[opacity,filter] duration-300 ease-out",
+        "flex h-full scroll-mt-24 flex-col transition-[opacity,filter] duration-300 ease-out",
         mine && "border-success ring-1 ring-success/30",
+        highlighted && !mine && "border-brand ring-2 ring-brand/30",
         fulfilled && "opacity-60 grayscale"
       )}
     >
@@ -229,18 +239,33 @@ export function NeedCard({
           <PledgeButton
             needId={need.id}
             needTitle={need.title}
+            institution={
+              inst ? { id: inst.id, name: inst.name, address: inst.address, city: inst.city } : null
+            }
             onPledgeSuccess={handlePledgeSuccess}
             remaining={remaining}
             full={fulfilled}
             onCapacityError={(code) => {
-              // Nothing more fits; the exact count arrives over Realtime.
+              // Nothing more fits; the next capacity poll brings the exact count.
               if (code === "need_fulfilled") applyCounts({ is_fulfilled: true });
             }}
           />
         ) : null}
-        <time className="text-sm text-ink-tertiary" dateTime={need.created_at}>
-          {t("need_card.posted", { time: posted })}
-        </time>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-tertiary">
+          <time dateTime={need.created_at}>{t("need_card.posted", { time: posted })}</time>
+          {reportHref ? (
+            <a
+              href={reportHref}
+              onClick={(event) => {
+                const current = reportContentHref({ pageUrl: window.location.href, needId: need.id });
+                if (current) event.currentTarget.href = current;
+              }}
+              className="rounded-control text-xs underline-offset-2 hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              {t("need_card.report")}
+            </a>
+          ) : null}
+        </span>
       </div>
     </Card>
   );

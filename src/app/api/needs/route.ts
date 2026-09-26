@@ -13,6 +13,9 @@ import {
 } from "@/lib/security/http";
 import { CATEGORY_CONFIG, DONATION_TYPES } from "@/lib/constants";
 import { parseBoundedLimit, parseNeedInput } from "@/lib/validation";
+import { isOpenForNewNeeds, needFieldFromMessage } from "@/lib/need-patch";
+import { displayOrganisationName } from "@/lib/display-name";
+import { needPermalink } from "@/lib/pledge-flow";
 import { projectHiddenLocation } from "@/lib/location-map";
 import { publicListResponse } from "@/lib/public-list-response";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -176,8 +179,32 @@ export async function POST(req: NextRequest) {
       return jsonError("Invalid JSON", 400, requestId, NO_STORE);
     }
     const parsed = parseNeedInput(rawBody);
-    if (!parsed.ok) return jsonError(parsed.error, 400, requestId, NO_STORE);
+    if (!parsed.ok) {
+      // The field lets the form say what is wrong in Croatian; the message
+      // itself is internal.
+      const field = needFieldFromMessage(parsed.error);
+      return NextResponse.json(
+        { error: parsed.error, ...(field ? { field } : {}), request_id: requestId },
+        { status: 400, headers: withRequestId(NO_STORE, requestId) }
+      );
+    }
     const { title, description, donation_type, urgency, quantity_needed, deadline } = parsed.value;
+
+    // Collecting money for people in need requires permanent-collector
+    // status or an approved humanitarian action (NN 156/23), which DajSrce
+    // does not check yet, so no new need may ask for money. The message is
+    // Croatian because an older, cached form shows it as it is.
+    if (!isOpenForNewNeeds(donation_type)) {
+      return NextResponse.json(
+        {
+          error: "Novčane donacije zasad se ne mogu objaviti kao potreba. Odaberite drugu vrstu donacije.",
+          code: "donation_type_unavailable",
+          field: "donation_type",
+          request_id: requestId,
+        },
+        { status: 400, headers: withRequestId(NO_STORE, requestId) }
+      );
+    }
 
     const { data, error } = await supabase
       .from("needs")
@@ -195,23 +222,38 @@ export async function POST(req: NextRequest) {
       )
       .single();
 
+    if (error?.code === "42501") {
+      // The owner-scoped insert policy refused: not this organisation's to post.
+      logError("needs.create_refused", error, { request_id: requestId, code: error.code });
+      return jsonError("Institution access required", 403, requestId, NO_STORE);
+    }
     if (error) throw error;
 
     if (data?.institution) {
       const inst = data.institution as { lat?: number; lng?: number; name?: string };
       if (inst.lat && inst.lng) {
-        const { supabaseAdmin } = await import("@/lib/supabase/admin");
-        const { notifyNearbyUsers } = await import("@/lib/notify-nearby");
-        await notifyNearbyUsers(
-          supabaseAdmin,
-          inst.lat,
-          inst.lng,
-          `New need: ${title}`,
-          `${inst.name ?? "An NGO"} near you posted a new ${urgency === "urgent" ? "URGENT " : ""}need: "${title}"`,
-          `/needs`,
-          user.id,
-          `need:${data.id}`
-        );
+        // Opted-in donors nearby, through the durable outbox. The text is
+        // Croatian like every other notice, the register's capitals are
+        // toned down, and the link opens this need on the giving page.
+        const organisation = displayOrganisationName(inst.name) || "Udruga";
+        try {
+          const { supabaseAdmin } = await import("@/lib/supabase/admin");
+          const { notifyNearbyUsers } = await import("@/lib/notify-nearby");
+          await notifyNearbyUsers(
+            supabaseAdmin,
+            inst.lat,
+            inst.lng,
+            `${urgency === "urgent" ? "Hitna potreba" : "Nova potreba"}: ${title}`,
+            `${organisation} u vašoj blizini treba: ${title}`,
+            needPermalink(data.id),
+            user.id,
+            `need:${data.id}`
+          );
+        } catch (notifyError) {
+          // The need is already published. Reporting the post as failed
+          // would only invite a duplicate; the notice is what is lost.
+          logError("needs.notify_enqueue_failed", notifyError, { request_id: requestId });
+        }
       }
     }
 

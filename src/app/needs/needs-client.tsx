@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AlertTriangle, PackageSearch, SlidersHorizontal } from "lucide-react";
@@ -9,6 +9,7 @@ import { CategoryFilter } from "@/components/CategoryFilter";
 import { DonationFilter } from "@/components/DonationFilter";
 import { FilterDropdown } from "@/components/FilterDropdown";
 import { NeedCard, type NeedCardNeed } from "@/components/NeedCard";
+import { LaunchNotice } from "./launch-notice";
 import type { PledgeSuccessPayload } from "@/components/PledgeButton";
 import {
   YourPledgesSection,
@@ -17,6 +18,12 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { fetchMe } from "@/lib/me-client";
 import { readPublicList, rememberPublicList } from "@/lib/public-list-cache";
+import {
+  clearPledgeIntent,
+  focusedNeedFrom,
+  needAnchorId,
+  pledgeIntentFrom,
+} from "@/lib/pledge-flow";
 import { useT } from "@/i18n/client";
 import {
   Button,
@@ -25,8 +32,12 @@ import {
   Skeleton,
   SkeletonText,
   buttonClasses,
+  useToast,
 } from "@/components/ui";
 
+
+/** Fewer open needs than this, unfiltered, and the page explains why. */
+const FEW_NEEDS = 3;
 
 const URGENCY_OPTIONS: Array<{
   value: UrgencyLevel | "all";
@@ -70,6 +81,7 @@ function NeedCardSkeleton() {
 
 export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const t = useT();
+  const toast = useToast();
   const [categories, setCategories] = useState<InstitutionCategory[]>([]);
   const [needs, setNeeds] = useState<NeedCardNeed[]>(() => readPublicList<NeedCardNeed[]>("/api/needs?") ?? []);
   const [donationType, setDonationType] = useState<DonationType | "all">("all");
@@ -172,6 +184,26 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     };
   }, [donationType, categories, urgency, retry, refreshKey]);
 
+  // 3. A link to one need (`?need=<id>`, or `?pledge=<id>` on the way back
+  //    from signing in) scrolls to it once the fresh list is in, and says so
+  //    plainly when that need is no longer open. The card itself reopens the
+  //    pledge dialog; see PledgeButton.
+  const [focusNeedId, setFocusNeedId] = useState<string | null>(null);
+  const focusResolved = useRef(false);
+  useEffect(() => {
+    setFocusNeedId(focusedNeedFrom(window.location.search));
+  }, []);
+  useEffect(() => {
+    if (!focusNeedId || focusResolved.current || loading || error) return;
+    focusResolved.current = true;
+    if (needs.some((need) => need.id === focusNeedId)) {
+      document.getElementById(needAnchorId(focusNeedId))?.scrollIntoView({ block: "center" });
+      return;
+    }
+    toast({ tone: "info", title: t("needs_page.need_gone") });
+    if (pledgeIntentFrom(window.location.search)) clearPledgeIntent();
+  }, [focusNeedId, loading, error, needs, t, toast]);
+
   // Map of need_id → my total pledged qty across all pledges (sum across rows).
   const myPledgedByNeed = useMemo(() => {
     const map = new Map<string, number>();
@@ -253,26 +285,39 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
         );
       }
       // Append the user-facing pledge row to "Your pledges" using the
-      // need we already have in local state for the joined fields.
+      // need we already have in local state for the joined fields, and the
+      // confirmation's handover details for the organisation, so reopening
+      // the pledge straight away still shows whom to contact.
       const matchingNeed = needs.find((n) => n.id === payload.pledge.need_id);
+      const institution =
+        payload.institution ??
+        (matchingNeed?.institution
+          ? {
+              id: matchingNeed.institution.id,
+              name: matchingNeed.institution.name,
+              address: matchingNeed.institution.address,
+              city: matchingNeed.institution.city,
+            }
+          : null);
       const pledgeRow: YourPledgeRow = {
         id: payload.pledge.id,
         user_id: payload.pledge.user_id,
         need_id: payload.pledge.need_id,
         quantity: payload.pledge.quantity,
         amount_eur: payload.pledge.amount_eur,
+        message: payload.pledge.message,
         status: payload.pledge.status,
         created_at: payload.pledge.created_at,
         need: matchingNeed
           ? {
               id: matchingNeed.id,
               title: matchingNeed.title,
-              institution: matchingNeed.institution
-                ? {
-                    id: matchingNeed.institution.id,
-                    name: matchingNeed.institution.name,
-                  }
-                : null,
+              description: matchingNeed.description,
+              donation_type: matchingNeed.donation_type,
+              deadline: matchingNeed.deadline,
+              quantity_needed: matchingNeed.quantity_needed,
+              quantity_pledged: payload.need?.quantity_pledged ?? matchingNeed.quantity_pledged,
+              institution,
             }
           : null,
       };
@@ -375,18 +420,20 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
             }
           />
         </div>
+      ) : needs.length === 0 && !filtersActive ? (
+        // Nothing published yet, typically because associations are still
+        // joining: say so and offer the other ways to help.
+        <LaunchNotice hasNeeds={false} />
       ) : needs.length === 0 ? (
         <EmptyState
           icon={<PackageSearch className="h-10 w-10" aria-hidden="true" />}
           title={t("needs_page.empty")}
-          description={filtersActive ? t("needs_page.empty_hint") : undefined}
+          description={t("needs_page.empty_hint")}
           action={
             <div className="flex flex-wrap items-center justify-center gap-3">
-              {filtersActive ? (
-                <Button onClick={clearFilters}>
-                  {t("needs_page.clear_filters")}
-                </Button>
-              ) : null}
+              <Button onClick={clearFilters}>
+                {t("needs_page.clear_filters")}
+              </Button>
               <Link href="/" className={buttonClasses({ variant: "secondary" })}>
                 {t("needs_page.empty_open_map")}
               </Link>
@@ -394,25 +441,31 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
           }
         />
       ) : (
-        <div
-          className={clsx(
-            "grid grid-cols-1 gap-6 transition-opacity duration-150 ease-out md:grid-cols-2 lg:grid-cols-3",
-            loading && "opacity-60"
-          )}
-          aria-busy={loading}
-        >
-          {needs.map((need) => (
-            <NeedCard
-              key={need.id}
-              need={need}
-              myPledgedQty={myPledgedByNeed.get(need.id) ?? null}
-              myPledgeIds={myPledgeIdsByNeed.get(need.id) ?? []}
-              onPledgesCancelled={onPledgesCancelled}
-              onPledgeSuccess={onPledgeSuccess}
-              canPledge={!isNgo}
-            />
-          ))}
-        </div>
+        <>
+          <div
+            className={clsx(
+              "grid grid-cols-1 gap-6 transition-opacity duration-150 ease-out md:grid-cols-2 lg:grid-cols-3",
+              loading && "opacity-60"
+            )}
+            aria-busy={loading}
+          >
+            {needs.map((need) => (
+              <NeedCard
+                key={need.id}
+                need={need}
+                myPledgedQty={myPledgedByNeed.get(need.id) ?? null}
+                myPledgeIds={myPledgeIdsByNeed.get(need.id) ?? []}
+                onPledgesCancelled={onPledgesCancelled}
+                onPledgeSuccess={onPledgeSuccess}
+                canPledge={!isNgo}
+                highlighted={need.id === focusNeedId}
+              />
+            ))}
+          </div>
+          {!filtersActive && needs.length < FEW_NEEDS ? (
+            <LaunchNotice hasNeeds className="mt-8" />
+          ) : null}
+        </>
       )}
     </>
   );

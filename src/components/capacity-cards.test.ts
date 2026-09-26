@@ -93,6 +93,14 @@ describe("capacity on the public cards", () => {
     expect(html).toContain("Mogu pomoći");
   });
 
+  it("offers a quiet way to report a need, naming it in the prefilled e-mail", () => {
+    const html = render(createElement(NeedCard, { need }));
+    expect(html).toContain(">Prijavi sadržaj<");
+    expect(html).toContain("mailto:kontakt@dajsrce.hr?subject=Prijava%20sadr%C5%BEaja");
+    expect(html).toContain(encodeURIComponent(`ID potrebe: ${need.id}`));
+    expect(html).toContain(`id="need-${need.id}"`);
+  });
+
   it("offers withdraw on a registered event only when it knows the signup", () => {
     const registered = { event: { ...event, volunteers_signed_up: 2 }, isRegistered: true };
     expect(render(createElement(VolunteerEventCard, registered))).not.toContain("Otkaži prijavu");

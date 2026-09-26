@@ -3,7 +3,6 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
-import { personActivityTotals } from "@/lib/institution-person-activity";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
 
 export async function GET(req: NextRequest) {
@@ -33,7 +32,7 @@ export async function GET(req: NextRequest) {
   // made a freshly posted need look as if it had not been saved.
   const { data: needs, error: needsError } = await supabase
     .from("needs")
-    .select("id, title, description, deadline, urgency, quantity_needed, quantity_pledged, is_fulfilled, created_at")
+    .select("id, title, description, donation_type, deadline, urgency, quantity_needed, quantity_pledged, is_fulfilled, created_at")
     .eq("institution_id", profile.institution_id)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -48,13 +47,13 @@ export async function GET(req: NextRequest) {
 
   const needIds = (needs ?? []).map((n) => n.id);
   if (needIds.length === 0) {
-    return NextResponse.json({ needs: [], pledges: [] });
+    return NextResponse.json({ needs: [], pledges: [] }, { headers: NO_STORE });
   }
 
   // Statuses and acknowledgements are no longer part of the product, so they
   // are no longer projected: what the NGO needs is what was promised against
-  // which need, and when. A withdrawn promise is left out rather than listed
-  // as "cancelled".
+  // which need, when, and the donor's note to it. A withdrawn promise is left
+  // out rather than listed as "cancelled".
   const { data: pledges, error } = await supabase
     .from("pledges")
     .select(
@@ -64,6 +63,7 @@ export async function GET(req: NextRequest) {
       need_id,
       quantity,
       amount_eur,
+      message,
       created_at,
       need:needs(title, description, deadline, urgency, quantity_needed, quantity_pledged)
     `
@@ -82,7 +82,9 @@ export async function GET(req: NextRequest) {
 
   // Same reason as the volunteer roster: RLS on `profiles` scopes a normal
   // read to the caller's own row, so the donor's name/email is looked up with
-  // the admin client instead.
+  // the admin client instead, and only for people who pledged to this
+  // organisation. Nothing about their activity elsewhere is read: the
+  // organisation's view of a donor is its own relationship with them.
   const userIds = Array.from(new Set((pledges ?? []).map((p) => p.user_id)));
   const { data: donorProfiles } =
     userIds.length > 0
@@ -93,10 +95,8 @@ export async function GET(req: NextRequest) {
 
   const enriched = (pledges ?? []).map((p) => ({
     ...p,
-    donor: byUser.get(p.user_id) ?? { id: p.user_id, name: "Donor", email: "" },
+    donor: byUser.get(p.user_id) ?? { id: p.user_id, name: null, email: "" },
   }));
 
-  const activity = await personActivityTotals(supabaseAdmin, userIds);
-
-  return NextResponse.json({ needs, pledges: enriched, activity });
+  return NextResponse.json({ needs, pledges: enriched }, { headers: NO_STORE });
 }
