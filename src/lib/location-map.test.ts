@@ -11,9 +11,12 @@ import {
   normalizeBboxForRequest,
   normalizeMapSearch,
   parseMapQuery,
+  PROTECTED_LOCATION_CATEGORIES,
+  isProtectedLocation,
   projectHiddenLocation,
   resolveMapCategories,
   SOCIAL_MAP_CATEGORIES,
+  toPublicInstitutionDetail,
   type MapBounds,
   type PublicMapResponse,
 } from "@/lib/location-map";
@@ -282,6 +285,58 @@ describe("map query contract", () => {
     expect(normalizeMapSearch("2823894")).toBe("2823894");
     expect(normalizeMapSearch("282389492950")).toBe("282389492950");
     expect(normalizeMapSearch("Dom 2")).toBe("dom 2");
+  });
+});
+
+describe("protected-category locations", () => {
+  it("covers the violence category for every source except a curated row", () => {
+    expect(PROTECTED_LOCATION_CATEGORIES.has("domestic_violence")).toBe(true);
+    for (const source of ["registry", "registry_claim", "user_claimed", null]) {
+      expect(isProtectedLocation("domestic_violence", source), String(source)).toBe(true);
+    }
+    expect(isProtectedLocation("domestic_violence", "curated")).toBe(false);
+    expect(isProtectedLocation("soup_kitchen", "registry")).toBe(false);
+    expect(isProtectedLocation(null, "registry")).toBe(false);
+  });
+
+  it("projects a protected detail row like a hidden one", () => {
+    const row = {
+      id: "50f75f62-3d48-40a0-86d9-a2d59fb72a65",
+      name: "Udruga",
+      category: "domestic_violence" as const,
+      description: "",
+      address: "Koparska 58",
+      city: "Pula",
+      latitude: 44.869137,
+      longitude: 13.848412,
+      phone: null,
+      email: null,
+      website: null,
+      working_hours: null,
+      drop_off_hours: null,
+      accepts_donations: null,
+      capacity: null,
+      served_population: null,
+      photo_url: null,
+      is_verified: false,
+      is_location_hidden: false,
+      approximate_area: null,
+      nearest_zet_stop: null,
+      zet_lines: null,
+      source: "registry",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+    const detail = toPublicInstitutionDetail(row);
+    expect(detail.address).toBeNull();
+    expect(detail.isLocationHidden).toBe(true);
+    expect({ latitude: detail.latitude, longitude: detail.longitude }).toEqual(
+      projectHiddenLocation(row.id, row.latitude, row.longitude)
+    );
+
+    // A curated row keeps its reviewed decision.
+    const curated = toPublicInstitutionDetail({ ...row, source: "curated" });
+    expect(curated).toMatchObject({ address: "Koparska 58", latitude: 44.869137, isLocationHidden: false });
   });
 });
 

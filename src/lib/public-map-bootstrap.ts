@@ -6,11 +6,14 @@ import { logError } from "@/lib/observability";
 import type { MapBootstrap } from "@/app/map/map-state";
 
 // Only public, bounded projections enter this cache. No cookies, identity or
-// private data. Match the existing API's five-minute freshness window.
+// private data. Match the existing API's five-minute freshness window. The
+// key is versioned with the projection: v2 withholds protected-category
+// locations, and a snapshot cached under the old projection must never be
+// served again, not even once as a stale copy.
 const cachedMap = unstable_cache(async (queryKey: string) => {
   const query = parseMapQuery(new URLSearchParams(queryKey));
   return (await loadPublicMap(query)).response;
-}, ["public-map-bootstrap-v1"], { revalidate: 300 });
+}, ["public-map-bootstrap-v2"], { revalidate: 300 });
 
 /**
  * How long the home page may wait for the snapshot before sending HTML

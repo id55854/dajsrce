@@ -1,5 +1,5 @@
 import {
-  MAP_API_VERSION, trustStatus,
+  MAP_API_VERSION, isProtectedLocation, projectHiddenLocation, trustStatus,
   type MapPlaceKind, type MapQuery, type PublicMapFeature,
   type PublicMapInstitution, type PublicMapResponse,
 } from "@/lib/location-map";
@@ -82,6 +82,16 @@ function rpcRowToFeature(row: RpcMapRow): PublicMapFeature | null {
   }
 
   if (!row.name || !row.category || !row.entity_type) return null;
+  // A hidden row already arrives at its coarse public point. A row in a
+  // protected category that is not hidden would otherwise be pinned at its
+  // registered seat, so it is projected the same way here, before anything is
+  // serialized or cached.
+  const protectedLocation =
+    !row.is_location_hidden && isProtectedLocation(row.category, row.source);
+  const point = protectedLocation
+    ? projectHiddenLocation(row.feature_id, row.latitude, row.longitude)
+    : { latitude: row.latitude, longitude: row.longitude };
+  const hidden = protectedLocation || Boolean(row.is_location_hidden);
   return {
     kind: "institution",
     id: row.feature_id,
@@ -90,14 +100,16 @@ function rpcRowToFeature(row: RpcMapRow): PublicMapFeature | null {
     name: row.name,
     category: row.category as InstitutionCategory,
     city: row.city,
-    address: row.address,
+    address: hidden ? null : row.address,
     approximateArea: row.approximate_area,
-    latitude: row.latitude,
-    longitude: row.longitude,
+    latitude: point.latitude,
+    longitude: point.longitude,
     acceptsDonations: (row.accepts_donations ?? []) as DonationType[],
     isVerified: Boolean(row.is_verified),
-    isLocationHidden: Boolean(row.is_location_hidden),
-    locationPrecision: row.location_precision ?? (row.is_location_hidden ? "hidden" : "exact"),
+    isLocationHidden: hidden,
+    locationPrecision: protectedLocation
+      ? "hidden"
+      : row.location_precision ?? (row.is_location_hidden ? "hidden" : "exact"),
     trustStatus: trustStatus(Boolean(row.is_verified), row.source),
     hasUrgentNeed: Boolean(row.has_urgent_need),
   };
@@ -239,6 +251,14 @@ async function queryBoundedFallback(query: MapQuery) {
 
   const features: PublicMapInstitution[] = ((data ?? []) as FallbackInstitutionRow[])
     .map((row) => {
+      // Same protection as the RPC path: `public_lat` is the exact point for
+      // any row that is not hidden.
+      const protectedLocation =
+        !row.is_location_hidden && isProtectedLocation(row.category, row.source);
+      const point = protectedLocation
+        ? projectHiddenLocation(row.id, row.public_lat, row.public_lng)
+        : { latitude: row.public_lat, longitude: row.public_lng };
+      const hidden = protectedLocation || Boolean(row.is_location_hidden);
       return {
         kind: "institution" as const,
         id: row.id,
@@ -249,12 +269,12 @@ async function queryBoundedFallback(query: MapQuery) {
         city: row.city,
         address: null,
         approximateArea: row.approximate_area,
-        latitude: row.public_lat,
-        longitude: row.public_lng,
+        latitude: point.latitude,
+        longitude: point.longitude,
         acceptsDonations: row.accepts_donations ?? [],
         isVerified: Boolean(row.is_verified),
-        isLocationHidden: Boolean(row.is_location_hidden),
-        locationPrecision: row.is_location_hidden ? "hidden" as const : "exact" as const,
+        isLocationHidden: hidden,
+        locationPrecision: hidden ? "hidden" as const : "exact" as const,
         trustStatus: trustStatus(Boolean(row.is_verified), row.source),
         hasUrgentNeed: Boolean(urgentIds?.includes(row.id)),
       };

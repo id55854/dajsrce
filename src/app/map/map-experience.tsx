@@ -70,6 +70,23 @@ const CityPickerDialog = dynamic(
   { ssr: false }
 );
 
+/**
+ * A register pin in a protected category is drawn as an area, never at its
+ * registered seat (see `isProtectedLocation`), and its record must not then
+ * print the street address the pin withheld. The register API cannot make
+ * that call itself, because a register record carries no category; the map
+ * knows which pin was opened, so it drops the address here. For a register
+ * row, `isLocationHidden` is only ever set by that protection.
+ */
+function registryRecordForPin(
+  organisation: AssociationRegistryEntry,
+  pin: PublicMapFeature | undefined
+): AssociationRegistryEntry {
+  return pin?.kind === "institution" && pin.isLocationHidden
+    ? { ...organisation, address: null }
+    : organisation;
+}
+
 /** The smallest box around every returned pin and cluster, or null if none. */
 function featureBounds(features: PublicMapFeature[]): MapBounds | null {
   if (features.length === 0) return null;
@@ -177,6 +194,8 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     initial.search.trim().length >= 2 ? initial.search.trim() : ""
   );
   const [features, setFeatures] = useState<PublicMapFeature[]>(bootstrap?.response.features ?? []);
+  /** Read by the detail fetch, which must not restart when the pins refresh. */
+  const featuresRef = useRef(features);
   const [meta, setMeta] = useState<MapMeta>(() => bootstrap?.response.meta ?? defaultMeta());
   const [selectedId, setSelectedId] = useState<string | null>(initial.selectedId);
   const [selectedDetail, setSelectedDetail] = useState<MapDetail | null>(null);
@@ -441,6 +460,10 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
   }, [apiMapQuery, retryToken, viewportReady]);
 
   useEffect(() => {
+    featuresRef.current = features;
+  }, [features]);
+
+  useEffect(() => {
     if (!selectedId) {
       setSelectedDetail(null);
       setDetailError(null);
@@ -471,7 +494,13 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
         if (!response.ok) throw new Error("map_page.detail_error");
         const next: MapDetail | null = registryId
           ? result.organisation
-            ? { kind: "registry", organisation: result.organisation }
+            ? {
+                kind: "registry",
+                organisation: registryRecordForPin(
+                  result.organisation,
+                  featuresRef.current.find((feature) => feature.id === selectedId)
+                ),
+              }
             : null
           : result.institution
             ? { kind: "institution", institution: result.institution }

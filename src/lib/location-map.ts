@@ -684,8 +684,10 @@ function stableHash(value: string): number {
 }
 
 /**
- * Compatibility projection used only while the indexed RPC migration is not
- * yet deployed. It never serializes a hidden institution's exact coordinate.
+ * The coarse public point for a location that must not be published: a stable
+ * spot inside a roughly 5 km grid cell, never the input itself. Used by the
+ * list APIs for hidden institutions and, for protected categories, by the map
+ * and detail projections (see `isProtectedLocation`).
  */
 export function projectHiddenLocation(
   id: string,
@@ -705,6 +707,34 @@ export function projectHiddenLocation(
     );
   }
   return { latitude: projectedLatitude, longitude: projectedLongitude };
+}
+
+/**
+ * Categories whose exact point and street address never leave the server
+ * unless a person reviewed the row (`source = 'curated'`).
+ *
+ * The register publishes every association's registered seat, and the
+ * classifier, not the organisation, decides which of these categories a row
+ * lands in. Pinning that seat under a label that reads as "a shelter is here"
+ * is the risk: it may be a real shelter whose address is meant to stay
+ * unknown, or a counselling office the label wrongly points someone to.
+ *
+ * Such a row is therefore projected exactly like an institution whose
+ * location is hidden: the same stable coarse point `projectHiddenLocation`
+ * gives it, no address, and `hidden` precision, so every surface that already
+ * handles a hidden location (the map's area circle, the card, the detail
+ * panel) treats it the same way. A curated row keeps its reviewed
+ * `is_location_hidden` instead.
+ */
+export const PROTECTED_LOCATION_CATEGORIES: ReadonlySet<string> = new Set<InstitutionCategory>([
+  "domestic_violence",
+]);
+
+export function isProtectedLocation(
+  category: string | null | undefined,
+  source: string | null | undefined
+): boolean {
+  return category != null && PROTECTED_LOCATION_CATEGORIES.has(category) && source !== "curated";
 }
 
 export function trustStatus(
@@ -746,22 +776,34 @@ export type PublicInstitutionDetailRpcRow = {
 };
 
 /**
- * Shared by the public institution page and the NGO's own dashboard: both
- * read the same public detail RPC and need the same camelCase shape, so the
- * mapping lives once instead of drifting between two copies.
+ * Shared by the public institution page, the public detail API and the NGO's
+ * own dashboard: all read the same public detail RPC and need the same
+ * camelCase shape, so the mapping (and the location protection in it) lives
+ * once instead of drifting between copies.
+ *
+ * The RPC already returns the coarse point for a hidden institution. A row in
+ * a protected category that is not hidden yet is projected here the same way,
+ * and a hidden location also drops its nearest tram stop, which would place it
+ * to within a few hundred metres.
  */
 export function toPublicInstitutionDetail(
   row: PublicInstitutionDetailRpcRow
 ): PublicInstitutionDetail {
+  const protectedLocation =
+    !row.is_location_hidden && isProtectedLocation(row.category, row.source);
+  const hidden = Boolean(row.is_location_hidden) || protectedLocation;
+  const point = protectedLocation
+    ? projectHiddenLocation(row.id, row.latitude, row.longitude)
+    : { latitude: row.latitude, longitude: row.longitude };
   return {
     id: row.id,
     name: row.name,
     category: row.category,
     description: row.description,
-    address: row.is_location_hidden ? null : row.address,
+    address: hidden ? null : row.address,
     city: row.city,
-    latitude: row.latitude,
-    longitude: row.longitude,
+    latitude: point.latitude,
+    longitude: point.longitude,
     phone: row.phone,
     email: row.email,
     website: row.website,
@@ -772,10 +814,10 @@ export function toPublicInstitutionDetail(
     servedPopulation: row.served_population,
     photoUrl: row.photo_url,
     isVerified: Boolean(row.is_verified),
-    isLocationHidden: Boolean(row.is_location_hidden),
+    isLocationHidden: hidden,
     approximateArea: row.approximate_area,
-    nearestZetStop: row.nearest_zet_stop,
-    zetLines: row.zet_lines,
+    nearestZetStop: hidden ? null : row.nearest_zet_stop,
+    zetLines: hidden ? null : row.zet_lines,
     trustStatus: trustStatus(Boolean(row.is_verified), row.source),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

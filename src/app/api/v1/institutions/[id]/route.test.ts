@@ -68,6 +68,64 @@ describe("GET /api/v1/institutions/:id", () => {
     expect(payload.institution).not.toHaveProperty("lng");
   });
 
+  it("withholds a protected-category location the row itself does not hide", async () => {
+    rpc.mockResolvedValue({
+      error: null,
+      data: [
+        {
+          id,
+          name: "Udruga za podršku žrtvama nasilja",
+          category: "domestic_violence",
+          description: "Savjetovanje i pravna pomoć",
+          address: "Ulica grada Vukovara 49",
+          city: "Zagreb",
+          latitude: 45.801234,
+          longitude: 15.982134,
+          phone: "+385 1 555 0101",
+          email: null,
+          website: null,
+          working_hours: null,
+          drop_off_hours: null,
+          accepts_donations: [],
+          capacity: null,
+          served_population: null,
+          photo_url: null,
+          is_verified: false,
+          is_location_hidden: false,
+          approximate_area: null,
+          nearest_zet_stop: "Vjesnik",
+          zet_lines: "6, 13",
+          source: "registry_claim",
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-02T00:00:00Z",
+        },
+      ],
+    });
+
+    const response = await GET(
+      new NextRequest(`http://localhost/api/v1/institutions/${id}`),
+      { params: Promise.resolve({ id }) }
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.institution).toMatchObject({
+      address: null,
+      isLocationHidden: true,
+      nearestZetStop: null,
+      zetLines: null,
+      // Contact stays: a hidden location is reached by phone.
+      phone: "+385 1 555 0101",
+    });
+    expect(payload.institution.latitude).not.toBe(45.801234);
+    expect(Math.abs(payload.institution.latitude - 45.801234)).toBeLessThan(0.05);
+    const body = JSON.stringify(payload);
+    expect(body).not.toContain("Vukovara");
+    expect(body).not.toContain("45.801234");
+    expect(body).not.toContain("15.982134");
+    expect(body).not.toContain("Vjesnik");
+  });
+
   it("rejects malformed identifiers without a database call", async () => {
     const response = await GET(
       new NextRequest("http://localhost/api/v1/institutions/not-a-uuid"),

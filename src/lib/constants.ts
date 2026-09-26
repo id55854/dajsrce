@@ -53,9 +53,14 @@ export const CATEGORY_CONFIG: Record<
     bgColor: "#f0fdfa",
     icon: "Accessibility",
   },
+  // Deliberately not "safe house": the classifier puts counselling offices,
+  // legal aid and advocacy groups here too, and a label that reads as "a
+  // shelter is at this address" could send someone to the wrong door. Rows in
+  // this category are also never pinned exactly; see
+  // PROTECTED_LOCATION_CATEGORIES in location-map.ts.
   domestic_violence: {
-    label: "Domestic violence shelter",
-    labelHr: "Sigurna kuća",
+    label: "Violence prevention & victim support",
+    labelHr: "Zaštita od nasilja",
     color: "#ec4899",
     bgColor: "#fdf2f8",
     icon: "Shield",
