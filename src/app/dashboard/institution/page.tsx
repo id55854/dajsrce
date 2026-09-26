@@ -8,10 +8,12 @@ import {
   CalendarPlus,
   ExternalLink,
   MapPin,
+  Pencil,
   Plus,
 } from "lucide-react";
 import { InstitutionPledgesClient } from "./pledges/institution-pledges-client";
 import { InstitutionVolunteersClient } from "./volunteers/institution-volunteers-client";
+import { InstitutionProfileEditor, ProfileCompletionPrompt } from "./profile-editor";
 import { useLocale, useT } from "@/i18n/client";
 import { CATEGORY_CONFIG, categoryVars } from "@/lib/constants";
 import { NewVolunteerEventForm } from "@/components/NewVolunteerEventForm";
@@ -42,6 +44,8 @@ const DEFAULT_VIEW: View = "pledges";
 function parseView(raw: string | null): View {
   return VIEWS.includes(raw as View) ? (raw as View) : DEFAULT_VIEW;
 }
+
+type Panel = "need" | "event" | "profile";
 
 export default function InstitutionDashboardPage() {
   return (
@@ -82,7 +86,9 @@ function InstitutionDashboardExperience() {
   const refreshActivity = () => setRefreshKey((value) => value + 1);
   const needPanelId = useId();
   const eventPanelId = useId();
-  const [panel, setPanel] = useState<"need" | "event" | null>(null);
+  const profilePanelId = useId();
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const togglePanel = (next: Panel) => setPanel((current) => (current === next ? null : next));
 
 
   return (
@@ -100,7 +106,8 @@ function InstitutionDashboardExperience() {
             panel={panel}
             needPanelId={needPanelId}
             eventPanelId={eventPanelId}
-            onToggle={(next) => setPanel((current) => (current === next ? null : next))}
+            profilePanelId={profilePanelId}
+            onToggle={togglePanel}
           />
         ) : (
           <PageHeader
@@ -108,6 +115,26 @@ function InstitutionDashboardExperience() {
             subtitle={t("institution.dashboard_subtitle")}
           />
         )}
+
+        {/* Donors are told to contact the organisation and arrange the
+            handover, so a profile without a phone or drop-off details leaves
+            them with nothing to act on. */}
+        {institution && panel !== "profile" ? (
+          <ProfileCompletionPrompt
+            institution={institution}
+            panelId={profilePanelId}
+            onOpen={() => setPanel("profile")}
+          />
+        ) : null}
+
+        {panel === "profile" && institution ? (
+          <InstitutionProfileEditor
+            panelId={profilePanelId}
+            institution={institution}
+            onClose={() => setPanel(null)}
+            onSaved={setInstitution}
+          />
+        ) : null}
 
         {/* These were in-page cards wearing modal-weight `shadow-lg` with no
             focus move, no Escape, no scrim and no dialog role. They are honest
@@ -176,13 +203,15 @@ function InstitutionProfileHeader({
   panel,
   needPanelId,
   eventPanelId,
+  profilePanelId,
   onToggle,
 }: {
   institution: PublicInstitutionDetail;
-  panel: "need" | "event" | null;
+  panel: Panel | null;
   needPanelId: string;
   eventPanelId: string;
-  onToggle: (panel: "need" | "event") => void;
+  profilePanelId: string;
+  onToggle: (panel: Panel) => void;
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -220,6 +249,16 @@ function InstitutionProfileHeader({
       }
       links={
         <>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={panel === "profile"}
+            aria-controls={profilePanelId}
+            onClick={() => onToggle("profile")}
+            icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+          >
+            {t("institution_profile.edit")}
+          </Button>
           <Link
             href={`/institution/${institution.id}`}
             className={buttonClasses({ variant: "ghost", size: "sm" })}
