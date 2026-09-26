@@ -1,6 +1,6 @@
 # DajSrce agent playbook
 
-**Synced:** 2026-08-04. Read `TECHNICAL_IMPLEMENTATION.md` and `REMEDIATION_IMPLEMENTATION_STATUS.md` before changing a domain. The detailed original findings and acceptance targets are in `PROJECT_WIDE_AUDIT_AND_OPTIMIZATION_PLAN.md`.
+**Synced:** 2026-09-27 (pre-launch audit and fixes; see `docs/PRIVACY_OPERATIONS.md` for the privacy, DSA and outreach runbook). Read `TECHNICAL_IMPLEMENTATION.md` and `REMEDIATION_IMPLEMENTATION_STATUS.md` before changing a domain. The detailed original findings and acceptance targets are in `PROJECT_WIDE_AUDIT_AND_OPTIMIZATION_PLAN.md`.
 
 ## Product snapshot
 
@@ -139,9 +139,11 @@ Required in production: Supabase URL/anon key (Auth), `NEXT_PUBLIC_DATA_API_URL`
 - `POST /api/cron/process-notification-jobs`
 - `POST /api/cron/event-reminders` (once a day: reminds volunteers signed up for tomorrow's event)
 
-Both use `Authorization: Bearer <CRON_SECRET>`. `.github/workflows/notification-cron.yml` schedules both via GitHub Actions (`process-notification-jobs` every 15 min, the reminders daily); it needs repo secrets `PRODUCTION_APP_URL` and `CRON_SECRET` alongside `PRODUCTION_DATA_API_URL` and `PRODUCTION_DATA_API_JWT_PRIVATE_JWK` (used by `registry-sync.yml`). Vercel's GET-only cron stays disabled. `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
+Both use `Authorization: Bearer <CRON_SECRET>`. `.github/workflows/notification-cron.yml` schedules both via GitHub Actions (`process-notification-jobs` every 15 min, the reminders daily); it needs repo secrets `PRODUCTION_APP_URL` and `CRON_SECRET` alongside `PRODUCTION_DATA_API_URL` and `PRODUCTION_DATA_API_JWT_PRIVATE_JWK` (used by `registry-sync.yml`). Both routes also accept GET with the same bearer check, so Vercel Cron (Pro plan, which sends `Authorization: Bearer $CRON_SECRET`) can replace the GitHub schedule, which in practice fires only a few times a day; `vercel.json` has no crons yet because Hobby rejects sub-daily schedules. `ALLOW_LOCAL_FIXTURES` must be false/unset in production.
 
-Institution-claim review needs `DATA_API_JWT_PRIVATE_JWK` (service-role Data API token); the mailbox challenge additionally needs `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. A delivery failure is logged and never counts as verification.
+Institution-claim review needs `DATA_API_JWT_PRIVATE_JWK` (service-role Data API token); the mailbox challenge, the volunteer signup confirmation and the day-before reminder e-mails additionally need `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (a verified dajsrce.hr sender; there is deliberately no resend.dev fallback, so without them e-mail is skipped and logged). A delivery failure is logged and never counts as verification. Supabase Auth must use custom SMTP: its built-in mailer delivers only to project team members, at 2 an hour.
+
+Privacy: the site sets no analytics script (Vercel Web Analytics was removed so no consent banner is needed) and publishes `/pravila-privatnosti`, `/uvjeti-koristenja` and `/kolacici`. Keep those texts true when behaviour changes (what an organisation sees, e-mails sent, processors, retention); registration requires the 16+ and terms confirmation, volunteer signup the age confirmation (`age_confirmed`).
 
 `docs/SUPABASE_OPERATIONS_CHECKLIST.md` lists the dashboard-side work (auth settings, MFA, backups, monitoring, buckets, RLS) with what was verified live on 2026-09-06. Two Supabase Auth settings are still unset and cannot be fixed in code; the client rules they mirror are bypassable by calling the Auth API directly. See `docs/AUTH_PASSWORD_OPERATIONS.md` for the exact paths and the release checklist: minimum password length raised to 12, and Leaked Password Protection enabled. MFA is documented there as a prerequisite toggle plus unbuilt enrolment/`aal2` work; do not record it as done.
 
