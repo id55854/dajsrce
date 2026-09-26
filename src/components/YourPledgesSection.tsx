@@ -7,13 +7,18 @@ import { useLocale, useT } from "@/i18n/client";
 import { timeAgo } from "@/lib/utils";
 import { RosterIcon, RosterItem, RosterQuantity } from "@/components/Roster";
 import { DonationTypeIcon } from "@/components/DonationTypeIcon";
-import { PledgeDetailsDialog } from "@/components/PledgeDetailsDialog";
+import {
+  PledgeDetailsDialog,
+  type PledgeHandoverInstitution,
+} from "@/components/PledgeDetailsDialog";
 import { DONATION_TYPES } from "@/lib/constants";
 import type { DonationType } from "@/lib/types";
 import { Button, Dialog, Skeleton, useToast } from "@/components/ui";
 
 /**
- * Shape returned by GET /api/pledges (with `need:needs(*, institution:...)`).
+ * Shape returned by GET /api/pledges (with `need:needs(..., institution:...)`).
+ * The institution carries its public contact and drop-off details, which the
+ * details dialog shows as the handover.
  *
  * `status` is carried but never shown. A promise no longer has a lifecycle a
  * donor is asked to follow: it is made, and it can be withdrawn. The column
@@ -26,6 +31,7 @@ export type YourPledgeRow = {
   need_id: string;
   quantity: number;
   amount_eur?: number | null;
+  message?: string | null;
   status?: string | null;
   created_at: string;
   need?: {
@@ -36,7 +42,7 @@ export type YourPledgeRow = {
     deadline?: string | null;
     quantity_needed?: number | null;
     quantity_pledged?: number | null;
-    institution?: { id: string; name: string; address?: string | null; city?: string | null } | null;
+    institution?: PledgeHandoverInstitution | null;
   } | null;
 };
 

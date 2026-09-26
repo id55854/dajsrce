@@ -229,6 +229,9 @@ export function NeedCard({
           <PledgeButton
             needId={need.id}
             needTitle={need.title}
+            institution={
+              inst ? { id: inst.id, name: inst.name, address: inst.address, city: inst.city } : null
+            }
             onPledgeSuccess={handlePledgeSuccess}
             remaining={remaining}
             full={fulfilled}

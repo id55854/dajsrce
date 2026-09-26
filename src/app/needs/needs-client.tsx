@@ -253,26 +253,39 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
         );
       }
       // Append the user-facing pledge row to "Your pledges" using the
-      // need we already have in local state for the joined fields.
+      // need we already have in local state for the joined fields, and the
+      // confirmation's handover details for the organisation, so reopening
+      // the pledge straight away still shows whom to contact.
       const matchingNeed = needs.find((n) => n.id === payload.pledge.need_id);
+      const institution =
+        payload.institution ??
+        (matchingNeed?.institution
+          ? {
+              id: matchingNeed.institution.id,
+              name: matchingNeed.institution.name,
+              address: matchingNeed.institution.address,
+              city: matchingNeed.institution.city,
+            }
+          : null);
       const pledgeRow: YourPledgeRow = {
         id: payload.pledge.id,
         user_id: payload.pledge.user_id,
         need_id: payload.pledge.need_id,
         quantity: payload.pledge.quantity,
         amount_eur: payload.pledge.amount_eur,
+        message: payload.pledge.message,
         status: payload.pledge.status,
         created_at: payload.pledge.created_at,
         need: matchingNeed
           ? {
               id: matchingNeed.id,
               title: matchingNeed.title,
-              institution: matchingNeed.institution
-                ? {
-                    id: matchingNeed.institution.id,
-                    name: matchingNeed.institution.name,
-                  }
-                : null,
+              description: matchingNeed.description,
+              donation_type: matchingNeed.donation_type,
+              deadline: matchingNeed.deadline,
+              quantity_needed: matchingNeed.quantity_needed,
+              quantity_pledged: payload.need?.quantity_pledged ?? matchingNeed.quantity_pledged,
+              institution,
             }
           : null,
       };

@@ -5,6 +5,36 @@ import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 import { capacityErrorCode } from "@/lib/capacity-errors";
 
+/**
+ * The organisation's side of a pledge, for the donor's handover: its public
+ * contact and drop-off details. `public_address` is the coarse area for a
+ * hidden location, never the street, and every column here is one the
+ * organisation publishes on its own profile.
+ */
+const HANDOVER_INSTITUTION_COLUMNS =
+  "id, name, category, address:public_address, city, is_location_hidden, phone, email, website, working_hours, drop_off_hours";
+
+type ServerClient = Awaited<
+  ReturnType<typeof import("@/lib/supabase/server").createServerSupabaseClient>
+>;
+
+async function handoverInstitution(supabase: ServerClient, needId: string, requestId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("needs")
+      .select(`institution:institutions(${HANDOVER_INSTITUTION_COLUMNS})`)
+      .eq("id", needId)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as { institution?: Record<string, unknown> | null } | null)?.institution ?? null;
+  } catch (error) {
+    // The pledge is already recorded; a failed lookup only costs the
+    // confirmation its contact block, which the donor can reopen later.
+    logError("pledges.handover_lookup_failed", error, { request_id: requestId });
+    return null;
+  }
+}
+
 const TAX_CATEGORIES = new Set([
   "cultural",
   "scientific",
@@ -35,7 +65,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase
       .from("pledges")
       .select(
-        "id, need_id, quantity, message, status, tax_category, amount_eur, delivered_at, fulfilled_at, created_at, need:needs(id, title, description, donation_type, deadline, is_fulfilled, urgency, quantity_needed, quantity_pledged, institution:institutions(id, name, category, address:public_address, city))"
+        `id, need_id, quantity, message, status, tax_category, amount_eur, delivered_at, fulfilled_at, created_at, need:needs(id, title, description, donation_type, deadline, is_fulfilled, urgency, quantity_needed, quantity_pledged, institution:institutions(${HANDOVER_INSTITUTION_COLUMNS}))`
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
@@ -160,10 +190,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(data, {
-      status: 201,
-      headers: { "x-request-id": requestId },
-    });
+    // The confirmation carries the handover details, so the donor learns who
+    // to contact and where to bring things the moment the promise is made.
+    const institution = await handoverInstitution(supabase, need_id, requestId);
+    return NextResponse.json(
+      { ...((data as Record<string, unknown> | null) ?? {}), institution },
+      { status: 201, headers: { "x-request-id": requestId } }
+    );
   } catch (error) {
     logError("pledges.create_failed", error, { request_id: requestId });
     return NextResponse.json(
