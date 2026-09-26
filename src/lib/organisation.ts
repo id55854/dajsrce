@@ -25,8 +25,10 @@ export const ORGANISATION = {
   },
   /** Osobni identifikacijski broj; the Croatian tax identification number. */
   oib: "34669315869",
-  /** Matični broj; the register of associations entry number. */
+  /** Matični broj; the statistical identification number. */
   registrationNumber: "06301436",
+  /** Registarski broj; the entry number in the Registar udruga Republike Hrvatske. */
+  registryNumber: "21015617",
   /**
    * Public contact mailbox. Was deliberately `null` until a real, monitored
    * address existed, publishing an address nobody reads is worse than
@@ -46,7 +48,7 @@ export function organisationAddressLine(locale: "hr" | "en"): string {
  *
  * `taxID` carries the OIB because that is the identifier a Croatian reader
  * verifies against the public register; `identifier` carries the register
- * entry number.
+ * entry number and the statistical number, each named.
  */
 export function organisationJsonLd(locale: "hr" | "en", url: string) {
   const { street, postalCode, city, countryCode } = ORGANISATION.address;
@@ -64,7 +66,10 @@ export function organisationJsonLd(locale: "hr" | "en", url: string) {
       addressCountry: countryCode,
     },
     taxID: ORGANISATION.oib,
-    identifier: ORGANISATION.registrationNumber,
+    identifier: [
+      { "@type": "PropertyValue", propertyID: "Registarski broj", value: ORGANISATION.registryNumber },
+      { "@type": "PropertyValue", propertyID: "Matični broj", value: ORGANISATION.registrationNumber },
+    ],
     inLanguage: locale,
   };
 }

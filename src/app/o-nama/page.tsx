@@ -120,6 +120,11 @@ export default async function AboutPage() {
               value={ORGANISATION.registrationNumber}
               numeric
             />
+            <RegistrationField
+              label={t("about.field_registry_number")}
+              value={ORGANISATION.registryNumber}
+              numeric
+            />
             {ORGANISATION.contactEmail ? (
               <RegistrationField
                 label={t("about.field_contact")}
