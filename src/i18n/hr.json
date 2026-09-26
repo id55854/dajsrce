@@ -29,6 +29,15 @@
     "retry": "Pokušajte ponovno",
     "go_to_map": "Idi na kartu"
   },
+  "seo": {
+    "site_title": "DajSrce – povežite donatore s onima kojima je pomoć potrebna",
+    "site_description": "Karta udruga, ustanova i volonterskih prilika diljem Hrvatske. Pronađite gdje donirati, volontirati i pomoći.",
+    "share_image_alt": "DajSrce – povežite donatore s udrugama kojima je pomoć potrebna",
+    "share_image_headline": "Povežite donatore s udrugama kojima je pomoć potrebna",
+    "share_image_subline": "Karta udruga, potreba i volonterskih prilika diljem Hrvatske",
+    "organisation_description": "Zapis iz službenog Registra udruga Republike Hrvatske: {name}, {place}.",
+    "country": "Hrvatska"
+  },
   "locale": {
     "switch_to_hr": "Hrvatski",
     "switch_to_en": "English",
@@ -67,7 +76,7 @@
   },
   "organisations": {
     "title": "Registar udruga Republike Hrvatske",
-    "subtitle": "Pretražite sve aktivne udruge u službenom registru. Zapis u registru ne znači da je organizacija verificirana na DajSrce platformi niti da prima donacije.",
+    "subtitle": "Pretražite sve aktivne udruge u službenom registru. Zapis u registru ne znači da je udruga provjerena na DajSrcu niti da prima donacije.",
     "official_source": "Službeni izvor: data.gov.hr",
     "only_onboarded": "Registrirane udruge na DajSrcu",
     "only_onboarded_on": "Prikazane su samo udruge koje imaju račun na DajSrcu i mogu primiti pomoć.",
@@ -105,6 +114,7 @@
     "registered": "Datum upisa",
     "status_changed": "Datum promjene statusa",
     "registry_number": "Registarski broj",
+    "registry_id": "Registarski ID",
     "missing_oib": "Nije naveden u službenom izvoru",
     "view_record": "Otvori službeni zapis",
     "official_record": "Službeni zapis registra",

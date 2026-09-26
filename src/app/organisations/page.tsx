@@ -1,8 +1,22 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { PageHeader, PageShell } from "@/components/ui";
-import { getTranslator } from "@/i18n/server";
+import { getLocale, getTranslator } from "@/i18n/server";
+import { pageMetadata } from "@/lib/seo";
 import { DirectoryLoading, DirectoryView } from "./directory-view";
+
+// Filters and pages are views of one listing, so they all canonicalise here.
+export async function generateMetadata(): Promise<Metadata> {
+  const [t, locale] = await Promise.all([getTranslator(), getLocale()]);
+  return pageMetadata({
+    title: `${t("organisations.title")} | DajSrce`,
+    description: t("organisations.subtitle"),
+    path: "/organisations",
+    locale,
+    imageAlt: t("seo.share_image_alt"),
+  });
+}
 
 /**
  * The official register, and nothing else.

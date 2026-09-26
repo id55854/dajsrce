@@ -29,6 +29,15 @@
     "retry": "Try again",
     "go_to_map": "Go to the map"
   },
+  "seo": {
+    "site_title": "DajSrce – connecting donors with those in need",
+    "site_description": "A map of associations, institutions and volunteering opportunities across Croatia. Find where to donate, volunteer and help.",
+    "share_image_alt": "DajSrce – connecting donors with associations that need help",
+    "share_image_headline": "Connecting donors with associations that need help",
+    "share_image_subline": "A map of associations, needs and volunteering opportunities across Croatia",
+    "organisation_description": "Official record in the Register of Associations of the Republic of Croatia: {name}, {place}.",
+    "country": "Croatia"
+  },
   "locale": {
     "switch_to_hr": "Hrvatski",
     "switch_to_en": "English",
@@ -105,6 +114,7 @@
     "registered": "Registration date",
     "status_changed": "Status change date",
     "registry_number": "Registry number",
+    "registry_id": "Registry ID",
     "missing_oib": "Not supplied by the official source",
     "view_record": "Open official record",
     "official_record": "Official registry record",

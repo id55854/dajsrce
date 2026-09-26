@@ -7,35 +7,35 @@ import { AccessibilityMenu } from "@/components/AccessibilityMenu";
 import { Footer } from "@/components/Footer";
 import { ToastProvider } from "@/components/ui";
 import { LocaleProvider } from "@/i18n/client";
-import { getLocale } from "@/i18n/server";
-import { Analytics } from "@vercel/analytics/next";
+import { getLocale, getTranslator } from "@/i18n/server";
+import { SITE_NAME, SITE_URL, openGraphLocale } from "@/lib/seo";
 
-// Root metadata is the one place that cannot read the dictionary through the
-// normal client/server translator, because it is evaluated before any locale
-// provider exists. Keep these two entries in sync with the i18n dictionaries.
-const ROOT_METADATA = {
-  hr: {
-    title: "DajSrce, Povežite donatore s onima kojima je pomoć potrebna",
-    description:
-      "Karta ustanova, udruga i volonterskih prilika u Hrvatskoj. Pronađite gdje donirati, volontirati i pomoći.",
-  },
-  en: {
-    title: "DajSrce, Connecting donors with those in need",
-    description:
-      "A map of institutions, associations and volunteering opportunities across Croatia. Find where to donate, volunteer, and help.",
-  },
-} as const;
-
+/**
+ * Defaults every page inherits. The share image comes from
+ * `opengraph-image.tsx` and the iOS home-screen icon from `apple-icon.tsx`
+ * (iOS ignores an SVG touch icon). No canonical URL here: every child page
+ * would inherit it and declare itself a copy of the home page.
+ */
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
-  const copy = ROOT_METADATA[locale] ?? ROOT_METADATA.hr;
+  const [t, locale] = await Promise.all([getTranslator(), getLocale()]);
+  const title = t("seo.site_title");
+  const description = t("seo.site_description");
   return {
-    title: copy.title,
-    description: copy.description,
+    metadataBase: new URL(SITE_URL),
+    title,
+    description,
+    applicationName: SITE_NAME,
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      locale: openGraphLocale(locale),
+      title,
+      description,
+    },
+    twitter: { card: "summary_large_image", title, description },
     icons: {
       icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
       shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
-      apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
     },
   };
 }
@@ -139,7 +139,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </div>
           </ToastProvider>
         </LocaleProvider>
-        <Analytics />
       </body>
     </html>
   );
