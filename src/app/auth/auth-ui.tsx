@@ -6,6 +6,8 @@ import { AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import clsx from "clsx";
 import { Card, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { richText } from "@/i18n/rich-text";
+import { PRIVACY_HREF, TERMS_HREF } from "@/lib/auth/terms";
 import {
   PASSWORD_STRENGTH_LEVELS,
   type PasswordScore,
@@ -334,6 +336,64 @@ export function RoleTile({
       <span className="text-base font-semibold text-ink">{title}</span>
       <span className="text-sm text-ink-secondary">{subtitle}</span>
     </button>
+  );
+}
+
+/**
+ * The required age and terms statement. Shared by the register form and by
+ * /auth/setup, which is where a Google sign-in first lands: it never sees the
+ * register form, so it has to be asked there before its role is saved. The
+ * links open in a new tab so a half-filled form survives reading them.
+ */
+export function TermsConsent({
+  checked,
+  onChange,
+  error,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  error?: ReactNode;
+}) {
+  const t = useT();
+  const id = useId();
+  const errorId = `${id}-error`;
+  const linkClasses = `${authLinkClasses} font-medium underline underline-offset-2`;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-start gap-3">
+        <input
+          id={id}
+          name="terms"
+          type="checkbox"
+          required
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-brand"
+        />
+        <label htmlFor={id} className="text-sm leading-6 text-ink-secondary">
+          {richText(t("auth.terms_consent"), {
+            terms: (
+              <a href={TERMS_HREF} target="_blank" rel="noopener" className={linkClasses}>
+                {t("auth.terms_consent_terms")}
+              </a>
+            ),
+            privacy: (
+              <a href={PRIVACY_HREF} target="_blank" rel="noopener" className={linkClasses}>
+                {t("auth.terms_consent_privacy")}
+              </a>
+            ),
+          })}
+        </label>
+      </div>
+      {error ? (
+        <p id={errorId} role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

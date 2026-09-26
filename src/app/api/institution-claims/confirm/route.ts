@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { hashBearerToken } from "@/lib/security/runtime";
 import { rateLimit, requireSameOrigin } from "@/lib/security/http";
 import { getRequestId, logError } from "@/lib/observability";
-import { claimErrorStatus, isRawClaimToken } from "@/lib/institution-claims";
+import { claimErrorCode, claimErrorStatus, isRawClaimToken } from "@/lib/institution-claims";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   if (!isRawClaimToken(token)) {
     return NextResponse.json(
-      { error: "The confirmation link is not valid", request_id: requestId },
+      { error: "The confirmation link is not valid", code: "token_invalid", request_id: requestId },
       { status: 400, headers: NO_STORE }
     );
   }
@@ -58,8 +58,16 @@ export async function POST(req: NextRequest) {
       error ?? new Error("no result"),
       { request_id: requestId, code: error?.code ?? null }
     );
+    // Used, expired or closed: the person holding the link needs to know
+    // which, because the next step differs. None of these says anything about
+    // the claim beyond what the link's holder already has.
+    const code = error ? claimErrorCode(error) : null;
     return NextResponse.json(
-      { error: "The confirmation link is no longer valid", request_id: requestId },
+      {
+        error: "The confirmation link is no longer valid",
+        ...(code ? { code } : {}),
+        request_id: requestId,
+      },
       { status: claimErrorStatus(error?.code), headers: NO_STORE }
     );
   }

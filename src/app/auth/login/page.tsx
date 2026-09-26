@@ -129,7 +129,10 @@ function LoginForm() {
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
+      {/* POST with a same-page action: submitted before hydration, a GET
+          would put the password in the query string (URL bar, history,
+          server logs). */}
+      <form method="post" action="#" onSubmit={handleSubmit} className="space-y-5">
         {errorKey ? (
           <AuthAlert id={FORM_ERROR_ID}>{t(errorKey)}</AuthAlert>
         ) : null}

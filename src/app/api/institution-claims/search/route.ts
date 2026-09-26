@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getRequestId, logError } from "@/lib/observability";
 import { rateLimit } from "@/lib/security/http";
 import {
+  claimErrorCode,
   claimErrorStatus,
   parseClaimSearchInput,
   type ClaimableAssociation,
@@ -52,15 +53,28 @@ export async function GET(req: NextRequest) {
       request_id: requestId,
       code: error.code ?? null,
     });
+    const code = claimErrorCode(error);
     return NextResponse.json(
-      { error: "The official register is temporarily unavailable", request_id: requestId },
+      {
+        error: "The official register is temporarily unavailable",
+        ...(code ? { code } : {}),
+        request_id: requestId,
+      },
       { status: claimErrorStatus(error.code), headers: NO_STORE }
     );
   }
 
-  const payload = (data ?? {}) as { items?: ClaimableAssociation[] };
+  const payload = (data ?? {}) as { items?: ClaimableAssociation[]; truncated?: boolean };
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  // The RPC says whether more rows matched than it returned. A schema that
+  // predates the flag cannot say, so a full page is reported as truncated
+  // rather than presented as the whole answer.
+  const truncated =
+    typeof payload.truncated === "boolean"
+      ? payload.truncated
+      : items.length >= parsed.value.limit;
   return NextResponse.json(
-    { items: Array.isArray(payload.items) ? payload.items : [], request_id: requestId },
+    { items, truncated, request_id: requestId },
     { headers: { ...NO_STORE, "x-request-id": requestId } }
   );
 }

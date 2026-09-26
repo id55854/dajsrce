@@ -17,6 +17,30 @@ describe("HTTP security helpers", () => {
     expect(safeInternalPath("/\\evil")).toBe("/dashboard");
   });
 
+  it("re-checks the path after dot segments are resolved", () => {
+    // Each of these only turns into the protocol-relative "//evil.example"
+    // once the URL parser has normalised it.
+    for (const raw of [
+      "/.//evil.example",
+      "/..//evil.example",
+      "/%2e//evil.example",
+      "/%2E%2E//evil.example",
+      "/a/..//evil.example",
+      "/a/b/../..//evil.example/path?x=1",
+      "\\\\evil.example",
+      "/\\evil.example",
+    ]) {
+      expect(safeInternalPath(raw), raw).toBe("/dashboard");
+    }
+  });
+
+  it("still normalises harmless dot segments inside the site", () => {
+    expect(safeInternalPath("/dashboard/./admin")).toBe("/dashboard/admin");
+    expect(safeInternalPath("/auth/../dashboard?tab=needs#top")).toBe("/dashboard?tab=needs#top");
+    expect(safeInternalPath("/%2F/evil.example")).toBe("/%2F/evil.example");
+    expect(safeInternalPath("/.//evil.example", "")).toBe("");
+  });
+
   it("validates UUIDs and generated bearer token shape", () => {
     expect(isUuid("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee")).toBe(true);
     expect(isUuid("not-a-uuid")).toBe(false);

@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { anonDataApiToken } from "@/lib/data-api/token";
 import { userTokenForClaims } from "@/lib/data-api/session";
 import { getRequestId } from "@/lib/observability";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
-
-const ANON_TOKEN_LIFETIME_SECONDS = 9 * 60;
 
 /**
  * A short-lived Neon Data API token for the browser's own session.
  *
  * This is token issuance, so identity comes from `auth.getUser()` (a round
- * trip that honours revocation), not a locally verified JWT. Without a session
- * the caller gets the shared `anon` token, which reads only what the public
- * API already serves.
+ * trip that honours revocation), not a locally verified JWT. There is no
+ * anonymous token here: every public read is served by an API route or a
+ * server component through the server's own anon client, and the browser
+ * reaches the Data API directly only for a signed-in user's own rows. A
+ * visitor without a session gets 401.
  */
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
@@ -32,9 +31,7 @@ export async function GET(req: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user || user.is_anonymous) {
-      const token = await anonDataApiToken();
-      const exp = Math.floor(Date.now() / 1000) + ANON_TOKEN_LIFETIME_SECONDS;
-      return NextResponse.json({ token, exp }, { headers: NO_STORE });
+      return jsonError("Not authenticated", 401, requestId, NO_STORE);
     }
 
     const { token, exp } = await userTokenForClaims({

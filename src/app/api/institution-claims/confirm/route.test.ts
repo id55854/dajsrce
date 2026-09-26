@@ -69,7 +69,9 @@ describe("POST /api/institution-claims/confirm", () => {
     });
     const response = await POST(confirm({ token: RAW_TOKEN }));
     expect(response.status).toBe(409);
-    expect((await response.json()).error).not.toContain("already used");
+    const payload = await response.json();
+    expect(payload.error).not.toContain("already used");
+    expect(payload.code).toBe("token_used");
   });
 
   it("refuses an expired token", async () => {
@@ -77,7 +79,9 @@ describe("POST /api/institution-claims/confirm", () => {
       data: null,
       error: { code: "P0001", message: "verification expired" },
     });
-    expect((await POST(confirm({ token: RAW_TOKEN }))).status).toBe(409);
+    const response = await POST(confirm({ token: RAW_TOKEN }));
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("token_expired");
   });
 
   it("refuses an unknown digest as not found", async () => {
@@ -85,7 +89,33 @@ describe("POST /api/institution-claims/confirm", () => {
       data: null,
       error: { code: "P0002", message: "verification not found" },
     });
-    expect((await POST(confirm({ token: RAW_TOKEN }))).status).toBe(404);
+    const response = await POST(confirm({ token: RAW_TOKEN }));
+    expect(response.status).toBe(404);
+    expect((await response.json()).code).toBe("token_invalid");
+  });
+
+  it("says when the claim behind the link is already decided", async () => {
+    single.mockResolvedValue({
+      data: null,
+      error: { code: "P0001", message: "claim is no longer open" },
+    });
+    expect((await (await POST(confirm({ token: RAW_TOKEN }))).json()).code).toBe("claim_closed");
+  });
+
+  it("needs no session: the link is opened from the association's mailbox", async () => {
+    single.mockResolvedValue({
+      data: {
+        claim_id: "claim-1",
+        claim_status: "email_sent",
+        udr_id: "200307",
+        organisation_name: "Udruga",
+        confirmed_at: "2026-09-28T10:00:00Z",
+      },
+      error: null,
+    });
+    const response = await POST(confirm({ token: RAW_TOKEN }));
+    expect(response.status).toBe(200);
+    expect((await response.json()).organisation_name).toBe("Udruga");
   });
 
   it("never caches a confirmation response", async () => {

@@ -68,6 +68,19 @@ describe("GET /api/institution-claims", () => {
     ).json();
     expect(payload.claim).toBeNull();
   });
+
+  it("rate limits reads per client address", async () => {
+    signedIn();
+    rpc.mockResolvedValue({ data: null, error: null });
+    const read = () =>
+      GET(
+        new NextRequest("http://localhost/api/institution-claims", {
+          headers: { "x-forwarded-for": "203.0.113.77" },
+        })
+      );
+    for (let i = 0; i < 60; i += 1) expect((await read()).status).toBe(200);
+    expect((await read()).status).toBe(429);
+  });
 });
 
 describe("POST /api/institution-claims", () => {
@@ -122,7 +135,20 @@ describe("POST /api/institution-claims", () => {
       data: null,
       error: { code: "P0001", message: "an open claim already exists for this account" },
     });
-    expect((await POST(post(VALID))).status).toBe(409);
+    const response = await POST(post(VALID));
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("open_claim_exists");
+  });
+
+  it("tells the applicant when someone else already claimed the organisation", async () => {
+    signedIn();
+    rpc.mockResolvedValue({
+      data: null,
+      error: { code: "P0001", message: "this organisation already has a claim under review" },
+    });
+    const payload = await (await POST(post(VALID))).json();
+    expect(payload.code).toBe("organisation_claimed");
+    expect(payload.error).not.toContain("under review");
   });
 
   it("maps a refused actor to 403", async () => {

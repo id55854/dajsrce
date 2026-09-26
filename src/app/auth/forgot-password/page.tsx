@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
             </Button>
           </>
         ) : (
-          <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void send(email.trim()); }}>
+          <form method="post" action="#" className="space-y-5" onSubmit={(event) => { event.preventDefault(); void send(email.trim()); }}>
             <Field label={t("auth.email_label")} required requiredLabel={t("common.required")}>
               {(field) => <Input {...field} name="email" type="email" autoComplete="email" required autoFocus value={email} onChange={(event) => setEmail(event.target.value)} aria-describedby={error ? "recovery-error" : field["aria-describedby"]} />}
             </Field>

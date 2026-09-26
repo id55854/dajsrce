@@ -4,9 +4,12 @@ import { getCurrentUserProfile } from "@/lib/auth/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getTranslator } from "@/i18n/server";
 import { Card, PageHeader, PageShell, Stat } from "@/components/ui";
-import type { InstitutionClaimReviewItem } from "@/lib/institution-claims";
+import type { InstitutionClaimReviewPage } from "@/lib/institution-claims";
 import { SignOutButton } from "@/components/SignOutButton";
 import { InstitutionClaimQueue } from "./institution-claim-queue";
+
+/** The review RPC's own cap; the queue says so when more are waiting. */
+const CLAIM_QUEUE_LIMIT = 100;
 
 export default async function SuperadminDashboardPage() {
   const profile = await getCurrentUserProfile();
@@ -28,33 +31,48 @@ export default async function SuperadminDashboardPage() {
     supabaseAdmin.rpc("list_institution_claims_for_review", {
       p_reviewer_id: profile.id,
       p_status: "open",
-      p_limit: 50,
+      p_limit: CLAIM_QUEUE_LIMIT,
     }),
   ]);
 
-  const queuePayload = (claimQueue.data ?? {}) as { items?: InstitutionClaimReviewItem[] };
-  const claims = Array.isArray(queuePayload.items) ? queuePayload.items : [];
+  const queuePayload = (claimQueue.data ?? {}) as InstitutionClaimReviewPage;
+  // Oldest first, so the earliest applicants are not the ones who wait
+  // longest. The RPC already orders an open queue that way; sorting again
+  // keeps the rule even on a schema that predates it.
+  const claims = (Array.isArray(queuePayload.items) ? queuePayload.items : [])
+    .slice()
+    .sort(
+      (a, b) =>
+        Date.parse(a.created_at) - Date.parse(b.created_at) || a.id.localeCompare(b.id)
+    );
+  // The page shows at most CLAIM_QUEUE_LIMIT; the stat is the real backlog.
+  const claimTotal =
+    typeof queuePayload.total === "number" ? queuePayload.total : claims.length;
 
   const cards = [
-    { label: "Users", value: profiles.count, icon: <Users className="h-4 w-4" aria-hidden="true" /> },
     {
-      label: "Active needs",
+      label: t("admin.stat_users"),
+      value: profiles.count,
+      icon: <Users className="h-4 w-4" aria-hidden="true" />,
+    },
+    {
+      label: t("admin.stat_needs"),
       value: needs.count,
       icon: <ListChecks className="h-4 w-4" aria-hidden="true" />,
     },
     {
-      label: "Donations",
+      label: t("admin.stat_pledges"),
       value: pledges.count,
       icon: <Heart className="h-4 w-4" aria-hidden="true" />,
     },
     {
-      label: "Unverified NGOs",
+      label: t("admin.stat_unverified"),
       value: institutions.count,
       icon: <BadgeCheck className="h-4 w-4" aria-hidden="true" />,
     },
     {
       label: t("admin.claims_pending_stat"),
-      value: claimQueue.error ? null : claims.length,
+      value: claimQueue.error ? null : claimTotal,
       icon: <ShieldQuestion className="h-4 w-4" aria-hidden="true" />,
     },
   ];
@@ -62,7 +80,7 @@ export default async function SuperadminDashboardPage() {
   return (
     <PageShell width="wide">
       <PageHeader
-        eyebrow="Superadmin"
+        eyebrow={t("admin.eyebrow")}
         title={t("admin.title")}
         subtitle={t("admin.subtitle")}
       />
@@ -89,7 +107,7 @@ export default async function SuperadminDashboardPage() {
           </p>
         </Card>
       ) : (
-        <InstitutionClaimQueue claims={claims} />
+        <InstitutionClaimQueue claims={claims} total={claimTotal} renderedAt={Date.now()} />
       )}
 
       <Card padding="lg" className="mt-8">

@@ -22,6 +22,8 @@ import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { OPEN_A11Y_EVENT } from "@/components/AccessibilityMenu";
 import { Menu, buttonClasses, usePresence } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/client";
+import { NGO_SIGNUP_HREF } from "@/lib/auth/onboarding";
+import { PRIVACY_HREF, TERMS_HREF } from "@/lib/auth/terms";
 import { safeInternalPath } from "@/lib/security/redirects";
 import { timeAgo } from "@/lib/utils";
 
@@ -564,12 +566,28 @@ export function Navbar() {
               <ProfileLink displayName={displayName} profileEmail={profileEmail} />
             </div>
           ) : (
-            <Link
-              href="/auth/login"
-              className={buttonClasses({ size: "sm", className: "h-9 px-3.5" })}
-            >
-              {t("nav.sign_in")}
-            </Link>
+            <>
+              {/* Associations are invited to sign up, and "Prijava" alone
+                  hid that path two clicks deep. Between lg and xl the full
+                  label would run into the centred track, so it shortens. */}
+              <Link
+                href={NGO_SIGNUP_HREF}
+                className={buttonClasses({
+                  variant: "secondary",
+                  size: "sm",
+                  className: "h-9 px-3.5",
+                })}
+              >
+                <span className="xl:hidden">{t("nav.register_ngo_short")}</span>
+                <span className="hidden xl:inline">{t("nav.register_ngo")}</span>
+              </Link>
+              <Link
+                href="/auth/login"
+                className={buttonClasses({ size: "sm", className: "h-9 px-3.5" })}
+              >
+                {t("nav.sign_in")}
+              </Link>
+            </>
           )}
         </div>
 
@@ -675,13 +693,20 @@ export function Navbar() {
                 {t("a11y.title")}
               </button>
             </div>
-            <Link
-              href="/o-nama"
-              className="rounded-control px-3 py-2.5 text-sm font-medium text-ink-secondary transition-colors hover:bg-ink/[0.08] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:hidden"
-              onClick={() => setMobileOpen(false)}
-            >
-              {t("nav.about")}
-            </Link>
+            {[
+              { href: "/o-nama", labelKey: "nav.about" },
+              { href: PRIVACY_HREF, labelKey: "nav.privacy" },
+              { href: TERMS_HREF, labelKey: "nav.terms" },
+            ].map(({ href, labelKey }) => (
+              <Link
+                key={href}
+                href={href}
+                className="rounded-control px-3 py-2.5 text-sm font-medium text-ink-secondary transition-colors hover:bg-ink/[0.08] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:hidden"
+                onClick={() => setMobileOpen(false)}
+              >
+                {t(labelKey)}
+              </Link>
+            ))}
 
             {user ? (
               <>
@@ -711,13 +736,22 @@ export function Navbar() {
                 </button>
               </>
             ) : (
-              <Link
-                href="/auth/login"
-                className={buttonClasses({ fullWidth: true, className: "mt-2" })}
-                onClick={() => setMobileOpen(false)}
-              >
-                {t("nav.sign_in")}
-              </Link>
+              <>
+                <Link
+                  href="/auth/login"
+                  className={buttonClasses({ fullWidth: true, className: "mt-2" })}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {t("nav.sign_in")}
+                </Link>
+                <Link
+                  href={NGO_SIGNUP_HREF}
+                  className={buttonClasses({ variant: "secondary", fullWidth: true, className: "mt-2" })}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {t("nav.register_ngo")}
+                </Link>
+              </>
             )}
           </nav>
         </div>
