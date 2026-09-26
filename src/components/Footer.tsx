@@ -61,7 +61,8 @@ export function Footer() {
           <span className="block">{organisationAddressLine(locale)}</span>
           <span className="block tabular-nums">
             {t("footer.oib")}: {ORGANISATION.oib} · {t("footer.registration_number")}:{" "}
-            {ORGANISATION.registrationNumber}
+            {ORGANISATION.registrationNumber} · {t("footer.registry_number")}:{" "}
+            {ORGANISATION.registryNumber}
           </span>
         </address>
 

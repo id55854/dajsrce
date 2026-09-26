@@ -708,7 +708,8 @@
     "tagline": "Connecting donors with those in need",
     "public_good": "A project for the public good · {year}",
     "oib": "Tax ID (OIB)",
-    "registration_number": "Registration number",
+    "registration_number": "Statistical number",
+    "registry_number": "Register number",
     "contact_label": "Contact"
   },
   "legal": {

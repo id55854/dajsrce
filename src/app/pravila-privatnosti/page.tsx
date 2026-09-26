@@ -96,6 +96,12 @@ const RECIPIENTS = [
     "SAD; Okvir EU-a i SAD-a",
   ],
   [
+    "Google (Google Workspace)",
+    "izvršitelj obrade",
+    "e-pošta na kontakt@dajsrce.hr: vaši upiti i zahtjevi te naši odgovori i pozivi udrugama",
+    "EU i SAD; Okvir EU-a i SAD-a i standardne ugovorne klauzule",
+  ],
+  [
     "CARTO (CartoDB Inc.)",
     "izvršitelj obrade",
     "prikaz slika karte; IP adresa se skraćuje, a zapisi se čuvaju 30 dana",
