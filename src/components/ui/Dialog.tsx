@@ -73,7 +73,7 @@ export function Dialog({
         tabIndex={-1}
         onMouseDown={(event) => event.stopPropagation()}
         className={clsx(
-          "w-full max-w-md border border-border-subtle bg-surface-overlay p-6 shadow-modal outline-none",
+          "max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain border border-border-subtle bg-surface-overlay p-6 shadow-modal outline-none",
           asSheet ? "rounded-sheet sm:rounded-card" : "rounded-card",
           asSheet
             ? "data-[state=open]:animate-sheet-in data-[state=closed]:animate-sheet-out sm:data-[state=open]:animate-dialog-in sm:data-[state=closed]:animate-dialog-out"
