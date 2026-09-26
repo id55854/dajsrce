@@ -197,6 +197,10 @@ export function PledgeButton({
           if (body.code === "need_fulfilled") closeModal();
           return;
         }
+        if (body?.code === "account_limit") {
+          toast({ tone: "error", title: t("pledge.account_limit") });
+          return;
+        }
         toast({ tone: "error", title: t("common.error_generic") });
         return;
       }

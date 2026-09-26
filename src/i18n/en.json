@@ -297,17 +297,6 @@
     "view_details": "View details",
     "start_over": "Start over"
   },
-  "hub": {
-    "title": "How do you want to help?",
-    "subtitle": "Browse public opportunities and sign in only when you want to act.",
-    "map_desc": "Explore nearby NGOs and associations.",
-    "needs_desc": "See active needs for food, clothes, hygiene and more.",
-    "volunteer_desc": "Discover volunteer opportunities in your community.",
-    "dashboard_title": "Your dashboard",
-    "dashboard_title_role": "{role} dashboard",
-    "dashboard_desc": "Open your role-specific dashboard.",
-    "dashboard_desc_signed_out": "Sign in when you want to take action."
-  },
   "institution_page": {
     "not_found": "Institution not found",
     "active_needs": "Active needs",
@@ -341,6 +330,7 @@
     "full": "Fully pledged",
     "full_now": "This need was just fully covered.",
     "exceeds_remaining": "That is more than is still needed. Lower the quantity.",
+    "account_limit": "This account has reached its pledge limit (10 new a day, 25 active). Withdraw a pledge or try again tomorrow.",
     "remaining_hint": "Still needed: {remaining}"
   },
   "institution": {
@@ -510,10 +500,9 @@
     "email_label": "Email",
     "role_label": "Role",
     "role_individual": "Individual",
-    "role_ngo": "NGO",
+    "role_ngo": "Association",
     "role_superadmin": "Superadmin",
     "stat_donations": "Donations",
-    "stat_shipping": "With shipping",
     "donation_history": "Donation history",
     "no_actions": "No actions yet. Browse needs and start helping.",
     "find_places": "Find places to help",
@@ -651,6 +640,7 @@
     "auth_action": "Volunteer",
     "full": "Full",
     "full_now": "The last place was just taken.",
+    "account_limit": "This account has reached its signup limit (10 new a day, 25 upcoming). Cancel a signup or try again tomorrow.",
     "ended": "This event has ended.",
     "details": "More about this event",
     "when": "When",

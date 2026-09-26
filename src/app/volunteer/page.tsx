@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
-import { getTranslator } from "@/i18n/server";
+import { getLocale, getTranslator } from "@/i18n/server";
 import { isUuid } from "@/lib/security/http";
+import { pageMetadata } from "@/lib/seo";
 import { VolunteerClient } from "./volunteer-client";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslator();
-  return {
+  const [t, locale] = await Promise.all([getTranslator(), getLocale()]);
+  return pageMetadata({
     title: `${t("volunteer_page.title")} | DajSrce`,
     description: t("volunteer_page.subtitle"),
-  };
+    path: "/volunteer",
+    locale,
+    imageAlt: t("seo.share_image_alt"),
+  });
 }
 
 /**

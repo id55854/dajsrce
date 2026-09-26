@@ -100,7 +100,7 @@ function NavLink({ href, label }: { href: string; label: string }) {
         "motion-safe:active:scale-[0.97]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
         active
-          ? "bg-brand-soft text-brand"
+          ? "bg-brand-soft text-brand-on-soft"
           : "text-ink-secondary hover:bg-ink/[0.08] hover:text-ink"
       )}
     >

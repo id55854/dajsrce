@@ -77,6 +77,7 @@ type SignupRefusal = CapacityErrorCode | "age_confirmation_required";
 
 const SIGNUP_ERROR_KEYS: Partial<Record<SignupRefusal, string>> = {
   event_ended: "volunteer_card.ended",
+  account_limit: "volunteer_card.account_limit",
   age_confirmation_required: "volunteer_signup.age_required",
 };
 

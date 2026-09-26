@@ -12,7 +12,9 @@ export type CapacityErrorCode =
   | "event_full"
   | "event_ended"
   | "need_fulfilled"
-  | "exceeds_remaining";
+  | "exceeds_remaining"
+  /** The per-account daily or active limit (20260926110000) was reached. */
+  | "account_limit";
 
 export function capacityErrorCode(error: {
   code?: string | null;
@@ -25,5 +27,6 @@ export function capacityErrorCode(error: {
   if (message.includes("event has ended")) return "event_ended";
   if (message.includes("already fulfilled")) return "need_fulfilled";
   if (message.includes("exceeds remaining")) return "exceeds_remaining";
+  if (message.includes("too many")) return "account_limit";
   return null;
 }

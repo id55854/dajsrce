@@ -10,6 +10,17 @@ describe("capacityErrorCode", () => {
     expect(capacityErrorCode({ code: "23514", message: "pledge exceeds remaining quantity" })).toBe("exceeds_remaining");
   });
 
+  it("maps the per-account limit triggers", () => {
+    for (const message of [
+      "too many pledges today",
+      "too many active pledges",
+      "too many signups today",
+      "too many active signups",
+    ]) {
+      expect(capacityErrorCode({ code: "23514", message })).toBe("account_limit");
+    }
+  });
+
   it("does not invent a reason for anything else", () => {
     expect(capacityErrorCode({ code: "23514", message: "something new" })).toBeNull();
     expect(capacityErrorCode({ code: "P0002", message: "event is full" })).toBeNull();

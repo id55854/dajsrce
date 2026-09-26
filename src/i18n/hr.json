@@ -297,17 +297,6 @@
     "view_details": "Pogledaj detalje",
     "start_over": "Počni ponovno"
   },
-  "hub": {
-    "title": "Kako želite pomoći?",
-    "subtitle": "Pregledajte javne mogućnosti i prijavite se samo kada želite djelovati.",
-    "map_desc": "Istražite udruge i ustanove u svojoj blizini.",
-    "needs_desc": "Pogledajte aktivne potrebe za hranom, odjećom, higijenom i više.",
-    "volunteer_desc": "Otkrijte volonterske prilike u zajednici.",
-    "dashboard_title": "Vaša nadzorna ploča",
-    "dashboard_title_role": "Nadzorna ploča: {role}",
-    "dashboard_desc": "Otvorite nadzornu ploču za svoju ulogu.",
-    "dashboard_desc_signed_out": "Prijavite se kada želite poduzeti radnju."
-  },
   "institution_page": {
     "not_found": "Ustanova nije pronađena",
     "active_needs": "Aktivne potrebe",
@@ -341,6 +330,7 @@
     "full": "Prikupljeno",
     "full_now": "Ova potreba je upravo u potpunosti pokrivena.",
     "exceeds_remaining": "Toliko više nije potrebno. Smanjite količinu.",
+    "account_limit": "Dosegnuli ste ograničenje obećanja za ovaj račun (10 novih dnevno, 25 aktivnih). Povucite neko obećanje ili pokušajte ponovno sutra.",
     "remaining_hint": "Još je potrebno: {remaining}"
   },
   "institution": {
@@ -510,10 +500,9 @@
     "email_label": "E-pošta",
     "role_label": "Uloga",
     "role_individual": "Pojedinac",
-    "role_ngo": "Udruga / ustanova",
+    "role_ngo": "Udruga",
     "role_superadmin": "Superadmin",
     "stat_donations": "Darovanja",
-    "stat_shipping": "S dostavom",
     "donation_history": "Povijest darovanja",
     "no_actions": "Još nema aktivnosti. Pregledajte potrebe i počnite pomoći.",
     "find_places": "Pronađite gdje pomoći",
@@ -651,6 +640,7 @@
     "auth_action": "Volontiranje",
     "full": "Popunjeno",
     "full_now": "Upravo je popunjeno posljednje mjesto.",
+    "account_limit": "Dosegnuli ste ograničenje prijava za ovaj račun (10 novih dnevno, 25 nadolazećih). Otkažite neku prijavu ili pokušajte ponovno sutra.",
     "ended": "Ovaj termin je završio.",
     "details": "Više o događaju",
     "when": "Kada",
