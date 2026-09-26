@@ -1,5 +1,6 @@
 import { DONATION_TYPES } from "./constants";
 import { parseISODate } from "./dates";
+import { zagrebToday } from "./volunteer-events";
 
 type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -109,47 +110,138 @@ export type VolunteerEventInput = {
   start_time: string;
   end_time: string;
   volunteers_needed: number;
+  /** What a volunteer should know or bring. */
   requirements: string | null;
   /** Where the event happens, when not at the organisation's address. */
   location: string | null;
+  /** Published with the event, so volunteers know whom to call. */
+  contact_person: string | null;
+  contact_phone: string | null;
 };
 
-export function parseVolunteerEventInput(value: unknown): ValidationResult<VolunteerEventInput> {
+/** Every field an organisation sets on an event, in the order the form shows them. */
+export const VOLUNTEER_EVENT_FIELDS = [
+  "title",
+  "description",
+  "event_date",
+  "start_time",
+  "end_time",
+  "location",
+  "volunteers_needed",
+  "requirements",
+  "contact_person",
+  "contact_phone",
+] as const satisfies readonly (keyof VolunteerEventInput)[];
+
+export type VolunteerEventField = (typeof VOLUNTEER_EVENT_FIELDS)[number];
+
+/**
+ * Like ValidationResult, plus the field that failed so the form can say what
+ * to fix in the visitor's language; `error` stays an English developer
+ * message.
+ */
+export type VolunteerEventValidation<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: string; field: VolunteerEventField | null };
+
+const CLOCK = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+/** Digits, spaces and + ( ) / - . ; the same rule as the database check. */
+const PHONE_CHARACTERS = /^[\d +()/.-]+$/;
+
+function eventDate(value: unknown, today: string): ValidationResult<string> {
+  const date = parseISODate(value);
+  if (!date) return { ok: false, error: "event_date must be a real YYYY-MM-DD date" };
+  // An event dated in the past would be published invisible and unjoinable.
+  if (date < today) return { ok: false, error: "event_date must not be in the past" };
+  return { ok: true, value: date };
+}
+
+function clock(value: unknown, field: string): ValidationResult<string> {
+  if (typeof value !== "string" || !CLOCK.test(value)) {
+    return { ok: false, error: `${field} must use HH:MM` };
+  }
+  return { ok: true, value };
+}
+
+function phone(value: unknown): ValidationResult<string | null> {
+  const parsed = text(value, "contact_phone", 6, 40, true);
+  if (!parsed.ok || parsed.value === null) return parsed;
+  if (!PHONE_CHARACTERS.test(parsed.value) || parsed.value.replace(/\D/g, "").length < 6) {
+    return { ok: false, error: "contact_phone must contain at least 6 digits and only digits, spaces and + ( ) / - ." };
+  }
+  return parsed;
+}
+
+const VOLUNTEER_EVENT_RULES: {
+  [K in VolunteerEventField]: (value: unknown, today: string) => ValidationResult<VolunteerEventInput[K]>;
+} = {
+  title: (value) => text(value, "title", 1, 160) as ValidationResult<string>,
+  description: (value) => text(value, "description", 1, 4000, true),
+  event_date: (value, today) => eventDate(value, today),
+  start_time: (value) => clock(value, "start_time"),
+  end_time: (value) => clock(value, "end_time"),
+  location: (value) => text(value, "location", 1, 300, true),
+  volunteers_needed: (value) => integer(value, "volunteers_needed", 1, 10_000) as ValidationResult<number>,
+  requirements: (value) => text(value, "requirements", 1, 2000, true),
+  contact_person: (value) => text(value, "contact_person", 1, 120, true),
+  contact_phone: (value) => phone(value),
+};
+
+type VolunteerEventOptions = {
+  /** The Croatian calendar date the event may not precede; tests pin it. */
+  today?: string;
+};
+
+/** A new event: every required field present, nothing dated in the past. */
+export function parseVolunteerEventInput(
+  value: unknown,
+  { today = zagrebToday() }: VolunteerEventOptions = {}
+): VolunteerEventValidation<VolunteerEventInput> {
   const body = recordOf(value);
-  if (!body) return { ok: false, error: "Request body must be an object" };
-  const title = text(body.title, "title", 1, 160);
-  if (!title.ok) return title;
-  const description = text(body.description, "description", 1, 4000, true);
-  if (!description.ok) return description;
-  const requirements = text(body.requirements, "requirements", 1, 2000, true);
-  if (!requirements.ok) return requirements;
-  const location = text(body.location, "location", 1, 300, true);
-  if (!location.ok) return location;
-  const eventDate = parseISODate(body.event_date);
-  if (!eventDate) return { ok: false, error: "event_date must be a real YYYY-MM-DD date" };
-  const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-  if (typeof body.start_time !== "string" || !timePattern.test(body.start_time)) {
-    return { ok: false, error: "start_time must use HH:MM" };
+  if (!body) return { ok: false, error: "Request body must be an object", field: null };
+  const input: Record<string, unknown> = { ...body, volunteers_needed: body.volunteers_needed ?? 5 };
+  const fields: Partial<Record<VolunteerEventField, unknown>> = {};
+  for (const field of VOLUNTEER_EVENT_FIELDS) {
+    const parsed = VOLUNTEER_EVENT_RULES[field](input[field], today);
+    if (!parsed.ok) return { ok: false, error: parsed.error, field };
+    fields[field] = parsed.value;
   }
-  if (typeof body.end_time !== "string" || !timePattern.test(body.end_time)) {
-    return { ok: false, error: "end_time must use HH:MM" };
+  const event = fields as VolunteerEventInput;
+  if (event.end_time <= event.start_time) {
+    return { ok: false, error: "end_time must be after start_time", field: "end_time" };
   }
-  if (body.end_time <= body.start_time) {
-    return { ok: false, error: "end_time must be after start_time" };
+  return { ok: true, value: event };
+}
+
+export type VolunteerEventPatch = Partial<VolunteerEventInput>;
+
+/**
+ * An edit: only the fields being changed, each held to the same rule as on
+ * creation, and nothing outside VOLUNTEER_EVENT_FIELDS (never the
+ * institution, the counters or an id). A null optional field clears it.
+ * Times are compared here only when both arrive; the transaction compares
+ * them again after merging the patch with the stored event.
+ */
+export function parseVolunteerEventPatch(
+  value: unknown,
+  { today = zagrebToday() }: VolunteerEventOptions = {}
+): VolunteerEventValidation<VolunteerEventPatch> {
+  const body = recordOf(value);
+  if (!body) return { ok: false, error: "Request body must be an object", field: null };
+  const keys = Object.keys(body);
+  const unknownKey = keys.find((key) => !(VOLUNTEER_EVENT_FIELDS as readonly string[]).includes(key));
+  if (unknownKey) return { ok: false, error: `${unknownKey.slice(0, 40)} cannot be changed`, field: null };
+  if (keys.length === 0) return { ok: false, error: "Nothing to change", field: null };
+  const fields: Partial<Record<VolunteerEventField, unknown>> = {};
+  for (const field of VOLUNTEER_EVENT_FIELDS) {
+    if (!keys.includes(field)) continue;
+    const parsed = VOLUNTEER_EVENT_RULES[field](body[field], today);
+    if (!parsed.ok) return { ok: false, error: parsed.error, field };
+    fields[field] = parsed.value;
   }
-  const volunteers = integer(body.volunteers_needed ?? 5, "volunteers_needed", 1, 10_000);
-  if (!volunteers.ok) return volunteers;
-  return {
-    ok: true,
-    value: {
-      title: title.value!,
-      description: description.value,
-      event_date: eventDate,
-      start_time: body.start_time,
-      end_time: body.end_time,
-      volunteers_needed: volunteers.value!,
-      requirements: requirements.value,
-      location: location.value,
-    },
-  };
+  const patch = fields as VolunteerEventPatch;
+  if (patch.start_time && patch.end_time && patch.end_time <= patch.start_time) {
+    return { ok: false, error: "end_time must be after start_time", field: "end_time" };
+  }
+  return { ok: true, value: patch };
 }

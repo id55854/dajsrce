@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
-import { personActivityTotals } from "@/lib/institution-person-activity";
+import { institutionPersonActivity } from "@/lib/institution-person-activity";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
 
 export async function GET(req: NextRequest) {
@@ -83,7 +83,10 @@ export async function GET(req: NextRequest) {
     event: events?.find((e) => e.id === s.event_id) ?? null,
   }));
 
-  const activity = await personActivityTotals(supabaseAdmin, userIds);
+  // Only this organisation's own relationship with each volunteer: their
+  // pledges to its needs and signups for its events, never activity with
+  // other organisations.
+  const activity = await institutionPersonActivity(supabase, instId, userIds);
 
   return NextResponse.json({ events: events ?? [], signups: enriched, activity });
 }

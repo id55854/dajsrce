@@ -57,7 +57,7 @@ describe("capacity on the public cards", () => {
     const html = render(createElement(VolunteerEventCard, { event }));
     expect(html).toContain("grayscale");
     expect(html).toContain(">Popunjeno<");
-    expect(html).not.toContain(">Prijavi se<");
+    expect(html).not.toContain(">Pridruži se<");
     expect(html).toMatch(/<button[^>]*disabled/);
   });
 
@@ -70,7 +70,9 @@ describe("capacity on the public cards", () => {
   it("leaves an event with places open", () => {
     const html = render(createElement(VolunteerEventCard, { event: { ...event, volunteers_signed_up: 3 } }));
     expect(html).not.toContain("grayscale");
-    expect(html).toContain("Prijavi se");
+    // Joining is its own verb, so it never reads like signing in.
+    expect(html).toContain(">Pridruži se<");
+    expect(html).not.toContain("Prijavite se");
   });
 
   it("greys out a fully pledged need and disables giving", () => {
