@@ -711,6 +711,14 @@
     "registration_number": "Matični broj",
     "contact_label": "Kontakt"
   },
+  "legal": {
+    "footer_nav_label": "Informacije i pravila",
+    "privacy": "Pravila privatnosti",
+    "privacy_short": "Privatnost",
+    "terms": "Uvjeti korištenja",
+    "terms_short": "Uvjeti",
+    "cookies": "Kolačići"
+  },
   "about": {
     "page_title": "O nama",
     "page_subtitle": "Tko stoji iza DajSrca, zašto ga gradimo i prema kojim se podacima ravnamo.",

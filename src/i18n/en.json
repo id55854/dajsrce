@@ -711,6 +711,14 @@
     "registration_number": "Registration number",
     "contact_label": "Contact"
   },
+  "legal": {
+    "footer_nav_label": "Information and policies",
+    "privacy": "Privacy policy",
+    "privacy_short": "Privacy",
+    "terms": "Terms of use",
+    "terms_short": "Terms",
+    "cookies": "Cookies"
+  },
   "about": {
     "page_title": "About us",
     "page_subtitle": "Who is behind DajSrce, why we are building it, and which data we stand on.",
