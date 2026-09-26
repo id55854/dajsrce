@@ -30,14 +30,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * A `?view=` value therefore no longer selects anything here. Rather than
  * silently ignoring it and leaving an old link pointing at content it does not
  * describe, every known value is redirected to where that content moved and
- * anything else is canonicalised away.
+ * anything else is canonicalised away. `needs` and `help` are redirected in
+ * next.config.ts before this page renders; what reaches it is canonicalised.
  */
 const MOVED: Record<string, string> = {
-  needs: "/doniraj",
-  help: "/doniraj?view=explore",
-  // The onboarded-only list is becoming a filter on this page; until that
-  // filter ships, the register itself is the honest destination.
-  active: "/organisations",
+  // The onboarded-only list became a filter on this page.
+  active: "/organisations?onboarded=1",
 };
 
 export default async function OrganisationsPage({

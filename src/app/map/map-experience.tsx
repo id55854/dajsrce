@@ -139,7 +139,8 @@ function useCompactViewport(): boolean | null {
   return compact;
 }
 
-function MapPageLoading() {
+/** Map-shaped placeholder; also the home page's streaming fallback. */
+export function MapPageLoading() {
   return (
     <div className="flex h-[calc(100dvh-var(--nav-height))] flex-col overflow-hidden bg-surface">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row md:gap-4 md:px-4 md:pt-4 lg:px-6 lg:pt-5">
@@ -161,7 +162,7 @@ function MapPageLoading() {
 
 /**
  * The map is the site's home page (`/`); `/map` is kept as a permanent
- * redirect so older links and bookmarks still resolve.
+ * redirect (next.config.ts) so older links and bookmarks still resolve.
  */
 export default function MapExperience({ bootstrap = null }: { bootstrap?: MapBootstrap | null }) {
   return (
