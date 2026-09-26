@@ -195,6 +195,9 @@ function DirectoryExperience() {
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const onlyOnboarded = searchParams.get("onboarded") === "1";
+  // Browsing lists the socially classified subset; a typed search covers the
+  // whole register (see `associationDirectoryRpcArgs`), and the copy says so.
+  const searching = (searchParams.get("q")?.trim().length ?? 0) >= 2;
 
   useEffect(() => {
     setSearchInput(searchParams.get("q") || "");
@@ -327,6 +330,11 @@ function DirectoryExperience() {
             </div>
           </div>
 
+          {/* The facet options carry no counts. The facets RPC counts the
+              whole register, unfiltered, so a count beside a county never
+              described the list it filtered: "(1029)" next to a result of 92
+              in the classified browse, and the same whole-register figure
+              next to a handful of search hits. */}
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label={t("organisations.county")}>
               {(props) => (
@@ -338,7 +346,7 @@ function DirectoryExperience() {
                   <option value="">{t("organisations.all_counties")}</option>
                   {(facets?.counties || []).map((facet) => (
                     <option key={facet.value} value={facet.value}>
-                      {facet.value} ({facet.count})
+                      {facet.value}
                     </option>
                   ))}
                 </Select>
@@ -355,7 +363,7 @@ function DirectoryExperience() {
                   <option value="">{t("organisations.all_forms")}</option>
                   {(facets?.forms || []).map((facet) => (
                     <option key={facet.value} value={facet.value}>
-                      {facet.value} ({facet.count})
+                      {facet.value}
                     </option>
                   ))}
                 </Select>
@@ -408,7 +416,9 @@ function DirectoryExperience() {
               {t(
                 onlyOnboarded
                   ? "organisations.only_onboarded_on"
-                  : "organisations.only_onboarded_off"
+                  : searching
+                    ? "organisations.only_onboarded_off"
+                    : "organisations.only_onboarded_off_browse"
               )}
             </p>
           </div>

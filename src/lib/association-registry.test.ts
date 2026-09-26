@@ -34,6 +34,19 @@ describe("association directory query", () => {
     });
   });
 
+  it("browses the classified subset but searches the whole register", () => {
+    // Browsing keeps the map's social default; a typed name must reach the
+    // ~40,000 unclassified rows too, or a KUD looking itself up finds nothing.
+    expect(associationDirectoryRpcArgs(parseAssociationDirectoryQuery(new URLSearchParams())))
+      .toMatchObject({ p_query: null, p_classified_only: true });
+    expect(associationDirectoryRpcArgs(parseAssociationDirectoryQuery(
+      new URLSearchParams({ county: "Bjelovarsko-bilogorska" })
+    ))).toMatchObject({ p_classified_only: true });
+    expect(associationDirectoryRpcArgs(parseAssociationDirectoryQuery(
+      new URLSearchParams({ q: "kud" })
+    ))).toMatchObject({ p_query: "kud", p_classified_only: false });
+  });
+
   it("uses complete-directory defaults", () => {
     expect(parseAssociationDirectoryQuery(new URLSearchParams())).toMatchObject({
       status: null,

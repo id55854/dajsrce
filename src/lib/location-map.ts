@@ -94,6 +94,13 @@ export const SOCIAL_MAP_CATEGORIES: InstitutionCategory[] = (
  * three. The noise the default exists to suppress cannot occur here, because
  * every row already has a person behind it.
  *
+ * A typed search is the second exception. A name or OIB is explicit intent
+ * to find one organisation, and the default exists to declutter browsing, not
+ * to answer "not found" for an association that is in the register: on
+ * production the default hid onboarded organisations from a search for their
+ * own name, and every KUD and sports club from a search for theirs. An
+ * explicit category choice still narrows a search.
+ *
  * Under "social only" an explicit `association` is dropped. It is the
  * catch-all every unclassified register row resolves to, so choosing "Udruga"
  * from the category menu used to reopen the ~39,000 rows the default exists to
@@ -103,11 +110,13 @@ export function resolveMapCategories(filters: {
   categories: InstitutionCategory[];
   onlySocial: boolean;
   onlyOnboarded: boolean;
+  /** The visitor's typed name or OIB search, if any. */
+  query?: string | null;
 }): InstitutionCategory[] {
   if (!filters.onlySocial) return filters.categories;
   const chosen = socialCategoriesOnly(filters.categories);
   if (chosen.length > 0) return chosen;
-  if (filters.onlyOnboarded) return [];
+  if (filters.onlyOnboarded || filters.query?.trim()) return [];
   return SOCIAL_MAP_CATEGORIES;
 }
 

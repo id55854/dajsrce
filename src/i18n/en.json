@@ -71,7 +71,8 @@
     "official_source": "Official source: data.gov.hr",
     "only_onboarded": "Organisations registered on DajSrce",
     "only_onboarded_on": "Showing only organisations that hold a DajSrce account and can receive help.",
-    "only_onboarded_off": "Showing the whole official register. Most entries do not have a DajSrce account yet.",
+    "only_onboarded_off": "Searching the whole official register. Most entries do not have a DajSrce account yet.",
+    "only_onboarded_off_browse": "Without a search we list associations working in care and humanitarian aid. A search by name, OIB or address covers the whole official register.",
     "updated": "Data updated",
     "search_label": "Name, OIB, registry number or address",
     "search_placeholder": "Enter at least 2 characters",
@@ -436,6 +437,9 @@
     "urgent_only": "Urgent only",
     "social_only": "Social only",
     "all_associations": "All associations",
+    "scope_label": "Which associations to show",
+    "social_only_hint": "Care, humanitarian aid and related fields. A search by name or OIB always covers the whole register.",
+    "all_associations_hint": "The whole official register, including sports, cultural and other associations.",
     "onboarded_only": "On DajSrce"
   },
   "needs_page": {

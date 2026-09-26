@@ -120,11 +120,12 @@ export function initialState(searchParams: URLSearchParams): {
 export function initialMapQuery(params: URLSearchParams): MapQuery {
   const state = initialState(params);
   const search = state.search.trim();
+  const typed = search.length >= 2 ? search : null;
   const query: MapQuery = {
     ...state.viewport,
     ...state.filters,
-    categories: resolveMapCategories(state.filters),
-    query: search.length >= 2 ? search : null,
+    categories: resolveMapCategories({ ...state.filters, query: typed }),
+    query: typed,
     limit: MAP_FEATURE_LIMIT,
   };
   if (query.query) {

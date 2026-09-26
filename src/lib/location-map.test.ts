@@ -20,7 +20,7 @@ import {
   type MapBounds,
   type PublicMapResponse,
 } from "@/lib/location-map";
-import { initialState } from "@/app/map/map-state";
+import { initialMapQuery, initialState } from "@/app/map/map-state";
 
 function validParams() {
   return new URLSearchParams({
@@ -248,6 +248,31 @@ describe("map query contract", () => {
         onlyOnboarded: true,
       })
     ).toEqual(["soup_kitchen"]);
+  });
+
+  it("never narrows a typed search with the social default", () => {
+    // Searching "eestec" or "kud" is intent to find one organisation; the
+    // default returned nothing for both on production.
+    expect(
+      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: false, query: "eestec" })
+    ).toEqual([]);
+    expect(
+      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: false, query: "  " })
+    ).toEqual(SOCIAL_MAP_CATEGORIES);
+    // An explicit category still narrows a search.
+    expect(
+      resolveMapCategories({
+        categories: ["soup_kitchen"],
+        onlySocial: true,
+        onlyOnboarded: false,
+        query: "kuhinja",
+      })
+    ).toEqual(["soup_kitchen"]);
+    // The server snapshot asks the same question the browser will.
+    expect(initialMapQuery(new URLSearchParams("q=eestec")).categories).toEqual([]);
+    expect(initialMapQuery(new URLSearchParams()).categories).toEqual(
+      [...SOCIAL_MAP_CATEGORIES].sort()
+    );
   });
 
   it("never lets the catch-all association category widen the social view", () => {

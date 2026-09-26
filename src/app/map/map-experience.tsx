@@ -312,12 +312,15 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
   // two differ in two places, and both differences are deliberately kept out
   // of the address bar: a fresh search or filter covers the whole country
   // regardless of the viewport (see `nationalScope`), and "social only" expands
-  // into the twelve real categories rather than writing all twelve into the URL.
+  // into the twelve real categories rather than writing all twelve into the URL
+  // (a typed search is never narrowed by that default; see
+  // `resolveMapCategories`).
   const apiMapQuery = useMemo<MapQuery>(() => {
     const categories = resolveMapCategories({
       categories: mapQuery.categories,
       onlySocial: filters.onlySocial,
       onlyOnboarded: mapQuery.onlyOnboarded,
+      query: mapQuery.query,
     });
     const withCategories =
       categories === mapQuery.categories ? mapQuery : { ...mapQuery, categories };
@@ -578,7 +581,10 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     (filters.city ? 1 : 0) +
     (filters.onlyOnboarded ? 1 : 0) +
     (filters.onlyZagreb ? 1 : 0) +
-    (filters.onlyUrgent ? 1 : 0);
+    (filters.onlyUrgent ? 1 : 0) +
+    // "All associations" is a departure from the default that "clear
+    // filters" undoes, so it counts like any other choice.
+    (filters.onlySocial ? 0 : 1);
 
   const listCount =
     meta.mode === "clusters" ? clusterRows.length : institutionRows.length;
