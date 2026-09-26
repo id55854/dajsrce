@@ -15,7 +15,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import { Info, Minus, Plus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   PIN_STATUS_FILL,
   pinStatus,
@@ -299,6 +299,49 @@ export function fitFeatureBounds(map: L.Map, bounds: MapBounds) {
   );
 }
 
+/**
+ * `aria-label` on `MapContainer` became a Leaflet option and never reached
+ * the DOM (react-leaflet forwards only `className`, `id` and `style`), so the
+ * focusable map container had no name. It is named here once Leaflet owns it.
+ */
+function MapAccessibleName({ label }: { label: string }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const container = map.getContainer();
+    container.setAttribute("role", "region");
+    container.setAttribute("aria-label", label);
+  }, [map, label]);
+
+  return null;
+}
+
+/**
+ * Leaflet makes every marker icon `tabindex=0 role=button`, but Enter only
+ * acts on a layer with a bound popup, and these markers have none: a keyboard
+ * user tabbed onto buttons that did nothing. Enter and Space now do what a
+ * click does.
+ */
+function activateOnKey(action: () => void) {
+  return (event: L.LeafletKeyboardEvent) => {
+    const { key } = event.originalEvent;
+    if (key !== "Enter" && key !== " ") return;
+    event.originalEvent.preventDefault();
+    action();
+  };
+}
+
+/**
+ * The markers are `divIcon`s, and Leaflet applies `alt` only to an `<img>`
+ * icon, so a cluster's accessible name was its bare digits. The name goes on
+ * the icon element itself, re-applied whenever the icon is rebuilt.
+ */
+function useMarkerName(markerRef: RefObject<L.Marker | null>, name: string, icon: L.DivIcon) {
+  useEffect(() => {
+    markerRef.current?.getElement()?.setAttribute("aria-label", name);
+  }, [markerRef, name, icon]);
+}
+
 function MapViewportObserver({
   onChange,
 }: {
@@ -517,16 +560,19 @@ function ClusterMarker({
         count,
       })
     : t(pluralKey("map_ui.cluster_title", locale, cluster.count), { count });
+  const markerRef = useRef<L.Marker | null>(null);
+  useMarkerName(markerRef, label, icon);
+  const focusCluster = () => fitFeatureBounds(map, cluster.bounds);
 
   return (
     <Marker
+      ref={markerRef}
       position={[cluster.latitude, cluster.longitude]}
       icon={icon}
-      // The accessible name stays on `alt`; the tooltip below is a hover
-      // affordance only, so removing the native `title` costs nothing to a
-      // screen reader.
-      alt={label}
-      eventHandlers={{ click: () => fitFeatureBounds(map, cluster.bounds) }}
+      // The accessible name is set by `useMarkerName`; the tooltip below is a
+      // hover affordance only, so removing the native `title` costs nothing
+      // to a screen reader.
+      eventHandlers={{ click: focusCluster, keydown: activateOnKey(focusCluster) }}
     >
       {/* A styled Leaflet tooltip instead of the browser's native `title`
           bubble, so the hover hint matches the app's chrome. */}
@@ -564,6 +610,13 @@ function InstitutionLayer({
     institution.entityType === "registry" &&
     (institution.locationPrecision === "city" ||
       institution.locationPrecision === "county");
+  // The approximate-location caveat used to live in a popup; it rides along
+  // with the marker's own accessible name now that the popup is gone.
+  const accessibleName = isApproximateRegistryLocation
+    ? `${institution.name}, ${categoryLabel}, ${statusLabel}, ${t("map_ui.registry_approximate")}`
+    : `${institution.name}, ${categoryLabel}, ${statusLabel}`;
+  const markerRef = useRef<L.Marker | null>(null);
+  useMarkerName(markerRef, accessibleName, icon);
 
   // The only popup left on the map. A protected institution is drawn as a
   // coarse area rather than a point, and that needs explaining where it is
@@ -597,20 +650,20 @@ function InstitutionLayer({
     );
   }
 
+  const select = () => onSelect(institution.id);
+
   return (
     <Marker
+      ref={markerRef}
       position={position}
       icon={icon}
       zIndexOffset={isSelected ? 1000 : 0}
-      // The approximate-location caveat used to live in a popup; it rides along
-      // with the marker's own accessible name now that the popup is gone.
       title={
         isApproximateRegistryLocation
           ? `${institution.name}, ${statusLabel}, ${t("map_ui.registry_approximate")}`
           : `${institution.name}, ${statusLabel}`
       }
-      alt={`${institution.name}, ${categoryLabel}, ${statusLabel}`}
-      eventHandlers={{ click: () => onSelect(institution.id) }}
+      eventHandlers={{ click: select, keydown: activateOnKey(select) }}
     />
   );
 }
@@ -703,8 +756,8 @@ export default function Map({
       scrollWheelZoom
       zoomControl={false}
       attributionControl={false}
-      aria-label={t("map_ui.map_aria")}
     >
+      <MapAccessibleName label={t("map_ui.map_aria")} />
       {/* Leaflet reads the attribution when the layer is created, so the
           locale is part of the key: switching language rebuilds the credit. */}
       <TileLayer
@@ -723,11 +776,13 @@ export default function Map({
       <MapFlyToSelection selectedId={selectedId} institutions={institutions} />
       <MapCommandRunner command={command} />
       {userPosition ? (
+        // Informational only: nothing happens on activation, so it is not a
+        // keyboard stop.
         <Marker
           position={[userPosition.lat, userPosition.lng]}
           icon={userIcon}
           title={t("map_ui.your_location")}
-          alt={t("map_ui.your_location")}
+          keyboard={false}
         />
       ) : null}
       {features.map((feature) => {

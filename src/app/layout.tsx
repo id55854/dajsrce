@@ -122,18 +122,31 @@ try{var a=JSON.parse(localStorage.getItem("dajsrce-a11y")||"{}"),r=document.docu
 })()`;
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const locale = await getLocale();
+  const [locale, t] = await Promise.all([getLocale(), getTranslator()]);
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: PRE_PAINT_SCRIPT }} />
       </head>
       <body className={`${fontVariables} bg-surface text-ink`}>
+        {/* First in the tab order, visible only when focused, so a keyboard
+            user can pass the navigation (and, on the home page, every map
+            control) in one keystroke. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[var(--z-toast)] focus:rounded-full focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-overlay focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-surface"
+        >
+          {t("a11y.skip_to_content")}
+        </a>
         <LocaleProvider initialLocale={locale}>
           <ToastProvider>
             <div id="app-content" className="flex min-h-dvh flex-col">
               <Navbar />
-              <main className="flex-1">{children}</main>
+              {/* `tabIndex={-1}` lets the skip link move focus here, not just
+                  scroll; it is never a tab stop itself. */}
+              <main id="main" tabIndex={-1} className="flex-1 outline-none">
+                {children}
+              </main>
               <Footer />
               <AccessibilityMenu />
             </div>

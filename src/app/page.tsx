@@ -29,11 +29,17 @@ type HomeProps = {
  * the time a page called `notFound()` or `redirect()`: unknown institutions
  * and register records were soft 404s, and redirects were meta refreshes.
  */
-export default function Home({ searchParams }: HomeProps) {
+export default async function Home({ searchParams }: HomeProps) {
+  const t = await getTranslator();
   return (
-    <Suspense fallback={<MapPageLoading />}>
-      <HomeMap searchParams={searchParams} />
-    </Suspense>
+    <>
+      {/* The map has no visible title, but the page still needs one heading
+          for screen-reader navigation. */}
+      <h1 className="sr-only">{t("map_page.heading")}</h1>
+      <Suspense fallback={<MapPageLoading />}>
+        <HomeMap searchParams={searchParams} />
+      </Suspense>
+    </>
   );
 }
 

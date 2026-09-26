@@ -606,7 +606,8 @@
     "big_cursor": "Veliki pokazivač",
     "stop_animations": "Zaustavi animacije",
     "reset_all": "Vrati sve postavke",
-    "open": "Otvori izbornik pristupačnosti"
+    "open": "Otvori izbornik pristupačnosti",
+    "skip_to_content": "Preskoči na sadržaj"
   },
   "institution_detail": {
     "close": "Zatvori detalje ustanove",
@@ -628,6 +629,7 @@
     "contact_accepts": "Obratite se ustanovi i provjerite što prihvaća."
   },
   "map_page": {
+    "heading": "Karta udruga i potreba u Hrvatskoj",
     "load_error": "Nismo uspjeli učitati udruge. Pokušajte ponovno.",
     "not_configured": "Karta se ne može učitati: ovo okruženje nema Supabase vjerodajnice. Kopirajte .env.example u .env.local, dodajte URL projekta i anon ključ pa ponovno pokrenite razvojni poslužitelj.",
     "detail_error": "Podaci o organizaciji trenutačno nisu dostupni.",

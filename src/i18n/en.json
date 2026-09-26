@@ -606,7 +606,8 @@
     "big_cursor": "Large cursor",
     "stop_animations": "Stop animations",
     "reset_all": "Reset all settings",
-    "open": "Open accessibility menu"
+    "open": "Open accessibility menu",
+    "skip_to_content": "Skip to content"
   },
   "institution_detail": {
     "close": "Close institution details",
@@ -628,6 +629,7 @@
     "contact_accepts": "Contact this institution to ask what they accept."
   },
   "map_page": {
+    "heading": "Map of associations and needs in Croatia",
     "load_error": "We couldn't load organisations. Please try again.",
     "not_configured": "The map can't load: this environment has no Supabase credentials. Copy .env.example to .env.local, add your project URL and anon key, then restart the dev server.",
     "detail_error": "This organisation's details are unavailable right now.",
