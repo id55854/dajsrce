@@ -21,6 +21,7 @@ import {
   SectionHeader,
   buttonClasses,
 } from "@/components/ui";
+import { ClaimProfileCta } from "@/components/ClaimProfileCta";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,13 @@ export default async function OrganisationDetailPage({
         </div>
 
         <aside className="space-y-6">
+          {organisation.status === "AKTIVAN" ? (
+            <ClaimProfileCta
+              question={t("claims.profile_cta_question")}
+              action={t("claims.profile_cta_action")}
+            />
+          ) : null}
+
           <Card>
             <SectionHeader title={t("organisations.registry_identity")} />
             <dl className="space-y-4">
