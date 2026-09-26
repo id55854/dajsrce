@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AlertTriangle, PackageSearch, SlidersHorizontal } from "lucide-react";
@@ -17,6 +17,12 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { fetchMe } from "@/lib/me-client";
 import { readPublicList, rememberPublicList } from "@/lib/public-list-cache";
+import {
+  clearPledgeIntent,
+  focusedNeedFrom,
+  needAnchorId,
+  pledgeIntentFrom,
+} from "@/lib/pledge-flow";
 import { useT } from "@/i18n/client";
 import {
   Button,
@@ -25,6 +31,7 @@ import {
   Skeleton,
   SkeletonText,
   buttonClasses,
+  useToast,
 } from "@/components/ui";
 
 
@@ -70,6 +77,7 @@ function NeedCardSkeleton() {
 
 export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const t = useT();
+  const toast = useToast();
   const [categories, setCategories] = useState<InstitutionCategory[]>([]);
   const [needs, setNeeds] = useState<NeedCardNeed[]>(() => readPublicList<NeedCardNeed[]>("/api/needs?") ?? []);
   const [donationType, setDonationType] = useState<DonationType | "all">("all");
@@ -171,6 +179,26 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
       controller.abort();
     };
   }, [donationType, categories, urgency, retry, refreshKey]);
+
+  // 3. A link to one need (`?need=<id>`, or `?pledge=<id>` on the way back
+  //    from signing in) scrolls to it once the fresh list is in, and says so
+  //    plainly when that need is no longer open. The card itself reopens the
+  //    pledge dialog; see PledgeButton.
+  const [focusNeedId, setFocusNeedId] = useState<string | null>(null);
+  const focusResolved = useRef(false);
+  useEffect(() => {
+    setFocusNeedId(focusedNeedFrom(window.location.search));
+  }, []);
+  useEffect(() => {
+    if (!focusNeedId || focusResolved.current || loading || error) return;
+    focusResolved.current = true;
+    if (needs.some((need) => need.id === focusNeedId)) {
+      document.getElementById(needAnchorId(focusNeedId))?.scrollIntoView({ block: "center" });
+      return;
+    }
+    toast({ tone: "info", title: t("needs_page.need_gone") });
+    if (pledgeIntentFrom(window.location.search)) clearPledgeIntent();
+  }, [focusNeedId, loading, error, needs, t, toast]);
 
   // Map of need_id → my total pledged qty across all pledges (sum across rows).
   const myPledgedByNeed = useMemo(() => {
@@ -423,6 +451,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
               onPledgesCancelled={onPledgesCancelled}
               onPledgeSuccess={onPledgeSuccess}
               canPledge={!isNgo}
+              highlighted={need.id === focusNeedId}
             />
           ))}
         </div>

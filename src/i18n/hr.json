@@ -315,7 +315,7 @@
     "handover_no_contact": "Udruga još nije objavila kontakt podatke. Pogledajte njezin javni profil ili pričekajte da vam se javi.",
     "handover_profile": "Javni profil udruge",
     "network_error": "Mrežna pogreška. Pokušajte ponovno.",
-    "auth_action": "doniranje ili ponudu pomoći",
+    "auth_action": "obećanje pomoći",
     "amount_eur_label": "Procijenjena vrijednost (EUR)",
     "amount_eur_hint": "Nije obavezno. Potrebno za godišnje potvrde o donaciji.",
     "full": "Prikupljeno",
@@ -515,6 +515,7 @@
     "empty_hint": "Filtri su možda preuski. Očistite ih ili pregledajte ustanove na karti.",
     "clear_filters": "Očisti filtre",
     "empty_open_map": "Otvori kartu ustanova",
+    "need_gone": "Ta potreba više nije otvorena. Pogledajte druge potrebe na popisu.",
     "browse_needs": "Pregledaj potrebe"
   },
   "need_card": {

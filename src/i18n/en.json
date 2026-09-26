@@ -315,7 +315,7 @@
     "handover_no_contact": "The organisation has not published contact details yet. Check its public profile or wait for it to get in touch.",
     "handover_profile": "Organisation's public profile",
     "network_error": "Network error. Please try again.",
-    "auth_action": "donate or offer help",
+    "auth_action": "pledge help",
     "amount_eur_label": "Estimated value (EUR)",
     "amount_eur_hint": "Optional. Needed for annual donation receipts.",
     "full": "Fully pledged",
@@ -515,6 +515,7 @@
     "empty_hint": "Your filters may be too narrow. Clear them or browse institutions on the map.",
     "clear_filters": "Clear filters",
     "empty_open_map": "Open the institution map",
+    "need_gone": "That need is no longer open. Have a look at the others in the list.",
     "browse_needs": "Browse needs"
   },
   "need_card": {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, HeartHandshake } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthActionDialog } from "@/components/AuthActionDialog";
 import {
   PledgeHandover,
@@ -10,6 +10,12 @@ import {
 } from "@/components/PledgeDetailsDialog";
 import { useT } from "@/i18n/client";
 import type { CapacityErrorCode } from "@/lib/capacity-errors";
+import {
+  clearPledgeIntent,
+  needAnchorId,
+  pledgeIntentFrom,
+  pledgeReturnPath,
+} from "@/lib/pledge-flow";
 import {
   Button,
   Dialog,
@@ -89,6 +95,9 @@ export function PledgeButton({
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  // Where signing in returns to: this page (or the giving page), naming this
+  // need so its dialog reopens. Computed on click, when the page is known.
+  const [authNextPath, setAuthNextPath] = useState("/doniraj");
   const [amountEur, setAmountEur] = useState("");
   /**
    * Set once the pledge is recorded: the dialog stays open and turns into
@@ -114,6 +123,32 @@ export function PledgeButton({
   useEffect(() => {
     if (confirmed) confirmedHeadingRef.current?.focus();
   }, [confirmed]);
+
+  // Back from signing in with `?pledge=<this need>`: finish what the donor
+  // started. The intent is cleared first so a reload does not reopen it.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    if (pledgeIntentFrom(window.location.search) !== needId.toLowerCase()) return;
+    let cancelled = false;
+    createClient()
+      .auth.getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled || !session?.user) return;
+        clearPledgeIntent();
+        if (full) {
+          toast({ tone: "info", title: t("pledge.full_now") });
+          return;
+        }
+        document.getElementById(needAnchorId(needId))?.scrollIntoView({ block: "center" });
+        setOpen(true);
+      })
+      .catch(() => {
+        // Without a readable session the button still works as usual.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needId, full, t, toast]);
 
   /**
    * At least one whole unit and never more than is still needed; an empty or
@@ -198,6 +233,7 @@ export function PledgeButton({
           data: { session },
         } = await supabase.auth.getSession();
         if (!session?.user) {
+          setAuthNextPath(pledgeReturnPath(window.location, needId));
           setAuthDialogOpen(true);
           return;
         }
@@ -307,7 +343,7 @@ export function PledgeButton({
         open={authDialogOpen}
         onClose={() => setAuthDialogOpen(false)}
         actionLabel={t("pledge.auth_action")}
-        nextPath={`/needs`}
+        nextPath={authNextPath}
       />
     </>
   );

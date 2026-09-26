@@ -19,6 +19,7 @@ import { PledgeButton, type PledgeSuccessPayload } from "./PledgeButton";
 import { useLiveCapacity } from "@/lib/live-capacity";
 import { CancelActionButton } from "@/components/YourPledgesSection";
 import { DonationTypeIcon } from "@/components/DonationTypeIcon";
+import { needAnchorId } from "@/lib/pledge-flow";
 
 export type NeedCardNeed = Need & {
   institution?: {
@@ -49,6 +50,8 @@ type NeedCardProps = {
    */
   myPledgeIds?: readonly string[];
   onPledgesCancelled?: (needId: string) => void;
+  /** The need a link pointed at (`?need=` or a pledge resumed after sign-in). */
+  highlighted?: boolean;
 };
 
 /** One status→tone map, so urgency reads the same wherever a need appears. */
@@ -65,6 +68,7 @@ export function NeedCard({
   canPledge = true,
   myPledgeIds = [],
   onPledgesCancelled,
+  highlighted = false,
 }: NeedCardProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -109,9 +113,11 @@ export function NeedCard({
   return (
     <Card
       as="article"
+      id={needAnchorId(need.id)}
       className={clsx(
-        "flex h-full flex-col transition-[opacity,filter] duration-300 ease-out",
+        "flex h-full scroll-mt-24 flex-col transition-[opacity,filter] duration-300 ease-out",
         mine && "border-success ring-1 ring-success/30",
+        highlighted && !mine && "border-brand ring-2 ring-brand/30",
         fulfilled && "opacity-60 grayscale"
       )}
     >
@@ -236,7 +242,7 @@ export function NeedCard({
             remaining={remaining}
             full={fulfilled}
             onCapacityError={(code) => {
-              // Nothing more fits; the exact count arrives over Realtime.
+              // Nothing more fits; the next capacity poll brings the exact count.
               if (code === "need_fulfilled") applyCounts({ is_fulfilled: true });
             }}
           />
