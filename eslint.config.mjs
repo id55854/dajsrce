@@ -16,6 +16,8 @@ const eslintConfig = [
       "~$*",
       ".~lock.*",
       "next-env.d.ts",
+      // Claude Code agent worktrees are full checkouts nested in the repo.
+      ".claude/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
