@@ -3,6 +3,7 @@ import {
   AssociationDirectoryQueryError,
   associationDirectoryRpcArgs,
   parseAssociationDirectoryQuery,
+  sanitizeDirectoryParams,
 } from "./association-registry";
 
 describe("association directory query", () => {
@@ -54,6 +55,17 @@ describe("association directory query", () => {
       pageSize: 24,
       sort: "name_asc",
     });
+  });
+
+  it("drops what the API would reject instead of failing the whole page", () => {
+    const clean = sanitizeDirectoryParams(new URLSearchParams(
+      "sort=newest&q=x&page=abc&pageSize=1000&county=Istarska&onboarded=1"
+    ));
+    expect(clean.toString()).toBe("county=Istarska&onboarded=1");
+    expect(() => parseAssociationDirectoryQuery(clean)).not.toThrow();
+    // A valid query passes through untouched.
+    const valid = "q=crveni&sort=registered_desc&page=2";
+    expect(sanitizeDirectoryParams(new URLSearchParams(valid)).toString()).toBe(valid);
   });
 
   it.each([

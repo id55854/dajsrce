@@ -166,6 +166,34 @@ export function parseAssociationDirectoryQuery(
 }
 
 /**
+ * The browser URL with every parameter the API would reject removed.
+ *
+ * A stale or hand-edited link (`?sort=newest`, `?q=x`, `?page=abc`) used to
+ * reach the API as-is, get a 400, and be shown as "the official register is
+ * temporarily unavailable". Dropping what is invalid answers the rest of the
+ * query instead of blaming the service. Unknown parameters are left alone.
+ */
+export function sanitizeDirectoryParams(params: URLSearchParams): URLSearchParams {
+  const clean = new URLSearchParams(params);
+  const sort = clean.get("sort");
+  if (sort != null && !ASSOCIATION_DIRECTORY_SORTS.includes(sort as AssociationDirectorySort)) {
+    clean.delete("sort");
+  }
+  const query = clean.get("q")?.trim();
+  if (query != null && (query.length < 2 || query.length > 100)) clean.delete("q");
+  for (const [name, maxLength] of [["status", 100], ["county", 100], ["city", 150], ["form", 150]] as const) {
+    if ((clean.get(name)?.trim().length ?? 0) > maxLength) clean.delete(name);
+  }
+  for (const [name, maximum] of [["page", 10_000], ["pageSize", ASSOCIATION_DIRECTORY_MAX_PAGE_SIZE]] as const) {
+    const raw = clean.get(name);
+    if (raw != null && !(/^\d+$/.test(raw) && Number(raw) >= 1 && Number(raw) <= maximum)) {
+      clean.delete(name);
+    }
+  }
+  return clean;
+}
+
+/**
  * The engaged subset: organisations from the official register that also have
  * an account here, optionally narrowed to those with something open.
  *

@@ -7,6 +7,7 @@ import { getCategoryConfig, DONATION_TYPES } from "@/lib/constants";
 import { Badge, Skeleton, buttonClasses } from "@/components/ui";
 import { safeHttpUrl } from "@/components/RegistryRecord";
 import { useLocale, useT } from "@/i18n/client";
+import { addressWithCity } from "@/lib/utils";
 import {
   CheckCircle2,
   Clock,
@@ -74,7 +75,7 @@ export function InstitutionDetailPanel({
     ? t("institution_detail.hidden_address", {
         area: approximateArea ?? institution.city ?? t("map_ui.approximate_area"),
       })
-    : [institution.address, institution.city].filter(Boolean).join(", ");
+    : addressWithCity(institution.address, institution.city);
   const noValue = "—";
 
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;

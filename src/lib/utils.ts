@@ -46,3 +46,27 @@ export function normalizeText(s: string): string {
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase();
 }
+
+/**
+ * "Rebro 38/16, Sesvete", not "Rebro 38/16, Sesvete, Sesvete": many stored
+ * addresses already end with their city, so it is appended only when the
+ * address does not already name it. The city has to be a whole part of the
+ * address ("…, Sesvete" or "…, 10360 Sesvete"), so a street named after its
+ * city ("Splitska 5" in Split) still gets it. A missing address yields the
+ * city alone rather than ", Zagreb".
+ */
+export function addressWithCity(
+  address: string | null | undefined,
+  city: string | null | undefined
+): string {
+  const street = address?.trim() ?? "";
+  const place = city?.trim() ?? "";
+  if (!street) return place;
+  if (!place) return street;
+  const target = normalizeText(place);
+  const named = street
+    .split(",")
+    .map((part) => normalizeText(part.trim()))
+    .some((part) => part === target || part.endsWith(` ${target}`));
+  return named ? street : `${street}, ${place}`;
+}
