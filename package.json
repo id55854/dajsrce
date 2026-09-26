@@ -13,7 +13,6 @@
     "perf:map:bundle": "node scripts/check-map-bundle.mjs",
     "perf:map:api": "node scripts/benchmark-map-api.mjs",
     "check": "npm run lint && npm run typecheck && npm run test",
-    "demo:check": "node scripts/verify-demo-setup.mjs",
     "registry:import": "node scripts/import-registry.mjs",
     "registry:sync": "node scripts/sync-official-registry.mjs",
     "registry:verify": "node scripts/verify-official-registry.mjs",

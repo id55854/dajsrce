@@ -39,6 +39,43 @@ const nextConfig: NextConfig = {
   // WOFF bytes as JavaScript and ensures Next's output tracer retains the
   // package assets.
   serverExternalPackages: ["@fontsource/noto-sans"],
+  // Moved routes redirect here, before any rendering. As `redirect()` calls in
+  // a page they ran after a loading boundary had already streamed a 200, so
+  // crawlers saw "200 plus meta refresh" instead of a 308. The request's query
+  // string is carried over, so old shared map views still land where they
+  // pointed (`/map?@=45.81,15.97,13` becomes `/?@=45.81,15.97,13`).
+  async redirects() {
+    return [
+      // The production alias served a complete duplicate of the site. Exactly
+      // this host: preview deployments keep their own URLs. API routes are
+      // left alone, because a scheduler still pointed at the alias would get
+      // a 308 it does not follow (curl without -L exits 0) and silently stop
+      // running.
+      {
+        source: "/:path((?!api/).*)",
+        has: [{ type: "host", value: "dajsrce.vercel.app" }],
+        destination: "https://dajsrce.hr/:path",
+        permanent: true,
+      },
+      { source: "/map", destination: "/", permanent: true },
+      { source: "/needs", destination: "/doniraj", permanent: true },
+      { source: "/quick-start", destination: "/doniraj?view=explore", permanent: true },
+      // The register's old sub-views. Anything else under `?view=` is still
+      // canonicalised away by the page itself.
+      {
+        source: "/organisations",
+        has: [{ type: "query", key: "view", value: "needs" }],
+        destination: "/doniraj",
+        permanent: false,
+      },
+      {
+        source: "/organisations",
+        has: [{ type: "query", key: "view", value: "help" }],
+        destination: "/doniraj?view=explore",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {

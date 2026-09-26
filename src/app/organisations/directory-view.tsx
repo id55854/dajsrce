@@ -14,10 +14,11 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useLocale, useT } from "@/i18n/client";
-import type {
-  AssociationDirectoryItem,
-  AssociationDirectoryResponse,
-  EngagedDirectoryResponse,
+import {
+  sanitizeDirectoryParams,
+  type AssociationDirectoryItem,
+  type AssociationDirectoryResponse,
+  type EngagedDirectoryResponse,
 } from "@/lib/association-registry";
 import {
   Badge,
@@ -184,6 +185,12 @@ function DirectoryExperience() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const stableQuery = searchParams.toString();
+  // What the API is actually asked: a stale `?sort=` or `?q=x` is dropped
+  // rather than answered with a 400 the page would present as an outage.
+  const apiQuery = useMemo(
+    () => sanitizeDirectoryParams(new URLSearchParams(stableQuery)).toString(),
+    [stableQuery]
+  );
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "");
   const [cityInput, setCityInput] = useState(searchParams.get("city") || "");
   const [data, setData] = useState<DirectoryListing | null>(null);
@@ -195,11 +202,20 @@ function DirectoryExperience() {
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const onlyOnboarded = searchParams.get("onboarded") === "1";
+  // Browsing lists the socially classified subset; a typed search covers the
+  // whole register (see `associationDirectoryRpcArgs`), and the copy says so.
+  const searching = (searchParams.get("q")?.trim().length ?? 0) >= 2;
 
   useEffect(() => {
     setSearchInput(searchParams.get("q") || "");
     setCityInput(searchParams.get("city") || "");
   }, [stableQuery, searchParams]);
+
+  // Keep the address bar in step with what was asked.
+  useEffect(() => {
+    if (apiQuery === stableQuery) return;
+    router.replace(apiQuery ? `${pathname}?${apiQuery}` : pathname, { scroll: false });
+  }, [apiQuery, stableQuery, pathname, router]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -207,7 +223,7 @@ function DirectoryExperience() {
     setError(null);
     fetch(
       `/api/v1/organisations${onlyOnboarded ? "/engaged" : ""}${
-        stableQuery ? `?${stableQuery}` : ""
+        apiQuery ? `?${apiQuery}` : ""
       }`,
       { signal: controller.signal }
     )
@@ -229,7 +245,15 @@ function DirectoryExperience() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [stableQuery, retry, t, onlyOnboarded]);
+  }, [apiQuery, retry, t, onlyOnboarded]);
+
+  // `?page=9999` of 129 pages is a stale link, not an empty register.
+  useEffect(() => {
+    if (!data || data.meta.pageCount === 0 || data.meta.page <= data.meta.pageCount) return;
+    const params = new URLSearchParams(apiQuery);
+    params.set("page", String(data.meta.pageCount));
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [data, apiQuery, pathname, router]);
 
   function updateParams(changes: Record<string, string | null>, resetPage = true) {
     const params = new URLSearchParams(stableQuery);
@@ -327,6 +351,11 @@ function DirectoryExperience() {
             </div>
           </div>
 
+          {/* The facet options carry no counts. The facets RPC counts the
+              whole register, unfiltered, so a count beside a county never
+              described the list it filtered: "(1029)" next to a result of 92
+              in the classified browse, and the same whole-register figure
+              next to a handful of search hits. */}
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label={t("organisations.county")}>
               {(props) => (
@@ -338,7 +367,7 @@ function DirectoryExperience() {
                   <option value="">{t("organisations.all_counties")}</option>
                   {(facets?.counties || []).map((facet) => (
                     <option key={facet.value} value={facet.value}>
-                      {facet.value} ({facet.count})
+                      {facet.value}
                     </option>
                   ))}
                 </Select>
@@ -355,7 +384,7 @@ function DirectoryExperience() {
                   <option value="">{t("organisations.all_forms")}</option>
                   {(facets?.forms || []).map((facet) => (
                     <option key={facet.value} value={facet.value}>
-                      {facet.value} ({facet.count})
+                      {facet.value}
                     </option>
                   ))}
                 </Select>
@@ -408,7 +437,9 @@ function DirectoryExperience() {
               {t(
                 onlyOnboarded
                   ? "organisations.only_onboarded_on"
-                  : "organisations.only_onboarded_off"
+                  : searching
+                    ? "organisations.only_onboarded_off"
+                    : "organisations.only_onboarded_off_browse"
               )}
             </p>
           </div>
@@ -421,7 +452,7 @@ function DirectoryExperience() {
             ? t("organisations.loading")
             : t("organisations.result_count", { count: resultSummary })}
         </p>
-        {data ? (
+        {data && data.meta.pageCount > 0 ? (
           <p className="text-sm text-ink-tertiary">
             {t("organisations.page", { current: data.meta.page, total: data.meta.pageCount })}
           </p>

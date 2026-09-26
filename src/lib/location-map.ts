@@ -94,6 +94,13 @@ export const SOCIAL_MAP_CATEGORIES: InstitutionCategory[] = (
  * three. The noise the default exists to suppress cannot occur here, because
  * every row already has a person behind it.
  *
+ * A typed search is the second exception. A name or OIB is explicit intent
+ * to find one organisation, and the default exists to declutter browsing, not
+ * to answer "not found" for an association that is in the register: on
+ * production the default hid onboarded organisations from a search for their
+ * own name, and every KUD and sports club from a search for theirs. An
+ * explicit category choice still narrows a search.
+ *
  * Under "social only" an explicit `association` is dropped. It is the
  * catch-all every unclassified register row resolves to, so choosing "Udruga"
  * from the category menu used to reopen the ~39,000 rows the default exists to
@@ -103,11 +110,13 @@ export function resolveMapCategories(filters: {
   categories: InstitutionCategory[];
   onlySocial: boolean;
   onlyOnboarded: boolean;
+  /** The visitor's typed name or OIB search, if any. */
+  query?: string | null;
 }): InstitutionCategory[] {
   if (!filters.onlySocial) return filters.categories;
   const chosen = socialCategoriesOnly(filters.categories);
   if (chosen.length > 0) return chosen;
-  if (filters.onlyOnboarded) return [];
+  if (filters.onlyOnboarded || filters.query?.trim()) return [];
   return SOCIAL_MAP_CATEGORIES;
 }
 
@@ -146,9 +155,17 @@ export const PIN_STATUS_FILL: Record<MapPinStatus, string> = {
   verified: "var(--brand)",
 };
 
+/**
+ * "Na DajSrcu" means a person behind the row: an approved claim or an account.
+ * An institutions row alone does not qualify, because the registry promoter
+ * bulk-created one (`source = 'registry'`, so trust status `registry`) for
+ * every donation candidate the classifier found, and those pins were labelled
+ * "Na DajSrcu" by the dozen while three associations actually had accounts.
+ */
 export function pinStatus(institution: PublicMapInstitution): MapPinStatus {
   if (institution.entityType !== "institution") return "registry";
-  return institution.isVerified ? "verified" : "onboarded";
+  if (institution.isVerified) return "verified";
+  return institution.trustStatus === "registry" ? "registry" : "onboarded";
 }
 
 export function maxBboxAreaForZoom(zoom: number): number {
@@ -167,6 +184,24 @@ export type MapBounds = [
   maxLongitude: number,
   maxLatitude: number,
 ];
+
+/**
+ * The box and zoom a map request is sent for. A fresh search or filter
+ * (`national`) and any view at or beyond the national zoom ask for all of
+ * Croatia, whatever part of it the screen shows. A phone at zoom 7 sees a
+ * slice of the country, and county groups computed over that slice read as
+ * county totals ("Istarska · 11" against 138 on a desktop); with the national
+ * box every county is complete, and every visitor at that zoom shares one
+ * cache key. Closer in, the request follows the viewport as before.
+ */
+export function requestViewport(
+  viewport: { bbox: MapBounds; zoom: number },
+  national: boolean
+): { bbox: MapBounds; zoom: number } {
+  return national || viewport.zoom <= CROATIA_INITIAL_VIEW.zoom
+    ? { bbox: CROATIA_INITIAL_VIEW.bbox, zoom: CROATIA_INITIAL_VIEW.zoom }
+    : { bbox: viewport.bbox, zoom: viewport.zoom };
+}
 
 export type MapQuery = {
   bbox: MapBounds;
@@ -684,8 +719,10 @@ function stableHash(value: string): number {
 }
 
 /**
- * Compatibility projection used only while the indexed RPC migration is not
- * yet deployed. It never serializes a hidden institution's exact coordinate.
+ * The coarse public point for a location that must not be published: a stable
+ * spot inside a roughly 5 km grid cell, never the input itself. Used by the
+ * list APIs for hidden institutions and, for protected categories, by the map
+ * and detail projections (see `isProtectedLocation`).
  */
 export function projectHiddenLocation(
   id: string,
@@ -705,6 +742,34 @@ export function projectHiddenLocation(
     );
   }
   return { latitude: projectedLatitude, longitude: projectedLongitude };
+}
+
+/**
+ * Categories whose exact point and street address never leave the server
+ * unless a person reviewed the row (`source = 'curated'`).
+ *
+ * The register publishes every association's registered seat, and the
+ * classifier, not the organisation, decides which of these categories a row
+ * lands in. Pinning that seat under a label that reads as "a shelter is here"
+ * is the risk: it may be a real shelter whose address is meant to stay
+ * unknown, or a counselling office the label wrongly points someone to.
+ *
+ * Such a row is therefore projected exactly like an institution whose
+ * location is hidden: the same stable coarse point `projectHiddenLocation`
+ * gives it, no address, and `hidden` precision, so every surface that already
+ * handles a hidden location (the map's area circle, the card, the detail
+ * panel) treats it the same way. A curated row keeps its reviewed
+ * `is_location_hidden` instead.
+ */
+export const PROTECTED_LOCATION_CATEGORIES: ReadonlySet<string> = new Set<InstitutionCategory>([
+  "domestic_violence",
+]);
+
+export function isProtectedLocation(
+  category: string | null | undefined,
+  source: string | null | undefined
+): boolean {
+  return category != null && PROTECTED_LOCATION_CATEGORIES.has(category) && source !== "curated";
 }
 
 export function trustStatus(
@@ -746,22 +811,34 @@ export type PublicInstitutionDetailRpcRow = {
 };
 
 /**
- * Shared by the public institution page and the NGO's own dashboard: both
- * read the same public detail RPC and need the same camelCase shape, so the
- * mapping lives once instead of drifting between two copies.
+ * Shared by the public institution page, the public detail API and the NGO's
+ * own dashboard: all read the same public detail RPC and need the same
+ * camelCase shape, so the mapping (and the location protection in it) lives
+ * once instead of drifting between copies.
+ *
+ * The RPC already returns the coarse point for a hidden institution. A row in
+ * a protected category that is not hidden yet is projected here the same way,
+ * and a hidden location also drops its nearest tram stop, which would place it
+ * to within a few hundred metres.
  */
 export function toPublicInstitutionDetail(
   row: PublicInstitutionDetailRpcRow
 ): PublicInstitutionDetail {
+  const protectedLocation =
+    !row.is_location_hidden && isProtectedLocation(row.category, row.source);
+  const hidden = Boolean(row.is_location_hidden) || protectedLocation;
+  const point = protectedLocation
+    ? projectHiddenLocation(row.id, row.latitude, row.longitude)
+    : { latitude: row.latitude, longitude: row.longitude };
   return {
     id: row.id,
     name: row.name,
     category: row.category,
     description: row.description,
-    address: row.is_location_hidden ? null : row.address,
+    address: hidden ? null : row.address,
     city: row.city,
-    latitude: row.latitude,
-    longitude: row.longitude,
+    latitude: point.latitude,
+    longitude: point.longitude,
     phone: row.phone,
     email: row.email,
     website: row.website,
@@ -772,10 +849,10 @@ export function toPublicInstitutionDetail(
     servedPopulation: row.served_population,
     photoUrl: row.photo_url,
     isVerified: Boolean(row.is_verified),
-    isLocationHidden: Boolean(row.is_location_hidden),
+    isLocationHidden: hidden,
     approximateArea: row.approximate_area,
-    nearestZetStop: row.nearest_zet_stop,
-    zetLines: row.zet_lines,
+    nearestZetStop: hidden ? null : row.nearest_zet_stop,
+    zetLines: hidden ? null : row.zet_lines,
     trustStatus: trustStatus(Boolean(row.is_verified), row.source),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

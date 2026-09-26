@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, buttonClasses } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { isChunkLoadError, reloadOnceForChunkError } from "@/lib/chunk-reload";
 
@@ -33,12 +34,15 @@ export default function RouteError({
         {t("errors.generic_title")}
       </h1>
       <p className="text-base text-ink-secondary">{t("errors.generic_body")}</p>
-      <Button
-        onClick={() => (isChunkLoadError(error) ? window.location.reload() : reset())}
-        className="mt-2"
-      >
-        {t("errors.retry")}
-      </Button>
+      <div className="mt-2 flex flex-wrap justify-center gap-3">
+        <Button onClick={() => (isChunkLoadError(error) ? window.location.reload() : reset())}>
+          {t("errors.retry")}
+        </Button>
+        {/* Retrying does not help every failure; the map always is a way on. */}
+        <Link href="/" className={buttonClasses({ variant: "secondary" })}>
+          {t("errors.go_to_map")}
+        </Link>
+      </div>
     </div>
   );
 }

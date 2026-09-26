@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CROATIA_INITIAL_VIEW,
   MAP_BBOX_MAX_AREA,
   MAP_FEATURE_LIMIT,
   MAP_LIST_RENDER_LIMIT,
@@ -11,13 +12,19 @@ import {
   normalizeBboxForRequest,
   normalizeMapSearch,
   parseMapQuery,
+  PROTECTED_LOCATION_CATEGORIES,
+  isProtectedLocation,
+  pinStatus,
   projectHiddenLocation,
+  requestViewport,
   resolveMapCategories,
   SOCIAL_MAP_CATEGORIES,
+  toPublicInstitutionDetail,
   type MapBounds,
+  type PublicMapInstitution,
   type PublicMapResponse,
 } from "@/lib/location-map";
-import { initialState } from "@/app/map/map-state";
+import { initialMapQuery, initialState } from "@/app/map/map-state";
 
 function validParams() {
   return new URLSearchParams({
@@ -247,6 +254,31 @@ describe("map query contract", () => {
     ).toEqual(["soup_kitchen"]);
   });
 
+  it("never narrows a typed search with the social default", () => {
+    // Searching "eestec" or "kud" is intent to find one organisation; the
+    // default returned nothing for both on production.
+    expect(
+      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: false, query: "eestec" })
+    ).toEqual([]);
+    expect(
+      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: false, query: "  " })
+    ).toEqual(SOCIAL_MAP_CATEGORIES);
+    // An explicit category still narrows a search.
+    expect(
+      resolveMapCategories({
+        categories: ["soup_kitchen"],
+        onlySocial: true,
+        onlyOnboarded: false,
+        query: "kuhinja",
+      })
+    ).toEqual(["soup_kitchen"]);
+    // The server snapshot asks the same question the browser will.
+    expect(initialMapQuery(new URLSearchParams("q=eestec")).categories).toEqual([]);
+    expect(initialMapQuery(new URLSearchParams()).categories).toEqual(
+      [...SOCIAL_MAP_CATEGORIES].sort()
+    );
+  });
+
   it("never lets the catch-all association category widen the social view", () => {
     // Unclassified register rows all resolve to `association`, so asking for it
     // under "social only" used to return the whole ~39,000-row remainder.
@@ -282,6 +314,110 @@ describe("map query contract", () => {
     expect(normalizeMapSearch("2823894")).toBe("2823894");
     expect(normalizeMapSearch("282389492950")).toBe("282389492950");
     expect(normalizeMapSearch("Dom 2")).toBe("dom 2");
+  });
+});
+
+describe("pin status", () => {
+  const pin: PublicMapInstitution = {
+    kind: "institution",
+    id: "x",
+    entityType: "institution",
+    registryId: null,
+    name: "Udruga",
+    category: "social_welfare",
+    city: "Split",
+    address: null,
+    approximateArea: null,
+    latitude: 43.5,
+    longitude: 16.4,
+    acceptsDonations: [],
+    isVerified: false,
+    isLocationHidden: false,
+    locationPrecision: "exact",
+    trustStatus: "claimed",
+    hasUrgentNeed: false,
+  };
+
+  it("reserves 'Na DajSrcu' for rows a person stands behind", () => {
+    expect(pinStatus({ ...pin, entityType: "registry", trustStatus: "registry" })).toBe("registry");
+    // A bulk-promoted register candidate has an institutions row but nobody
+    // behind it; 41 of 111 pins in Split were labelled "Na DajSrcu" this way.
+    expect(pinStatus({ ...pin, trustStatus: "registry" })).toBe("registry");
+    expect(pinStatus(pin)).toBe("onboarded");
+    expect(pinStatus({ ...pin, isVerified: true, trustStatus: "contact_verified" })).toBe("verified");
+  });
+});
+
+describe("request viewport", () => {
+  it("asks for all of Croatia at the national zoom, whatever slice the screen shows", () => {
+    const phoneSlice: MapBounds = [14.5, 44.8, 17.4, 46.9];
+    expect(requestViewport({ bbox: phoneSlice, zoom: 7 }, false)).toEqual({
+      bbox: CROATIA_INITIAL_VIEW.bbox,
+      zoom: CROATIA_INITIAL_VIEW.zoom,
+    });
+    expect(requestViewport({ bbox: phoneSlice, zoom: 6 }, false).bbox).toEqual(CROATIA_INITIAL_VIEW.bbox);
+    const city: MapBounds = [15.9, 45.7, 16.1, 45.9];
+    expect(requestViewport({ bbox: city, zoom: 12 }, false)).toEqual({ bbox: city, zoom: 12 });
+    // A fresh search answers for the whole country at any zoom.
+    expect(requestViewport({ bbox: city, zoom: 12 }, true).bbox).toEqual(CROATIA_INITIAL_VIEW.bbox);
+    // Every centre at the national zoom is the same request, server snapshot
+    // included, so the CDN and the bootstrap cache answer all of them.
+    const key = (params: string) => buildMapQueryString(initialMapQuery(new URLSearchParams(params)));
+    expect(key("@=43.5,16.4,7")).toBe(key(""));
+    expect(key("@=45.8,16.0,7")).toBe(key(""));
+    expect(key("@=45.8,16.0,12")).not.toBe(key(""));
+  });
+});
+
+describe("protected-category locations", () => {
+  it("covers the violence category for every source except a curated row", () => {
+    expect(PROTECTED_LOCATION_CATEGORIES.has("domestic_violence")).toBe(true);
+    for (const source of ["registry", "registry_claim", "user_claimed", null]) {
+      expect(isProtectedLocation("domestic_violence", source), String(source)).toBe(true);
+    }
+    expect(isProtectedLocation("domestic_violence", "curated")).toBe(false);
+    expect(isProtectedLocation("soup_kitchen", "registry")).toBe(false);
+    expect(isProtectedLocation(null, "registry")).toBe(false);
+  });
+
+  it("projects a protected detail row like a hidden one", () => {
+    const row = {
+      id: "50f75f62-3d48-40a0-86d9-a2d59fb72a65",
+      name: "Udruga",
+      category: "domestic_violence" as const,
+      description: "",
+      address: "Koparska 58",
+      city: "Pula",
+      latitude: 44.869137,
+      longitude: 13.848412,
+      phone: null,
+      email: null,
+      website: null,
+      working_hours: null,
+      drop_off_hours: null,
+      accepts_donations: null,
+      capacity: null,
+      served_population: null,
+      photo_url: null,
+      is_verified: false,
+      is_location_hidden: false,
+      approximate_area: null,
+      nearest_zet_stop: null,
+      zet_lines: null,
+      source: "registry",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+    const detail = toPublicInstitutionDetail(row);
+    expect(detail.address).toBeNull();
+    expect(detail.isLocationHidden).toBe(true);
+    expect({ latitude: detail.latitude, longitude: detail.longitude }).toEqual(
+      projectHiddenLocation(row.id, row.latitude, row.longitude)
+    );
+
+    // A curated row keeps its reviewed decision.
+    const curated = toPublicInstitutionDetail({ ...row, source: "curated" });
+    expect(curated).toMatchObject({ address: "Koparska 58", latitude: 44.869137, isLocationHidden: false });
   });
 });
 

@@ -1,81 +1,27 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
-  trustStatus,
+  toPublicInstitutionDetail,
   type PublicInstitutionDetail,
+  type PublicInstitutionDetailRpcRow,
 } from "@/lib/location-map";
 import { logError } from "@/lib/observability";
 import { rateLimit } from "@/lib/security/http";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import type { DonationType, InstitutionCategory } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=3600";
 
-type DetailRow = {
-  id: string;
-  name: string;
-  category: InstitutionCategory;
-  description: string;
-  address: string | null;
-  city: string;
-  latitude: number;
-  longitude: number;
-  phone: string | null;
-  email: string | null;
-  website: string | null;
-  working_hours: string | null;
-  drop_off_hours: string | null;
-  accepts_donations: DonationType[] | null;
-  capacity: string | null;
-  served_population: string | null;
-  photo_url: string | null;
-  is_verified: boolean | null;
-  is_location_hidden: boolean | null;
-  approximate_area: string | null;
-  nearest_zet_stop: string | null;
-  zet_lines: string | null;
-  source: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type FallbackDetailRow = Omit<DetailRow, "latitude" | "longitude" | "address"> & {
+type FallbackDetailRow = Omit<PublicInstitutionDetailRpcRow, "latitude" | "longitude" | "address"> & {
   public_lat: number;
   public_lng: number;
 };
 
-function mapDetail(row: DetailRow): PublicInstitutionDetail {
-  return {
-    id: row.id,
-    name: row.name,
-    category: row.category,
-    description: row.description,
-    address: row.is_location_hidden ? null : row.address,
-    city: row.city,
-    latitude: row.latitude,
-    longitude: row.longitude,
-    phone: row.phone,
-    email: row.email,
-    website: row.website,
-    workingHours: row.working_hours,
-    dropOffHours: row.drop_off_hours,
-    acceptsDonations: row.accepts_donations ?? [],
-    capacity: row.capacity,
-    servedPopulation: row.served_population,
-    photoUrl: row.photo_url,
-    isVerified: Boolean(row.is_verified),
-    isLocationHidden: Boolean(row.is_location_hidden),
-    approximateArea: row.approximate_area,
-    nearestZetStop: row.nearest_zet_stop,
-    zetLines: row.zet_lines,
-    trustStatus: trustStatus(Boolean(row.is_verified), row.source),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
+// The shared mapper, not a local copy: it is where hidden and protected
+// locations are projected, and a second copy is how one of them drifts.
+const mapDetail = toPublicInstitutionDetail;
 
 function missingRpc(error: { code?: string; message?: string }) {
   return (
@@ -92,7 +38,7 @@ async function loadDetail(id: string): Promise<PublicInstitutionDetail | null> {
   });
 
   if (!error) {
-    const row = ((data ?? []) as DetailRow[])[0];
+    const row = ((data ?? []) as PublicInstitutionDetailRpcRow[])[0];
     return row ? mapDetail(row) : null;
   }
   if (!missingRpc(error)) throw new Error(`Institution detail query failed (${error.code})`);

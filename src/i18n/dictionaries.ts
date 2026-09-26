@@ -42,6 +42,25 @@ export function resolveKey(dict: Dictionary, key: string): string {
   return typeof cursor === "string" ? cursor : key;
 }
 
+const pluralRules: Partial<Record<Locale, Intl.PluralRules>> = {};
+
+/**
+ * The key of the plural variant for `count`: `map_page.search_count` becomes
+ * `map_page.search_count_one`, `_few` or `_other`.
+ *
+ * Croatian has three forms and the digit alone does not pick them: 1, 21 and
+ * 101 take `one` ("pronađena udruga"), 2–4, 22–24 and 273 take `few`
+ * ("pronađene udruge"), and 5–20, 25–30 and 111 take `other` ("pronađenih
+ * udruga"). A single "{count} ustanova" string was wrong for most counts on
+ * the page. English only ever selects `one` or `other`; its `_few` entries
+ * exist so both dictionaries keep the same keys.
+ */
+export function pluralKey(base: string, locale: Locale, count: number): string {
+  const rules = (pluralRules[locale] ??= new Intl.PluralRules(locale));
+  const category = rules.select(count);
+  return `${base}_${category === "one" || category === "few" ? category : "other"}`;
+}
+
 export function format(template: string, vars?: Record<string, string | number>): string {
   if (!vars) return template;
   return template.replace(/\{(\w+)\}/g, (_, name) =>

@@ -20,7 +20,8 @@ import {
   type PublicInstitutionDetail,
   type PublicInstitutionDetailRpcRow,
 } from "@/lib/location-map";
-import { getTranslator } from "@/i18n/server";
+import { getLocale, getTranslator } from "@/i18n/server";
+import { metaDescription, pageMetadata } from "@/lib/seo";
 
 /**
  * A missing row and a failed query are different outcomes: the first is a real
@@ -101,14 +102,14 @@ export async function generateMetadata({
   if (data.status === "error") return { title: "DajSrce" };
 
   const { institution } = data;
-  const description =
-    institution.description.length > 160
-      ? `${institution.description.slice(0, 157)}…`
-      : institution.description;
-  return {
+  const [t, locale] = await Promise.all([getTranslator(), getLocale()]);
+  return pageMetadata({
     title: `${institution.name} | DajSrce`,
-    description,
-  };
+    description: metaDescription(institution.description) ?? t("seo.site_description"),
+    path: `/institution/${institution.id}`,
+    locale,
+    imageAlt: t("seo.share_image_alt"),
+  });
 }
 
 export default async function InstitutionPublicPage({

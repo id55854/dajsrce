@@ -16,16 +16,18 @@
    ============================================================================ */
 
 :root {
-  /* --- brand ------------------------------------------------------------- */
-  --brand: #ef4444;            /* primary actions                            */
-  --brand-strong: #dc2626;     /* hover/active for primary                   */
+  /* --- brand -------------------------------------------------------------
+     #dc2626 is the lightest red that carries white button text at WCAG AA
+     (4.83:1, and the same as text on white); #ef4444 managed 3.76:1.        */
+  --brand: #dc2626;            /* primary actions                            */
+  --brand-strong: #b91c1c;     /* hover/active for primary                   */
   --brand-soft: #fef2f2;       /* tinted surface behind brand content        */
   --brand-on-soft: #b91c1c;    /* text/icon on a brand-soft surface          */
 
   /* --- status ------------------------------------------------------------
      `danger` is deliberately a deeper red than `brand` so an error never
      reads as a call to action (and vice versa).                             */
-  --success: #059669;
+  --success: #047857;          /* 5.48:1 under white text (#059669: 3.77)    */
   --success-soft: #ecfdf5;
   --success-on-soft: #047857;
   --warning: #d97706;
@@ -45,6 +47,9 @@
   --surface-overlay: #ffffff;  /* menus, sheets, dialogs                     */
   --border: #e5e7eb;
   --border-strong: #d1d5db;
+  /* The edge of a text field or select: the one border that has to be seen
+     to find the control (WCAG 1.4.11 asks 3:1; #e5e7eb gave 1.24:1).        */
+  --border-control: #8b929d;
   --ink: #111827;              /* primary text                               */
   --ink-secondary: #4b5563;    /* supporting text                            */
   --ink-tertiary: #6b7280;     /* captions, metadata                         */
@@ -102,9 +107,12 @@
   --surface-overlay: #111827;
   --border: #1f2937;
   --border-strong: #374151;
+  --border-control: #6b7280;   /* 3.67:1 on the raised surface               */
   --ink: #f3f4f6;
   --ink-secondary: #9ca3af;
-  --ink-tertiary: #6b7280;
+  /* Still a step below secondary, but readable: #6b7280 was 3.04:1 on the
+     sunken surface, this is 4.9:1.                                          */
+  --ink-tertiary: #8e96a3;
   --ink-inverse: #111827;
 
   --chrome: rgb(3 7 18 / 0.75);
@@ -136,6 +144,7 @@
   --color-surface-overlay: var(--surface-overlay);
   --color-border-subtle: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-border-control: var(--border-control);
   --color-ink: var(--ink);
   --color-ink-secondary: var(--ink-secondary);
   --color-ink-tertiary: var(--ink-tertiary);
@@ -461,7 +470,7 @@ html:not(.dyslexia-font) body :is(.text-xs, .text-\[11px\], .text-\[10px\]) {
 
 .dark .leaflet-control-attribution {
   background: rgba(17, 24, 39, 0.8) !important;
-  color: #6b7280;
+  color: var(--ink-tertiary);
 }
 .dark .leaflet-control-attribution a {
   color: #9ca3af;

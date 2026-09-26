@@ -29,7 +29,6 @@ import { ResultsList, type ClusterRow, type InstitutionRow } from "./results-lis
 import { useLocale, useT } from "@/i18n/client";
 import type { AssociationRegistryEntry } from "@/lib/association-registry";
 import {
-  CROATIA_INITIAL_VIEW,
   MAP_CITY_ZOOM,
   MAP_FEATURE_LIMIT,
   MAP_LIST_RENDER_LIMIT,
@@ -37,6 +36,7 @@ import {
   buildBrowserMapParams,
   buildMapQueryString,
   isInstitutionFeature,
+  requestViewport,
   resolveMapCategories,
   splitRegistryFeatureId,
   type MapBounds,
@@ -69,6 +69,23 @@ const CityPickerDialog = dynamic(
   () => import("./location-start").then((module) => module.CityPickerDialog),
   { ssr: false }
 );
+
+/**
+ * A register pin in a protected category is drawn as an area, never at its
+ * registered seat (see `isProtectedLocation`), and its record must not then
+ * print the street address the pin withheld. The register API cannot make
+ * that call itself, because a register record carries no category; the map
+ * knows which pin was opened, so it drops the address here. For a register
+ * row, `isLocationHidden` is only ever set by that protection.
+ */
+function registryRecordForPin(
+  organisation: AssociationRegistryEntry,
+  pin: PublicMapFeature | undefined
+): AssociationRegistryEntry {
+  return pin?.kind === "institution" && pin.isLocationHidden
+    ? { ...organisation, address: null }
+    : organisation;
+}
 
 /** The smallest box around every returned pin and cluster, or null if none. */
 function featureBounds(features: PublicMapFeature[]): MapBounds | null {
@@ -122,7 +139,8 @@ function useCompactViewport(): boolean | null {
   return compact;
 }
 
-function MapPageLoading() {
+/** Map-shaped placeholder; also the home page's streaming fallback. */
+export function MapPageLoading() {
   return (
     <div className="flex h-[calc(100dvh-var(--nav-height))] flex-col overflow-hidden bg-surface">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row md:gap-4 md:px-4 md:pt-4 lg:px-6 lg:pt-5">
@@ -144,7 +162,7 @@ function MapPageLoading() {
 
 /**
  * The map is the site's home page (`/`); `/map` is kept as a permanent
- * redirect so older links and bookmarks still resolve.
+ * redirect (next.config.ts) so older links and bookmarks still resolve.
  */
 export default function MapExperience({ bootstrap = null }: { bootstrap?: MapBootstrap | null }) {
   return (
@@ -177,6 +195,8 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     initial.search.trim().length >= 2 ? initial.search.trim() : ""
   );
   const [features, setFeatures] = useState<PublicMapFeature[]>(bootstrap?.response.features ?? []);
+  /** Read by the detail fetch, which must not restart when the pins refresh. */
+  const featuresRef = useRef(features);
   const [meta, setMeta] = useState<MapMeta>(() => bootstrap?.response.meta ?? defaultMeta());
   const [selectedId, setSelectedId] = useState<string | null>(initial.selectedId);
   const [selectedDetail, setSelectedDetail] = useState<MapDetail | null>(null);
@@ -293,22 +313,19 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
   // two differ in two places, and both differences are deliberately kept out
   // of the address bar: a fresh search or filter covers the whole country
   // regardless of the viewport (see `nationalScope`), and "social only" expands
-  // into the twelve real categories rather than writing all twelve into the URL.
+  // into the twelve real categories rather than writing all twelve into the URL
+  // (a typed search is never narrowed by that default; see
+  // `resolveMapCategories`).
   const apiMapQuery = useMemo<MapQuery>(() => {
     const categories = resolveMapCategories({
       categories: mapQuery.categories,
       onlySocial: filters.onlySocial,
       onlyOnboarded: mapQuery.onlyOnboarded,
+      query: mapQuery.query,
     });
     const withCategories =
       categories === mapQuery.categories ? mapQuery : { ...mapQuery, categories };
-    return nationalScope
-      ? {
-          ...withCategories,
-          bbox: CROATIA_INITIAL_VIEW.bbox,
-          zoom: CROATIA_INITIAL_VIEW.zoom,
-        }
-      : withCategories;
+    return { ...withCategories, ...requestViewport(mapQuery, nationalScope) };
   }, [mapQuery, filters.onlySocial, nationalScope]);
 
   // Pan/zoom/filter/search stay on replaceState (they must not spam history).
@@ -441,6 +458,10 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
   }, [apiMapQuery, retryToken, viewportReady]);
 
   useEffect(() => {
+    featuresRef.current = features;
+  }, [features]);
+
+  useEffect(() => {
     if (!selectedId) {
       setSelectedDetail(null);
       setDetailError(null);
@@ -471,7 +492,13 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
         if (!response.ok) throw new Error("map_page.detail_error");
         const next: MapDetail | null = registryId
           ? result.organisation
-            ? { kind: "registry", organisation: result.organisation }
+            ? {
+                kind: "registry",
+                organisation: registryRecordForPin(
+                  result.organisation,
+                  featuresRef.current.find((feature) => feature.id === selectedId)
+                ),
+              }
             : null
           : result.institution
             ? { kind: "institution", institution: result.institution }
@@ -542,6 +569,20 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     () => (settledSearch ? institutions.slice(0, 8) : []),
     [institutions, settledSearch]
   );
+  // A broad search ("Zagreb", "udruga za") matches more than the map can pin
+  // and arrives grouped by place, with no individual hits at all. The
+  // dropdown then offers the biggest of those places rather than "no
+  // results" beside a panel counting a thousand of them.
+  const searchPlaces = useMemo<PublicMapCluster[]>(
+    () =>
+      settledSearch && institutions.length === 0
+        ? features
+            .filter((feature): feature is PublicMapCluster => feature.kind === "cluster")
+            .sort((left, right) => right.count - left.count)
+            .slice(0, 8)
+        : [],
+    [features, institutions.length, settledSearch]
+  );
 
   const activeFilterCount =
     filters.categories.length +
@@ -549,7 +590,10 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     (filters.city ? 1 : 0) +
     (filters.onlyOnboarded ? 1 : 0) +
     (filters.onlyZagreb ? 1 : 0) +
-    (filters.onlyUrgent ? 1 : 0);
+    (filters.onlyUrgent ? 1 : 0) +
+    // "All associations" is a departure from the default that "clear
+    // filters" undoes, so it counts like any other choice.
+    (filters.onlySocial ? 0 : 1);
 
   const listCount =
     meta.mode === "clusters" ? clusterRows.length : institutionRows.length;
@@ -822,8 +866,11 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
                   onValueChange={setSearchQuery}
                   onClear={clearSearch}
                   hits={searchHits}
+                  places={searchPlaces}
+                  totalMatches={meta.totalMatches}
                   pending={searchPending}
                   onSelect={onSelect}
+                  onSelectPlace={focusCluster}
                   // Searching from the peek detent would open the suggestion
                   // list into the 26% of screen below the field; raise the
                   // sheet first so the list has somewhere to go.
@@ -931,8 +978,11 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
               onValueChange={setSearchQuery}
               onClear={clearSearch}
               hits={searchHits}
+              places={searchPlaces}
+              totalMatches={meta.totalMatches}
               pending={searchPending}
               onSelect={onSelect}
+              onSelectPlace={focusCluster}
             />
             <div className="hidden md:block">
               <FilterBar filters={filters} onChange={setFilters} />

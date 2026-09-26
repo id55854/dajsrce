@@ -3,12 +3,13 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { useLocale } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
 import { SUPPORTED_LOCALES } from "@/i18n/dictionaries";
 import type { Locale } from "@/lib/types";
 import { setLocaleAction } from "@/app/actions/locale";
 
 export function LocaleSwitcher() {
+  const t = useT();
   const { locale, setLocale } = useLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -20,7 +21,7 @@ export function LocaleSwitcher() {
     <div
       className="inline-flex items-center gap-1.5"
       role="group"
-      aria-label={locale === "hr" ? "Promijeni jezik" : "Change language"}
+      aria-label={t("locale.aria_switch")}
       aria-busy={isPending || undefined}
     >
       <div
@@ -61,6 +62,11 @@ export function LocaleSwitcher() {
                 });
               }}
               aria-pressed={active}
+              // Each language is named in itself ("Hrvatski", "English") and
+              // tagged, so a screen reader pronounces it rather than
+              // spelling out "hr".
+              aria-label={t(`locale.switch_to_${l}`)}
+              lang={l}
               className={clsx(
                 "relative z-10 min-w-10 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
                 "transition-colors duration-200 disabled:cursor-default",

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const rpc = vi.fn();
-let clientFactory: () => { rpc: typeof rpc } = () => ({ rpc });
+let clientFactory: () => { rpc: typeof rpc; from?: unknown } = () => ({ rpc });
 
 // The real module is spread back in so `PublicSupabaseConfigError` stays the
 // same class the route compares against; only the client itself is faked.
@@ -17,6 +17,48 @@ import { GET } from "@/app/api/v1/map/institutions/route";
 
 const url =
   "http://localhost/api/v1/map/institutions?bbox=13,42,20,47&zoom=7&limit=150";
+
+/** One `map_association_registry_v*` institution row, exact unless overridden. */
+function institutionRow(overrides: Record<string, unknown>) {
+  return {
+    feature_kind: "institution",
+    feature_id: "registry:99001",
+    institution_id: null,
+    registry_id: "99001",
+    entity_type: "registry",
+    name: "Udruga za podršku žrtvama",
+    category: "domestic_violence",
+    city: "Pula",
+    address: "Koparska 58, Pula",
+    approximate_area: null,
+    location_precision: "exact",
+    latitude: 44.869137,
+    longitude: 13.848412,
+    accepts_donations: [],
+    is_verified: false,
+    is_location_hidden: false,
+    source: "registry",
+    has_urgent_need: false,
+    member_count: 1,
+    min_lng: 13.848412,
+    min_lat: 44.869137,
+    max_lng: 13.848412,
+    max_lat: 44.869137,
+    total_matches: 1,
+    total_features: 1,
+    ...overrides,
+  };
+}
+
+/** A supabase-js query builder stand-in for the bounded fallback. */
+function fallbackQuery(rows: unknown[]) {
+  const builder: Record<string, unknown> = {};
+  for (const method of ["select", "gte", "lte", "in", "overlaps", "ilike", "or", "order", "eq"]) {
+    builder[method] = () => builder;
+  }
+  builder.limit = () => Promise.resolve({ data: rows, error: null, count: rows.length });
+  return builder;
+}
 
 describe("GET /api/v1/map/institutions", () => {
   beforeEach(() => {
@@ -347,6 +389,113 @@ describe("GET /api/v1/map/institutions", () => {
       locationPrecision: "city",
     });
   });
+  it("never pins a protected-category register row at its registered seat", async () => {
+    // The register publishes the seat, but a pin under "violence prevention"
+    // reads as "a shelter is here". The row must look exactly like a hidden
+    // location: coarse point, no street address.
+    rpc.mockResolvedValue({ error: null, data: [institutionRow({})] });
+
+    const response = await GET(new NextRequest(`${url}&categories=domestic_violence`));
+    const payload = await response.json();
+    const [feature] = payload.features;
+
+    expect(response.status).toBe(200);
+    expect(feature).toMatchObject({
+      id: "registry:99001",
+      category: "domestic_violence",
+      address: null,
+      isLocationHidden: true,
+      locationPrecision: "hidden",
+    });
+    expect(feature.latitude).not.toBe(44.869137);
+    expect(feature.longitude).not.toBe(13.848412);
+    // Coarse, not random: the same few-kilometre cell every time.
+    expect(Math.abs(feature.latitude - 44.869137)).toBeLessThan(0.05);
+    expect(Math.abs(feature.longitude - 13.848412)).toBeLessThan(0.05);
+    const body = JSON.stringify(payload);
+    expect(body).not.toContain("Koparska");
+    expect(body).not.toContain("44.869137");
+    expect(body).not.toContain("13.848412");
+
+    const again = await (await GET(new NextRequest(`${url}&categories=domestic_violence`))).json();
+    expect(again.features[0].latitude).toBe(feature.latitude);
+    expect(again.features[0].longitude).toBe(feature.longitude);
+  });
+
+  it("protects an account holder's row in that category too, but not a curated one", async () => {
+    rpc.mockResolvedValue({
+      error: null,
+      data: [
+        institutionRow({
+          feature_id: "8d6f5e8a-5f0c-4b8f-9d53-3a1c2b7e9f10",
+          institution_id: "8d6f5e8a-5f0c-4b8f-9d53-3a1c2b7e9f10",
+          entity_type: "institution",
+          source: "registry_claim",
+        }),
+        institutionRow({
+          feature_id: "0c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
+          institution_id: "0c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
+          registry_id: null,
+          entity_type: "institution",
+          name: "Reviewed counselling centre",
+          address: "Ilica 1, Zagreb",
+          latitude: 45.8132,
+          longitude: 15.9771,
+          is_verified: true,
+          source: "curated",
+        }),
+      ],
+    });
+
+    const payload = await (await GET(new NextRequest(url))).json();
+    const [claimed, curated] = payload.features;
+
+    expect(claimed).toMatchObject({ address: null, isLocationHidden: true, locationPrecision: "hidden" });
+    expect(claimed.latitude).not.toBe(44.869137);
+    // A person reviewed the curated row and its own hidden flag stands.
+    expect(curated).toMatchObject({
+      address: "Ilica 1, Zagreb",
+      latitude: 45.8132,
+      longitude: 15.9771,
+      isLocationHidden: false,
+      locationPrecision: "exact",
+    });
+  });
+
+  it("applies the same protection on the bounded fallback", async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: { code: "PGRST202", message: "map_association_registry_v2 was not found" },
+    });
+    clientFactory = () => ({
+      rpc,
+      from: () =>
+        fallbackQuery([
+          {
+            id: "8d6f5e8a-5f0c-4b8f-9d53-3a1c2b7e9f10",
+            name: "Udruga za podršku žrtvama",
+            category: "domestic_violence",
+            city: "Pula",
+            approximate_area: null,
+            public_lat: 44.869137,
+            public_lng: 13.848412,
+            accepts_donations: [],
+            is_verified: false,
+            is_location_hidden: false,
+            source: "registry",
+          },
+        ]),
+    });
+
+    const response = await GET(new NextRequest(url));
+    const payload = await response.json();
+
+    expect(response.headers.get("x-map-query-strategy")).toBe("bounded-fallback");
+    expect(payload.features[0]).toMatchObject({ address: null, isLocationHidden: true, locationPrecision: "hidden" });
+    expect(JSON.stringify(payload)).not.toContain("44.869137");
+    expect(JSON.stringify(payload)).not.toContain("13.848412");
+  });
+
   it("retries once when the statement timeout cancels a cold query", async () => {
     // Supabase caps `anon` statements at three seconds, and the first
     // country-wide query against an idle project spends that budget warming

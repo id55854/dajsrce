@@ -14,7 +14,7 @@ describe("public server snapshot", () => {
     const result = await getMapBootstrap(initialMapQuery(new URLSearchParams("city=Zagreb")));
     expect(result?.response).toEqual(response);
     expect(result?.queryKey).toContain("city=Zagreb");
-    expect(cache).toHaveBeenCalledWith(expect.any(Function), ["public-map-bootstrap-v1"], { revalidate: 300 });
+    expect(cache).toHaveBeenCalledWith(expect.any(Function), ["public-map-bootstrap-v2"], { revalidate: 300 });
     expect(load.mock.calls[0][0].limit).toBeLessThanOrEqual(200);
   });
   it("lets database errors escape the cached function instead of caching empty success", async () => {

@@ -166,6 +166,34 @@ export function parseAssociationDirectoryQuery(
 }
 
 /**
+ * The browser URL with every parameter the API would reject removed.
+ *
+ * A stale or hand-edited link (`?sort=newest`, `?q=x`, `?page=abc`) used to
+ * reach the API as-is, get a 400, and be shown as "the official register is
+ * temporarily unavailable". Dropping what is invalid answers the rest of the
+ * query instead of blaming the service. Unknown parameters are left alone.
+ */
+export function sanitizeDirectoryParams(params: URLSearchParams): URLSearchParams {
+  const clean = new URLSearchParams(params);
+  const sort = clean.get("sort");
+  if (sort != null && !ASSOCIATION_DIRECTORY_SORTS.includes(sort as AssociationDirectorySort)) {
+    clean.delete("sort");
+  }
+  const query = clean.get("q")?.trim();
+  if (query != null && (query.length < 2 || query.length > 100)) clean.delete("q");
+  for (const [name, maxLength] of [["status", 100], ["county", 100], ["city", 150], ["form", 150]] as const) {
+    if ((clean.get(name)?.trim().length ?? 0) > maxLength) clean.delete(name);
+  }
+  for (const [name, maximum] of [["page", 10_000], ["pageSize", ASSOCIATION_DIRECTORY_MAX_PAGE_SIZE]] as const) {
+    const raw = clean.get(name);
+    if (raw != null && !(/^\d+$/.test(raw) && Number(raw) >= 1 && Number(raw) <= maximum)) {
+      clean.delete(name);
+    }
+  }
+  return clean;
+}
+
+/**
  * The engaged subset: organisations from the official register that also have
  * an account here, optionally narrowed to those with something open.
  *
@@ -250,10 +278,13 @@ export function associationDirectoryRpcArgs(query: AssociationDirectoryQuery) {
     p_sort: query.sort,
     p_page: query.page,
     p_page_size: query.pageSize,
-    // Match the map's default: only the twelve real categories, not the
-    // ~40,700 register rows the classifier could never place (they land in
-    // the `association` catch-all). See 20260821150000_register_classified_
-    // only_default.sql for why this is unconditional here and nowhere else.
-    p_classified_only: true,
+    // Browsing matches the map's default: only the twelve real categories,
+    // not the ~40,700 register rows the classifier could never place (they
+    // land in the `association` catch-all; see 20260821150000_register_
+    // classified_only_default.sql). A typed name, OIB or address is a search
+    // of the register itself, so it covers every row, as the map's search
+    // does; otherwise an association looking itself up is told it does not
+    // exist.
+    p_classified_only: query.query == null,
   };
 }

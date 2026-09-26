@@ -25,7 +25,7 @@ export function inputClasses(className?: string, invalid?: boolean): string {
     "disabled:cursor-not-allowed disabled:opacity-60",
     invalid
       ? "border-danger focus:border-danger focus:ring-2 focus:ring-danger/25"
-      : "border-border-subtle focus:border-brand focus:ring-2 focus:ring-brand/25",
+      : "border-border-control focus:border-brand focus:ring-2 focus:ring-brand/25",
     className
   );
 }

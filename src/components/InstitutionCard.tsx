@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import type { Institution } from "@/lib/types";
 import type { PublicMapInstitution } from "@/lib/location-map";
 import { getCategoryConfig, DONATION_TYPES } from "@/lib/constants";
-import { formatDistance } from "@/lib/utils";
+import { addressWithCity, formatDistance } from "@/lib/utils";
 import { Badge, Skeleton } from "@/components/ui";
 import {
   Apple,
@@ -113,23 +113,23 @@ export function InstitutionCard({
           {isVerified ? (
             <span className="inline-flex items-center text-success" title={t("map_ui.verified")}>
               <BadgeCheck className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
+              {/* The icon is decorative, so the state needs words of its own. */}
+              <span className="sr-only">{t("map_ui.verified")}</span>
             </span>
           ) : null}
         </div>
       </div>
 
       {/* Long Croatian names used to wrap to four lines and break the rhythm the
-          list skeleton assumes. */}
-      <h3 className="line-clamp-2 font-semibold leading-snug text-ink">
+          list skeleton assumes. A block span, not a heading: a heading inside
+          a button is invalid, and the button already carries the name. */}
+      <span className="line-clamp-2 block font-semibold leading-snug text-ink">
         {institution.name}
-      </h3>
+      </span>
       <p className="mt-1 line-clamp-2 text-sm text-ink-secondary">
         {isApproximateRegistryLocation || isLocationHidden
           ? approximateArea ?? institution.city ?? t("map_ui.approximate_area")
-          : institution.address}
-        {!isLocationHidden && !isApproximateRegistryLocation && institution.city
-          ? `, ${institution.city}`
-          : ""}
+          : addressWithCity(institution.address, institution.city)}
       </p>
 
       {isLocationHidden || isApproximateRegistryLocation ? (

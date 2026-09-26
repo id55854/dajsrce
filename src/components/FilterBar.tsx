@@ -7,7 +7,7 @@ import clsx from "clsx";
 import { useT } from "@/i18n/client";
 import { CityFilter } from "@/components/CityFilter";
 import { CategoryFilter } from "@/components/CategoryFilter";
-import { SOCIAL_MAP_CATEGORIES } from "@/lib/location-map";
+import { SOCIAL_MAP_CATEGORIES, socialCategoriesOnly } from "@/lib/location-map";
 
 import { DonationFilter } from "@/components/DonationFilter";
 
@@ -113,10 +113,38 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
         </span>
         <span className="relative inline-flex shrink-0">
           <input type="checkbox" role="switch" checked={filters.onlyOnboarded} onChange={(event) => onChange({ ...filters, onlyOnboarded: event.target.checked })} className="peer sr-only" />
-          <span aria-hidden className="h-6 w-11 rounded-full bg-ink/20 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface" />
+          <span aria-hidden className="h-6 w-11 rounded-full bg-ink/50 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface" />
           <span aria-hidden className="pointer-events-none absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
         </span>
       </label>
+      {/* The social default hides ~40,000 register rows (sports, culture,
+          hobby); this is the visible way to bring them back. Returning to
+          the social view drops a chosen "Udruga", which it never offers. */}
+      <div className="border-b border-border-subtle pb-3">
+        <div role="group" aria-label={t("filters.scope_label")} className="flex flex-wrap gap-2">
+          <FilterChip
+            aria-pressed={filters.onlySocial}
+            onClick={() =>
+              onChange({
+                ...filters,
+                onlySocial: true,
+                categories: socialCategoriesOnly(filters.categories),
+              })
+            }
+          >
+            {t("filters.social_only")}
+          </FilterChip>
+          <FilterChip
+            aria-pressed={!filters.onlySocial}
+            onClick={() => onChange({ ...filters, onlySocial: false })}
+          >
+            {t("filters.all_associations")}
+          </FilterChip>
+        </div>
+        <p className="mt-1.5 text-xs text-ink-secondary">
+          {t(filters.onlySocial ? "filters.social_only_hint" : "filters.all_associations_hint")}
+        </p>
+      </div>
       <CityFilter value={filters.city} onChange={(city) => onChange({ ...filters, city })} />
       <div className="flex flex-wrap gap-3">
         {/* The social view never offers the catch-all "Udruga": every unclassified

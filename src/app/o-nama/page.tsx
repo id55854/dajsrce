@@ -7,13 +7,17 @@ import {
   organisationJsonLd,
 } from "@/lib/organisation";
 import { Card, PageHeader, PageShell, SectionHeader } from "@/components/ui";
+import { SITE_URL, pageMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslator();
-  return {
+  const [t, locale] = await Promise.all([getTranslator(), getLocale()]);
+  return pageMetadata({
     title: `${t("about.page_title")} | ${ORGANISATION.shortName}`,
     description: t("about.page_subtitle"),
-  };
+    path: "/o-nama",
+    locale,
+    imageAlt: t("seo.share_image_alt"),
+  });
 }
 
 const PILLARS = [
@@ -37,7 +41,8 @@ const TEAM = [
 export default async function AboutPage() {
   const t = await getTranslator();
   const locale = await getLocale();
-  const jsonLd = organisationJsonLd(locale, "https://dajsrce.hr/o-nama");
+  // The organisation's `url` is its website, not this page about it.
+  const jsonLd = organisationJsonLd(locale, SITE_URL);
 
   return (
     <PageShell>
@@ -113,6 +118,11 @@ export default async function AboutPage() {
             <RegistrationField
               label={t("footer.registration_number")}
               value={ORGANISATION.registrationNumber}
+              numeric
+            />
+            <RegistrationField
+              label={t("about.field_registry_number")}
+              value={ORGANISATION.registryNumber}
               numeric
             />
             {ORGANISATION.contactEmail ? (

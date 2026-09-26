@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Mail, MapPin } from "lucide-react";
 import { getLocale, getTranslator } from "@/i18n/server";
 import type { AssociationRegistryEntry } from "@/lib/association-registry";
+import { metaDescription, pageMetadata } from "@/lib/seo";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import {
   REGISTRY_LINK_CLASSES,
@@ -25,10 +27,46 @@ import { ClaimProfileCta } from "@/components/ClaimProfileCta";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Registar udruga | DajSrce",
-  description: "Službeni podaci iz Registra udruga Republike Hrvatske.",
-};
+/**
+ * One register read per request, shared by the metadata and the page. Null
+ * means no such record; a failed query throws to the error boundary, which is
+ * a different outcome from a real 404.
+ */
+const getRegistryEntry = cache(async (id: string): Promise<AssociationRegistryEntry | null> => {
+  if (!/^\d{1,20}$/.test(id)) return null;
+  const supabase = createPublicSupabaseClient();
+  const { data, error } = await supabase.rpc("get_association_registry_entry_v1", { p_udr_id: id });
+  if (error) throw new Error(`Official registry detail failed (${error.code ?? "database"})`);
+  return (data as AssociationRegistryEntry | null) ?? null;
+});
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const [t, locale] = await Promise.all([getTranslator(), getLocale()]);
+  let organisation: AssociationRegistryEntry | null = null;
+  try {
+    organisation = await getRegistryEntry(id);
+  } catch {
+    // The page reports the failure; the title just stays generic.
+    return { title: `${t("organisations.title")} | DajSrce` };
+  }
+  if (!organisation) return { title: `${t("errors.not_found_title")} | DajSrce` };
+
+  const place = [organisation.city, organisation.county].filter(Boolean).join(", ");
+  return pageMetadata({
+    title: `${organisation.name} | DajSrce`,
+    description:
+      metaDescription(organisation.goals || organisation.activity_description) ??
+      t("seo.organisation_description", { name: organisation.name, place: place || t("seo.country") }),
+    path: `/organisations/${organisation.id}`,
+    locale,
+    imageAlt: t("seo.share_image_alt"),
+  });
+}
 
 export default async function OrganisationDetailPage({
   params,
@@ -36,13 +74,9 @@ export default async function OrganisationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  if (!/^\d{1,20}$/.test(id)) notFound();
   const [t, locale] = await Promise.all([getTranslator(), getLocale()]);
-  const supabase = createPublicSupabaseClient();
-  const { data, error } = await supabase.rpc("get_association_registry_entry_v1", { p_udr_id: id });
-  if (error) throw new Error(`Official registry detail failed (${error.code ?? "database"})`);
-  if (!data) notFound();
-  const organisation = data as AssociationRegistryEntry;
+  const organisation = await getRegistryEntry(id);
+  if (!organisation) notFound();
   const website = safeHttpUrl(organisation.website);
   const date = (value: string | null) => formatRegistryDate(locale, value);
   const statusKey = registryStatusLabelKey(organisation.status);
@@ -101,7 +135,7 @@ export default async function OrganisationDetailPage({
           <Card>
             <SectionHeader title={t("organisations.registry_identity")} />
             <dl className="space-y-4">
-              <RegistryField label="UDR_ID" value={organisation.id} />
+              <RegistryField label={t("organisations.registry_id")} value={organisation.id} />
               <RegistryField label="OIB" value={organisation.oib || t("organisations.missing_oib")} />
               <RegistryField label={t("organisations.registry_number")} value={organisation.registry_number} />
               <RegistryField label={t("organisations.form")} value={organisation.legal_form} />

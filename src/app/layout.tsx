@@ -7,35 +7,35 @@ import { AccessibilityMenu } from "@/components/AccessibilityMenu";
 import { Footer } from "@/components/Footer";
 import { ToastProvider } from "@/components/ui";
 import { LocaleProvider } from "@/i18n/client";
-import { getLocale } from "@/i18n/server";
-import { Analytics } from "@vercel/analytics/next";
+import { getLocale, getTranslator } from "@/i18n/server";
+import { SITE_NAME, SITE_URL, openGraphLocale } from "@/lib/seo";
 
-// Root metadata is the one place that cannot read the dictionary through the
-// normal client/server translator, because it is evaluated before any locale
-// provider exists. Keep these two entries in sync with the i18n dictionaries.
-const ROOT_METADATA = {
-  hr: {
-    title: "DajSrce, Povežite donatore s onima kojima je pomoć potrebna",
-    description:
-      "Karta ustanova, udruga i volonterskih prilika u Hrvatskoj. Pronađite gdje donirati, volontirati i pomoći.",
-  },
-  en: {
-    title: "DajSrce, Connecting donors with those in need",
-    description:
-      "A map of institutions, associations and volunteering opportunities across Croatia. Find where to donate, volunteer, and help.",
-  },
-} as const;
-
+/**
+ * Defaults every page inherits. The share image comes from
+ * `opengraph-image.tsx` and the iOS home-screen icon from `apple-icon.tsx`
+ * (iOS ignores an SVG touch icon). No canonical URL here: every child page
+ * would inherit it and declare itself a copy of the home page.
+ */
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
-  const copy = ROOT_METADATA[locale] ?? ROOT_METADATA.hr;
+  const [t, locale] = await Promise.all([getTranslator(), getLocale()]);
+  const title = t("seo.site_title");
+  const description = t("seo.site_description");
   return {
-    title: copy.title,
-    description: copy.description,
+    metadataBase: new URL(SITE_URL),
+    title,
+    description,
+    applicationName: SITE_NAME,
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      locale: openGraphLocale(locale),
+      title,
+      description,
+    },
+    twitter: { card: "summary_large_image", title, description },
     icons: {
       icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
       shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
-      apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
     },
   };
 }
@@ -122,24 +122,36 @@ try{var a=JSON.parse(localStorage.getItem("dajsrce-a11y")||"{}"),r=document.docu
 })()`;
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const locale = await getLocale();
+  const [locale, t] = await Promise.all([getLocale(), getTranslator()]);
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: PRE_PAINT_SCRIPT }} />
       </head>
       <body className={`${fontVariables} bg-surface text-ink`}>
+        {/* First in the tab order, visible only when focused, so a keyboard
+            user can pass the navigation (and, on the home page, every map
+            control) in one keystroke. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[var(--z-toast)] focus:rounded-full focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-overlay focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-surface"
+        >
+          {t("a11y.skip_to_content")}
+        </a>
         <LocaleProvider initialLocale={locale}>
           <ToastProvider>
             <div id="app-content" className="flex min-h-dvh flex-col">
               <Navbar />
-              <main className="flex-1">{children}</main>
+              {/* `tabIndex={-1}` lets the skip link move focus here, not just
+                  scroll; it is never a tab stop itself. */}
+              <main id="main" tabIndex={-1} className="flex-1 outline-none">
+                {children}
+              </main>
               <Footer />
               <AccessibilityMenu />
             </div>
           </ToastProvider>
         </LocaleProvider>
-        <Analytics />
       </body>
     </html>
   );
