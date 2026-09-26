@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getRequestId, logError } from "@/lib/observability";
 import { rateLimit, requireSameOrigin } from "@/lib/security/http";
 import {
+  claimErrorCode,
   claimErrorStatus,
   parseClaimRequestInput,
   type OwnInstitutionClaim,
@@ -24,6 +25,9 @@ async function requireActor() {
 /** The signed-in account's own claim, if it has one. */
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
+  const limited = rateLimit(req, { name: "institution_claims.get", limit: 60, windowMs: 60_000 }, requestId);
+  if (limited) return limited;
+
   const actorId = await requireActor();
   if (!actorId) {
     return NextResponse.json(
@@ -105,8 +109,13 @@ export async function POST(req: NextRequest) {
       request_id: requestId,
       code: error.code ?? null,
     });
+    const code = claimErrorCode(error);
     return NextResponse.json(
-      { error: "The claim could not be submitted", request_id: requestId },
+      {
+        error: "The claim could not be submitted",
+        ...(code ? { code } : {}),
+        request_id: requestId,
+      },
       { status: claimErrorStatus(error.code), headers: NO_STORE }
     );
   }

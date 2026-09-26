@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getRequestId, logError } from "@/lib/observability";
-import { claimErrorStatus } from "@/lib/institution-claims";
+import { claimErrorCode, claimErrorStatus } from "@/lib/institution-claims";
 import { isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
 export const dynamic = "force-dynamic";
@@ -45,8 +45,13 @@ export async function DELETE(
       request_id: requestId,
       code: error.code ?? null,
     });
+    const code = claimErrorCode(error);
     return NextResponse.json(
-      { error: "The claim could not be withdrawn", request_id: requestId },
+      {
+        error: "The claim could not be withdrawn",
+        ...(code ? { code } : {}),
+        request_id: requestId,
+      },
       { status: claimErrorStatus(error.code), headers: NO_STORE }
     );
   }
