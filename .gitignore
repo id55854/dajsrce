@@ -52,3 +52,7 @@ node_modules
 *.tmp
 .gstack/
 .neon
+
+# Association paperwork and generated samples never belong in this public repo
+/Dokumenti/
+/mock-reports/
