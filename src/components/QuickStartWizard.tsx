@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Apple,
   Baby,
+  BadgeCheck,
   Banknote,
   BedDouble,
   BookOpen,
@@ -21,12 +22,14 @@ import {
   Stethoscope,
 } from "lucide-react";
 import clsx from "clsx";
-import { distanceKm } from "@/lib/utils";
 import type { DonationType, Locale } from "@/lib/types";
-import type {
-  PublicMapInstitution,
-  PublicMapResponse,
-} from "@/lib/location-map";
+import type { PublicMapResponse } from "@/lib/location-map";
+import {
+  coarseCoordinate,
+  findNearbyInstitutions,
+  rankNearbyInstitutions,
+  type RankedInstitution,
+} from "@/lib/nearby-search";
 import {
   CATEGORY_CONFIG,
   DONATION_TYPES,
@@ -34,7 +37,7 @@ import {
   getCategoryConfig,
 } from "@/lib/constants";
 import { useLocale, useT } from "@/i18n/client";
-import { Button, Card, Field, Input, buttonClasses } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, buttonClasses } from "@/components/ui";
 
 const TOTAL_STEPS = 3;
 
@@ -56,19 +59,21 @@ const DONATION_ICONS: Record<DonationType, LucideIcon> = {
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
-type RankedInstitution = PublicMapInstitution & { distanceKm: number };
-
 async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   // Browser-side reverse geocode via Nominatim (no key needed). Best-effort
   // failures don't block the search; we just skip the address feedback.
+  // Only a rounded point (two decimals, about a kilometre) leaves the browser,
+  // so the answer is asked for at neighbourhood level: a street name for a
+  // point that coarse would be a guess. Distances still use the exact fix,
+  // which never leaves this page.
   try {
     const url =
       "https://nominatim.openstreetmap.org/reverse?" +
       new URLSearchParams({
-        lat: String(lat),
-        lon: String(lng),
+        lat: String(coarseCoordinate(lat)),
+        lon: String(coarseCoordinate(lng)),
         format: "json",
-        zoom: "16",
+        zoom: "14",
       }).toString();
     const res = await fetch(url, {
       headers: { "Accept-Language": "hr,en" },
@@ -249,46 +254,19 @@ export function QuickStartWizard() {
     setFetchLoading(true);
     setFetchErrorKey(null);
     try {
-      // Every request is spatially bounded and capped. The calls run in
-      // parallel so selecting several donation types never downloads the
-      // national catalogue or blocks types behind sequential round trips.
-      const radiusDegrees = 0.22;
-      const bbox = [
-        lng - radiusDegrees,
-        lat - radiusDegrees,
-        lng + radiusDegrees,
-        lat + radiusDegrees,
-      ].join(",");
-      const responses = await Promise.all(
-        types.map(async (donationType) => {
-          const params = new URLSearchParams({
-            bbox,
-            zoom: "12",
-            donationType,
-            limit: "50",
-          });
-          const response = await fetch(`/api/v1/map/institutions?${params}`);
+      // One bounded request per step for all selected types together; the
+      // search narrows or widens the box until individual pins come back.
+      const found = await findNearbyInstitutions({
+        latitude: lat,
+        longitude: lng,
+        donationTypes: types,
+        fetchPage: async (query) => {
+          const response = await fetch(`/api/v1/map/institutions?${query}`);
           if (!response.ok) throw new Error("Institution search failed");
           return (await response.json()) as PublicMapResponse;
-        })
-      );
-      const unique = new Map<string, PublicMapInstitution>();
-      for (const response of responses) {
-        for (const feature of response.features) {
-          if (feature.kind === "institution") unique.set(feature.id, feature);
-        }
-      }
-      const ranked: RankedInstitution[] = [...unique.values()].map((institution) => ({
-        ...institution,
-        distanceKm: distanceKm(
-          lat!,
-          lng!,
-          institution.latitude,
-          institution.longitude
-        ),
-      }));
-      ranked.sort((a, b) => a.distanceKm - b.distanceKm);
-      setResults(ranked.slice(0, 5));
+        },
+      });
+      setResults(rankNearbyInstitutions(found, lat, lng));
     } catch {
       setFetchErrorKey("map_page.load_error");
       setResults([]);
@@ -370,6 +348,7 @@ export function QuickStartWizard() {
               loading={fetchLoading}
               errorKey={fetchErrorKey}
               results={results}
+              selected={selected}
               t={t}
               locale={locale}
             />
@@ -591,16 +570,47 @@ function StepTwo({
   );
 }
 
+/**
+ * Where "details" leads. A register row with no account here has no
+ * institution page, only its register record.
+ */
+function detailHref(inst: RankedInstitution): string | null {
+  if (inst.entityType === "institution" && !inst.id.startsWith("registry:")) {
+    return `/institution/${inst.id}`;
+  }
+  return inst.registryId ? `/organisations/${encodeURIComponent(inst.registryId)}` : null;
+}
+
+/**
+ * Whose word the donation types are. Only an organisation confirmed on
+ * DajSrce (a reviewed claim or a curated record) said what it accepts; for a
+ * register row the types come from a classifier and are shown as a guess.
+ */
+function acceptsLine(inst: RankedInstitution, selected: Set<DonationType>, t: Translate, locale: Locale) {
+  const types = inst.acceptsDonations
+    .filter((type) => selected.has(type) && type in DONATION_TYPES)
+    .map((type) => (locale === "hr" ? DONATION_TYPES[type].labelHr : DONATION_TYPES[type].label))
+    .join(", ");
+  if (!types) return null;
+  if (inst.isVerified) return t("quick_start.accepts_confirmed", { types });
+  return t(
+    inst.trustStatus === "registry" ? "quick_start.accepts_guess" : "quick_start.accepts_unconfirmed",
+    { types }
+  );
+}
+
 function StepThree({
   loading,
   errorKey,
   results,
+  selected,
   t,
   locale,
 }: {
   loading: boolean;
   errorKey: string | null;
   results: RankedInstitution[];
+  selected: Set<DonationType>;
   t: Translate;
   locale: Locale;
 }) {
@@ -629,9 +639,14 @@ function StepThree({
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-ink">
-        {t("quick_start.results_title")}
-      </h2>
+      <div>
+        <h2 className="text-lg font-semibold text-ink">
+          {t("quick_start.results_title")}
+        </h2>
+        {results.length > 0 ? (
+          <p className="mt-1 text-sm text-ink-secondary">{t("quick_start.results_note")}</p>
+        ) : null}
+      </div>
       {results.length === 0 ? (
         <p className="text-base text-ink-secondary">
           {t("quick_start.no_results")}
@@ -649,7 +664,12 @@ function StepThree({
               ? inst.approximateArea ??
                 inst.city ??
                 t("map_ui.hidden_location")
-              : [inst.address, inst.city].filter(Boolean).join(", ");
+              : [inst.address, inst.city].filter(Boolean).join(", ") ||
+                inst.approximateArea ||
+                "";
+            const distance = inst.distanceKm.toFixed(1);
+            const accepts = acceptsLine(inst, selected, t, locale);
+            const href = detailHref(inst);
             return (
               <li
                 key={inst.id}
@@ -659,7 +679,9 @@ function StepThree({
                   <div className="min-w-0">
                     <p className="font-semibold text-ink">{inst.name}</p>
                     <p className="mt-0.5 text-sm font-medium text-brand">
-                      {inst.distanceKm.toFixed(1)} km
+                      {inst.approximate
+                        ? t("quick_start.distance_approx", { km: distance })
+                        : t("quick_start.distance", { km: distance })}
                     </p>
                   </div>
                   <span
@@ -669,9 +691,31 @@ function StepThree({
                     {locale === "hr" ? cat.labelHr : cat.label}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-ink-secondary">{addressLine}</p>
+                <div className="mt-2">
+                  {inst.isVerified ? (
+                    <Badge
+                      tone="success"
+                      icon={<BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />}
+                    >
+                      {t("quick_start.trust_verified")}
+                    </Badge>
+                  ) : (
+                    <Badge tone="neutral">
+                      {t(
+                        inst.trustStatus === "registry"
+                          ? "quick_start.trust_registry"
+                          : "quick_start.trust_unverified"
+                      )}
+                    </Badge>
+                  )}
+                </div>
+                {accepts ? <p className="mt-2 text-sm text-ink-secondary">{accepts}</p> : null}
+                {addressLine ? <p className="mt-1 text-sm text-ink-secondary">{addressLine}</p> : null}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {!inst.isLocationHidden ? (
+                  {/* Directions only to a real address: a hidden location or
+                      a town-level register point would send someone to the
+                      wrong door. */}
+                  {!inst.approximate ? (
                     <a
                       href={mapsUrl}
                       target="_blank"
@@ -686,15 +730,17 @@ function StepThree({
                       {t("quick_start.directions")}
                     </a>
                   ) : null}
-                  <a
-                    href={`/institution/${inst.id}`}
-                    className={buttonClasses({
-                      size: "sm",
-                      className: "min-w-[7rem] grow",
-                    })}
-                  >
-                    {t("quick_start.view_details")}
-                  </a>
+                  {href ? (
+                    <a
+                      href={href}
+                      className={buttonClasses({
+                        size: "sm",
+                        className: "min-w-[7rem] grow",
+                      })}
+                    >
+                      {t("quick_start.view_details")}
+                    </a>
+                  ) : null}
                 </div>
               </li>
             );
