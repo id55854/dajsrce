@@ -135,8 +135,18 @@ export function FilterDropdown<T extends string>({
           onOpenChange?.(expanded);
           if (expanded) search.current?.focus({ preventScroll: true });
         }}
-        onBlur={(event) => {
-          if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current) panel.current?.hidePopover();
+        // Do not dismiss on blur: pressing a label's text can first move focus
+        // from the search input to the enclosing dialog, before the browser
+        // forwards the click to its checkbox/radio. Hiding here eats that click.
+        // Native popover light-dismiss handles outside presses and Escape.
+        // Keyboard focus leaving the panel is checked after Tab has settled.
+        onKeyDown={(event) => {
+          if (event.key !== "Tab") return;
+          window.requestAnimationFrame(() => {
+            if (panel.current && !panel.current.contains(document.activeElement) && document.activeElement !== trigger.current) {
+              panel.current.hidePopover();
+            }
+          });
         }}
       >
         {searchable ? (
