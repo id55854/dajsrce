@@ -192,7 +192,7 @@ export default function ResetPasswordPage() {
         </Link>
       }
     >
-      <form noValidate onSubmit={handleSubmit} className="space-y-5">
+      <form method="post" action="#" noValidate onSubmit={handleSubmit} className="space-y-5">
         {formErrorKey ? (
           <AuthAlert id={FORM_ERROR_ID}>{t(formErrorKey, { min: MIN_PASSWORD_LENGTH })}</AuthAlert>
         ) : null}

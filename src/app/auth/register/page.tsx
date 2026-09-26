@@ -1,12 +1,14 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Building2, Heart } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { NGO_SETUP_HREF, signupRoleFromParams } from "@/lib/auth/onboarding";
+import { termsAcceptance } from "@/lib/auth/terms";
 import { evaluatePassword } from "@/lib/password-strength";
 import { safeInternalPath } from "@/lib/security/redirects";
 import type { UserRole } from "@/lib/types";
@@ -21,6 +23,7 @@ import {
   AuthShell,
   PasswordField,
   RoleTile,
+  TermsConsent,
   authLinkClasses,
   describedBy,
 } from "../auth-ui";
@@ -30,12 +33,18 @@ const TILE_ICON = "h-10 w-10";
 
 function RegisterForm() {
   const t = useT();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [step, setStep] = useState<1 | 2>(1);
-  const [role, setRole] = useState<UserRole | null>(null);
+  // An invitation link (`?role=ngo`, or `?uloga=udruga`) already answers
+  // "who are you?", so it opens the form with the NGO path chosen.
+  const presetRole = signupRoleFromParams(searchParams);
+  const [step, setStep] = useState<1 | 2>(presetRole ? 2 : 1);
+  const [role, setRole] = useState<UserRole | null>(presetRole);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordErrorKey, setPasswordErrorKey] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   // Form-level failures (service, credentials) live in the banner.
   const [formErrorKey, setFormErrorKey] = useState<string | null>(null);
   const [successKey, setSuccessKey] = useState<string | null>(null);
@@ -44,6 +53,29 @@ function RegisterForm() {
   const nextParam = searchParams.get("next");
   const safeNext = safeInternalPath(nextParam);
   const nextQuery = nextParam ? `?next=${encodeURIComponent(safeNext)}` : "";
+  // Someone invited as an association who already has an account signs in
+  // and goes straight on to the claim, not to their old dashboard.
+  const signInHref =
+    !nextParam && presetRole === "ngo"
+      ? `/auth/login?next=${encodeURIComponent(NGO_SETUP_HREF)}`
+      : `/auth/login${nextQuery}`;
+
+  // A signed-in visitor has nothing to register. An NGO link still means
+  // "connect my association", which /auth/setup does for an existing
+  // account; anything else goes where the login page would send them.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        if (cancelled || !data.user) return;
+        router.replace(presetRole === "ngo" ? NGO_SETUP_HREF : safeNext);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [presetRole, router, safeNext]);
 
   // The name and email already on the form are what makes the deny-list
   // personal: a password built out of either is the first thing anyone guesses.
@@ -87,13 +119,20 @@ function RegisterForm() {
       return;
     }
 
-    // Hard rules only: length and the deny-list, surfaced entirely through the
-    // strength meter next to the field -- no separate message spells out
-    // which rule tripped, so the field itself never hints at what the deny
-    // list checks for. The strength score alone never blocks a submission.
-    if (strength.rejectionKey) return;
+    // Hard rules only: length and the deny-list. The message is the same
+    // sentence for every deny-list rule, so it says the password was refused
+    // without hinting at what the list checks for. The strength score alone
+    // never blocks a submission.
+    if (strength.rejectionKey) {
+      setPasswordErrorKey(strength.rejectionKey);
+      return;
+    }
     if (!role) {
       setFormErrorKey("auth.role_required");
+      return;
+    }
+    if (!termsAccepted) {
+      setFormErrorKey("auth.terms_required");
       return;
     }
 
@@ -108,7 +147,8 @@ function RegisterForm() {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeInternalPath(searchParams.get("next")))}`,
-          data: { name, role },
+          // The account's own statement of which terms it accepted and when.
+          data: { name, role, ...termsAcceptance() },
         },
       });
       data = response.data;
@@ -145,7 +185,7 @@ function RegisterForm() {
       footer={
         <>
           {t("auth.have_account")}{" "}
-          <Link href={`/auth/login${nextQuery}`} className={authLinkClasses}>
+          <Link href={signInHref} className={authLinkClasses}>
             {t("auth.sign_in_link")}
           </Link>
         </>
@@ -201,7 +241,10 @@ function RegisterForm() {
             </Button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {/* POST with a same-page action: if this is submitted before the
+              page hydrates, the browser must not serialise the password into
+              a GET query string (URL bar, history, server logs). */}
+          <form method="post" action="#" onSubmit={handleSubmit} className="space-y-5">
             {formErrorKey ? (
               <AuthAlert id={FORM_ERROR_ID}>{t(formErrorKey)}</AuthAlert>
             ) : null}
@@ -231,7 +274,7 @@ function RegisterForm() {
                 might be the association's address. It is not: this is the
                 account's sign-in identity, and the association's official
                 mailbox is a separate, later field in the UDR_ID claim
-                ("Službena e-mail adresa udruge"). Only the NGO path is
+                ("Službena e-adresa udruge"). Only the NGO path is
                 relabelled; there is nothing to disambiguate for a private
                 individual. */}
             <Field
@@ -263,7 +306,15 @@ function RegisterForm() {
               autoComplete="new-password"
               minLength={MIN_PASSWORD_LENGTH}
               value={password}
-              onChange={setPassword}
+              onChange={(next) => {
+                setPassword(next);
+                setPasswordErrorKey(null);
+              }}
+              error={
+                passwordErrorKey
+                  ? t(passwordErrorKey, { min: MIN_PASSWORD_LENGTH })
+                  : undefined
+              }
               strength={password.length > 0 ? strength : null}
             />
 
@@ -273,7 +324,21 @@ function RegisterForm() {
               </p>
             ) : null}
 
-            <Button type="submit" size="lg" fullWidth loading={loading}>
+            <TermsConsent
+              checked={termsAccepted}
+              onChange={(next) => {
+                setTermsAccepted(next);
+                if (next && formErrorKey === "auth.terms_required") setFormErrorKey(null);
+              }}
+            />
+
+            <Button
+              type="submit"
+              size="lg"
+              fullWidth
+              loading={loading}
+              disabled={!termsAccepted}
+            >
               {t("auth.sign_up_cta")}
             </Button>
           </form>
