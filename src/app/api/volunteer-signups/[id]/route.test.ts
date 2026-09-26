@@ -1,13 +1,20 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hoisted with the vi.mock factories below, which read them eagerly.
-const { rpc, getUser } = vi.hoisted(() => ({ rpc: vi.fn(), getUser: vi.fn() }));
+const { rpc, getUser, maybeSingle } = vi.hoisted(() => ({
+  rpc: vi.fn(),
+  getUser: vi.fn(),
+  maybeSingle: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser } }),
+  createServerSupabaseClient: async () => {
+    const query = { select: () => query, eq: () => query, maybeSingle };
+    return { auth: { getUser }, from: () => query };
+  },
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -32,7 +39,55 @@ describe("DELETE /api/volunteer-signups/[id]", () => {
   beforeEach(() => {
     rpc.mockReset();
     getUser.mockReset();
+    maybeSingle.mockReset();
     getUser.mockResolvedValue({ data: { user: { id: VOLUNTEER_ID } } });
+    // An upcoming event unless a test says otherwise.
+    maybeSingle.mockResolvedValue({
+      data: { id: SIGNUP_ID, event: { event_date: "2999-01-01", end_time: "12:00:00" } },
+      error: null,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("refuses to withdraw from an event that has already ended, before the transaction", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { id: SIGNUP_ID, event: { event_date: "2020-01-01", end_time: "12:00:00" } },
+      error: null,
+    });
+    const response = await cancel();
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "event_ended" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("treats a same-day event as over once its end time has passed in Croatia", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-26T10:30:00Z")); // 12:30 in Zagreb
+    maybeSingle.mockResolvedValue({
+      data: { id: SIGNUP_ID, event: [{ event_date: "2026-09-26", end_time: "12:00:00" }] },
+      error: null,
+    });
+    expect((await cancel()).status).toBe(409);
+    maybeSingle.mockResolvedValue({
+      data: { id: SIGNUP_ID, event: [{ event_date: "2026-09-26", end_time: "13:00:00" }] },
+      error: null,
+    });
+    rpc.mockResolvedValue({ data: { signup_id: SIGNUP_ID }, error: null });
+    expect((await cancel()).status).toBe(200);
+  });
+
+  it("leaves a signup it cannot see to the transaction, and fails closed on a read error", async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    rpc.mockResolvedValue({ data: null, error: { code: "42501" } });
+    expect((await cancel()).status).toBe(403);
+    rpc.mockReset();
+    maybeSingle.mockResolvedValue({ data: null, error: { code: "57014" } });
+    expect((await cancel()).status).toBe(500);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("withdraws the volunteer's own signup through the transactional RPC", async () => {

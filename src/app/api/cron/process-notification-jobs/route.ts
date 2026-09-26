@@ -7,6 +7,9 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const MAX_JOBS_PER_RUN = 20;
 
+// A scheduler's GET must reach the handler every time, never a cached answer.
+export const dynamic = "force-dynamic";
+
 function isJob(value: unknown): value is NearbyNotificationJob {
   if (!value || typeof value !== "object") return false;
   const job = value as Partial<NearbyNotificationJob>;
@@ -20,7 +23,20 @@ function isJob(value: unknown): value is NearbyNotificationJob {
   );
 }
 
+/** GitHub Actions and other schedulers POST with `Authorization: Bearer <CRON_SECRET>`. */
 export async function POST(req: NextRequest) {
+  return run(req);
+}
+
+/**
+ * Vercel Cron sends a GET with the same bearer header. The check is the same
+ * constant-time comparison, so the method adds no way in.
+ */
+export async function GET(req: NextRequest) {
+  return run(req);
+}
+
+async function run(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   const limited = rateLimit(req, { name: "cron.notification_jobs", limit: 20, windowMs: 60_000 }, requestId);
   if (limited) return limited;

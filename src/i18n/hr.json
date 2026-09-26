@@ -408,7 +408,13 @@
     "volunteer_signups": "Volonterske prijave",
     "no_volunteer_signups": "Još niste prijavljeni ni na jedan volonterski događaj.",
     "find_volunteer_events": "Pronađite volonterske događaje",
-    "stat_volunteer_signups": "Volonterske prijave"
+    "signups_upcoming": "Nadolazeći volonterski događaji",
+    "signups_past": "Prošli volonterski događaji",
+    "no_upcoming_signups": "Nemate nadolazećih volontiranja.",
+    "stat_volunteer_signups": "Volonterske prijave",
+    "ngo_link_title": "Predstavljate udrugu?",
+    "ngo_link_body": "Povežite račun sa svojom udrugom iz Registra udruga. Nakon provjere moći ćete objavljivati potrebe i volonterske događaje.",
+    "ngo_link_cta": "Povežite račun s udrugom"
   },
   "filters": {
     "city_label": "Grad ili mjesto",
@@ -501,16 +507,19 @@
     "empty": "Nema nadolazećih volonterskih događaja. Navratite ponovno!",
     "empty_hint": "U međuvremenu možete pomoći darovanjem ili pronaći ustanove na karti.",
     "empty_browse_needs": "Pregledaj potrebe",
-    "empty_open_map": "Otvori kartu"
+    "empty_open_map": "Otvori kartu",
+    "truncated": "Prikazano je prvih {count} nadolazećih događaja.",
+    "event_unavailable": "Događaj koji ste otvorili više nije otvoren za prijave."
   },
   "volunteer_card": {
     "volunteers": "Volonteri",
     "progress": "Popunjeno je {signed} od {needed} volonterskih mjesta",
     "sign_in": "Prijavite se",
     "sign_in_continue": "Prijavite se za nastavak",
-    "registered": "Prijavljeni ste",
-    "sign_up": "Prijavi se",
-    "signing_up": "Prijava u tijeku",
+    "registered": "Prijavljeni ste kao volonter",
+    "sign_up": "Pridruži se",
+    "join_as_volunteer": "Prijavi se kao volonter",
+    "signing_up": "Prijavljujemo vas…",
     "failed": "Prijava nije uspjela. Pokušajte ponovno.",
     "auth_action": "Volontiranje",
     "full": "Popunjeno",
@@ -523,6 +532,9 @@
     "about": "O događaju",
     "requirements": "Što trebate znati",
     "view_organisation": "Pogledaj profil udruge",
+    "report": "Prijavi sadržaj",
+    "report_subject": "Prijava sadržaja",
+    "report_body": "Stranica: {url}\nID događaja: {id}\n\nOpišite što prijavljujete i zašto:\n",
     "organiser": "Organizator"
   },
   "volunteer_calendar": {
@@ -540,6 +552,40 @@
     "events_one": "1 događaj na datum {date}",
     "events_many": "{count} događaja na datum {date}",
     "registered_suffix": ", prijavljeni ste"
+  },
+  "volunteer_form": {
+    "edit_title": "Uredi događaj",
+    "field_requirements": "Što volonteri trebaju znati ili ponijeti",
+    "field_requirements_placeholder": "npr. udobna obuća, radne rukavice, dolazak 10 minuta ranije",
+    "field_contact_person": "Osoba za kontakt",
+    "field_contact_phone": "Telefon za kontakt",
+    "contact_hint": "Nije obavezno. Ime i telefon vidljivi su svima koji otvore događaj.",
+    "volunteers_signed_hint": "Prijavljenih volontera: {count}. Broj mjesta ne može biti manji.",
+    "save": "Spremi promjene",
+    "saving": "Spremanje…",
+    "saved": "Promjene su spremljene",
+    "saved_notified": "Prijavljeni volonteri dobit će obavijest o promjeni.",
+    "no_changes": "Niste ništa promijenili.",
+    "error_title": "Upišite naziv događaja (najviše 160 znakova).",
+    "error_description": "Opis može imati najviše 4000 znakova.",
+    "error_event_date": "Odaberite ispravan datum. Događaj ne može biti u prošlosti.",
+    "error_start_time": "Upišite vrijeme početka u obliku SS:MM.",
+    "error_end_time": "Kraj mora biti nakon početka.",
+    "error_location": "Lokacija može imati najviše 300 znakova.",
+    "error_volunteers_needed": "Broj volontera mora biti između 1 i 10 000.",
+    "error_requirements": "Ovaj tekst može imati najviše 2000 znakova.",
+    "error_contact_person": "Ime osobe za kontakt može imati najviše 120 znakova.",
+    "error_contact_phone": "Upišite ispravan broj telefona: najmanje 6 znamenki, uz razmake i znakove + ( ) / - .",
+    "error_below_signups": "Broj mjesta ne može biti manji od broja već prijavljenih volontera ({count}).",
+    "error_ended": "Događaj je završio i više se ne može uređivati.",
+    "error_forbidden": "Ovaj događaj ne pripada vašoj udruzi.",
+    "error_not_found": "Događaj više ne postoji. Osvježite stranicu.",
+    "error_save_failed": "Promjene nisu spremljene. Pokušajte ponovno."
+  },
+  "institution_volunteers": {
+    "edit": "Uredi događaj",
+    "person_pledges": "obećanja vašoj udruzi",
+    "person_signups": "prijava na vaše događaje"
   },
   "footer": {
     "tagline": "Povezujemo donatore s onima kojima je pomoć potrebna",
@@ -724,7 +770,12 @@
     "cancel_confirm": "Da, otkaži prijavu",
     "cancel_success": "Prijava je otkazana",
     "cancel_error": "Prijava nije otkazana",
-    "cancel_error_locked": "Ovu prijavu više nije moguće otkazati."
+    "cancel_error_locked": "Ovu prijavu više nije moguće otkazati jer je događaj završio ili je prijava već otkazana.",
+    "age_confirmation": "Imam najmanje 18 godina ili, ako imam 15 do 17 godina, imam pisanu suglasnost roditelja ili skrbnika.",
+    "age_required": "Za prijavu potvrdite svoju dob ili pisanu suglasnost roditelja ili skrbnika.",
+    "organiser_note": "Organizator volontiranja je udruga; ona s vama dogovara sve pojedinosti.",
+    "disclosure": "Udruga će vidjeti vaše ime i e-adresu.",
+    "privacy_link": "Pravila privatnosti"
   },
   "claims": {
     "loading": "Učitavanje zahtjeva…",

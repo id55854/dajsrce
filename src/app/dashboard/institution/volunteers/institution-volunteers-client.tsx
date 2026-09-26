@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, CalendarHeart, MapPin, Phone } from "lucide-react";
-import { NewVolunteerEventForm } from "@/components/NewVolunteerEventForm";
+import { ArrowLeft, CalendarDays, CalendarHeart, MapPin, Pencil, Phone } from "lucide-react";
+import { NewVolunteerEventForm, type StoredVolunteerEvent } from "@/components/NewVolunteerEventForm";
 import { Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
@@ -30,6 +30,7 @@ import {
   buttonClasses,
 } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
+import { hasVolunteerEventEnded } from "@/lib/volunteer-events";
 import { DeleteActionButton } from "@/components/YourPledgesSection";
 
 type SignupRow = {
@@ -66,12 +67,9 @@ type InstitutionVolunteersClientProps = {
 /**
  * Who signed up, per event.
  *
- * Signing up is one click and it is final: there is nothing for the
- * organisation to approve, and no attendance ladder to walk the volunteer
- * through. This page used to run check-in and check-out, minting a QR code
- * per event and recording hours; the hours had no reader anywhere in the
- * product, and to the volunteer the flow read as being judged. It is a list
- * of names now.
+ * A signup is final the moment it is made: there is nothing for the
+ * organisation to approve or confirm, so this is a list of names per event,
+ * next to the event's own details and its edit and delete controls.
  */
 export function InstitutionVolunteersClient({
   embedded = false,
@@ -203,6 +201,7 @@ export function InstitutionVolunteersClient({
                           setOpenPerson({
                             name: s.volunteer.name,
                             email: s.volunteer.email,
+                            // With this organisation only; see institutionPersonActivity.
                             pledges: activity[s.user_id]?.pledges ?? 0,
                             signups: activity[s.user_id]?.signups ?? 1,
                             since: t("institution.person_signed_up", { when: timeAgo(s.created_at, locale) }),
@@ -223,8 +222,8 @@ export function InstitutionVolunteersClient({
         labels={{
           close: t("common.close"),
           email: t("dashboard_individual.email_label"),
-          pledges: t("institution.person_pledges"),
-          signups: t("institution.person_signups"),
+          pledges: t("institution_volunteers.person_pledges"),
+          signups: t("institution_volunteers.person_signups"),
         }}
       />
       <EventDetailsDialog
@@ -235,6 +234,14 @@ export function InstitutionVolunteersClient({
           setOpenEventId(null);
           setEvents((current) => current.filter((event) => event.id !== id));
           setSignups((current) => current.filter((signup) => signup.event_id !== id));
+        }}
+        onSaved={(saved) => {
+          setEvents((current) => current.map((event) => (event.id === saved.id ? { ...event, ...saved } : event)));
+          setSignups((current) =>
+            current.map((signup) =>
+              signup.event_id === saved.id && signup.event ? { ...signup, event: { ...signup.event, ...saved } } : signup
+            )
+          );
         }}
       />
     </>
@@ -264,41 +271,86 @@ function timeRange(start?: string | null, end?: string | null): string {
   return [clip(start), clip(end)].filter(Boolean).join("–");
 }
 
-function EventDetailsDialog({ event, signed, onClose, onDeleted }: {
+function EventDetailsDialog({ event, signed, onClose, onDeleted, onSaved }: {
   event: NonNullable<SignupRow["event"]> | null;
   signed: number;
   onClose: () => void;
   onDeleted: (eventId: string) => void;
+  onSaved: (event: StoredVolunteerEvent) => void;
 }) {
   const t = useT();
   const { locale } = useLocale();
+  /** The event being edited; opening another event starts read-only. */
+  const [editingId, setEditingId] = useState<string | null>(null);
   if (!event) return null;
   const date = format(parseISO(event.event_date), "EEEE, d. MMMM yyyy.", { locale: locale === "hr" ? hr : enUS });
   const needed = event.volunteers_needed ?? null;
+  // A finished event is history: the transaction refuses to move it.
+  const ended = hasVolunteerEventEnded(event);
+
+  function leaveEdit() {
+    setEditingId(null);
+    // Back on the details view, focus returns to the control that left it.
+    requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-event-edit]")?.focus());
+  }
+
+  // Same dialog, other content: editing stays inside the focus trap the
+  // details opened, and saving lands back on the updated details.
+  if (editingId === event.id) {
+    return (
+      <Dialog
+        open
+        onClose={leaveEdit}
+        title={t("volunteer_form.edit_title")}
+        description={event.title}
+        closeLabel={t("common.close")}
+        variant="sheet-on-mobile"
+      >
+        <NewVolunteerEventForm event={event} signedUp={signed} onClose={leaveEdit} onSaved={onSaved} />
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog
       open
-      onClose={onClose}
+      onClose={() => {
+        setEditingId(null);
+        onClose();
+      }}
       title={event.title}
       description={needed ? t("institution.volunteers_fill", { signed, needed }) : t("institution.volunteers_count", { count: signed })}
       closeLabel={t("common.close")}
       variant="sheet-on-mobile"
       footer={
-        <DeleteActionButton
-          endpoint={`/api/volunteer-events/${event.id}`}
-          label={t("institution.event_delete")}
-          title={t("institution.event_delete_title")}
-          description={
-            signed
-              ? t("institution.event_delete_body_signups", { count: signed })
-              : t("institution.event_delete_body")
-          }
-          confirmLabel={t("institution.event_delete_confirm")}
-          successTitle={t("institution.event_delete_success")}
-          errorTitle={t("institution.event_delete_error")}
-          conflictDescription={t("common.error_generic")}
-          onDeleted={() => onDeleted(event.id)}
-        />
+        <>
+          {ended ? null : (
+            <Button
+              variant="secondary"
+              fullWidth
+              data-event-edit
+              icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+              onClick={() => setEditingId(event.id)}
+            >
+              {t("institution_volunteers.edit")}
+            </Button>
+          )}
+          <DeleteActionButton
+            endpoint={`/api/volunteer-events/${event.id}`}
+            label={t("institution.event_delete")}
+            title={t("institution.event_delete_title")}
+            description={
+              signed
+                ? t("institution.event_delete_body_signups", { count: signed })
+                : t("institution.event_delete_body")
+            }
+            confirmLabel={t("institution.event_delete_confirm")}
+            successTitle={t("institution.event_delete_success")}
+            errorTitle={t("institution.event_delete_error")}
+            conflictDescription={t("common.error_generic")}
+            onDeleted={() => onDeleted(event.id)}
+          />
+        </>
       }
     >
       <div className="space-y-5">

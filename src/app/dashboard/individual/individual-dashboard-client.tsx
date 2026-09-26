@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
-import { Building2, CalendarDays, CalendarHeart, Heart, Mail, MapPin, Phone } from "lucide-react";
+import { Building2, CalendarDays, CalendarHeart, Heart, Mail, MapPin, Phone, Users } from "lucide-react";
 import type { AuthProfile } from "@/lib/auth/profile";
 import type { Pledge, Shipment } from "@/lib/types";
 import { DONATION_TYPES } from "@/lib/constants";
@@ -17,6 +17,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { ProfileChip, ProfileHeader } from "@/components/ProfileHeader";
 import {
   RosterDateTile,
+  RosterEmpty,
   RosterFact,
   RosterGroup,
   RosterIcon,
@@ -30,8 +31,10 @@ import { PledgeDetailsDialog } from "@/components/PledgeDetailsDialog";
 import type { DonationType } from "@/lib/types";
 import { timeAgo } from "@/lib/utils";
 import type { AppRole } from "@/lib/auth/roles";
+import { splitByEventTime, volunteerEventPlace } from "@/lib/volunteer-events";
 import {
   Button,
+  Card,
   Dialog,
   EmptyState,
   PageShell,
@@ -187,6 +190,61 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
   // count. Nothing else about a pledge is a state the donor has to track.
   const current = pledges.filter((item) => item.status !== "cancelled");
   const recent = current;
+  // An event that is over can no longer be withdrawn from, so it moves to
+  // its own list without the withdraw control.
+  const { upcoming: upcomingSignups, past: pastSignups } = splitByEventTime(signups);
+  const pastSignupIds = new Set(pastSignups.map((signup) => signup.id));
+
+  function signupRow(signup: SignupRow, past: boolean) {
+    const event = signup.event;
+    const organisation = embeddedInstitution(event?.institution);
+    return (
+      <RosterItem
+        id={`signup-${signup.id}`}
+        key={signup.id}
+        onOpen={() => setOpenSignupId(signup.id)}
+        leading={
+          event ? (
+            <RosterDateTile
+              tone={past ? "brand" : "info"}
+              day={format(parseISO(event.event_date), "d")}
+              month={format(parseISO(event.event_date), "LLL", { locale: dateLocale }).replace(".", "")}
+            />
+          ) : (
+            <RosterIcon tone="info"><CalendarHeart className="h-4 w-4" /></RosterIcon>
+          )
+        }
+        title={event?.title ?? "—"}
+        subtitle={[organisation?.name, event?.location || organisation?.city].filter(Boolean).join(" · ")}
+        detail={
+          event ? (
+            <>
+              <time dateTime={event.event_date}>
+                {format(parseISO(event.event_date), "EEE, d. MMM yyyy.", { locale: dateLocale })}
+              </time>
+              {event.start_time ? ` · ${event.start_time.slice(0, 5)}` : ""}
+              {event.end_time ? `–${event.end_time.slice(0, 5)}` : ""}
+            </>
+          ) : null
+        }
+        action={
+          past ? null : (
+            <CancelActionButton
+              endpoint={`/api/volunteer-signups/${signup.id}`}
+              label={t("volunteer_signup.cancel")}
+              title={t("volunteer_signup.cancel_title")}
+              description={t("volunteer_signup.cancel_body", { title: event?.title ?? "" })}
+              confirmLabel={t("volunteer_signup.cancel_confirm")}
+              successTitle={t("volunteer_signup.cancel_success")}
+              errorTitle={t("volunteer_signup.cancel_error")}
+              conflictDescription={t("volunteer_signup.cancel_error_locked")}
+              onCancelled={() => setSignups((prev) => prev.filter((row) => row.id !== signup.id))}
+            />
+          )
+        }
+      />
+    );
+  }
 
   return (
     <PageShell width="wide">
@@ -362,64 +420,54 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
               }
             />
           ) : (
-            <RosterGroup
-              icon={<CalendarHeart className="h-4 w-4" />}
-              tone="info"
-              title={t("dashboard_individual.volunteer_signups")}
-              count={t("institution.volunteers_count", { count: signups.length })}
-            >
-              <RosterList>
-                {signups.map((signup) => {
-                  const event = signup.event;
-                  const organisation = embeddedInstitution(event?.institution);
-                  return (
-                    <RosterItem
-                      id={`signup-${signup.id}`}
-                      key={signup.id}
-                      onOpen={() => setOpenSignupId(signup.id)}
-                      leading={
-                        event ? (
-                          <RosterDateTile
-                            day={format(parseISO(event.event_date), "d")}
-                            month={format(parseISO(event.event_date), "LLL", { locale: dateLocale }).replace(".", "")}
-                          />
-                        ) : (
-                          <RosterIcon tone="info"><CalendarHeart className="h-4 w-4" /></RosterIcon>
-                        )
-                      }
-                      title={event?.title ?? "—"}
-                      subtitle={[organisation?.name, event?.location || organisation?.city].filter(Boolean).join(" · ")}
-                      detail={
-                        event ? (
-                          <>
-                            <time dateTime={event.event_date}>
-                              {format(parseISO(event.event_date), "EEE, d. MMM yyyy.", { locale: dateLocale })}
-                            </time>
-                            {event.start_time ? ` · ${event.start_time.slice(0, 5)}` : ""}
-                            {event.end_time ? `–${event.end_time.slice(0, 5)}` : ""}
-                          </>
-                        ) : null
-                      }
-                      action={
-                        <CancelActionButton
-                          endpoint={`/api/volunteer-signups/${signup.id}`}
-                          label={t("volunteer_signup.cancel")}
-                          title={t("volunteer_signup.cancel_title")}
-                          description={t("volunteer_signup.cancel_body", { title: event?.title ?? "" })}
-                          confirmLabel={t("volunteer_signup.cancel_confirm")}
-                          successTitle={t("volunteer_signup.cancel_success")}
-                          errorTitle={t("volunteer_signup.cancel_error")}
-                          conflictDescription={t("volunteer_signup.cancel_error_locked")}
-                          onCancelled={() => setSignups((prev) => prev.filter((row) => row.id !== signup.id))}
-                        />
-                      }
-                    />
-                  );
-                })}
-              </RosterList>
-            </RosterGroup>
+            <div className="space-y-4">
+              <RosterGroup
+                icon={<CalendarHeart className="h-4 w-4" />}
+                tone="info"
+                title={t("dashboard_individual.signups_upcoming")}
+                count={upcomingSignups.length}
+              >
+                {upcomingSignups.length === 0 ? (
+                  <RosterEmpty>
+                    {t("dashboard_individual.no_upcoming_signups")}{" "}
+                    <Link href="/volunteer" className="font-semibold text-brand underline-offset-2 hover:underline">
+                      {t("dashboard_individual.find_volunteer_events")}
+                    </Link>
+                  </RosterEmpty>
+                ) : (
+                  <RosterList>{upcomingSignups.map((signup) => signupRow(signup, false))}</RosterList>
+                )}
+              </RosterGroup>
+              {pastSignups.length > 0 ? (
+                <RosterGroup
+                  icon={<CalendarDays className="h-4 w-4" />}
+                  tone="brand"
+                  title={t("dashboard_individual.signups_past")}
+                  count={pastSignups.length}
+                >
+                  <RosterList>{pastSignups.map((signup) => signupRow(signup, true))}</RosterList>
+                </RosterGroup>
+              ) : null}
+            </div>
           )}
         </section>
+
+        {/* Someone who works for an association often signs up as a person
+            first; this is the way from here to the association's profile. */}
+        {profile.role === "individual" ? (
+          <Card padding="lg" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <RosterIcon tone="brand"><Users className="h-4 w-4" /></RosterIcon>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold text-ink">{t("dashboard_individual.ngo_link_title")}</h2>
+                <p className="mt-1 text-sm text-ink-secondary">{t("dashboard_individual.ngo_link_body")}</p>
+              </div>
+            </div>
+            <Link href="/auth/setup" className={buttonClasses({ variant: "secondary", className: "shrink-0" })}>
+              {t("dashboard_individual.ngo_link_cta")}
+            </Link>
+          </Card>
+        ) : null}
 
         <PledgeDetailsDialog
           pledge={current.find((row) => row.id === openPledgeId) ?? null}
@@ -448,6 +496,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
         />
         <SignupDetailsDialog
           signup={signups.find((row) => row.id === openSignupId) ?? null}
+          past={openSignupId ? pastSignupIds.has(openSignupId) : false}
           onClose={() => setOpenSignupId(null)}
           onCancelled={(id) => {
             setOpenSignupId(null);
@@ -463,9 +512,11 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
   );
 }
 
-function SignupDetailsDialog({ signup, onClose, onCancelled }: {
+function SignupDetailsDialog({ signup, past, onClose, onCancelled }: {
   signup: SignupRow | null;
   onClose: () => void;
+  /** The event is over: nothing left to withdraw from. */
+  past: boolean;
   onCancelled: (signupId: string) => void;
 }) {
   const t = useT();
@@ -473,7 +524,7 @@ function SignupDetailsDialog({ signup, onClose, onCancelled }: {
   const event = signup?.event;
   if (!signup || !event) return null;
   const institution = embeddedInstitution(event.institution);
-  const place = event.location || [institution?.address, institution?.city].filter(Boolean).join(", ");
+  const place = volunteerEventPlace(event.location, institution?.address, institution?.city);
   const date = format(parseISO(event.event_date), "EEEE, d. MMMM yyyy.", { locale: locale === "hr" ? hr : enUS });
   const time = [event.start_time?.slice(0, 5), event.end_time?.slice(0, 5)].filter(Boolean).join("–");
   const needed = event.volunteers_needed ?? null;
@@ -483,21 +534,23 @@ function SignupDetailsDialog({ signup, onClose, onCancelled }: {
       open
       onClose={onClose}
       title={event.title}
-      description={t("volunteer_card.registered")}
+      description={t(past ? "volunteer_card.ended" : "volunteer_card.registered")}
       closeLabel={t("common.close")}
       variant="sheet-on-mobile"
       footer={
-        <CancelActionButton
-          endpoint={`/api/volunteer-signups/${signup.id}`}
-          label={t("volunteer_signup.cancel")}
-          title={t("volunteer_signup.cancel_title")}
-          description={t("volunteer_signup.cancel_body", { title: event.title })}
-          confirmLabel={t("volunteer_signup.cancel_confirm")}
-          successTitle={t("volunteer_signup.cancel_success")}
-          errorTitle={t("volunteer_signup.cancel_error")}
-          conflictDescription={t("volunteer_signup.cancel_error_locked")}
-          onCancelled={() => onCancelled(signup.id)}
-        />
+        past ? null : (
+          <CancelActionButton
+            endpoint={`/api/volunteer-signups/${signup.id}`}
+            label={t("volunteer_signup.cancel")}
+            title={t("volunteer_signup.cancel_title")}
+            description={t("volunteer_signup.cancel_body", { title: event.title })}
+            confirmLabel={t("volunteer_signup.cancel_confirm")}
+            successTitle={t("volunteer_signup.cancel_success")}
+            errorTitle={t("volunteer_signup.cancel_error")}
+            conflictDescription={t("volunteer_signup.cancel_error_locked")}
+            onCancelled={() => onCancelled(signup.id)}
+          />
+        )
       }
     >
       <div className="space-y-5">

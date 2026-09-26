@@ -408,7 +408,13 @@
     "volunteer_signups": "Volunteer signups",
     "no_volunteer_signups": "You are not signed up for any volunteer event yet.",
     "find_volunteer_events": "Find volunteer events",
-    "stat_volunteer_signups": "Volunteer signups"
+    "signups_upcoming": "Upcoming volunteer events",
+    "signups_past": "Past volunteer events",
+    "no_upcoming_signups": "You have no upcoming volunteering.",
+    "stat_volunteer_signups": "Volunteer signups",
+    "ngo_link_title": "Do you represent an association?",
+    "ngo_link_body": "Link your account to your association in the Register of Associations. Once reviewed, you can publish needs and volunteer events.",
+    "ngo_link_cta": "Link your account to an association"
   },
   "filters": {
     "city_label": "City or town",
@@ -501,16 +507,19 @@
     "empty": "No upcoming volunteer events. Check back soon!",
     "empty_hint": "In the meantime you can help by donating, or find institutions on the map.",
     "empty_browse_needs": "Browse needs",
-    "empty_open_map": "Open the map"
+    "empty_open_map": "Open the map",
+    "truncated": "Showing the first {count} upcoming events.",
+    "event_unavailable": "The event you opened is no longer open for signups."
   },
   "volunteer_card": {
     "volunteers": "Volunteers",
     "progress": "{signed} of {needed} volunteer places filled",
     "sign_in": "Sign in",
     "sign_in_continue": "Sign in to continue",
-    "registered": "You're registered",
-    "sign_up": "Sign up",
-    "signing_up": "Signing up",
+    "registered": "You're signed up as a volunteer",
+    "sign_up": "Join",
+    "join_as_volunteer": "Sign up as a volunteer",
+    "signing_up": "Signing you up…",
     "failed": "Sign-up failed. Please try again.",
     "auth_action": "Volunteer",
     "full": "Full",
@@ -523,6 +532,9 @@
     "about": "About the event",
     "requirements": "What to know",
     "view_organisation": "View the organisation",
+    "report": "Report content",
+    "report_subject": "Prijava sadržaja / Content report",
+    "report_body": "Page: {url}\nEvent ID: {id}\n\nDescribe what you are reporting and why:\n",
     "organiser": "Organiser"
   },
   "volunteer_calendar": {
@@ -540,6 +552,40 @@
     "events_one": "1 event on {date}",
     "events_many": "{count} events on {date}",
     "registered_suffix": ", you are registered"
+  },
+  "volunteer_form": {
+    "edit_title": "Edit event",
+    "field_requirements": "What volunteers should know or bring",
+    "field_requirements_placeholder": "e.g. comfortable shoes, work gloves, arrive 10 minutes early",
+    "field_contact_person": "Contact person",
+    "field_contact_phone": "Contact phone",
+    "contact_hint": "Optional. The name and phone number are visible to everyone who opens the event.",
+    "volunteers_signed_hint": "Signed-up volunteers: {count}. The number of places cannot be lower.",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Changes saved",
+    "saved_notified": "Signed-up volunteers will be notified of the change.",
+    "no_changes": "You haven't changed anything.",
+    "error_title": "Enter the event name (up to 160 characters).",
+    "error_description": "The description can be up to 4,000 characters.",
+    "error_event_date": "Choose a valid date. The event cannot be in the past.",
+    "error_start_time": "Enter the start time as HH:MM.",
+    "error_end_time": "The end must be after the start.",
+    "error_location": "The location can be up to 300 characters.",
+    "error_volunteers_needed": "The number of volunteers must be between 1 and 10,000.",
+    "error_requirements": "This text can be up to 2,000 characters.",
+    "error_contact_person": "The contact person's name can be up to 120 characters.",
+    "error_contact_phone": "Enter a valid phone number: at least 6 digits, with spaces and + ( ) / - . allowed.",
+    "error_below_signups": "The number of places cannot be lower than the number of volunteers already signed up ({count}).",
+    "error_ended": "The event has ended and can no longer be edited.",
+    "error_forbidden": "This event does not belong to your association.",
+    "error_not_found": "The event no longer exists. Refresh the page.",
+    "error_save_failed": "Changes were not saved. Please try again."
+  },
+  "institution_volunteers": {
+    "edit": "Edit event",
+    "person_pledges": "pledges to your association",
+    "person_signups": "signups for your events"
   },
   "footer": {
     "tagline": "Connecting donors with those in need",
@@ -724,7 +770,12 @@
     "cancel_confirm": "Yes, cancel signup",
     "cancel_success": "Signup cancelled",
     "cancel_error": "Signup was not cancelled",
-    "cancel_error_locked": "This signup can no longer be cancelled."
+    "cancel_error_locked": "This signup can no longer be cancelled because the event has ended or the signup was already cancelled.",
+    "age_confirmation": "I am at least 18 years old or, if I am 15 to 17, I have written consent from a parent or guardian.",
+    "age_required": "To sign up, confirm your age or written consent from a parent or guardian.",
+    "organiser_note": "The association organises the volunteering and arranges all the details with you.",
+    "disclosure": "The association will see your name and email address.",
+    "privacy_link": "Privacy policy"
   },
   "claims": {
     "loading": "Loading your request…",

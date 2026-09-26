@@ -15,6 +15,19 @@ import { parseVolunteerEventInput } from "@/lib/validation";
 import { projectHiddenLocation } from "@/lib/location-map";
 import { publicListResponse } from "@/lib/public-list-response";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import {
+  hasVolunteerEventEnded,
+  nearbyEventNotice,
+  zagrebTime,
+  zagrebToday,
+} from "@/lib/volunteer-events";
+
+/**
+ * The public list is one page: the soonest upcoming events, at most this
+ * many, with `truncated` saying when there are more so the page can say so
+ * instead of silently dropping the later ones.
+ */
+const LIST_LIMIT = 100;
 
 function publicFixtureEvent(event: ReturnType<typeof getLocalVolunteerEvents>[number]) {
   const institution = event.institution;
@@ -43,13 +56,23 @@ function publicFixtureEvent(event: ReturnType<typeof getLocalVolunteerEvents>[nu
 export async function GET(req: NextRequest) {
   const startedAt = performance.now();
   const requestId = getRequestId(req.headers);
+  const searchParams = new URL(req.url).searchParams;
   // One organisation's upcoming events, for the map's detail panel. Same
   // shape and same public projection as the full list; the filter only
   // narrows what a visitor could already read.
-  const institutionId = new URL(req.url).searchParams.get("institution_id");
+  const institutionId = searchParams.get("institution_id");
   if (institutionId && !isUuid(institutionId)) {
     return NextResponse.json(
       { error: "institution_id is invalid", request_id: requestId },
+      { status: 400, headers: { "x-request-id": requestId } }
+    );
+  }
+  // One event, for a visitor back from sign-in to the event they tried to
+  // join, when it is not among the listed ones.
+  const eventId = searchParams.get("event_id");
+  if (eventId && !isUuid(eventId)) {
+    return NextResponse.json(
+      { error: "event_id is invalid", request_id: requestId },
       { status: 400, headers: { "x-request-id": requestId } }
     );
   }
@@ -59,11 +82,15 @@ export async function GET(req: NextRequest) {
   // Explicit local demo mode must never wait for a failed database request.
   if (areLocalFixturesEnabled()) {
     const fixtures = getLocalVolunteerEvents().filter(
-      (event) => !institutionId || event.institution_id === institutionId
+      (event) =>
+        (!institutionId || event.institution_id === institutionId) &&
+        (!eventId || event.id === eventId) &&
+        !hasVolunteerEventEnded(event)
     );
     return NextResponse.json(
       {
-        events: fixtures.map(publicFixtureEvent),
+        events: fixtures.slice(0, LIST_LIMIT).map(publicFixtureEvent),
+        truncated: fixtures.length > LIST_LIMIT,
         fixture: true,
         request_id: requestId,
       },
@@ -75,15 +102,23 @@ export async function GET(req: NextRequest) {
     // Public list, identical for every visitor: read it through the
     // stateless anon client so the CDN can cache it (see /api/needs).
     const supabase = createPublicSupabaseClient();
+    const now = new Date();
+    const today = zagrebToday(now);
 
     let query = supabase
       .from("volunteer_events")
       .select("id,institution_id,title,description,event_date,start_time,end_time,volunteers_needed,volunteers_signed_up,requirements,location,contact_person,contact_phone,created_at,institution:institutions(id, name, category, address:public_address, city)")
-      .gte("event_date", new Date().toISOString().split("T")[0])
+      // Upcoming in Croatian time: a later day, or today and not over yet.
+      // An event that ended at noon is neither listed nor joinable after it.
+      .gte("event_date", today)
+      .or(`event_date.gt.${today},end_time.gt."${zagrebTime(now)}"`)
       .order("event_date", { ascending: true })
-      .limit(30);
+      .order("start_time", { ascending: true })
+      // One row more than a page says whether the page is complete.
+      .limit(LIST_LIMIT + 1);
 
     if (institutionId) query = query.eq("institution_id", institutionId);
+    if (eventId) query = query.eq("id", eventId);
 
     const queryStartedAt = performance.now();
     const { data, error } = await query;
@@ -91,9 +126,12 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
     if (data) {
-      return publicListResponse(req, { events: data }, requestId, {
-        queryMs, totalMs: performance.now() - startedAt,
-      });
+      return publicListResponse(
+        req,
+        { events: data.slice(0, LIST_LIMIT), truncated: data.length > LIST_LIMIT },
+        requestId,
+        { queryMs, totalMs: performance.now() - startedAt }
+      );
     }
   } catch (error) {
     logError("volunteer_events.list_failed", error, { request_id: requestId });
@@ -151,8 +189,17 @@ export async function POST(req: NextRequest) {
       return jsonError("Invalid JSON", 400, requestId, NO_STORE);
     }
     const parsed = parseVolunteerEventInput(rawBody);
-    if (!parsed.ok) return jsonError(parsed.error, 400, requestId, NO_STORE);
-    const { title, description, event_date, start_time, end_time, volunteers_needed, requirements, location } = parsed.value;
+    if (!parsed.ok) {
+      // `field` lets the form say in Croatian what to fix.
+      return NextResponse.json(
+        { error: parsed.error, field: parsed.field, request_id: requestId },
+        { status: 400, headers: withRequestId(NO_STORE, requestId) }
+      );
+    }
+    const {
+      title, description, event_date, start_time, end_time, volunteers_needed,
+      requirements, location, contact_person, contact_phone,
+    } = parsed.value;
 
     const { data, error } = await supabase
       .from("volunteer_events")
@@ -166,6 +213,8 @@ export async function POST(req: NextRequest) {
         volunteers_needed,
         requirements,
         location,
+        contact_person,
+        contact_phone,
       })
       .select(
         "id,institution_id,title,description,event_date,start_time,end_time,volunteers_needed,volunteers_signed_up,requirements,location,contact_person,contact_phone,created_at,institution:institutions(id, name, category, address:public_address, city, lat:public_lat, lng:public_lng)"
@@ -177,18 +226,28 @@ export async function POST(req: NextRequest) {
     if (data?.institution) {
       const inst = data.institution as { lat?: number; lng?: number; name?: string; address?: string; city?: string };
       if (inst.lat && inst.lng) {
-        const { supabaseAdmin } = await import("@/lib/supabase/admin");
-        const { notifyNearbyUsers } = await import("@/lib/notify-nearby");
-        await notifyNearbyUsers(
-          supabaseAdmin,
-          inst.lat,
-          inst.lng,
-          `Volunteer event: ${title}`,
-          `${inst.name ?? "An NGO"} near you needs volunteers for "${title}" on ${event_date}`,
-          `/volunteer`,
-          user.id,
-          `volunteer-event:${data.id}`
-        );
+        // The event is already published: a queue hiccup must not turn that
+        // into a "failed" answer the organisation would retry as a duplicate.
+        try {
+          const { supabaseAdmin } = await import("@/lib/supabase/admin");
+          const { notifyNearbyUsers } = await import("@/lib/notify-nearby");
+          const notice = nearbyEventNotice(inst.name, title, event_date);
+          await notifyNearbyUsers(
+            supabaseAdmin,
+            inst.lat,
+            inst.lng,
+            notice.title,
+            notice.body,
+            `/volunteer`,
+            user.id,
+            `volunteer-event:${data.id}`
+          );
+        } catch (notifyError) {
+          logError("volunteer_events.nearby_enqueue_failed", notifyError, {
+            request_id: requestId,
+            event_id: data.id,
+          });
+        }
       }
     }
 
