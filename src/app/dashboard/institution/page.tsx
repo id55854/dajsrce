@@ -184,7 +184,7 @@ function InstitutionDashboardExperience() {
           </nav>
 
           {view === "pledges" ? (
-            <InstitutionPledgesClient embedded refreshKey={refreshKey} />
+            <InstitutionPledgesClient embedded refreshKey={refreshKey} onChanged={refreshActivity} />
           ) : (
             <InstitutionVolunteersClient embedded refreshKey={refreshKey} />
           )}

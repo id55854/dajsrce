@@ -10,7 +10,7 @@ vi.mock("@/lib/observability", () => ({
   getRequestId: () => "request-id",
   logError: vi.fn(),
 }));
-import { DELETE } from "./route";
+import { DELETE, PATCH } from "./route";
 
 const NEED_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -18,6 +18,63 @@ function call(id: string) {
   const req = new NextRequest(`http://localhost/api/needs/${id}`, { method: "DELETE" });
   return DELETE(req, { params: Promise.resolve({ id }) });
 }
+
+function edit(id: string, body: unknown) {
+  const req = new NextRequest(`http://localhost/api/needs/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+  });
+  return PATCH(req, { params: Promise.resolve({ id }) });
+}
+
+describe("PATCH /api/needs/[id]", () => {
+  beforeEach(() => {
+    getUser.mockReset();
+    rpc.mockReset();
+    getUser.mockResolvedValue({ data: { user: { id: "actor" } } });
+  });
+
+  it("checks the id, the session and the patch before the transaction", async () => {
+    expect((await edit("not-a-uuid", { title: "x" })).status).toBe(400);
+    expect((await edit(NEED_ID, { donation_type: "money" })).status).toBe(400);
+    const invalid = await edit(NEED_ID, { quantity_needed: 0 });
+    expect(invalid.status).toBe(400);
+    expect((await invalid.json()).field).toBe("quantity_needed");
+    getUser.mockResolvedValue({ data: { user: null } });
+    expect((await edit(NEED_ID, { title: "x" })).status).toBe(401);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("lets the transaction decide ownership, with the actor from the session", async () => {
+    const need = { id: NEED_ID, title: "Jakne", is_fulfilled: true };
+    rpc.mockResolvedValue({ data: need, error: null });
+    const res = await edit(NEED_ID, { title: " Jakne ", is_fulfilled: true });
+    expect(rpc).toHaveBeenCalledWith("update_need_transaction", {
+      p_actor_id: "actor",
+      p_need_id: NEED_ID,
+      p_patch: { title: "Jakne", is_fulfilled: true },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ need });
+    expect(res.headers.get("cache-control")).toContain("no-store");
+  });
+
+  it.each([
+    ["42501", 403, undefined],
+    ["P0002", 404, undefined],
+    ["22023", 400, undefined],
+    ["23514", 409, "quantity_below_pledged"],
+    ["XX000", 500, undefined],
+  ])("maps RPC error %s to %i", async (code, status, stableCode) => {
+    rpc.mockResolvedValue({ data: null, error: { code, message: "quantity_needed below pledged" } });
+    const res = await edit(NEED_ID, { quantity_needed: 2 });
+    expect(res.status).toBe(status);
+    const body = await res.json();
+    expect(body.error).toBe("Need could not be updated");
+    expect(body.code).toBe(stableCode);
+  });
+});
 
 describe("DELETE /api/needs/[id]", () => {
   beforeEach(() => {
