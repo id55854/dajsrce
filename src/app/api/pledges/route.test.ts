@@ -97,6 +97,14 @@ describe("POST /api/pledges", () => {
     expect((await res.json()).institution).toBeNull();
   });
 
+  it("refuses absurd quantities and values before the transaction", async () => {
+    expect((await pledge({ need_id: NEED, quantity: 10_001 })).status).toBe(400);
+    expect((await pledge({ need_id: NEED, quantity: 2, amount_eur: 100_001 })).status).toBe(400);
+    expect((await pledge({ need_id: NEED, quantity: 2, message: "x".repeat(2001) })).status).toBe(400);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect((await pledge({ need_id: NEED, quantity: 10_000, amount_eur: 100_000 })).status).toBe(201);
+  });
+
   it("refuses an NGO account and a signed-out visitor before the transaction", async () => {
     profiles.maybeSingle.mockResolvedValue({ data: { id: DONOR, role: "ngo" }, error: null });
     expect((await pledge({ need_id: NEED })).status).toBe(403);

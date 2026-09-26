@@ -4,6 +4,11 @@ import { getVerifiedClaims } from "@/lib/auth/claims";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 import { capacityErrorCode } from "@/lib/capacity-errors";
+import {
+  PLEDGE_AMOUNT_EUR_MAX,
+  PLEDGE_MESSAGE_MAX,
+  PLEDGE_QUANTITY_MAX,
+} from "@/lib/pledge-flow";
 
 /**
  * The organisation's side of a pledge, for the donor's handover: its public
@@ -142,15 +147,17 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (!Number.isInteger(qty) || qty < 1 || qty > 1_000_000) {
+    // What is still missing on a need with a target is enforced by the
+    // transaction under a lock; this bounds needs without one.
+    if (!Number.isInteger(qty) || qty < 1 || qty > PLEDGE_QUANTITY_MAX) {
       return NextResponse.json(
-        { error: "quantity must be an integer between 1 and 1000000", request_id: requestId },
+        { error: `quantity must be an integer between 1 and ${PLEDGE_QUANTITY_MAX}`, request_id: requestId },
         { status: 400 }
       );
     }
-    if (typeof message === "string" && message.length > 2000) {
+    if (typeof message === "string" && message.length > PLEDGE_MESSAGE_MAX) {
       return NextResponse.json(
-        { error: "message must be at most 2000 characters", request_id: requestId },
+        { error: `message must be at most ${PLEDGE_MESSAGE_MAX} characters`, request_id: requestId },
         { status: 400 }
       );
     }
@@ -162,7 +169,7 @@ export async function POST(req: NextRequest) {
       );
     }
     const amt = amount_eur == null ? null : Number(amount_eur);
-    if (amt !== null && (!Number.isFinite(amt) || amt < 0 || amt > 1_000_000_000)) {
+    if (amt !== null && (!Number.isFinite(amt) || amt < 0 || amt > PLEDGE_AMOUNT_EUR_MAX)) {
       return NextResponse.json(
         { error: "amount_eur is invalid", request_id: requestId },
         { status: 400 }

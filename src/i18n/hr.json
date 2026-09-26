@@ -300,9 +300,12 @@
   "pledge": {
     "cta": "Mogu pomoći",
     "dialog_title": "Obećajte pomoć",
-    "personal": "osobno",
     "quantity": "Količina",
-    "message_optional": "Poruka (nije obavezno)",
+    "quantity_max_hint": "Najviše {max} po obećanju.",
+    "message_optional": "Poruka udruzi (nije obavezno)",
+    "message_hint": "Udruga će vidjeti vašu poruku. Ne upisujte zdravstvene ni druge osjetljive podatke.",
+    "disclosure": "Udruga će vidjeti vaše ime i e-adresu kako bi vas mogla kontaktirati.",
+    "privacy_link": "Pravila privatnosti",
     "success": "Hvala! Vaše obećanje je zabilježeno.",
     "success_quantity": "Obećana količina: {qty}",
     "done": "U redu",
@@ -317,7 +320,8 @@
     "network_error": "Mrežna pogreška. Pokušajte ponovno.",
     "auth_action": "obećanje pomoći",
     "amount_eur_label": "Procijenjena vrijednost (EUR)",
-    "amount_eur_hint": "Nije obavezno. Potrebno za godišnje potvrde o donaciji.",
+    "amount_eur_hint": "Nije obavezno. Pomaže udruzi procijeniti vrijednost donacije.",
+    "amount_eur_too_high": "Procijenjena vrijednost može biti najviše {max} EUR.",
     "full": "Prikupljeno",
     "full_now": "Ova potreba je upravo u potpunosti pokrivena.",
     "exceeds_remaining": "Toliko više nije potrebno. Smanjite količinu.",
@@ -557,7 +561,8 @@
     "routine": "Redovno",
     "pledged": "Obećano {pledged} / {needed}",
     "progress": "Obećano je {percent}% ove potrebe",
-    "posted": "Objavljeno {time}"
+    "posted": "Objavljeno {time}",
+    "report": "Prijavi sadržaj"
   },
   "profile_calendar": {
     "institution_title": "Kalendar udruge",

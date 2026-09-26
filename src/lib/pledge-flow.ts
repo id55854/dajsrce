@@ -10,6 +10,21 @@ export const PLEDGE_INTENT_PARAM = "pledge";
 /** A link to one need on the giving page, e.g. from a notification. */
 export const NEED_FOCUS_PARAM = "need";
 
+/**
+ * Upper bounds for one pledge, shared by the form and `POST /api/pledges`.
+ * A need with a target is further capped at what is still missing, which
+ * `create_pledge_transaction` enforces under a row lock; these stop absurd
+ * figures on needs without a target and in the optional estimated value.
+ */
+export const PLEDGE_QUANTITY_MAX = 10_000;
+export const PLEDGE_AMOUNT_EUR_MAX = 100_000;
+export const PLEDGE_MESSAGE_MAX = 2000;
+
+/** The most a donor can pledge now: what is still missing, within the cap. */
+export function pledgeQuantityCap(remaining: number | null | undefined): number {
+  return remaining != null && remaining > 0 ? Math.min(remaining, PLEDGE_QUANTITY_MAX) : PLEDGE_QUANTITY_MAX;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The element id of a need's card, so a link can scroll it into view. */

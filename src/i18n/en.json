@@ -300,9 +300,12 @@
   "pledge": {
     "cta": "I can help",
     "dialog_title": "Pledge help",
-    "personal": "personal",
     "quantity": "Quantity",
-    "message_optional": "Message (optional)",
+    "quantity_max_hint": "At most {max} per pledge.",
+    "message_optional": "Message to the organisation (optional)",
+    "message_hint": "The organisation will see your message. Please don't include health or other sensitive details.",
+    "disclosure": "The organisation will see your name and email address so it can contact you.",
+    "privacy_link": "Privacy policy",
     "success": "Thank you! Your pledge has been recorded.",
     "success_quantity": "Quantity pledged: {qty}",
     "done": "Done",
@@ -317,7 +320,8 @@
     "network_error": "Network error. Please try again.",
     "auth_action": "pledge help",
     "amount_eur_label": "Estimated value (EUR)",
-    "amount_eur_hint": "Optional. Needed for annual donation receipts.",
+    "amount_eur_hint": "Optional. Helps the organisation gauge the donation's value.",
+    "amount_eur_too_high": "The estimated value can be at most EUR {max}.",
     "full": "Fully pledged",
     "full_now": "This need was just fully covered.",
     "exceeds_remaining": "That is more than is still needed. Lower the quantity.",
@@ -557,7 +561,8 @@
     "routine": "Routine",
     "pledged": "{pledged} / {needed} pledged",
     "progress": "{percent}% of this need pledged",
-    "posted": "Posted {time}"
+    "posted": "Posted {time}",
+    "report": "Report content"
   },
   "profile_calendar": {
     "institution_title": "Organisation calendar",

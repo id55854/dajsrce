@@ -1,13 +1,35 @@
 import { describe, expect, it } from "vitest";
 import { safeInternalPath } from "./security/redirects";
 import {
+  PLEDGE_QUANTITY_MAX,
   focusedNeedFrom,
   needAnchorId,
   needPermalink,
   pledgeIntentFrom,
+  pledgeQuantityCap,
   pledgeReturnPath,
   withoutPledgeIntent,
 } from "./pledge-flow";
+import { reportContentHref } from "./report-content";
+
+describe("pledgeQuantityCap", () => {
+  it("caps at what is still missing, and at a sane maximum without a target", () => {
+    expect(pledgeQuantityCap(7)).toBe(7);
+    expect(pledgeQuantityCap(50_000)).toBe(PLEDGE_QUANTITY_MAX);
+    expect(pledgeQuantityCap(null)).toBe(PLEDGE_QUANTITY_MAX);
+    expect(pledgeQuantityCap(0)).toBe(PLEDGE_QUANTITY_MAX);
+  });
+});
+
+describe("reportContentHref", () => {
+  it("prefills a report to the operator with the page and the need id", () => {
+    const href = reportContentHref({ pageUrl: "https://dajsrce.hr/doniraj?need=abc", needId: "abc" })!;
+    expect(href.startsWith("mailto:kontakt@dajsrce.hr?subject=Prijava%20sadr%C5%BEaja&body=")).toBe(true);
+    const body = decodeURIComponent(href.split("&body=")[1]);
+    expect(body).toContain("Stranica: https://dajsrce.hr/doniraj?need=abc");
+    expect(body).toContain("ID potrebe: abc");
+  });
+});
 
 const NEED = "33333333-3333-4333-8333-333333333333";
 const INSTITUTION = "22222222-2222-4222-8222-222222222222";

@@ -11,9 +11,12 @@ import {
 import { useT } from "@/i18n/client";
 import type { CapacityErrorCode } from "@/lib/capacity-errors";
 import {
+  PLEDGE_AMOUNT_EUR_MAX,
+  PLEDGE_MESSAGE_MAX,
   clearPledgeIntent,
   needAnchorId,
   pledgeIntentFrom,
+  pledgeQuantityCap,
   pledgeReturnPath,
 } from "@/lib/pledge-flow";
 import {
@@ -155,12 +158,15 @@ export function PledgeButton({
    * junk field means a single unit.
    */
   const maxQuantity = remaining != null && remaining > 0 ? remaining : null;
-  const parsedQuantity = Math.min(
-    maxQuantity ?? Number.MAX_SAFE_INTEGER,
-    Math.max(1, Math.floor(Number(quantity) || 1))
-  );
+  const quantityCap = pledgeQuantityCap(remaining);
+  const parsedQuantity = Math.min(quantityCap, Math.max(1, Math.floor(Number(quantity) || 1)));
+  // An estimate, never a bill: blank or zero sends nothing, a figure beyond
+  // the cap is refused here rather than by a generic error from the API.
+  const eurParsed = Number.parseFloat(amountEur.replace(/\s/g, "").replace(",", "."));
+  const amountTooHigh = Number.isFinite(eurParsed) && eurParsed > PLEDGE_AMOUNT_EUR_MAX;
 
   const submit = async () => {
+    if (amountTooHigh) return;
     setLoading(true);
     try {
       const payload: Record<string, unknown> = {
@@ -168,7 +174,6 @@ export function PledgeButton({
         quantity: parsedQuantity,
         message: message.trim() || undefined,
       };
-      const eurParsed = Number.parseFloat(amountEur.replace(",", "."));
       if (Number.isFinite(eurParsed) && eurParsed > 0) {
         payload.amount_eur = Math.round(eurParsed * 100) / 100;
       }
@@ -265,7 +270,7 @@ export function PledgeButton({
               <Button variant="secondary" onClick={closeModal} disabled={loading}>
                 {t("common.cancel")}
               </Button>
-              <Button onClick={submit} loading={loading} className="flex-1">
+              <Button onClick={submit} loading={loading} disabled={amountTooHigh} className="flex-1">
                 {t("common.confirm")}
               </Button>
             </>
@@ -288,7 +293,11 @@ export function PledgeButton({
           <div className="space-y-4">
             <Field
               label={t("pledge.quantity")}
-              hint={maxQuantity != null ? t("pledge.remaining_hint", { remaining: maxQuantity }) : undefined}
+              hint={
+                maxQuantity != null && maxQuantity <= quantityCap
+                  ? t("pledge.remaining_hint", { remaining: maxQuantity })
+                  : t("pledge.quantity_max_hint", { max: quantityCap.toLocaleString("hr-HR") })
+              }
             >
               {(props) => (
                 <Input
@@ -298,7 +307,7 @@ export function PledgeButton({
                   data-dialog-initial-focus
                   type="number"
                   min={1}
-                  max={maxQuantity ?? undefined}
+                  max={quantityCap}
                   step={1}
                   inputMode="numeric"
                   value={quantity}
@@ -311,30 +320,54 @@ export function PledgeButton({
               )}
             </Field>
 
-            <Field label={t("pledge.amount_eur_label")} hint={t("pledge.amount_eur_hint")}>
+            <Field
+              label={t("pledge.amount_eur_label")}
+              hint={t("pledge.amount_eur_hint")}
+              error={
+                amountTooHigh
+                  ? t("pledge.amount_eur_too_high", { max: PLEDGE_AMOUNT_EUR_MAX.toLocaleString("hr-HR") })
+                  : undefined
+              }
+            >
               {(props) => (
                 <Input
                   {...props}
                   type="text"
                   inputMode="decimal"
                   placeholder="0"
+                  invalid={amountTooHigh}
                   value={amountEur}
                   onChange={(e) => setAmountEur(e.target.value)}
                 />
               )}
             </Field>
 
-            <Field label={t("pledge.message_optional")}>
+            <Field label={t("pledge.message_optional")} hint={t("pledge.message_hint")}>
               {(props) => (
                 <Textarea
                   {...props}
                   rows={3}
+                  maxLength={PLEDGE_MESSAGE_MAX}
                   className="resize-none"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                 />
               )}
             </Field>
+
+            {/* Said before the promise is made, not after: the organisation
+                sees who pledged so it can arrange the handover. */}
+            <p className="text-sm text-ink-secondary">
+              {t("pledge.disclosure")}{" "}
+              <a
+                href="/pravila-privatnosti"
+                target="_blank"
+                rel="noopener"
+                className="font-semibold text-brand underline-offset-2 hover:underline"
+              >
+                {t("pledge.privacy_link")}
+              </a>
+            </p>
           </div>
         )}
       </Dialog>
