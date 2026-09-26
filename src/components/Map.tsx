@@ -29,6 +29,8 @@ import type { DonationType, InstitutionCategory } from "@/lib/types";
 import { basemapLayer, normalizeCartoApiKey } from "@/lib/basemap";
 import { getCategoryConfig } from "@/lib/constants";
 import { useLocale, useT } from "@/i18n/client";
+import { pluralKey } from "@/i18n/dictionaries";
+import type { Locale } from "@/lib/types";
 
 /**
  * Public by nature (it travels in every tile URL), so it is a NEXT_PUBLIC_
@@ -37,8 +39,26 @@ import { useLocale, useT } from "@/i18n/client";
  */
 const CARTO_API_KEY = normalizeCartoApiKey(process.env.NEXT_PUBLIC_CARTO_API_KEY);
 
-const DATA_ATTRIBUTION =
-  'Address points: <a href="https://geoportal.dgu.hr/services/atom/ad/xml">DGU INSPIRE Addresses</a> (2026-08-02)';
+const DGU_ADDRESSES_URL = "https://geoportal.dgu.hr/services/atom/ad/xml";
+/** The DGU address-point extract the register geocodes were matched against. */
+const DGU_ADDRESSES_DATE = new Date(Date.UTC(2026, 7, 2));
+
+/**
+ * The address-point credit in the reader's language. Leaflet renders the
+ * attribution as HTML, so the markup is built here from dictionary text.
+ */
+function dataAttribution(
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  locale: Locale
+): string {
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(
+    DGU_ADDRESSES_DATE
+  );
+  return t("map_ui.data_attribution", {
+    source: `<a href="${DGU_ADDRESSES_URL}" target="_blank" rel="noopener noreferrer">${t("map_ui.data_attribution_source")}</a>`,
+    date,
+  });
+}
 
 export interface MapFilters {
   categories: InstitutionCategory[];
@@ -118,9 +138,10 @@ function markerHtml({
   const ring = selected
     ? `0 0 0 3px var(--ink), 0 0 0 7px color-mix(in oklab, ${fill} 45%, transparent), `
     : "";
+  // A grouped count ("10.172") steps down a size so it stays inside the pin.
   const count = label
     ? `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 ${
-        size >= 48 ? 14 : 12
+        size >= 48 && label.length <= 5 ? 14 : label.length > 5 ? 11 : 12
       }px/1 var(--font-app-sans);color:#fff;">${label}</span>`
     : "";
   const flag = urgent
@@ -202,7 +223,8 @@ function clusterCaptionHtml(placeName: string, size: number): string {
 function createClusterIcon(
   count: number,
   urgent: boolean,
-  placeName: string | null
+  placeName: string | null,
+  locale: Locale
 ): L.DivIcon {
   const size = clusterIconSize(count);
   const caption = placeName ? clusterCaptionHtml(placeName, size) : "";
@@ -211,7 +233,7 @@ function createClusterIcon(
     html: `<div style="position:relative;width:${size}px;height:${size}px;">${markerHtml({
       fill: "var(--brand)",
       size,
-      label: String(Math.max(1, Math.trunc(count))),
+      label: Math.max(1, Math.trunc(count)).toLocaleString(locale),
       urgent,
     })}${caption}</div>`,
     iconSize: [size, size],
@@ -469,24 +491,32 @@ function ClusterMarker({
   showCaption: boolean;
 }) {
   const t = useT();
+  const { locale } = useLocale();
   const map = useMap();
   const icon = useMemo(
-    () => createClusterIcon(cluster.count, cluster.hasUrgentNeed, showCaption ? cluster.placeName : null),
-    [cluster.count, cluster.hasUrgentNeed, cluster.placeName, showCaption]
+    () =>
+      createClusterIcon(
+        cluster.count,
+        cluster.hasUrgentNeed,
+        showCaption ? cluster.placeName : null,
+        locale
+      ),
+    [cluster.count, cluster.hasUrgentNeed, cluster.placeName, showCaption, locale]
   );
+  const count = cluster.count.toLocaleString(locale);
   // A named group says where it is; the grid fallback can only say how many.
   const label = cluster.placeName
-    ? t("map_ui.cluster_place_alt", {
+    ? t(pluralKey("map_ui.cluster_place_alt", locale, cluster.count), {
         place: cluster.placeName,
-        count: cluster.count,
+        count,
       })
-    : t("map_ui.cluster_alt", { count: cluster.count });
+    : t(pluralKey("map_ui.cluster_alt", locale, cluster.count), { count });
   const hint = cluster.placeName
-    ? t("map_ui.cluster_place_title", {
+    ? t(pluralKey("map_ui.cluster_place_title", locale, cluster.count), {
         place: cluster.placeName,
-        count: cluster.count,
+        count,
       })
-    : t("map_ui.cluster_title", { count: cluster.count });
+    : t(pluralKey("map_ui.cluster_title", locale, cluster.count), { count });
 
   return (
     <Marker
@@ -642,6 +672,7 @@ export default function Map({
   command = null,
 }: MapProps) {
   const t = useT();
+  const { locale } = useLocale();
   const dark = useDarkMode();
   const basemap = useMemo(() => basemapLayer(dark, CARTO_API_KEY), [dark]);
   const compact = useCompactViewport();
@@ -674,9 +705,11 @@ export default function Map({
       attributionControl={false}
       aria-label={t("map_ui.map_aria")}
     >
+      {/* Leaflet reads the attribution when the layer is created, so the
+          locale is part of the key: switching language rebuilds the credit. */}
       <TileLayer
-        key={`${basemap.provider}:${dark ? "dark" : "light"}`}
-        attribution={`${basemap.attribution} | ${DATA_ATTRIBUTION}`}
+        key={`${basemap.provider}:${dark ? "dark" : "light"}:${locale}`}
+        attribution={`${basemap.attribution} | ${dataAttribution(t, locale)}`}
         url={basemap.url}
         subdomains={basemap.subdomains}
         className={basemap.className}

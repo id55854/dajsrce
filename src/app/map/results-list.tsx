@@ -7,7 +7,8 @@ import {
   InstitutionCard,
   InstitutionCardSkeleton,
 } from "@/components/InstitutionCard";
-import { useT } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
+import { pluralKey } from "@/i18n/dictionaries";
 import { formatDistance } from "@/lib/utils";
 import type { PublicMapCluster, PublicMapInstitution } from "@/lib/location-map";
 
@@ -156,6 +157,10 @@ function ClusterRowButton({
   onActivate: () => void;
 }) {
   const t = useT();
+  const { locale } = useLocale();
+  // Grouped the way the reader's locale groups digits ("10.172", not
+  // "10172"); a six-character count steps down a size to stay in the disc.
+  const count = cluster.count.toLocaleString(locale);
 
   return (
     <button
@@ -170,9 +175,12 @@ function ClusterRowButton({
     >
       <span
         aria-hidden
-        className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
+        className={clsx(
+          "relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand font-bold text-white",
+          count.length > 5 ? "text-[11px]" : "text-sm"
+        )}
       >
-        {cluster.count}
+        {count}
         {cluster.hasUrgentNeed ? (
           <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-surface-raised bg-warning" />
         ) : null}
@@ -183,13 +191,14 @@ function ClusterRowButton({
             ustanova" next to a disc reading 1090. As a subtitle under a real
             name it is the useful half of the row. */}
         <span className="block truncate text-sm font-semibold text-ink">
-          {cluster.placeName ?? t("map_ui.cluster_alt", { count: cluster.count })}
+          {cluster.placeName ??
+            t(pluralKey("map_ui.cluster_alt", locale, cluster.count), { count })}
         </span>
         <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-secondary">
           {cluster.placeName ? (
             <span>
               {t(`map_ui.place_kind_${cluster.placeKind}`)} ·{" "}
-              {t("map_ui.cluster_count", { count: cluster.count })}
+              {t(pluralKey("map_ui.cluster_count", locale, cluster.count), { count })}
             </span>
           ) : null}
           {distance != null ? (

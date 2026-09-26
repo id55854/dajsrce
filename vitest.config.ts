@@ -7,7 +7,9 @@ export default defineConfig({
   oxc: { jsx: { runtime: "automatic" } },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "scripts/**/*.test.mjs"],
+    // `.test.tsx` too: the server-rendered map bootstrap test lived there and
+    // silently stopped running.
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "scripts/**/*.test.mjs"],
   },
   resolve: {
     alias: {

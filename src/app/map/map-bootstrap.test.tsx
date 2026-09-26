@@ -28,14 +28,19 @@ describe("server-rendered map bootstrap", () => {
     expect(html).toContain("123");
     expect(html).toContain("Županija &lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).not.toContain("<script>alert(1)</script>");
-    expect(html).not.toContain("Učitavanje ustanova");
+    expect(html).not.toContain("Učitavanje udruga");
     // A single responsive result set, not two copies of the 60-row budget.
     expect(html.match(/Županija &lt;script&gt;/g)).toHaveLength(1);
   });
 
   it("keeps filters, multi-donation semantics and bounds in the server query", () => {
-    const query = initialMapQuery(new URLSearchParams("categories=association&donationTypes=food,hygiene&city=Zagreb&onlyOnboarded=true&@=45.8,16,12"));
-    expect(query.categories).toEqual(["association"]);
+    const query = initialMapQuery(new URLSearchParams("categories=soup_kitchen&donationTypes=food,hygiene&city=Zagreb&onlyOnboarded=true&@=45.8,16,12"));
+    expect(query.categories).toEqual(["soup_kitchen"]);
+    // The catch-all is only a category outside the social view.
+    expect(initialMapQuery(new URLSearchParams("categories=association&social=0")).categories)
+      .toEqual(["association"]);
+    expect(initialMapQuery(new URLSearchParams("categories=association")).categories)
+      .not.toContain("association");
     expect(query.donationTypes).toEqual(["food", "hygiene"]);
     expect(query.city).toBe("Zagreb");
     expect(query.onlyOnboarded).toBe(true);

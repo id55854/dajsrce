@@ -3,7 +3,9 @@
 import { AlertTriangle, Loader2, RefreshCw, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { pluralKey } from "@/i18n/dictionaries";
 import type { PublicMapResponse } from "@/lib/location-map";
+import type { Locale } from "@/lib/types";
 
 export function ResultsMeta({
   loading,
@@ -24,11 +26,18 @@ export function ResultsMeta({
   showTruncation: boolean;
   /** The count answers for all of Croatia rather than the viewport. */
   nationwide: boolean;
-  locale: string;
+  locale: Locale;
   onZoomIn: () => void;
 }) {
   const t = useT();
   const count = totalMatches.toLocaleString(locale);
+  // The noun agrees with the number itself ("1 pronađena", "273 pronađene",
+  // "3.128 pronađenih"), so the form is chosen from the raw count.
+  const countKey = nationwide
+    ? "map_page.search_count"
+    : mode === "clusters"
+      ? "map_page.clusters_count"
+      : "map_page.area_count";
 
   return (
     <div className="space-y-2">
@@ -36,11 +45,7 @@ export function ResultsMeta({
         <p aria-live="polite" className="min-w-0 truncate">
           {loading
             ? t("map_page.loading")
-            : nationwide
-              ? t("map_page.search_count", { count })
-              : mode === "clusters"
-              ? t("map_page.clusters_count", { count })
-              : t("map_page.area_count", { count })}
+            : t(pluralKey(countKey, locale, totalMatches), { count })}
         </p>
         {refreshing ? (
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
