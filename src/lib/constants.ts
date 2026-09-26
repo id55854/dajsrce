@@ -186,14 +186,3 @@ export function getCategoryConfig(cat: string | null | undefined) {
   if (!cat) return FALLBACK_CATEGORY_CONFIG;
   return (CATEGORY_CONFIG as Record<string, typeof FALLBACK_CATEGORY_CONFIG>)[cat] ?? FALLBACK_CATEGORY_CONFIG;
 }
-
-export const ZAGREB_CENTER: [number, number] = [45.8131, 15.9775];
-export const DEFAULT_ZOOM = 13;
-
-export const SHIPMENT_METHOD_LABELS: Record<string, { label: string; labelHr: string }> = {
-  self_dropoff: { label: "Self drop-off", labelHr: "Osobno dostavljanje" },
-  courier_pickup: { label: "Courier pickup", labelHr: "Dolazak kurira" },
-  parcel_locker: { label: "Parcel locker", labelHr: "Paketomat" },
-  ngo_pickup: { label: "NGO pickup", labelHr: "Preuzimanje od NGO-a" },
-  third_party_partner: { label: "Third-party partner", labelHr: "Partnerski prijevoznik" },
-};

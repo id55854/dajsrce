@@ -1,12 +1,48 @@
+// DESTRUCTIVE: deletes every institution (cascading to needs, events and
+// pledges) and inserts the local seed set. Local development databases only.
+//
+//   ALLOW_DESTRUCTIVE_SEED=yes-i-mean-it node scripts/seed.mjs --i-know-this-wipes-institutions
+//
+// A developer's .env.local can point at the production Data API, and this
+// script used to run against whatever it found there with no question asked.
+// It now refuses unless both the flag and the variable are present, and the
+// variable is read before .env.local is loaded, so it can only come from the
+// command line and can never sit in a file waiting for the next accidental run.
+// The target host is printed either way.
+
+const CONFIRM_FLAG = "--i-know-this-wipes-institutions";
+const confirmed = process.argv.includes(CONFIRM_FLAG);
+const allowed = process.env.ALLOW_DESTRUCTIVE_SEED === "yes-i-mean-it";
+
 // Service-role writes go to the Neon Data API; see scripts/lib/supabase-admin.mjs.
-import { supabaseAdmin as supabase } from "./lib/supabase-admin.mjs";
+// Importing it loads .env.local and builds the client; it sends nothing.
+const { supabaseAdmin: supabase } = await import("./lib/supabase-admin.mjs");
+
+let targetHost;
+try {
+  targetHost = new URL(process.env.NEXT_PUBLIC_DATA_API_URL ?? "").host;
+} catch {
+  targetHost = "(NEXT_PUBLIC_DATA_API_URL is not a valid URL)";
+}
+console.log(`Target Data API host: ${targetHost}`);
+
+if (!confirmed || !allowed) {
+  console.error(
+    [
+      "Refusing to run: scripts/seed.mjs deletes every institution and everything that cascades from it.",
+      "Check that the host above is a local or disposable database, then run:",
+      `  ALLOW_DESTRUCTIVE_SEED=yes-i-mean-it node scripts/seed.mjs ${CONFIRM_FLAG}`,
+    ].join("\n")
+  );
+  process.exit(1);
+}
 
 const { INSTITUTIONS } = await import("../src/lib/institutions-seed.ts");
 const { buildSampleNeeds, buildSampleVolunteerEvents } = await import(
   "../src/lib/seed-sample-content.ts"
 );
 
-console.log(`Clearing institutions (cascades needs, events, pledges where linked)...`);
+console.log(`Clearing institutions on ${targetHost} (cascades needs, events, pledges where linked)...`);
 
 const { error: delErr } = await supabase
   .from("institutions")
