@@ -29,7 +29,6 @@ import { ResultsList, type ClusterRow, type InstitutionRow } from "./results-lis
 import { useLocale, useT } from "@/i18n/client";
 import type { AssociationRegistryEntry } from "@/lib/association-registry";
 import {
-  CROATIA_INITIAL_VIEW,
   MAP_CITY_ZOOM,
   MAP_FEATURE_LIMIT,
   MAP_LIST_RENDER_LIMIT,
@@ -37,6 +36,7 @@ import {
   buildBrowserMapParams,
   buildMapQueryString,
   isInstitutionFeature,
+  requestViewport,
   resolveMapCategories,
   splitRegistryFeatureId,
   type MapBounds,
@@ -325,13 +325,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     });
     const withCategories =
       categories === mapQuery.categories ? mapQuery : { ...mapQuery, categories };
-    return nationalScope
-      ? {
-          ...withCategories,
-          bbox: CROATIA_INITIAL_VIEW.bbox,
-          zoom: CROATIA_INITIAL_VIEW.zoom,
-        }
-      : withCategories;
+    return { ...withCategories, ...requestViewport(mapQuery, nationalScope) };
   }, [mapQuery, filters.onlySocial, nationalScope]);
 
   // Pan/zoom/filter/search stay on replaceState (they must not spam history).
@@ -574,6 +568,20 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
   const searchHits = useMemo<PublicMapInstitution[]>(
     () => (settledSearch ? institutions.slice(0, 8) : []),
     [institutions, settledSearch]
+  );
+  // A broad search ("Zagreb", "udruga za") matches more than the map can pin
+  // and arrives grouped by place, with no individual hits at all. The
+  // dropdown then offers the biggest of those places rather than "no
+  // results" beside a panel counting a thousand of them.
+  const searchPlaces = useMemo<PublicMapCluster[]>(
+    () =>
+      settledSearch && institutions.length === 0
+        ? features
+            .filter((feature): feature is PublicMapCluster => feature.kind === "cluster")
+            .sort((left, right) => right.count - left.count)
+            .slice(0, 8)
+        : [],
+    [features, institutions.length, settledSearch]
   );
 
   const activeFilterCount =
@@ -858,8 +866,11 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
                   onValueChange={setSearchQuery}
                   onClear={clearSearch}
                   hits={searchHits}
+                  places={searchPlaces}
+                  totalMatches={meta.totalMatches}
                   pending={searchPending}
                   onSelect={onSelect}
+                  onSelectPlace={focusCluster}
                   // Searching from the peek detent would open the suggestion
                   // list into the 26% of screen below the field; raise the
                   // sheet first so the list has somewhere to go.
@@ -967,8 +978,11 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
               onValueChange={setSearchQuery}
               onClear={clearSearch}
               hits={searchHits}
+              places={searchPlaces}
+              totalMatches={meta.totalMatches}
               pending={searchPending}
               onSelect={onSelect}
+              onSelectPlace={focusCluster}
             />
             <div className="hidden md:block">
               <FilterBar filters={filters} onChange={setFilters} />

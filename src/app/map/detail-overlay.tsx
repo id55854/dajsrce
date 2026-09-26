@@ -169,7 +169,10 @@ export function DetailOverlay({
             : "pb-3 pt-3"
         )}
       >
-        {loading ? (
+        {/* No detail and no error yet is still loading: a shared
+            `?institution=` link renders (and is server-rendered) before its
+            fetch has even started, and used to open on the error alert. */}
+        {loading || (!detail && !error) ? (
           <InstitutionDetailSkeleton framed={!isOverlay} />
         ) : detail?.kind === "institution" ? (
           <div className="space-y-5">
@@ -189,7 +192,7 @@ export function DetailOverlay({
           >
             <p className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              {t(error ?? "map_page.detail_error")}
+              {t(error || "map_page.detail_error")}
             </p>
             <Button
               variant="secondary"

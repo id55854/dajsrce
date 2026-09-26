@@ -1,8 +1,8 @@
 import type { MapFilters, MapViewport } from "@/components/Map";
 import {
   MAP_FEATURE_LIMIT,
-  CROATIA_INITIAL_VIEW,
   buildMapQueryString,
+  requestViewport,
   resolveMapCategories,
   socialCategoriesOnly,
   type MapQuery,
@@ -127,11 +127,8 @@ export function initialMapQuery(params: URLSearchParams): MapQuery {
     categories: resolveMapCategories({ ...state.filters, query: typed }),
     query: typed,
     limit: MAP_FEATURE_LIMIT,
+    ...requestViewport(state.viewport, Boolean(typed)),
   };
-  if (query.query) {
-    query.bbox = CROATIA_INITIAL_VIEW.bbox;
-    query.zoom = CROATIA_INITIAL_VIEW.zoom;
-  }
   // Match the normalized browser/API request, and validate before any DB work.
   return parseMapQuery(new URLSearchParams(buildMapQueryString(query)));
 }

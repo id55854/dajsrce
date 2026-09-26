@@ -11,8 +11,9 @@ import clsx from "clsx";
 import { Loader2, Search, X } from "lucide-react";
 import { Menu, SEARCH_CONTROL_CLASSES } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/client";
+import { pluralKey } from "@/i18n/dictionaries";
 import { getCategoryConfig } from "@/lib/constants";
-import type { PublicMapInstitution } from "@/lib/location-map";
+import type { PublicMapCluster, PublicMapInstitution } from "@/lib/location-map";
 
 /**
  * The map search combobox. Two instances exist, floating over the tiles on
@@ -31,8 +32,11 @@ export function MapSearchField({
   onValueChange,
   onClear,
   hits,
+  places = [],
+  totalMatches = 0,
   pending,
   onSelect,
+  onSelectPlace,
   onOpen,
 }: {
   idPrefix: string;
@@ -42,9 +46,18 @@ export function MapSearchField({
   onValueChange: (next: string) => void;
   onClear: () => void;
   hits: PublicMapInstitution[];
+  /**
+   * The places a broad search is grouped into when it matches more pins than
+   * the map can draw one by one. Offered instead of pins, so the list never
+   * says "no results" beside a panel counting a thousand of them.
+   */
+  places?: PublicMapCluster[];
+  /** How many organisations the grouped places hold together. */
+  totalMatches?: number;
   /** A request is in flight, or the debounce has not settled yet. */
   pending: boolean;
   onSelect: (id: string) => void;
+  onSelectPlace?: (place: PublicMapCluster) => void;
   /** Fired when the field takes focus, so a host can make room for the list. */
   onOpen?: () => void;
 }) {
@@ -57,11 +70,15 @@ export function MapSearchField({
   const optionId = (index: number) => `${idPrefix}-option-${index}`;
   const trimmed = value.trim();
   const expanded = open && trimmed.length > 0;
+  // Pins when the search resolves into them; otherwise the places it is
+  // grouped into. Never both: the map shows one or the other.
+  const showingPlaces = hits.length === 0 && places.length > 0;
+  const optionCount = showingPlaces ? places.length : hits.length;
 
   // A new candidate set invalidates the cursor.
   useEffect(() => {
     setActiveIndex(-1);
-  }, [hits]);
+  }, [hits, places]);
 
   const closeList = useCallback(() => {
     setOpen(false);
@@ -69,6 +86,13 @@ export function MapSearchField({
   }, []);
 
   function commit(index: number) {
+    if (showingPlaces) {
+      const place = places[index];
+      if (!place) return;
+      onSelectPlace?.(place);
+      closeList();
+      return;
+    }
     const hit = hits[index];
     if (!hit) return;
     onSelect(hit.id);
@@ -80,7 +104,7 @@ export function MapSearchField({
       closeList();
       return;
     }
-    if (hits.length === 0) {
+    if (optionCount === 0) {
       if (event.key === "ArrowDown") setOpen(true);
       return;
     }
@@ -89,12 +113,12 @@ export function MapSearchField({
       case "ArrowDown":
         event.preventDefault();
         setOpen(true);
-        setActiveIndex((current) => (current + 1) % hits.length);
+        setActiveIndex((current) => (current + 1) % optionCount);
         break;
       case "ArrowUp":
         event.preventDefault();
         setOpen(true);
-        setActiveIndex((current) => (current <= 0 ? hits.length - 1 : current - 1));
+        setActiveIndex((current) => (current <= 0 ? optionCount - 1 : current - 1));
         break;
       case "Home":
         if (expanded) {
@@ -105,7 +129,7 @@ export function MapSearchField({
       case "End":
         if (expanded) {
           event.preventDefault();
-          setActiveIndex(hits.length - 1);
+          setActiveIndex(optionCount - 1);
         }
         break;
       case "Enter":
@@ -123,9 +147,14 @@ export function MapSearchField({
     ? null
     : trimmed.length < 2
       ? t("map_page.type_more")
-      : hits.length === 0
+      : optionCount === 0
         ? t("map_page.no_matches")
         : null;
+  const optionClasses = (active: boolean) =>
+    clsx(
+      "flex w-full cursor-pointer items-start gap-3 px-3 py-3 text-left transition-colors",
+      active ? "bg-ink/[0.08]" : "hover:bg-ink/[0.08]"
+    );
 
   return (
     // The caller positions the outer box; the inner one is the popover's
@@ -226,12 +255,56 @@ export function MapSearchField({
               >
                 {status}
               </li>
+            ) : showingPlaces ? (
+              <>
+                <li
+                  role="presentation"
+                  className="px-4 py-3 text-xs leading-relaxed text-ink-secondary"
+                >
+                  {t(pluralKey("map_page.search_grouped", locale, totalMatches), {
+                    count: totalMatches.toLocaleString(locale),
+                  })}
+                </li>
+                {places.map((place, index) => {
+                  const active = index === activeIndex;
+                  const count = place.count.toLocaleString(locale);
+                  return (
+                    <li key={place.id} role="none">
+                      <button
+                        type="button"
+                        role="option"
+                        id={optionId(index)}
+                        aria-selected={active}
+                        tabIndex={-1}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        onClick={() => commit(index)}
+                        className={optionClasses(active)}
+                      >
+                        <span
+                          className="mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-brand"
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-ink">
+                            {place.placeName ??
+                              t(pluralKey("map_ui.cluster_alt", locale, place.count), { count })}
+                          </span>
+                          <span className="block truncate text-xs text-ink-secondary">
+                            {place.placeName ? `${t(`map_ui.place_kind_${place.placeKind}`)} • ` : ""}
+                            {t(pluralKey("map_ui.cluster_count", locale, place.count), { count })}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </>
             ) : (
               hits.map((institution, index) => {
                 const category = getCategoryConfig(institution.category);
                 const active = index === activeIndex;
                 return (
-                  <li key={institution.id}>
+                  <li key={institution.id} role="none">
                     <button
                       type="button"
                       role="option"
@@ -240,10 +313,7 @@ export function MapSearchField({
                       tabIndex={-1}
                       onMouseEnter={() => setActiveIndex(index)}
                       onClick={() => commit(index)}
-                      className={clsx(
-                        "flex w-full cursor-pointer items-start gap-3 px-3 py-3 text-left transition-colors",
-                        active ? "bg-ink/[0.08]" : "hover:bg-ink/[0.08]"
-                      )}
+                      className={optionClasses(active)}
                     >
                       <span
                         className="mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full"

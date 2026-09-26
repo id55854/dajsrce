@@ -155,9 +155,17 @@ export const PIN_STATUS_FILL: Record<MapPinStatus, string> = {
   verified: "var(--brand)",
 };
 
+/**
+ * "Na DajSrcu" means a person behind the row: an approved claim or an account.
+ * An institutions row alone does not qualify, because the registry promoter
+ * bulk-created one (`source = 'registry'`, so trust status `registry`) for
+ * every donation candidate the classifier found, and those pins were labelled
+ * "Na DajSrcu" by the dozen while three associations actually had accounts.
+ */
 export function pinStatus(institution: PublicMapInstitution): MapPinStatus {
   if (institution.entityType !== "institution") return "registry";
-  return institution.isVerified ? "verified" : "onboarded";
+  if (institution.isVerified) return "verified";
+  return institution.trustStatus === "registry" ? "registry" : "onboarded";
 }
 
 export function maxBboxAreaForZoom(zoom: number): number {
@@ -176,6 +184,24 @@ export type MapBounds = [
   maxLongitude: number,
   maxLatitude: number,
 ];
+
+/**
+ * The box and zoom a map request is sent for. A fresh search or filter
+ * (`national`) and any view at or beyond the national zoom ask for all of
+ * Croatia, whatever part of it the screen shows. A phone at zoom 7 sees a
+ * slice of the country, and county groups computed over that slice read as
+ * county totals ("Istarska · 11" against 138 on a desktop); with the national
+ * box every county is complete, and every visitor at that zoom shares one
+ * cache key. Closer in, the request follows the viewport as before.
+ */
+export function requestViewport(
+  viewport: { bbox: MapBounds; zoom: number },
+  national: boolean
+): { bbox: MapBounds; zoom: number } {
+  return national || viewport.zoom <= CROATIA_INITIAL_VIEW.zoom
+    ? { bbox: CROATIA_INITIAL_VIEW.bbox, zoom: CROATIA_INITIAL_VIEW.zoom }
+    : { bbox: viewport.bbox, zoom: viewport.zoom };
+}
 
 export type MapQuery = {
   bbox: MapBounds;

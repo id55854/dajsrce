@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CROATIA_INITIAL_VIEW,
   MAP_BBOX_MAX_AREA,
   MAP_FEATURE_LIMIT,
   MAP_LIST_RENDER_LIMIT,
@@ -13,11 +14,14 @@ import {
   parseMapQuery,
   PROTECTED_LOCATION_CATEGORIES,
   isProtectedLocation,
+  pinStatus,
   projectHiddenLocation,
+  requestViewport,
   resolveMapCategories,
   SOCIAL_MAP_CATEGORIES,
   toPublicInstitutionDetail,
   type MapBounds,
+  type PublicMapInstitution,
   type PublicMapResponse,
 } from "@/lib/location-map";
 import { initialMapQuery, initialState } from "@/app/map/map-state";
@@ -310,6 +314,58 @@ describe("map query contract", () => {
     expect(normalizeMapSearch("2823894")).toBe("2823894");
     expect(normalizeMapSearch("282389492950")).toBe("282389492950");
     expect(normalizeMapSearch("Dom 2")).toBe("dom 2");
+  });
+});
+
+describe("pin status", () => {
+  const pin: PublicMapInstitution = {
+    kind: "institution",
+    id: "x",
+    entityType: "institution",
+    registryId: null,
+    name: "Udruga",
+    category: "social_welfare",
+    city: "Split",
+    address: null,
+    approximateArea: null,
+    latitude: 43.5,
+    longitude: 16.4,
+    acceptsDonations: [],
+    isVerified: false,
+    isLocationHidden: false,
+    locationPrecision: "exact",
+    trustStatus: "claimed",
+    hasUrgentNeed: false,
+  };
+
+  it("reserves 'Na DajSrcu' for rows a person stands behind", () => {
+    expect(pinStatus({ ...pin, entityType: "registry", trustStatus: "registry" })).toBe("registry");
+    // A bulk-promoted register candidate has an institutions row but nobody
+    // behind it; 41 of 111 pins in Split were labelled "Na DajSrcu" this way.
+    expect(pinStatus({ ...pin, trustStatus: "registry" })).toBe("registry");
+    expect(pinStatus(pin)).toBe("onboarded");
+    expect(pinStatus({ ...pin, isVerified: true, trustStatus: "contact_verified" })).toBe("verified");
+  });
+});
+
+describe("request viewport", () => {
+  it("asks for all of Croatia at the national zoom, whatever slice the screen shows", () => {
+    const phoneSlice: MapBounds = [14.5, 44.8, 17.4, 46.9];
+    expect(requestViewport({ bbox: phoneSlice, zoom: 7 }, false)).toEqual({
+      bbox: CROATIA_INITIAL_VIEW.bbox,
+      zoom: CROATIA_INITIAL_VIEW.zoom,
+    });
+    expect(requestViewport({ bbox: phoneSlice, zoom: 6 }, false).bbox).toEqual(CROATIA_INITIAL_VIEW.bbox);
+    const city: MapBounds = [15.9, 45.7, 16.1, 45.9];
+    expect(requestViewport({ bbox: city, zoom: 12 }, false)).toEqual({ bbox: city, zoom: 12 });
+    // A fresh search answers for the whole country at any zoom.
+    expect(requestViewport({ bbox: city, zoom: 12 }, true).bbox).toEqual(CROATIA_INITIAL_VIEW.bbox);
+    // Every centre at the national zoom is the same request, server snapshot
+    // included, so the CDN and the bootstrap cache answer all of them.
+    const key = (params: string) => buildMapQueryString(initialMapQuery(new URLSearchParams(params)));
+    expect(key("@=43.5,16.4,7")).toBe(key(""));
+    expect(key("@=45.8,16.0,7")).toBe(key(""));
+    expect(key("@=45.8,16.0,12")).not.toBe(key(""));
   });
 });
 
