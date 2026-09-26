@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { enUS, hr } from "date-fns/locale";
@@ -15,6 +15,8 @@ import { Badge, Button, Card, Dialog, buttonClasses } from "@/components/ui";
 import { useLiveCapacity } from "@/lib/live-capacity";
 import { CancelActionButton } from "@/components/YourPledgesSection";
 import type { CapacityErrorCode } from "@/lib/capacity-errors";
+import { ORGANISATION } from "@/lib/organisation";
+import { volunteerEventPlace } from "@/lib/volunteer-events";
 
 export type VolunteerEventCardProps = {
   event: Omit<VolunteerEvent, "institution"> & {
@@ -59,7 +61,114 @@ export type VolunteerEventCardProps = {
    * dialog still says who posted the event and where.
    */
   hideInstitutionHeader?: boolean;
+  /**
+   * Opens the details when it turns true: the event a visitor tried to join
+   * before signing in, reopened when they come back.
+   */
+  autoOpen?: boolean;
 };
+
+/** Where sign-in sends a visitor back to: this event, opened, on /volunteer. */
+export function volunteerEventReturnPath(eventId: string): string {
+  return `/volunteer?event=${encodeURIComponent(eventId)}`;
+}
+
+type SignupRefusal = CapacityErrorCode | "age_confirmation_required";
+
+const SIGNUP_ERROR_KEYS: Partial<Record<SignupRefusal, string>> = {
+  event_ended: "volunteer_card.ended",
+  age_confirmation_required: "volunteer_signup.age_required",
+};
+
+/**
+ * The join step itself. Signing up stays one action, but only after the
+ * volunteer confirms their age: under the Volunteering Act a volunteer aged
+ * 15 to 17 needs a parent's or guardian's written consent, so the button
+ * stays disabled until the box is ticked, and the API refuses a signup
+ * without the same confirmation. The two lines under it say who organises
+ * the volunteering and what the organisation will see.
+ */
+export function VolunteerSignupControls({
+  confirmed,
+  onConfirmedChange,
+  onJoin,
+  loading = false,
+  pending = false,
+  errorKey = null,
+}: {
+  confirmed: boolean;
+  onConfirmedChange: (confirmed: boolean) => void;
+  onJoin: () => void;
+  loading?: boolean;
+  /** The visitor's own signups are still loading. */
+  pending?: boolean;
+  errorKey?: string | null;
+}) {
+  const t = useT();
+  const checkboxId = useId();
+  const notesId = useId();
+  return (
+    <div className="w-full space-y-3">
+      <div className="flex items-start gap-2.5">
+        <input
+          id={checkboxId}
+          type="checkbox"
+          required
+          checked={confirmed}
+          onChange={(change) => onConfirmedChange(change.target.checked)}
+          aria-describedby={notesId}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
+        />
+        <label htmlFor={checkboxId} className="text-sm leading-5 text-ink">
+          {t("volunteer_signup.age_confirmation")}
+        </label>
+      </div>
+      <div id={notesId} className="space-y-1 text-xs leading-5 text-ink-secondary">
+        <p>{t("volunteer_signup.organiser_note")}</p>
+        <p>
+          {t("volunteer_signup.disclosure")}{" "}
+          <Link
+            href="/pravila-privatnosti"
+            className="font-medium text-brand underline-offset-2 hover:underline"
+          >
+            {t("volunteer_signup.privacy_link")}
+          </Link>
+        </p>
+      </div>
+      <Button onClick={onJoin} loading={loading || pending} disabled={!confirmed} fullWidth>
+        {loading ? t("volunteer_card.signing_up") : t("volunteer_card.join_as_volunteer")}
+      </Button>
+      {errorKey ? (
+        <p className="text-center text-sm text-danger" role="alert">
+          {t(errorKey)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Notice and action for anything wrong with an event: a quiet link that
+ * opens a mail to the platform's contact mailbox, naming the page and the
+ * event. Rendered only inside the details dialog, which exists only in the
+ * browser, so reading the location here is safe.
+ */
+function ReportContentLink({ eventId }: { eventId: string }) {
+  const t = useT();
+  if (!ORGANISATION.contactEmail) return null;
+  const body = t("volunteer_card.report_body", { url: window.location.href, id: eventId });
+  const href = `mailto:${ORGANISATION.contactEmail}?subject=${encodeURIComponent(
+    t("volunteer_card.report_subject")
+  )}&body=${encodeURIComponent(body)}`;
+  return (
+    <a
+      href={href}
+      className="text-xs text-ink-tertiary underline-offset-2 hover:text-ink-secondary hover:underline"
+    >
+      {t("volunteer_card.report")}
+    </a>
+  );
+}
 
 export function VolunteerEventCard({
   event,
@@ -73,6 +182,7 @@ export function VolunteerEventCard({
   hideInstitutionHeader = false,
   signupId = null,
   onCancelled,
+  autoOpen = false,
 }: VolunteerEventCardProps) {
   const t = useT();
   const { locale } = useLocale();
@@ -80,6 +190,11 @@ export function VolunteerEventCard({
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+
+  useEffect(() => {
+    if (autoOpen) setDetailsOpen(true);
+  }, [autoOpen]);
 
   const institution = event.institution;
   const categoryKey = institution?.category as InstitutionCategory | undefined;
@@ -105,7 +220,7 @@ export function VolunteerEventCard({
   const full = !isRegistered && needed > 0 && signed >= needed;
 
   async function handleSignUp() {
-    if (readOnly) return;
+    if (readOnly || !ageConfirmed) return;
     const supabase = createClient();
     // UI gating only; the signup API re-verifies the token server-side.
     const {
@@ -124,10 +239,10 @@ export function VolunteerEventCard({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event_id: event.id }),
+        body: JSON.stringify({ event_id: event.id, age_confirmed: true }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { code?: CapacityErrorCode } | null;
+        const body = (await res.json().catch(() => null)) as { code?: SignupRefusal } | null;
         if (body?.code === "already_signed_up") {
           // State had drifted out of sync. Reflect reality.
           onSignUp?.(event.id);
@@ -139,10 +254,11 @@ export function VolunteerEventCard({
           setErrorKey("volunteer_card.full_now");
           return;
         }
-        setErrorKey(body?.code === "event_ended" ? "volunteer_card.ended" : "volunteer_card.failed");
+        setErrorKey((body?.code && SIGNUP_ERROR_KEYS[body.code]) || "volunteer_card.failed");
         return;
       }
       const created = (await res.json().catch(() => null)) as { signup?: { id?: string } } | null;
+      setAgeConfirmed(false);
       onSignUp?.(event.id, created?.signup?.id);
     } catch {
       setErrorKey("volunteer_card.failed");
@@ -152,10 +268,9 @@ export function VolunteerEventCard({
   }
 
   const timeLabel = `${event.start_time.slice(0, 5)} – ${event.end_time.slice(0, 5)}`;
-  // The event's own place when the organisation gave one, else its address.
-  const place =
-    event.location?.trim() ||
-    [institution?.address, institution?.city].filter(Boolean).join(", ");
+  // The event's own place when the organisation gave one, else its address,
+  // without printing the city twice when the address already names it.
+  const place = volunteerEventPlace(event.location, institution?.address, institution?.city);
 
   const progress = (
     <div>
@@ -179,19 +294,17 @@ export function VolunteerEventCard({
     </div>
   );
 
-  // One action for the card and the details dialog, so both always agree on
-  // whether this visitor can still sign up.
-  const action = readOnly ? (
-    readOnlyHref ? (
-      <Link href={readOnlyHref} className={buttonClasses({ fullWidth: true })}>
-        {readOnlyLabel ?? t("volunteer_card.sign_in")}
-      </Link>
-    ) : (
-      <p className="rounded-full bg-surface-sunken px-5 py-2.5 text-center text-sm font-medium text-ink-secondary">
-        {readOnlyLabel ?? t("volunteer_card.sign_in_continue")}
-      </p>
-    )
-  ) : isRegistered ? (
+  const readOnlyAction = readOnlyHref ? (
+    <Link href={readOnlyHref} className={buttonClasses({ fullWidth: true })}>
+      {readOnlyLabel ?? t("volunteer_card.sign_in")}
+    </Link>
+  ) : (
+    <p className="rounded-full bg-surface-sunken px-5 py-2.5 text-center text-sm font-medium text-ink-secondary">
+      {readOnlyLabel ?? t("volunteer_card.sign_in_continue")}
+    </p>
+  );
+
+  const registeredAction = (
     <div className="w-full space-y-2">
       <p className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-success-soft px-5 py-2.5 text-center text-sm font-semibold text-success-on-soft">
         <CheckCircle2 className="h-4 w-4" aria-hidden />
@@ -217,23 +330,38 @@ export function VolunteerEventCard({
         </div>
       ) : null}
     </div>
-  ) : (
+  );
+
+  const fullAction = (
     <div className="w-full">
-      {full ? (
-        <Button disabled fullWidth variant="secondary">
-          {t("volunteer_card.full")}
-        </Button>
-      ) : (
-        <Button onClick={handleSignUp} loading={loading || registrationPending} fullWidth>
-          {loading ? t("volunteer_card.signing_up") : t("volunteer_card.sign_up")}
-        </Button>
-      )}
+      <Button disabled fullWidth variant="secondary">
+        {t("volunteer_card.full")}
+      </Button>
       {errorKey ? (
         <p className="mt-2 text-center text-sm text-danger" role="alert">
           {t(errorKey)}
         </p>
       ) : null}
     </div>
+  );
+
+  // The card offers "Join", which opens the details: joining itself happens
+  // there, next to what the event asks and the confirmation it needs.
+  const cardAction = readOnly ? readOnlyAction : isRegistered ? registeredAction : full ? fullAction : (
+    <Button onClick={() => setDetailsOpen(true)} loading={registrationPending} fullWidth aria-haspopup="dialog">
+      {t("volunteer_card.sign_up")}
+    </Button>
+  );
+
+  const dialogAction = readOnly ? readOnlyAction : isRegistered ? registeredAction : full ? fullAction : (
+    <VolunteerSignupControls
+      confirmed={ageConfirmed}
+      onConfirmedChange={setAgeConfirmed}
+      onJoin={handleSignUp}
+      loading={loading}
+      pending={registrationPending}
+      errorKey={errorKey}
+    />
   );
 
   return (
@@ -319,7 +447,7 @@ export function VolunteerEventCard({
 
         <div className="mt-auto w-full shrink-0 pt-4" onClick={(click) => click.stopPropagation()}>
           {progress}
-          <div className="pt-5">{action}</div>
+          <div className="pt-5">{cardAction}</div>
         </div>
       </Card>
 
@@ -330,7 +458,7 @@ export function VolunteerEventCard({
         description={institution?.name}
         closeLabel={t("common.close")}
         variant="sheet-on-mobile"
-        footer={action}
+        footer={dialogAction}
       >
         <div className="space-y-5">
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
@@ -412,14 +540,17 @@ export function VolunteerEventCard({
 
           {progress}
 
-          {institution ? (
-            <Link
-              href={`/institution/${institution.id}`}
-              className="inline-block text-sm font-semibold text-brand underline-offset-2 hover:underline"
-            >
-              {t("volunteer_card.view_organisation")}
-            </Link>
-          ) : null}
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+            {institution ? (
+              <Link
+                href={`/institution/${institution.id}`}
+                className="inline-block text-sm font-semibold text-brand underline-offset-2 hover:underline"
+              >
+                {t("volunteer_card.view_organisation")}
+              </Link>
+            ) : null}
+            <ReportContentLink eventId={event.id} />
+          </div>
         </div>
       </Dialog>
 
@@ -428,7 +559,7 @@ export function VolunteerEventCard({
           open={authDialogOpen}
           onClose={() => setAuthDialogOpen(false)}
           actionLabel={t("volunteer_card.auth_action")}
-          nextPath="/volunteer"
+          nextPath={volunteerEventReturnPath(event.id)}
         />
       )}
     </>

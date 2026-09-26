@@ -11,6 +11,7 @@ import {
 } from "@/components/VolunteerEventCard";
 import { endOfMonth, endOfWeek, format } from "date-fns";
 import { useT } from "@/i18n/client";
+import { hasVolunteerEventEnded } from "@/lib/volunteer-events";
 import {
   Button,
   Card,
@@ -22,9 +23,19 @@ import {
 } from "@/components/ui";
 
 type EventRow = VolunteerEventCardProps["event"];
+type EventList = { events: EventRow[]; truncated: boolean };
+
+const LIST_KEY = "/api/volunteer-events";
+const CARD_ANCHOR = /^#volunteer-event-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 function eventCardId(eventId: string): string {
   return `volunteer-event-${eventId}`;
+}
+
+function cachedList(): EventList | undefined {
+  const cached = readPublicList<EventList | EventRow[]>(LIST_KEY);
+  if (cached === undefined) return undefined;
+  return Array.isArray(cached) ? { events: cached, truncated: false } : cached;
 }
 
 /** Mirrors VolunteerEventCard: chip row, title, three meta lines, progress, CTA. */
@@ -48,32 +59,45 @@ function EventCardSkeleton() {
   );
 }
 
-export function VolunteerClient() {
+export function VolunteerClient({ focusEventId = null }: {
+  /** An event to bring forward and open, e.g. the one a visitor tried to join before signing in. */
+  focusEventId?: string | null;
+}) {
   const t = useT();
   const [period, setPeriod] = useState<"all" | "week" | "month">("all");
-  const [events, setEvents] = useState<EventRow[]>(() => readPublicList<EventRow[]>("/api/volunteer-events") ?? []);
-  const [loading, setLoading] = useState(() => readPublicList("/api/volunteer-events") === undefined);
+  const [events, setEvents] = useState<EventRow[]>(() => cachedList()?.events ?? []);
+  const [truncated, setTruncated] = useState(() => cachedList()?.truncated ?? false);
+  const [loading, setLoading] = useState(() => cachedList() === undefined);
   const [signupsLoading, setSignupsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   /** event id -> the visitor's own signup id (null until the server says). */
   const [registered, setRegistered] = useState<Map<string, string | null>>(() => new Map());
   const [retry, setRetry] = useState(0);
+  /** The event still to bring forward; cleared once it is open or known to be gone. */
+  const [focusId, setFocusId] = useState<string | null>(focusEventId);
+  const [openEventId, setOpenEventId] = useState<string | null>(null);
+  const [focusMissing, setFocusMissing] = useState(false);
 
   // Public events can render before the independent private signup lookup.
   useEffect(() => {
     const controller = new AbortController();
-    const cached = readPublicList<EventRow[]>("/api/volunteer-events");
+    const cached = cachedList();
     setLoading(!cached);
-    if (cached) setEvents(cached);
+    if (cached) {
+      setEvents(cached.events);
+      setTruncated(cached.truncated);
+    }
     setError(null);
     void (async () => {
       try {
-        const response = await fetch("/api/volunteer-events", { signal: controller.signal });
+        const response = await fetch(LIST_KEY, { signal: controller.signal });
         if (!response.ok) throw new Error();
-        const json = (await response.json()) as { events?: EventRow[] };
+        const json = (await response.json()) as { events?: EventRow[]; truncated?: boolean };
         if (controller.signal.aborted) return;
-        rememberPublicList("/api/volunteer-events", json.events ?? []);
-        setEvents(json.events ?? []);
+        const list = { events: json.events ?? [], truncated: json.truncated === true };
+        rememberPublicList(LIST_KEY, list);
+        setEvents(list.events);
+        setTruncated(list.truncated);
       } catch {
         if (!controller.signal.aborted) setError("volunteer_page.error_loading");
       } finally {
@@ -107,6 +131,57 @@ export function VolunteerClient() {
     })();
     return () => controller.abort();
   }, [retry]);
+
+  // A new ?event= on the same page, or the card anchor
+  // (#volunteer-event-<id>), which names an event the same way and which only
+  // the browser can read.
+  useEffect(() => {
+    if (focusEventId) {
+      setFocusId(focusEventId);
+      return;
+    }
+    const match = CARD_ANCHOR.exec(window.location.hash);
+    if (match) setFocusId(match[1].toLowerCase());
+  }, [focusEventId]);
+
+  // Once the list is in, scroll the focused event into view and open it. An
+  // event past the first page is fetched on its own; one that is over or
+  // gone says so instead of leaving the visitor looking for it.
+  useEffect(() => {
+    if (!focusId || loading || error) return;
+    if (events.some((event) => event.id === focusId)) {
+      setOpenEventId(focusId);
+      setFocusId(null);
+      requestAnimationFrame(() =>
+        document.getElementById(eventCardId(focusId))?.scrollIntoView({ block: "center" })
+      );
+      return;
+    }
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(`${LIST_KEY}?event_id=${encodeURIComponent(focusId)}`, {
+          signal: controller.signal,
+        });
+        const json = response.ok ? ((await response.json()) as { events?: EventRow[] }) : null;
+        if (controller.signal.aborted) return;
+        const found = json?.events?.find((event) => event.id === focusId);
+        if (found) {
+          // The next pass of this effect finds it in the list and opens it.
+          setEvents((current) => (current.some((event) => event.id === found.id) ? current : [...current, found]));
+        } else {
+          setFocusMissing(true);
+          setFocusId(null);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setFocusMissing(true);
+          setFocusId(null);
+        }
+      }
+    })();
+    return () => controller.abort();
+  }, [focusId, loading, error, events]);
 
   const handleSignUp = useCallback((eventId: string, signupId?: string) => {
     // Source-of-truth update for both the registered set and the event's
@@ -145,9 +220,13 @@ export function VolunteerClient() {
     );
   }, []);
 
+  // The API already leaves out events that are over, but a cached list or a
+  // page left open can outlive an event's end time.
+  const upcoming = useMemo(() => events.filter((event) => !hasVolunteerEventEnded(event)), [events]);
+
   const sortedEvents = useMemo(
     () =>
-      [...events].filter((event) => {
+      upcoming.filter((event) => {
         if (period === "all") return true;
         const today = new Date();
         const end = period === "week" ? endOfWeek(today, { weekStartsOn: 1 }) : endOfMonth(today);
@@ -157,7 +236,7 @@ export function VolunteerClient() {
           ? (a.start_time ?? "").localeCompare(b.start_time ?? "")
           : a.event_date.localeCompare(b.event_date)
       ),
-    [events, period]
+    [upcoming, period]
   );
 
   return (
@@ -166,6 +245,12 @@ export function VolunteerClient() {
         title={t("volunteer_page.title")}
         subtitle={t("volunteer_page.subtitle")}
       />
+
+      {focusMissing ? (
+        <p role="status" className="mb-6 rounded-control border border-border-subtle bg-surface-sunken px-4 py-3 text-sm text-ink-secondary">
+          {t("volunteer_page.event_unavailable")}
+        </p>
+      ) : null}
 
       {loading ? (
         <div role="status" aria-label={t("volunteer_page.loading")}>
@@ -190,7 +275,7 @@ export function VolunteerClient() {
             }
           />
         </div>
-      ) : events.length === 0 ? (
+      ) : upcoming.length === 0 ? (
         <EmptyState
           icon={
             <CalendarHeart
@@ -225,9 +310,18 @@ export function VolunteerClient() {
                 </Button>
               ))}
             </div>
-            <p role="status" className="text-sm text-ink-secondary">
-              {t("volunteer_calendar.upcoming_count", { count: sortedEvents.length })}
-            </p>
+            <div className="text-sm text-ink-secondary sm:text-right">
+              <p role="status">
+                {t("volunteer_calendar.upcoming_count", { count: sortedEvents.length })}
+              </p>
+              {/* The list is one page of the soonest events; say so rather
+                  than let later ones look as if they did not exist. */}
+              {truncated ? (
+                <p className="text-xs text-ink-tertiary">
+                  {t("volunteer_page.truncated", { count: upcoming.length })}
+                </p>
+              ) : null}
+            </div>
           </div>
           {sortedEvents.length === 0 ? (
             <EmptyState
@@ -248,6 +342,7 @@ export function VolunteerClient() {
                   signupId={registered.get(event.id) ?? null}
                   onCancelled={handleCancelled}
                   htmlId={eventCardId(event.id)}
+                  autoOpen={event.id === openEventId}
                 />
               ))}
             </div>
