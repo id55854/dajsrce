@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Mail, MapPin } from "lucide-react";
 import { getLocale, getTranslator } from "@/i18n/server";
-import type { AssociationRegistryEntry } from "@/lib/association-registry";
+import { isSocialRegistryEntry, type AssociationRegistryEntry } from "@/lib/association-registry";
 import { metaDescription, pageMetadata } from "@/lib/seo";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import {
@@ -37,7 +37,9 @@ const getRegistryEntry = cache(async (id: string): Promise<AssociationRegistryEn
   const supabase = createPublicSupabaseClient();
   const { data, error } = await supabase.rpc("get_association_registry_entry_v1", { p_udr_id: id });
   if (error) throw new Error(`Official registry detail failed (${error.code ?? "database"})`);
-  return (data as AssociationRegistryEntry | null) ?? null;
+  const entry = (data as AssociationRegistryEntry | null) ?? null;
+  // Only associations of a social character are shown on DajSrce.
+  return entry && isSocialRegistryEntry(entry) ? entry : null;
 });
 
 export async function generateMetadata({

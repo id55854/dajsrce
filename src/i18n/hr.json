@@ -76,16 +76,16 @@
   },
   "organisations_page": {
     "title": "Udruge",
-    "subtitle_register": "Službeni Registar udruga Republike Hrvatske."
+    "subtitle_register": "Udruge socijalnog karaktera iz službenog Registra udruga Republike Hrvatske."
   },
   "organisations": {
-    "title": "Registar udruga Republike Hrvatske",
-    "subtitle": "Pretražite sve aktivne udruge u službenom registru. Zapis u registru ne znači da je udruga provjerena na DajSrcu niti da prima donacije.",
+    "title": "Udruge socijalnog karaktera",
+    "subtitle": "Pretražite udruge socijalnog karaktera iz službenog registra: skrb, humanitarna pomoć i srodna područja. Zapis u registru ne znači da je udruga provjerena na DajSrcu niti da prima donacije.",
     "official_source": "Službeni izvor: data.gov.hr",
     "only_onboarded": "Registrirane udruge na DajSrcu",
     "only_onboarded_on": "Prikazane su samo udruge koje imaju račun na DajSrcu i mogu primiti pomoć.",
-    "only_onboarded_off": "Pretražuje se cijeli službeni registar. Većina upisanih udruga još nema račun na DajSrcu.",
-    "only_onboarded_off_browse": "Bez pretraživanja prikazujemo udruge iz područja skrbi i humanitarne pomoći. Pretraživanje po nazivu, OIB-u ili adresi obuhvaća cijeli službeni registar.",
+    "only_onboarded_off": "Pretražuju se udruge socijalnog karaktera iz službenog registra. Većina njih još nema račun na DajSrcu.",
+    "only_onboarded_off_browse": "Prikazujemo udruge iz područja skrbi, humanitarne pomoći i srodnih područja iz službenog registra.",
     "updated": "Podaci ažurirani",
     "search_label": "Naziv, OIB, registarski broj ili adresa",
     "search_placeholder": "Upišite najmanje 2 znaka",
@@ -541,11 +541,6 @@
     "zagreb_only": "Samo Zagreb",
     "all_croatia": "Cijela Hrvatska",
     "urgent_only": "Samo hitno",
-    "social_only": "Samo socijalne",
-    "all_associations": "Sve udruge",
-    "scope_label": "Koje udruge prikazati",
-    "social_only_hint": "Skrb, humanitarna pomoć i srodna područja. Pretraživanje po nazivu ili OIB-u uvijek obuhvaća cijeli registar.",
-    "all_associations_hint": "Cijeli službeni registar, uključujući sportske, kulturne i ostale udruge.",
     "onboarded_only": "Na DajSrcu"
   },
   "needs_page": {
@@ -730,7 +725,7 @@
     "pillar_sources_title": "Službeni izvori",
     "pillar_sources_body": "Popis udruga preuzimamo iz Registra udruga Republike Hrvatske i usklađujemo ga sa službenim podacima. Prisutnost u registru nije potvrda organizacije niti dokaz da udruga prima donacije: to je zasebna, izričita provjera.",
     "pillar_coverage_title": "Cijela Hrvatska",
-    "pillar_coverage_body": "Karta pokriva sve aktivne udruge, ne samo velike gradove. Adrese usklađujemo sa službenim adresnim podacima Državne geodetske uprave, a gdje točna adresa nije poznata, lokaciju prikazujemo grubljom i to jasno označimo.",
+    "pillar_coverage_body": "Karta pokriva sve aktivne udruge socijalnog karaktera, ne samo one u velikim gradovima. Adrese usklađujemo sa službenim adresnim podacima Državne geodetske uprave, a gdje točna adresa nije poznata, lokaciju prikazujemo grubljom i to jasno označimo.",
     "pillar_evidence_title": "Izravna veza",
     "pillar_evidence_body": "Povezujemo vas s udrugom i dalje se dogovarate izravno s njom. Ne stojimo između vas i ne vodimo evidenciju o tome što ste predali.",
     "registration_title": "Podaci o udruzi",

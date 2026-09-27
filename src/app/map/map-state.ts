@@ -20,10 +20,6 @@ export const DEFAULT_FILTERS: MapFilters = {
   onlyZagreb: false,
   onlyUrgent: false,
   onlyOnboarded: false,
-  // On by default: the register is mostly sports, culture and hobby
-  // associations, and a first-time visitor looking for somewhere to help
-  // should not have to filter those out before the map means anything.
-  onlySocial: true,
 };
 
 export type MapMeta = PublicMapResponse["meta"];
@@ -87,20 +83,18 @@ export function initialState(searchParams: URLSearchParams): {
 
   try {
     const parsed = parseMapQuery(params);
-    const onlySocial = params.get("social") !== "0";
     return {
       center,
       viewport: { bbox, zoom },
       filters: {
-        // An older link can still carry `association`, which the social view
-        // no longer offers; keep it out of the menu's selection too.
-        categories: onlySocial ? socialCategoriesOnly(parsed.categories) : parsed.categories,
+        // An older link can still carry `association` (or `social=0`, which is
+        // ignored now); the platform shows social associations only.
+        categories: socialCategoriesOnly(parsed.categories),
         donationTypes: parsed.donationTypes,
         city: parsed.city,
         onlyZagreb: parsed.onlyZagreb,
         onlyUrgent: parsed.onlyUrgent,
         onlyOnboarded: parsed.onlyOnboarded,
-        onlySocial,
       },
       search: params.get("q") ?? "",
       selectedId: params.get("institution"),
@@ -124,7 +118,7 @@ export function initialMapQuery(params: URLSearchParams): MapQuery {
   const query: MapQuery = {
     ...state.viewport,
     ...state.filters,
-    categories: resolveMapCategories({ ...state.filters, query: typed }),
+    categories: resolveMapCategories(state.filters.categories),
     query: typed,
     limit: MAP_FEATURE_LIMIT,
     ...requestViewport(state.viewport, Boolean(typed)),

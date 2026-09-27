@@ -53,7 +53,6 @@ describe("map query contract", () => {
       onlyZagreb: false,
       onlyUrgent: false,
       onlyOnboarded: true,
-      onlySocial: true,
     };
     const params = buildBrowserMapParams({
       center: [45.7, 16.1], zoom: 10, filters, query: null, selectedId: null,
@@ -235,70 +234,32 @@ describe("map query contract", () => {
     expect(normalizeMapSearch("  DOM%__ZA   DJECU ")).toBe("dom za djecu");
   });
 
-  it("drops the classified-only default for the On DajSrce filter", () => {
-    // An onboarded organisation whose register row was never classified is
-    // still `association`; asking for the twelve classified categories hid it.
-    expect(
-      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: true })
-    ).toEqual([]);
-    expect(
-      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: false })
-    ).toEqual(SOCIAL_MAP_CATEGORIES);
-    // An explicit choice wins over both defaults.
-    expect(
-      resolveMapCategories({
-        categories: ["soup_kitchen"],
-        onlySocial: true,
-        onlyOnboarded: true,
-      })
-    ).toEqual(["soup_kitchen"]);
-  });
-
-  it("never narrows a typed search with the social default", () => {
-    // Searching "eestec" or "kud" is intent to find one organisation; the
-    // default returned nothing for both on production.
-    expect(
-      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: false, query: "eestec" })
-    ).toEqual([]);
-    expect(
-      resolveMapCategories({ categories: [], onlySocial: true, onlyOnboarded: false, query: "  " })
-    ).toEqual(SOCIAL_MAP_CATEGORIES);
-    // An explicit category still narrows a search.
-    expect(
-      resolveMapCategories({
-        categories: ["soup_kitchen"],
-        onlySocial: true,
-        onlyOnboarded: false,
-        query: "kuhinja",
-      })
-    ).toEqual(["soup_kitchen"]);
+  it("always asks for the social categories, narrowed only by a social choice", () => {
+    // DajSrce is only for associations of a social character: browsing, a
+    // typed search and "On DajSrce" alike ask for the twelve social categories.
+    expect(resolveMapCategories([])).toEqual(SOCIAL_MAP_CATEGORIES);
+    expect(resolveMapCategories(["soup_kitchen"])).toEqual(["soup_kitchen"]);
     // The server snapshot asks the same question the browser will.
-    expect(initialMapQuery(new URLSearchParams("q=eestec")).categories).toEqual([]);
+    expect(initialMapQuery(new URLSearchParams("q=eestec")).categories).toEqual(
+      [...SOCIAL_MAP_CATEGORIES].sort()
+    );
+    expect(initialMapQuery(new URLSearchParams("onlyOnboarded=true")).categories).toEqual(
+      [...SOCIAL_MAP_CATEGORIES].sort()
+    );
     expect(initialMapQuery(new URLSearchParams()).categories).toEqual(
       [...SOCIAL_MAP_CATEGORIES].sort()
     );
   });
 
-  it("never lets the catch-all association category widen the social view", () => {
+  it("never lets the catch-all association category or an old link widen the view", () => {
     // Unclassified register rows all resolve to `association`, so asking for it
-    // under "social only" used to return the whole ~39,000-row remainder.
-    expect(
-      resolveMapCategories({ categories: ["association"], onlySocial: true, onlyOnboarded: false })
-    ).toEqual(SOCIAL_MAP_CATEGORIES);
-    expect(
-      resolveMapCategories({
-        categories: ["association", "soup_kitchen"],
-        onlySocial: true,
-        onlyOnboarded: false,
-      })
-    ).toEqual(["soup_kitchen"]);
-    expect(
-      resolveMapCategories({ categories: ["association"], onlySocial: true, onlyOnboarded: true })
-    ).toEqual([]);
-    // Outside the social view it is an ordinary category again.
-    expect(
-      resolveMapCategories({ categories: ["association"], onlySocial: false, onlyOnboarded: false })
-    ).toEqual(["association"]);
+    // used to return the whole ~39,000-row remainder.
+    expect(resolveMapCategories(["association"])).toEqual(SOCIAL_MAP_CATEGORIES);
+    expect(resolveMapCategories(["association", "soup_kitchen"])).toEqual(["soup_kitchen"]);
+    // `social=0` came from the retired "Sve udruge" switch and is ignored.
+    expect(initialMapQuery(new URLSearchParams("social=0")).categories).toEqual(
+      [...SOCIAL_MAP_CATEGORIES].sort()
+    );
   });
 
   it("reduces a typed OIB to its bare digits", () => {

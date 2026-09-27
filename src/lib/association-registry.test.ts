@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AssociationDirectoryQueryError,
   associationDirectoryRpcArgs,
+  isSocialRegistryEntry,
   parseAssociationDirectoryQuery,
   sanitizeDirectoryParams,
 } from "./association-registry";
@@ -35,9 +36,16 @@ describe("association directory query", () => {
     });
   });
 
-  it("browses the classified subset but searches the whole register", () => {
-    // Browsing keeps the map's social default; a typed name must reach the
-    // ~40,000 unclassified rows too, or a KUD looking itself up finds nothing.
+  it("shows a register entry only when it is classified as social", () => {
+    expect(isSocialRegistryEntry({ category: "soup_kitchen" })).toBe(true);
+    expect(isSocialRegistryEntry({ category: "association" })).toBe(false);
+    expect(isSocialRegistryEntry({ category: null })).toBe(false);
+    expect(isSocialRegistryEntry({})).toBe(false);
+  });
+
+  it("browses and searches only the social (classified) subset", () => {
+    // DajSrce is only for associations of a social character; the ~40,000
+    // unclassified rows are not shown, not even to a typed search.
     expect(associationDirectoryRpcArgs(parseAssociationDirectoryQuery(new URLSearchParams())))
       .toMatchObject({ p_query: null, p_classified_only: true });
     expect(associationDirectoryRpcArgs(parseAssociationDirectoryQuery(
@@ -45,7 +53,7 @@ describe("association directory query", () => {
     ))).toMatchObject({ p_classified_only: true });
     expect(associationDirectoryRpcArgs(parseAssociationDirectoryQuery(
       new URLSearchParams({ q: "kud" })
-    ))).toMatchObject({ p_query: "kud", p_classified_only: false });
+    ))).toMatchObject({ p_query: "kud", p_classified_only: true });
   });
 
   it("uses complete-directory defaults", () => {

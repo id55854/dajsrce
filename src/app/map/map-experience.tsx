@@ -312,21 +312,14 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
   // `mapQuery` is what the URL describes; this is what the API is asked. The
   // two differ in two places, and both differences are deliberately kept out
   // of the address bar: a fresh search or filter covers the whole country
-  // regardless of the viewport (see `nationalScope`), and "social only" expands
-  // into the twelve real categories rather than writing all twelve into the URL
-  // (a typed search is never narrowed by that default; see
+  // regardless of the viewport (see `nationalScope`), and no category choice
+  // expands into the twelve social categories rather than writing all twelve
+  // into the URL (the platform shows social associations only; see
   // `resolveMapCategories`).
   const apiMapQuery = useMemo<MapQuery>(() => {
-    const categories = resolveMapCategories({
-      categories: mapQuery.categories,
-      onlySocial: filters.onlySocial,
-      onlyOnboarded: mapQuery.onlyOnboarded,
-      query: mapQuery.query,
-    });
-    const withCategories =
-      categories === mapQuery.categories ? mapQuery : { ...mapQuery, categories };
-    return { ...withCategories, ...requestViewport(mapQuery, nationalScope) };
-  }, [mapQuery, filters.onlySocial, nationalScope]);
+    const categories = resolveMapCategories(mapQuery.categories);
+    return { ...mapQuery, categories, ...requestViewport(mapQuery, nationalScope) };
+  }, [mapQuery, nationalScope]);
 
   // Pan/zoom/filter/search stay on replaceState (they must not spam history).
   // Opening a selection pushes exactly one entry so Back closes the detail panel.
@@ -336,7 +329,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     const query = buildBrowserMapParams({
       center: [(minLat + maxLat) / 2, (minLng + maxLng) / 2],
       zoom: mapQuery.zoom,
-      filters: { ...mapQuery, onlySocial: filters.onlySocial },
+      filters: mapQuery,
       query: mapQuery.query,
       // The selection is appended below, because `querySyncRef` has to hold the
       // view *without* it for the popstate repair.
@@ -372,7 +365,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
       return;
     }
     window.history.replaceState(window.history.state, "", url);
-  }, [mapQuery, selectedId, filters.onlySocial]);
+  }, [mapQuery, selectedId]);
 
   // Browser Back/Forward drives the selection, so Back closes the detail panel
   // instead of leaving the app.
@@ -590,10 +583,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     (filters.city ? 1 : 0) +
     (filters.onlyOnboarded ? 1 : 0) +
     (filters.onlyZagreb ? 1 : 0) +
-    (filters.onlyUrgent ? 1 : 0) +
-    // "All associations" is a departure from the default that "clear
-    // filters" undoes, so it counts like any other choice.
-    (filters.onlySocial ? 0 : 1);
+    (filters.onlyUrgent ? 1 : 0);
 
   const listCount =
     meta.mode === "clusters" ? clusterRows.length : institutionRows.length;

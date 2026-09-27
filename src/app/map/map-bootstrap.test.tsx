@@ -36,9 +36,10 @@ describe("server-rendered map bootstrap", () => {
   it("keeps filters, multi-donation semantics and bounds in the server query", () => {
     const query = initialMapQuery(new URLSearchParams("categories=soup_kitchen&donationTypes=food,hygiene&city=Zagreb&onlyOnboarded=true&@=45.8,16,12"));
     expect(query.categories).toEqual(["soup_kitchen"]);
-    // The catch-all is only a category outside the social view.
+    // The platform shows social associations only: the catch-all and the
+    // retired `social=0` flag cannot reopen the rest of the register.
     expect(initialMapQuery(new URLSearchParams("categories=association&social=0")).categories)
-      .toEqual(["association"]);
+      .not.toContain("association");
     expect(initialMapQuery(new URLSearchParams("categories=association")).categories)
       .not.toContain("association");
     expect(query.donationTypes).toEqual(["food", "hygiene"]);

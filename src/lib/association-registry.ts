@@ -90,6 +90,11 @@ export type AssociationRegistryEntry = {
   short_names_in_other_languages: string | null;
   last_verified_at: string | null;
   source_metadata_modified: string | null;
+  /**
+   * The reviewed classification of the register row (20260927100000);
+   * `association` is the unclassified catch-all. Absent on an older schema.
+   */
+  category?: string | null;
   source: {
     publisher: string;
     dataset: string;
@@ -97,6 +102,17 @@ export type AssociationRegistryEntry = {
     license: string;
   };
 };
+
+/**
+ * DajSrce is only for associations of a social character, so a public page or
+ * API shows a register entry only when its row is classified into one of the
+ * social categories. Unclassified (`association`) or unknown means not shown.
+ * The claim flow reads entries without this filter, so every association can
+ * still find and claim its own record.
+ */
+export function isSocialRegistryEntry(entry: Pick<AssociationRegistryEntry, "category">): boolean {
+  return typeof entry.category === "string" && entry.category !== "" && entry.category !== "association";
+}
 
 export class AssociationDirectoryQueryError extends Error {
   constructor(public readonly issues: string[]) {
@@ -278,13 +294,13 @@ export function associationDirectoryRpcArgs(query: AssociationDirectoryQuery) {
     p_sort: query.sort,
     p_page: query.page,
     p_page_size: query.pageSize,
-    // Browsing matches the map's default: only the twelve real categories,
-    // not the ~40,700 register rows the classifier could never place (they
-    // land in the `association` catch-all; see 20260821150000_register_
-    // classified_only_default.sql). A typed name, OIB or address is a search
-    // of the register itself, so it covers every row, as the map's search
-    // does; otherwise an association looking itself up is told it does not
-    // exist.
-    p_classified_only: query.query == null,
+    // Browsing and searching alike stay within the twelve social categories:
+    // DajSrce is only for associations of a social character, and the ~40,700
+    // register rows the classifier placed in the `association` catch-all
+    // (sports, culture, hobby; see 20260821150000_register_classified_only_
+    // default.sql) are not shown anywhere. Associations still find their own
+    // register entry to claim it through the claim search, which covers the
+    // whole register.
+    p_classified_only: true,
   };
 }

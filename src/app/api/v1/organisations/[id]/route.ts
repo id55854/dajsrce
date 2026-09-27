@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import type { AssociationRegistryEntry } from "@/lib/association-registry";
+import { isSocialRegistryEntry, type AssociationRegistryEntry } from "@/lib/association-registry";
 import { logError } from "@/lib/observability";
 import { rateLimit } from "@/lib/security/http";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -30,7 +30,8 @@ export async function GET(
       p_udr_id: id,
     });
     if (error) throw new Error(`Directory detail failed (${error.code ?? "database"})`);
-    if (!data) {
+    // Only social associations are shown; anything else reads as not found.
+    if (!data || !isSocialRegistryEntry(data as AssociationRegistryEntry)) {
       return NextResponse.json(
         { error: "Organisation not found" },
         { status: 404, headers: { "Cache-Control": "public, s-maxage=60", "X-Request-Id": requestId } }

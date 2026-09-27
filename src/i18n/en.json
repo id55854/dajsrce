@@ -76,16 +76,16 @@
   },
   "organisations_page": {
     "title": "Associations",
-    "subtitle_register": "The official register of associations of the Republic of Croatia."
+    "subtitle_register": "Associations of a social character from the official Register of Associations of the Republic of Croatia."
   },
   "organisations": {
-    "title": "Croatian Associations Register",
-    "subtitle": "Search every active association in the official register. A registry record does not mean the organisation is verified by DajSrce or accepts donations.",
+    "title": "Social-care associations",
+    "subtitle": "Search associations of a social character from the official register: care, humanitarian aid and related fields. A registry record does not mean the organisation is verified by DajSrce or accepts donations.",
     "official_source": "Official source: data.gov.hr",
     "only_onboarded": "Organisations registered on DajSrce",
     "only_onboarded_on": "Showing only organisations that hold a DajSrce account and can receive help.",
-    "only_onboarded_off": "Searching the whole official register. Most entries do not have a DajSrce account yet.",
-    "only_onboarded_off_browse": "Without a search we list associations working in care and humanitarian aid. A search by name, OIB or address covers the whole official register.",
+    "only_onboarded_off": "Searching associations of a social character in the official register. Most do not have a DajSrce account yet.",
+    "only_onboarded_off_browse": "We list associations working in care, humanitarian aid and related fields from the official register.",
     "updated": "Data updated",
     "search_label": "Name, OIB, registry number or address",
     "search_placeholder": "Enter at least 2 characters",
@@ -541,11 +541,6 @@
     "zagreb_only": "Zagreb only",
     "all_croatia": "All Croatia",
     "urgent_only": "Urgent only",
-    "social_only": "Social only",
-    "all_associations": "All associations",
-    "scope_label": "Which associations to show",
-    "social_only_hint": "Care, humanitarian aid and related fields. A search by name or OIB always covers the whole register.",
-    "all_associations_hint": "The whole official register, including sports, cultural and other associations.",
     "onboarded_only": "On DajSrce"
   },
   "needs_page": {
@@ -730,7 +725,7 @@
     "pillar_sources_title": "Official sources",
     "pillar_sources_body": "The list of associations comes from the Croatian Register of Associations and is reconciled with the official data. Presence in the register is neither organisational confirmation nor evidence that an association accepts donations: that is a separate, explicit check.",
     "pillar_coverage_title": "All of Croatia",
-    "pillar_coverage_body": "The map covers every active association, not only the large cities. Addresses are matched against the State Geodetic Administration's official address points; where an exact address is unknown we show a coarser location and say so.",
+    "pillar_coverage_body": "The map covers every active association of a social character, not only those in the large cities. Addresses are matched against the State Geodetic Administration's official address points; where an exact address is unknown we show a coarser location and say so.",
     "pillar_evidence_title": "A direct connection",
     "pillar_evidence_body": "We connect you with an organisation and the rest is arranged between you. We do not stand in the middle, and we keep no record of what was handed over.",
     "registration_title": "Registration details",

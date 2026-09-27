@@ -22,11 +22,13 @@ Postgres moved from Supabase to Neon (project `broad-term-74317717`, branch `pro
 Core domains:
 
 - public institution discovery through viewport-bounded map/detail APIs, served at `/`;
-- `/organisations` is the official register only; an unknown `?view=` is redirected, never silently ignored;
+- `/organisations` is the official register only, limited like every public surface to associations of a social character; an unknown `?view=` is redirected, never silently ignored;
 - one merged `/doniraj` surface for giving, with a needs view and a donation wizard; `/needs` and `/quick-start` redirect into it;
 - NGO needs, pledges and opted-in nearby notifications;
 - volunteer events and capacity-safe, one-click signup;
 - staged/resumable registry import, durable geocoding, reviewed classification and transactional promotion.
+
+DajSrce is only for associations of a social character. Every public surface (map, map search, register directory and its detail pages, donation wizard, the engaged list) shows the twelve social categories only; `resolveMapCategories` and `loadPublicMap` enforce it for every map query and `association` (the unclassified catch-all of about 40,700 register rows) is never shown. There is no "all associations" switch; do not add one. Only the claim search covers the whole register, so an association the classifier missed can still claim its record (the admin decides).
 
 Only two account types exist: `individual` and `ngo` (plus `superadmin`). The company/CSR tenant domain (company accounts, campaigns, Stripe billing, tax receipts, ESG exports, CSR PDF/DOCX reports) was removed in `20260823100000_remove_company_domain.sql`; do not reintroduce a `company` role or resurrect Stripe without a fresh product decision.
 
@@ -128,6 +130,7 @@ Do not reintroduce root cookie access, global middleware matching, remote Google
 53. `20260926130000_fold_public_search_and_protect_locations.sql` (applied 2026-09-26): `registry_directory_entries.search_fold` is a stored generated `hr_fold(search_text)`; the register directory, map search and claim search match folded terms on it (most selective term first), and the city picker folds both sides, so searches no longer depend on č/ć/đ/š/ž. Also hides every non-curated `domestic_violence` institution and makes approval hide a claimed one of that category (the app also projects that category coarse on every public path).
 54. `20260926131000_search_fold_index.sql` and 55. `20260926132000_drop_search_fold_expression_index.sql` (applied 2026-09-26; each `CONCURRENTLY`, so each on its own): trigram index on `search_fold`, then drop the 51 expression index.
 56. `20260926140000_hidden_institution_directory_points.sql` (applied 2026-09-26): recomputes the directory map point of every row whose linked institution is hidden with `registry_public_map_point()`. 53 hid 14 violence-support institutions whose directory rows kept their exact point, and the map briefly showed them exactly; `rpcRowToFeature` now coarsens a protected-category row even when it arrives flagged hidden.
+57. `20260927100000_social_only_public_listings.sql` (applied 2026-09-27): `engaged_association_directory_v1` lists social associations only, and `get_association_registry_entry_v1` returns the directory `category`, which `/organisations/<id>` and its API use to answer 404 for a non-social entry.
 
 Apply new migrations to Neon with `DATABASE_URL_UNPOOLED` (psql or `neon psql`), then `neon data-api refresh-schema --database neondb` so the Data API sees new functions and columns.
 

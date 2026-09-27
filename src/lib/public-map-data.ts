@@ -1,5 +1,5 @@
 import {
-  MAP_API_VERSION, isProtectedLocation, projectHiddenLocation, trustStatus,
+  MAP_API_VERSION, isProtectedLocation, projectHiddenLocation, resolveMapCategories, trustStatus,
   type MapPlaceKind, type MapQuery, type PublicMapFeature,
   type PublicMapInstitution, type PublicMapResponse,
 } from "@/lib/location-map";
@@ -126,7 +126,8 @@ async function queryIndexedRpc(query: MapQuery) {
     p_max_lng: maxLng,
     p_max_lat: maxLat,
     p_zoom: query.zoom,
-    p_categories: query.categories,
+    // Social associations only, whoever asks (see resolveMapCategories).
+    p_categories: resolveMapCategories(query.categories),
     // One type goes out under the original scalar name and several under the
     // newer array, and neither is sent when nothing is selected. The array
     // argument is newer than the deployed function may be, so a single-type
@@ -227,7 +228,7 @@ async function queryBoundedFallback(query: MapQuery) {
     .gte("public_lat", minLat)
     .lte("public_lat", maxLat);
 
-  if (query.categories.length > 0) builder = builder.in("category", query.categories);
+  builder = builder.in("category", resolveMapCategories(query.categories));
   if (query.donationTypes.length > 0) {
     // Overlap, matching the RPC: accepting any one of the selected kinds is
     // enough. `contains` would demand all of them.

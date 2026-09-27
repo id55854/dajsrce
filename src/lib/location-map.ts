@@ -79,45 +79,21 @@ export const SOCIAL_MAP_CATEGORIES: InstitutionCategory[] = (
 ).filter((category) => category !== "association");
 
 /**
- * The categories the map actually asks for, given what the visitor chose.
+ * The categories every public map request asks for, given what the visitor
+ * chose.
  *
- * An explicit selection always wins. With no selection the map asks for the
- * twelve classified categories, to keep the ~40,700 register rows the
- * classifier could never place out of a nationwide view.
- *
- * "On DajSrce" is the exception, and the reason this is a function. That
- * filter means "organisations with a real account here", and an account is
- * not a category: an NGO whose register row was never classified is still
- * `association`, so the classified-only default hid it. On production that
- * silently reduced the filter's answer from three organisations to one, while
- * the register's own engaged listing, which has no such default, showed all
- * three. The noise the default exists to suppress cannot occur here, because
- * every row already has a person behind it.
- *
- * A typed search is the second exception. A name or OIB is explicit intent
- * to find one organisation, and the default exists to declutter browsing, not
- * to answer "not found" for an association that is in the register: on
- * production the default hid onboarded organisations from a search for their
- * own name, and every KUD and sports club from a search for theirs. An
- * explicit category choice still narrows a search.
- *
- * Under "social only" an explicit `association` is dropped. It is the
- * catch-all every unclassified register row resolves to, so choosing "Udruga"
- * from the category menu used to reopen the ~39,000 rows the default exists to
- * hide; the social view can never answer with more than its twelve categories.
+ * DajSrce is only for associations of a social character, so a request never
+ * reaches beyond the twelve social categories: an explicit selection narrows
+ * them, and no selection (browsing, a typed search, "On DajSrce", the donation
+ * wizard) asks for all twelve. `association` is the catch-all every
+ * unclassified register row resolves to (about 40,700 sports, cultural and
+ * hobby associations), so it is dropped from any selection instead of
+ * reopening the whole register. The data layer applies this to every query
+ * (`loadPublicMap`), so no caller can ask for more.
  */
-export function resolveMapCategories(filters: {
-  categories: InstitutionCategory[];
-  onlySocial: boolean;
-  onlyOnboarded: boolean;
-  /** The visitor's typed name or OIB search, if any. */
-  query?: string | null;
-}): InstitutionCategory[] {
-  if (!filters.onlySocial) return filters.categories;
-  const chosen = socialCategoriesOnly(filters.categories);
-  if (chosen.length > 0) return chosen;
-  if (filters.onlyOnboarded || filters.query?.trim()) return [];
-  return SOCIAL_MAP_CATEGORIES;
+export function resolveMapCategories(categories: readonly InstitutionCategory[]): InstitutionCategory[] {
+  const chosen = socialCategoriesOnly([...categories]);
+  return chosen.length > 0 ? chosen : SOCIAL_MAP_CATEGORIES;
 }
 
 export function socialCategoriesOnly(
@@ -633,7 +609,7 @@ export function buildBrowserMapParams({
   filters: Pick<
     MapQuery,
     "categories" | "donationTypes" | "city" | "onlyZagreb" | "onlyUrgent" | "onlyOnboarded"
-  > & { onlySocial: boolean };
+  >;
   query: string | null;
   selectedId: string | null;
 }): URLSearchParams {
@@ -654,8 +630,6 @@ export function buildBrowserMapParams({
   if (filters.city) params.set("city", filters.city);
   if (filters.onlyUrgent) params.set("onlyUrgent", "true");
   if (filters.onlyOnboarded) params.set("onlyOnboarded", "true");
-  // Social-only is the default, so only its absence is worth writing down.
-  if (!filters.onlySocial) params.set("social", "0");
   if (query) params.set("q", query);
   if (selectedId) params.set("institution", selectedId);
   return params;
