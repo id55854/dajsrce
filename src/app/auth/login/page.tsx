@@ -45,6 +45,9 @@ function LoginForm() {
     if (searchParams.get("error") === "auth_failed") {
       setErrorKey("auth.sign_in_failed");
     }
+    if (searchParams.get("error") === "link_invalid") {
+      setErrorKey("auth.confirm_link_invalid");
+    }
     if (!isSupabaseConfigured) {
       setErrorKey(AUTH_NOT_CONFIGURED);
       return;

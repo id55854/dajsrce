@@ -1,5 +1,14 @@
 {
-  "crons": [],
+  "crons": [
+    {
+      "path": "/api/cron/process-notification-jobs",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/event-reminders",
+      "schedule": "0 5 * * *"
+    }
+  ],
   "regions": [
     "fra1"
   ]

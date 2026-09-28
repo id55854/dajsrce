@@ -85,3 +85,46 @@ describe("auth callback recovery", () => {
       .toBe("https://dajsrce.test/dashboard");
   });
 });
+
+describe("auth callback sign-up confirmation", () => {
+  it("confirms a token-hash link on any device and continues NGO onboarding", async () => {
+    expect(await destination("?token_hash=hash&type=email&next=/dashboard"))
+      .toBe("https://dajsrce.test/auth/setup");
+    expect(verifyOtp).toHaveBeenCalledWith({ token_hash: "hash", type: "email" });
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  it("sends a confirmed individual to their own dashboard", async () => {
+    getUser.mockResolvedValue({ data: { user: {
+      id: "person-1", app_metadata: { provider: "email" }, user_metadata: { role: "individual" },
+    } } });
+    maybeSingle.mockResolvedValue({ data: { role: "individual", institution_id: null } });
+    expect(await destination("?token_hash=hash&type=email&next=/dashboard"))
+      .toBe("https://dajsrce.test/dashboard/individual");
+  });
+
+  it("accepts the other portable e-mail link types and nothing else", async () => {
+    for (const type of ["signup", "invite", "magiclink", "email_change"]) {
+      verifyOtp.mockClear();
+      await destination(`?token_hash=hash&type=${type}`);
+      expect(verifyOtp).toHaveBeenCalledWith({ token_hash: "hash", type });
+    }
+    verifyOtp.mockClear();
+    expect(await destination("?token_hash=hash&type=phone_change"))
+      .toBe("https://dajsrce.test/auth/login?error=auth_failed");
+    expect(verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("explains an expired or reused confirmation instead of a failed sign-in", async () => {
+    verifyOtp.mockResolvedValue({ error: { code: "otp_expired" } });
+    expect(await destination("?token_hash=used&type=email"))
+      .toBe("https://dajsrce.test/auth/login?error=link_invalid");
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("keeps an external next URL from becoming an open redirect", async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    expect(await destination("?token_hash=hash&type=email&next=https://evil.test"))
+      .toBe("https://dajsrce.test/dashboard");
+  });
+});
