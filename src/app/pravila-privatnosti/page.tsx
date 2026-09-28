@@ -74,7 +74,7 @@ const RECIPIENTS = [
   [
     "Supabase, Inc.",
     "izvršitelj obrade",
-    "prijava i račun; poruke za potvrdu adrese i obnovu lozinke (isporučuje ih Resend)",
+    "prijava i račun, uključujući tajni ključ aplikacije za dvostupanjsku prijavu ako je uključite; poruke za potvrdu adrese i obnovu lozinke (isporučuje ih Resend)",
     "podaci su pohranjeni u EU (Irska); tvrtka je iz SAD-a, prijenos je zaštićen standardnim ugovornim klauzulama",
   ],
   [

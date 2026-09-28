@@ -7,6 +7,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/i18n/server";
 import { PageHeader, PageShell, buttonClasses } from "@/components/ui";
 import { EmailNotificationSettings } from "@/components/account/EmailNotificationSettings";
+import { TwoFactorSettings } from "@/components/account/TwoFactorSettings";
 
 export const metadata: Metadata = {
   title: "Postavke računa",
@@ -37,6 +38,9 @@ export default async function AccountSettingsPage() {
         subtitle={t("account.subtitle")}
       />
       <div className="space-y-6">
+        {/* First for an administrator: the administration sends one without
+            an authenticator app here (#dvostupanjska-prijava) to add it. */}
+        <TwoFactorSettings role={profile.role} />
         <EmailNotificationSettings initialEnabled={emailEnabled} email={profile.email} />
       </div>
       <div className="mt-8 border-t border-border-subtle pt-6">
