@@ -5,6 +5,9 @@
  * the actor's role from `public.profiles` inside the transaction.
  */
 
+import { SOCIAL_MAP_CATEGORIES } from "@/lib/location-map";
+import type { InstitutionCategory } from "@/lib/types";
+
 export const INSTITUTION_CLAIM_STATUSES = [
   "pending",
   "email_sent",
@@ -106,6 +109,16 @@ export type InstitutionClaimReviewItem = {
         legal_form: string | null;
         website: string | null;
         already_linked: boolean;
+        /**
+         * What approval would publish without a reviewer's choice: the
+         * directory category, `association` when the classifier did not
+         * place the row among the social ones. Absent on a schema that
+         * predates 20260927110000.
+         */
+        category?: string | null;
+        classification_status?: string | null;
+        /** The classifier's low-confidence guess for a row it left for review. */
+        suggested_category?: string | null;
       })
     | null;
 };
@@ -126,6 +139,8 @@ export type ClaimRequestInput = {
 export type ClaimReviewInput = {
   decision: "approve" | "reject";
   note: string | null;
+  /** The reviewer's social category for an approval; null keeps the register's. */
+  category: InstitutionCategory | null;
 };
 
 export type ClaimSearchInput = {
@@ -235,7 +250,47 @@ export function parseClaimReviewInput(raw: unknown): ParseResult<ClaimReviewInpu
     return { ok: false, error: "A rejection must explain why" };
   }
 
-  return { ok: true, value: { decision, note: note || null } };
+  const categoryRaw = body.category;
+  let category: InstitutionCategory | null = null;
+  if (categoryRaw != null && categoryRaw !== "") {
+    if (decision !== "approve") {
+      return { ok: false, error: "category is only accepted with an approval" };
+    }
+    if (!isSocialCategory(categoryRaw)) {
+      return { ok: false, error: "category must be one of the social categories" };
+    }
+    category = categoryRaw;
+  }
+
+  return { ok: true, value: { decision, note: note || null, category } };
+}
+
+/** One of the twelve social categories, never the `association` catch-all. */
+export function isSocialCategory(value: unknown): value is InstitutionCategory {
+  return (
+    typeof value === "string" &&
+    (SOCIAL_MAP_CATEGORIES as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * The category the approval dialog starts with: the register's when it is
+ * social, else the classifier's low-confidence suggestion for a row it left
+ * for review, else none, and the reviewer has to choose (or reject the claim:
+ * DajSrce is only for associations of a social character).
+ */
+export function claimInitialCategory(
+  organisation: InstitutionClaimReviewItem["organisation"]
+): InstitutionCategory | null {
+  if (!organisation) return null;
+  if (isSocialCategory(organisation.category)) return organisation.category;
+  if (
+    organisation.classification_status === "needs_review" &&
+    isSocialCategory(organisation.suggested_category)
+  ) {
+    return organisation.suggested_category;
+  }
+  return null;
 }
 
 export function parseClaimSearchInput(params: URLSearchParams): ParseResult<ClaimSearchInput> {
@@ -319,11 +374,15 @@ export type ClaimErrorCode =
   | "applicant_linked"
   | "applicant_ineligible"
   | "no_location"
-  | "mailbox_not_verified";
+  | "mailbox_not_verified"
+  | "category_required"
+  | "category_invalid";
 
 /** Fragments of the messages the claim RPCs raise, most specific first. */
 const CLAIM_ERROR_MESSAGES: ReadonlyArray<readonly [string, ClaimErrorCode]> = [
   ["mailbox not verified", "mailbox_not_verified"],
+  ["choose a social category", "category_required"],
+  ["invalid category", "category_invalid"],
   ["uq_institution_claims_open_per_profile", "open_claim_exists"],
   ["uq_institution_claims_open_per_udr", "organisation_claimed"],
   ["this account cannot claim", "account_ineligible"],
@@ -430,6 +489,10 @@ export function claimReviewErrorMessageKey(status: number, code?: string | null)
       return "admin.claims_error_applicant_ineligible";
     case "no_location":
       return "admin.claims_error_no_location";
+    case "category_required":
+      return "admin.claims_error_category_required";
+    case "category_invalid":
+      return "admin.claims_error_category_invalid";
     case "reviewer_not_admin":
       return "admin.claims_error_forbidden";
   }

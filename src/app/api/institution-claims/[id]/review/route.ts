@@ -83,6 +83,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     p_reviewer_id: user.id,
     p_claim_id: id,
     p_note: parsed.value.note,
+    // Sent only when the reviewer chose one: the argument is newer than the
+    // deployed function may be (20260927110000), and without it approval
+    // keeps the register's category when that is a social one.
+    ...(parsed.value.decision === "approve" && parsed.value.category
+      ? { p_category: parsed.value.category }
+      : {}),
   });
 
   if (error) {

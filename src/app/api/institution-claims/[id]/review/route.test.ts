@@ -157,4 +157,50 @@ describe("POST /api/institution-claims/[id]/review", () => {
     expect(payload.code).toBe("mailbox_not_verified");
     expect(payload.error).not.toContain("mailbox");
   });
+
+  it("passes the reviewer's social category to the approval", async () => {
+    signedInAs("superadmin");
+    rpc.mockResolvedValue({ data: { id: CLAIM_ID, status: "approved" }, error: null });
+    const response = await POST(
+      review({
+        decision: "approve",
+        note: "Provjereno: telefonom s predsjednicom.",
+        category: "disability_support",
+      }),
+      { params }
+    );
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("approve_institution_claim_transaction", {
+      p_reviewer_id: REVIEWER_ID,
+      p_claim_id: CLAIM_ID,
+      p_note: "Provjereno: telefonom s predsjednicom.",
+      p_category: "disability_support",
+    });
+  });
+
+  it("refuses the catch-all, an unknown category, or a category on a rejection", async () => {
+    signedInAs("superadmin");
+    for (const body of [
+      { decision: "approve", category: "association" },
+      { decision: "approve", category: "sports" },
+      { decision: "approve", category: 7 },
+      { decision: "reject", note: "Nije socijalna udruga.", category: "elderly_care" },
+    ]) {
+      expect((await POST(review(body), { params })).status).toBe(400);
+    }
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("names an approval refused for want of a social category", async () => {
+    signedInAs("superadmin");
+    rpc.mockResolvedValue({
+      data: null,
+      error: { code: "22023", message: "choose a social category for this organisation" },
+    });
+    const response = await POST(review({ decision: "approve" }), { params });
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+    expect(payload.code).toBe("category_required");
+    expect(payload.error).not.toContain("category");
+  });
 });

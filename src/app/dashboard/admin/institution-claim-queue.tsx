@@ -11,18 +11,24 @@ import {
   EmptyState,
   Field,
   SectionHeader,
+  Select,
   Textarea,
   useToast,
   type BadgeTone,
 } from "@/components/ui";
 import { safeHttpUrl } from "@/components/RegistryRecord";
 import { useLocale, useT } from "@/i18n/client";
+import { CATEGORY_CONFIG } from "@/lib/constants";
+import { SOCIAL_MAP_CATEGORIES } from "@/lib/location-map";
+import type { InstitutionCategory } from "@/lib/types";
 import {
   CLAIM_NOTE_MAX_LENGTH,
   CLAIM_OUT_OF_BAND_NOTE_MAX_LENGTH,
   claimApprovalNote,
   claimChallengeState,
+  claimInitialCategory,
   claimReviewErrorMessageKey,
+  isSocialCategory,
   sameEmailAddress,
   type ClaimChallengeState,
   type InstitutionClaimReviewItem,
@@ -71,6 +77,45 @@ function formatWhen(value: string | null, locale: string, withTime: boolean): st
   }).format(date);
 }
 
+function categoryLabel(category: InstitutionCategory, locale: string): string {
+  const config = CATEGORY_CONFIG[category];
+  return locale === "en" ? config.label : config.labelHr;
+}
+
+/**
+ * What approval would publish. The card leaves this out on a schema that
+ * predates the column (20260927110000) rather than calling the row not social.
+ */
+function ClaimCategory({
+  organisation,
+  locale,
+  t,
+}: {
+  organisation: NonNullable<InstitutionClaimReviewItem["organisation"]>;
+  locale: string;
+  t: ReturnType<typeof useT>;
+}) {
+  if (isSocialCategory(organisation.category)) {
+    return <>{categoryLabel(organisation.category, locale)}</>;
+  }
+  const suggestion =
+    organisation.classification_status === "needs_review" &&
+    isSocialCategory(organisation.suggested_category)
+      ? organisation.suggested_category
+      : null;
+  return (
+    <Badge
+      tone="warning"
+      size="sm"
+      icon={<AlertTriangle className="h-3 w-3" aria-hidden="true" />}
+    >
+      {suggestion
+        ? t("admin.claims_category_uncertain", { category: categoryLabel(suggestion, locale) })
+        : t("admin.claims_category_not_social")}
+    </Badge>
+  );
+}
+
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
@@ -101,18 +146,34 @@ export function InstitutionClaimQueue({
   const [pending, setPending] = useState<Pending | null>(null);
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
+  // The select's value: "" until a social category is chosen.
+  const [category, setCategory] = useState("");
+  const [categoryError, setCategoryError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const outOfBand = needsOutOfBandCheck(pending);
+  // Only a queue that reports the category (20260927110000) can take one;
+  // an older schema approves in the register's category as before.
+  const choosesCategory =
+    pending?.decision === "approve" && pending.claim.organisation?.category !== undefined;
 
   function openDecision(claim: InstitutionClaimReviewItem, decision: Decision) {
     setPending({ claim, decision });
     setNote("");
     setNoteError(null);
+    setCategory(claimInitialCategory(claim.organisation) ?? "");
+    setCategoryError(null);
   }
 
   async function submitDecision() {
     if (!pending) return;
+    // DajSrce lists social associations only; an approval without a social
+    // category would publish an account nobody finds on the map, and the
+    // transaction refuses it.
+    if (choosesCategory && !isSocialCategory(category)) {
+      setCategoryError(t("admin.claims_category_required"));
+      return;
+    }
     const trimmed = note.trim();
     let payloadNote: string | null;
     if (pending.decision === "reject") {
@@ -138,7 +199,11 @@ export function InstitutionClaimQueue({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision: pending.decision, note: payloadNote }),
+        body: JSON.stringify({
+          decision: pending.decision,
+          note: payloadNote,
+          ...(choosesCategory ? { category } : {}),
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as { code?: string };
       if (!res.ok) {
@@ -148,6 +213,9 @@ export function InstitutionClaimQueue({
           // description the transaction needs instead of failing again.
           setPending((current) => (current ? { ...current, mailboxRefused: true } : current));
           setNoteError(t(messageKey));
+        }
+        if (data.code === "category_required" || data.code === "category_invalid") {
+          setCategoryError(t(messageKey));
         }
         toast({
           tone: "error",
@@ -270,6 +338,11 @@ export function InstitutionClaimQueue({
                       {organisation.legal_form}
                     </DetailRow>
                   ) : null}
+                  {organisation && organisation.category !== undefined ? (
+                    <DetailRow label={t("admin.claims_category")}>
+                      <ClaimCategory organisation={organisation} locale={locale} t={t} />
+                    </DetailRow>
+                  ) : null}
                   <DetailRow label={t("admin.claims_registry_entry")}>
                     {organisation?.address ?? "—"}
                   </DetailRow>
@@ -380,27 +453,57 @@ export function InstitutionClaimQueue({
           </>
         }
       >
-        <Field
-          label={outOfBand ? t("admin.claims_verification_label") : t("admin.claims_note_label")}
-          hint={outOfBand ? t("admin.claims_verification_hint") : t("admin.claims_note_hint")}
-          required={pending?.decision === "reject" || outOfBand}
-          requiredLabel={t("common.required")}
-          error={noteError ?? undefined}
-        >
-          {(field) => (
-            <Textarea
-              {...field}
-              rows={3}
-              maxLength={outOfBand ? CLAIM_OUT_OF_BAND_NOTE_MAX_LENGTH : CLAIM_NOTE_MAX_LENGTH}
-              value={note}
-              invalid={Boolean(noteError)}
-              onChange={(e) => {
-                setNote(e.target.value);
-                setNoteError(null);
-              }}
-            />
-          )}
-        </Field>
+        <div className="space-y-4">
+          {choosesCategory ? (
+            <Field
+              label={t("admin.claims_category_label")}
+              hint={t("admin.claims_category_hint")}
+              required
+              requiredLabel={t("common.required")}
+              error={categoryError ?? undefined}
+            >
+              {(field) => (
+                <Select
+                  {...field}
+                  value={category}
+                  invalid={Boolean(categoryError)}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    setCategoryError(null);
+                  }}
+                >
+                  <option value="">{t("admin.claims_category_placeholder")}</option>
+                  {SOCIAL_MAP_CATEGORIES.map((option) => (
+                    <option key={option} value={option}>
+                      {categoryLabel(option, locale)}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          ) : null}
+          <Field
+            label={outOfBand ? t("admin.claims_verification_label") : t("admin.claims_note_label")}
+            hint={outOfBand ? t("admin.claims_verification_hint") : t("admin.claims_note_hint")}
+            required={pending?.decision === "reject" || outOfBand}
+            requiredLabel={t("common.required")}
+            error={noteError ?? undefined}
+          >
+            {(field) => (
+              <Textarea
+                {...field}
+                rows={3}
+                maxLength={outOfBand ? CLAIM_OUT_OF_BAND_NOTE_MAX_LENGTH : CLAIM_NOTE_MAX_LENGTH}
+                value={note}
+                invalid={Boolean(noteError)}
+                onChange={(e) => {
+                  setNote(e.target.value);
+                  setNoteError(null);
+                }}
+              />
+            )}
+          </Field>
+        </div>
       </Dialog>
     </section>
   );

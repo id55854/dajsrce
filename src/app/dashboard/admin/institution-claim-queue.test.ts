@@ -230,3 +230,130 @@ describe("admin claim queue", () => {
     expect(text()).toContain("Zahtjev je u međuvremenu već riješen ili povučen.");
   });
 });
+
+type Organisation = NonNullable<InstitutionClaimReviewItem["organisation"]>;
+
+/** A claim as the queue reports it since 20260927110000. */
+function classified(id: string, name: string, organisation: Partial<Organisation>) {
+  const base = claim();
+  return claim({
+    id,
+    organisation: { ...base.organisation!, name, ...organisation },
+  });
+}
+
+const UNMAPPED = { category: "association", classification_status: "unmapped" };
+
+async function choose(value: string) {
+  const select = dialog().querySelector("select")!;
+  await act(async () => {
+    select.value = value;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+function card(name: string): HTMLElement {
+  const heading = [...document.querySelectorAll("h3")].find((h) =>
+    (h.textContent ?? "").includes(name)
+  );
+  if (!heading) throw new Error(`no card "${name}"`);
+  return heading.closest("li")!;
+}
+
+describe("admin claim queue category", () => {
+  it("shows what approval would publish for each kind of row", async () => {
+    await render([
+      classified("c1", "Udruga Skrb", { category: "elderly_care", classification_status: "auto_eligible" }),
+      classified("c2", "Udruga Nesigurna", {
+        category: "association",
+        classification_status: "needs_review",
+        suggested_category: "disability_support",
+      }),
+      classified("c3", "Tenis klub", UNMAPPED),
+    ]);
+    expect(card("Udruga Skrb").textContent).toContain("Skrb za starije");
+    expect(card("Udruga Nesigurna").textContent).toContain(
+      "Klasifikacija nesigurna, prijedlog: Podrška za osobe s invaliditetom"
+    );
+    expect(card("Tenis klub").textContent).toContain("Nije svrstana među socijalne");
+  });
+
+  it("says nothing about the category on a queue that predates it", async () => {
+    await render([claim({ email_verified: true })]);
+    expect(text()).not.toContain("Kategorija");
+    await click(button("Odobri"));
+    expect(dialog().querySelector("select")).toBeNull();
+  });
+
+  it("will not approve a row that is not social until a category is chosen", async () => {
+    respond(200, { claim: { status: "approved" } });
+    await render([classified("c3", "Tenis klub", UNMAPPED)]);
+    await click(button("Odobri"));
+    const select = dialog().querySelector("select")!;
+    expect(select.value).toBe("");
+    // The twelve social categories and the prompt, never the catch-all.
+    expect(select.options).toHaveLength(13);
+    expect([...select.options].map((option) => option.value)).not.toContain("association");
+
+    await typeNote("telefonom s predsjednicom udruge 27. 9. 2026.");
+    await click(button("Odobri", dialog()));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(dialog().textContent).toContain("Odaberite socijalnu kategoriju ili odbijte zahtjev.");
+
+    await choose("caritas");
+    await click(button("Odobri", dialog()));
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(sentBody()).toEqual({
+      decision: "approve",
+      note: "Provjereno: telefonom s predsjednicom udruge 27. 9. 2026.",
+      category: "caritas",
+    });
+  });
+
+  it("starts from the register category, or Jev's suggestion for a row left for review", async () => {
+    respond(200, { claim: { status: "approved" } });
+    await render([
+      classified("c1", "Udruga Skrb", { category: "elderly_care", classification_status: "auto_eligible" }),
+      classified("c2", "Udruga Nesigurna", {
+        category: "association",
+        classification_status: "needs_review",
+        suggested_category: "disability_support",
+      }),
+    ]);
+    await click(button("Odobri", card("Udruga Nesigurna")));
+    expect(dialog().querySelector("select")!.value).toBe("disability_support");
+    await click(button("Odustani", dialog()));
+
+    await click(button("Odobri", card("Udruga Skrb")));
+    expect(dialog().querySelector("select")!.value).toBe("elderly_care");
+    await typeNote("telefonom s predsjednicom udruge 27. 9. 2026.");
+    await click(button("Odobri", dialog()));
+    expect(sentBody()).toMatchObject({ decision: "approve", category: "elderly_care" });
+  });
+
+  it("puts a refusal for want of a category on the select", async () => {
+    respond(400, { error: "The decision could not be recorded", code: "category_required" });
+    await render([
+      classified("c1", "Udruga Skrb", { category: "elderly_care", classification_status: "auto_eligible" }),
+    ]);
+    await click(button("Odobri"));
+    await typeNote("telefonom s predsjednicom udruge 27. 9. 2026.");
+    await click(button("Odobri", dialog()));
+    expect(dialog().textContent).toContain(
+      "Ova udruga nije svrstana među socijalne. Odaberite kategoriju ili odbijte zahtjev."
+    );
+  });
+
+  it("asks nothing about the category when rejecting", async () => {
+    respond(200, { claim: { status: "rejected" } });
+    await render([classified("c3", "Tenis klub", UNMAPPED)]);
+    await click(button("Odbij"));
+    expect(dialog().querySelector("select")).toBeNull();
+    await typeNote("DajSrce je samo za udruge socijalnog karaktera.");
+    await click(button("Odbij", dialog()));
+    expect(sentBody()).toEqual({
+      decision: "reject",
+      note: "DajSrce je samo za udruge socijalnog karaktera.",
+    });
+  });
+});

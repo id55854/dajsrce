@@ -6,6 +6,7 @@ import {
   claimApprovalNote,
   claimChallengeState,
   claimConfirmationOutcome,
+  claimInitialCategory,
   claimErrorCode,
   claimErrorMessageKey,
   claimErrorStatus,
@@ -15,6 +16,7 @@ import {
   isInstitutionClaimStatus,
   isOpenInstitutionClaim,
   isRawClaimToken,
+  isSocialCategory,
   maskEmailAddress,
   parseClaimRequestInput,
   parseClaimReviewInput,
@@ -79,7 +81,23 @@ describe("parseClaimReviewInput", () => {
     const parsed = parseClaimReviewInput({ decision: "approve" });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    expect(parsed.value).toEqual({ decision: "approve", note: null });
+    expect(parsed.value).toEqual({ decision: "approve", note: null, category: null });
+  });
+
+  it("takes a social category with an approval and nothing else", () => {
+    const parsed = parseClaimReviewInput({ decision: "approve", category: "elderly_care" });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.category).toBe("elderly_care");
+    // An empty select is no choice, not an invalid one.
+    const empty = parseClaimReviewInput({ decision: "approve", category: "" });
+    expect(empty.ok && empty.value.category).toBeNull();
+    for (const category of ["association", "sports", 3, ["elderly_care"]]) {
+      expect(parseClaimReviewInput({ decision: "approve", category }).ok).toBe(false);
+    }
+    expect(
+      parseClaimReviewInput({ decision: "reject", note: "Nije socijalna.", category: "caritas" }).ok
+    ).toBe(false);
   });
 
   it("requires a reason on rejection so the applicant can act on it", () => {
@@ -92,6 +110,51 @@ describe("parseClaimReviewInput", () => {
     for (const decision of ["approved", "delete", "", null, 1]) {
       expect(parseClaimReviewInput({ decision }).ok).toBe(false);
     }
+  });
+});
+
+describe("claim review category", () => {
+  const organisation = {
+    id: "200307",
+    name: "Udruga",
+    short_name: null,
+    status: "AKTIVAN",
+    address: null,
+    city: "Zagreb",
+    county: null,
+    registry_email: null,
+    registry_number: null,
+    legal_form: null,
+    website: null,
+    already_linked: false,
+  };
+
+  it("knows the twelve social categories and nothing else", () => {
+    expect(isSocialCategory("elderly_care")).toBe(true);
+    expect(isSocialCategory("domestic_violence")).toBe(true);
+    for (const value of ["association", "", null, undefined, "Elderly_care", 1]) {
+      expect(isSocialCategory(value)).toBe(false);
+    }
+  });
+
+  it("starts from the register category only when it is social", () => {
+    expect(claimInitialCategory({ ...organisation, category: "caritas" })).toBe("caritas");
+    expect(claimInitialCategory({ ...organisation, category: "association" })).toBeNull();
+    expect(claimInitialCategory(null)).toBeNull();
+    // A schema that predates the column sends nothing.
+    expect(claimInitialCategory(organisation)).toBeNull();
+  });
+
+  it("offers the classifier suggestion only for a row it left for review", () => {
+    const uncertain = {
+      ...organisation,
+      category: "association",
+      classification_status: "needs_review",
+      suggested_category: "disability_support",
+    };
+    expect(claimInitialCategory(uncertain)).toBe("disability_support");
+    expect(claimInitialCategory({ ...uncertain, classification_status: "unmapped" })).toBeNull();
+    expect(claimInitialCategory({ ...uncertain, suggested_category: "association" })).toBeNull();
   });
 });
 
@@ -178,6 +241,8 @@ describe("claimErrorCode", () => {
       ["P0001", "applicant is already linked to an organisation", "applicant_linked"],
       ["P0001", "the register has no usable location for this organisation", "no_location"],
       ["P0001", "claim cannot be approved: mailbox not verified", "mailbox_not_verified"],
+      ["22023", "choose a social category for this organisation", "category_required"],
+      ["22023", "invalid category", "category_invalid"],
     ];
     for (const [code, message, expected] of cases) {
       expect(claimErrorCode({ code, message }), message).toBe(expected);
@@ -229,6 +294,8 @@ describe("claim error messages", () => {
       "applicant_ineligible",
       "no_location",
       "reviewer_not_admin",
+      "category_required",
+      "category_invalid",
       "unknown",
     ];
     for (const status of [400, 401, 403, 404, 409, 429, 500, 503]) {
