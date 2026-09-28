@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireSecondFactor } from "@/lib/auth/mfa-server";
 import { normalizeRole } from "@/lib/auth/roles";
 import { getRequestId, logError } from "@/lib/observability";
 import {
@@ -21,6 +22,9 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
  * clean 403, but that check is not what protects the data: both RPCs re-read
  * `public.profiles.role` for `p_reviewer_id` inside their own transaction and
  * refuse anyone who is not an administrator.
+ *
+ * Two-step sign-in is mandatory for administrators: without a verified
+ * factor and an `aal2` session the answer is 403 `mfa_required`.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const requestId = getRequestId(req.headers);
@@ -55,6 +59,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { status: 403, headers: NO_STORE }
     );
   }
+  const mfaBlocked = await requireSecondFactor(supabase, user, requestId);
+  if (mfaBlocked) return mfaBlocked;
 
   let raw: unknown;
   try {

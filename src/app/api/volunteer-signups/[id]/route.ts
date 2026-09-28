@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin, withRequestId } from "@/lib/security/http";
 import { hasVolunteerEventEnded } from "@/lib/volunteer-events";
@@ -39,6 +40,8 @@ export async function DELETE(
   if (!user) {
     return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }
+  const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+  if (mfaBlocked) return mfaBlocked;
 
   // Read under RLS, which shows a person only their own active signups: a
   // row that is not visible here is left to the transaction to refuse.

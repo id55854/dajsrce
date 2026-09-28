@@ -1,16 +1,17 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rpc, from, getUser, getCurrentUserProfile } = vi.hoisted(() => ({
+const { rpc, from, getUser, getClaims, getCurrentUserProfile } = vi.hoisted(() => ({
   rpc: vi.fn(),
   from: vi.fn(),
   getUser: vi.fn(),
+  getClaims: vi.fn(),
   getCurrentUserProfile: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: { rpc, from } }));
 vi.mock("@/lib/supabase/server", () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser } }),
+  createServerSupabaseClient: async () => ({ auth: { getUser, getClaims } }),
 }));
 // The locally verified profile read must not be what authorises a review.
 vi.mock("@/lib/auth/server", () => ({ getCurrentUserProfile }));
@@ -29,8 +30,19 @@ function review(body: unknown) {
   });
 }
 
-function signedInAs(role: string) {
-  getUser.mockResolvedValue({ data: { user: { id: REVIEWER_ID, email: "a@b.hr" } } });
+const VERIFIED_TOTP = { id: "factor-1", factor_type: "totp", status: "verified" };
+
+/**
+ * A reviewer as auth.getUser() returns them, with the factor list from
+ * Supabase Auth, and a session at `aal`. By default an administrator who
+ * has two-step sign-in on and used it for this session.
+ */
+function signedInAs(
+  role: string,
+  { aal = "aal2", factors = [VERIFIED_TOTP] }: { aal?: string; factors?: unknown[] } = {}
+) {
+  getUser.mockResolvedValue({ data: { user: { id: REVIEWER_ID, email: "a@b.hr", factors } } });
+  getClaims.mockResolvedValue({ data: { claims: { sub: REVIEWER_ID, aal } }, error: null });
   from.mockImplementation((table: string) => {
     expect(table).toBe("profiles");
     return {
@@ -51,6 +63,7 @@ beforeEach(() => {
   rpc.mockReset();
   from.mockReset();
   getUser.mockReset();
+  getClaims.mockReset();
   getCurrentUserProfile.mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -72,6 +85,53 @@ describe("POST /api/institution-claims/[id]/review", () => {
     expect(response.status).toBe(401);
     expect(getCurrentUserProfile).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  describe("two-step sign-in, mandatory for administrators", () => {
+    it("refuses an administrator whose session has not used the authenticator app", async () => {
+      signedInAs("superadmin", { aal: "aal1" });
+      const response = await POST(review({ decision: "approve" }), { params });
+      expect(response.status).toBe(403);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect((await response.json()).code).toBe("mfa_required");
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("refuses an administrator who has not turned it on at all", async () => {
+      for (const factors of [[], [{ id: "f", factor_type: "totp", status: "unverified" }]]) {
+        signedInAs("superadmin", { aal: "aal1", factors });
+        const response = await POST(review({ decision: "approve" }), { params });
+        expect(response.status).toBe(403);
+        expect((await response.json()).code).toBe("mfa_required");
+      }
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("refuses an aal2 token once Supabase no longer lists the factor", async () => {
+      // A removed factor leaves the current token at aal2 until it expires.
+      signedInAs("superadmin", { aal: "aal2", factors: [] });
+      const response = await POST(review({ decision: "approve" }), { params });
+      expect((await response.json()).code).toBe("mfa_required");
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("refuses a session whose verified token belongs to someone else", async () => {
+      signedInAs("superadmin");
+      getClaims.mockResolvedValue({
+        data: { claims: { sub: "11111111-2222-4333-8444-555555555555", aal: "aal2" } },
+        error: null,
+      });
+      const response = await POST(review({ decision: "approve" }), { params });
+      expect((await response.json()).code).toBe("mfa_required");
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("still answers a non-administrator with the plain refusal", async () => {
+      signedInAs("ngo", { aal: "aal1", factors: [] });
+      const response = await POST(review({ decision: "approve" }), { params });
+      expect(response.status).toBe(403);
+      expect((await response.json()).code).toBeUndefined();
+    });
   });
 
   it("refuses a non-admin and never reaches the transaction", async () => {

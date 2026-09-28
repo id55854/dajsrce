@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { getVerifiedClaims } from "@/lib/auth/claims";
+import { MFA_SETTINGS_HREF, mfaChallengePath } from "@/lib/auth/mfa";
+import { sessionListsVerifiedFactor } from "@/lib/auth/mfa-server";
 import { normalizeRole } from "@/lib/auth/roles";
 import { createDataApiFetch, getDataApiUrl } from "@/lib/data-api/fetch";
 import { sessionDataApiToken } from "@/lib/data-api/session";
@@ -79,9 +81,27 @@ export async function middleware(request: NextRequest) {
     const role = normalizeRole(profile?.role ?? null);
     const isNgoRoute =
       pathname.startsWith("/dashboard/ngo") || pathname.startsWith("/dashboard/institution");
+    const isAdminRoute = pathname.startsWith("/dashboard/admin");
 
-    if (pathname.startsWith("/dashboard/admin") && role !== "superadmin") {
+    if (isAdminRoute && role !== "superadmin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    // Two-step sign-in, before any onboarding redirect: those pages act on
+    // the account and would only fail at aal1. The `aal` claim is signed, so
+    // administrator pages (two-step sign-in is mandatory there) cannot be
+    // reached below aal2 at all. Whether an account HAS a factor comes from
+    // the session cookie here, with no request to Supabase Auth; that routes
+    // honest sessions to the code page, and the mutation routes and the Data
+    // API token endpoint enforce the same rule from auth.getUser().
+    if (user.aal !== "aal2") {
+      if (await sessionListsVerifiedFactor(supabase)) {
+        return NextResponse.redirect(
+          new URL(mfaChallengePath(`${pathname}${request.nextUrl.search}`), request.url)
+        );
+      }
+      if (isAdminRoute) {
+        return NextResponse.redirect(new URL(MFA_SETTINGS_HREF, request.url));
+      }
     }
     if (isNgoRoute && role !== "ngo") {
       return NextResponse.redirect(new URL("/dashboard", request.url));

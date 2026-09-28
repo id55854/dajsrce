@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { userTokenForClaims } from "@/lib/data-api/session";
+import { mfaRequiredResponse, secondFactorPending } from "@/lib/auth/mfa-server";
 import { getRequestId } from "@/lib/observability";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
 
@@ -13,6 +14,11 @@ import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
  * server component through the server's own anon client, and the browser
  * reaches the Data API directly only for a signed-in user's own rows. A
  * visitor without a session gets 401.
+ *
+ * An account with an authenticator app gets no token until this session has
+ * used it (403 `mfa_required`): otherwise the browser could read and write
+ * its rows on the Data API directly, around the mutation routes' check.
+ * getUser() already carries the factor list, so this costs no request.
  */
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req.headers);
@@ -32,6 +38,9 @@ export async function GET(req: NextRequest) {
 
     if (!user || user.is_anonymous) {
       return jsonError("Not authenticated", 401, requestId, NO_STORE);
+    }
+    if (await secondFactorPending(supabase, user)) {
+      return mfaRequiredResponse(requestId);
     }
 
     const { token, exp } = await userTokenForClaims({

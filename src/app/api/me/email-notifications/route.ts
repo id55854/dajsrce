@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
@@ -24,6 +25,8 @@ export async function PATCH(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return jsonError("Not authenticated", 401, requestId, NO_STORE);
+  const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+  if (mfaBlocked) return mfaBlocked;
 
   let body: unknown;
   try {

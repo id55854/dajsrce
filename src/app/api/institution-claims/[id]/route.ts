@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { claimErrorCode, claimErrorStatus } from "@/lib/institution-claims";
 import { isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
@@ -34,6 +35,8 @@ export async function DELETE(
       { status: 401, headers: NO_STORE }
     );
   }
+  const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+  if (mfaBlocked) return mfaBlocked;
 
   const { data, error } = await supabaseAdmin.rpc(
     "withdraw_institution_claim_transaction",

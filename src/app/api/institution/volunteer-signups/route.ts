@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getVerifiedClaims } from "@/lib/auth/claims";
+import { mfaRequiredResponse, readerNeedsSecondFactor } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { institutionPersonActivity } from "@/lib/institution-person-activity";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
@@ -17,6 +18,7 @@ export async function GET(req: NextRequest) {
   if (!user) {
     return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }
+  if (await readerNeedsSecondFactor(supabase, user)) return mfaRequiredResponse(requestId);
 
   const { data: profile } = await supabase
     .from("profiles")

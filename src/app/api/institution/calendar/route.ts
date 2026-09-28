@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getVerifiedClaims } from "@/lib/auth/claims";
+import { mfaRequiredResponse, readerNeedsSecondFactor } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, jsonError, rateLimit } from "@/lib/security/http";
 import { institutionCalendarEntries } from "@/lib/profile-calendar";
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
     const supabase = await createServerSupabaseClient();
     const user = await getVerifiedClaims(supabase);
     if (!user) return jsonError("Not authenticated", 401, requestId, NO_STORE);
+    if (await readerNeedsSecondFactor(supabase, user)) return mfaRequiredResponse(requestId);
     const { data: profile, error: profileError } = await supabase.from("profiles").select("institution_id, role").eq("id", user.id).maybeSingle();
     if (profileError) throw profileError;
     if (profile?.role !== "ngo" || !profile.institution_id) return jsonError("Institution access required", 403, requestId, NO_STORE);

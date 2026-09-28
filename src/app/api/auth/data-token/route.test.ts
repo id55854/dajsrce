@@ -1,14 +1,15 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getUser, userTokenForClaims, anonDataApiToken } = vi.hoisted(() => ({
+const { getUser, getClaims, userTokenForClaims, anonDataApiToken } = vi.hoisted(() => ({
   getUser: vi.fn(),
+  getClaims: vi.fn(),
   userTokenForClaims: vi.fn(),
   anonDataApiToken: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser } }),
+  createServerSupabaseClient: async () => ({ auth: { getUser, getClaims } }),
 }));
 vi.mock("@/lib/data-api/session", () => ({ userTokenForClaims }));
 vi.mock("@/lib/data-api/token", () => ({ anonDataApiToken }));
@@ -33,6 +34,7 @@ function request(headers: Record<string, string> = {}) {
 
 beforeEach(() => {
   getUser.mockReset();
+  getClaims.mockReset();
   userTokenForClaims.mockReset();
   anonDataApiToken.mockReset();
   anonDataApiToken.mockResolvedValue("anon-token");
@@ -73,6 +75,37 @@ describe("GET /api/auth/data-token", () => {
     const response = await GET(request({ "sec-fetch-site": "cross-site" }));
     expect(response.status).toBe(403);
     expect(getUser).not.toHaveBeenCalled();
+  });
+
+  it("mints nothing for an account with an authenticator app until this session used it", async () => {
+    // Otherwise the browser could reach its rows on the Data API directly,
+    // around the mutation routes' own check.
+    const enrolledUser = {
+      ...USER,
+      factors: [{ id: "factor-1", factor_type: "totp", status: "verified" }],
+    };
+    getUser.mockResolvedValue({ data: { user: enrolledUser } });
+    getClaims.mockResolvedValue({ data: { claims: { sub: USER.id, aal: "aal1" } }, error: null });
+    const refused = await GET(request());
+    expect(refused.status).toBe(403);
+    expect(refused.headers.get("cache-control")).toBe("no-store");
+    const body = await refused.json();
+    expect(body.code).toBe("mfa_required");
+    expect(body).not.toHaveProperty("token");
+    expect(userTokenForClaims).not.toHaveBeenCalled();
+
+    getClaims.mockResolvedValue({ data: { claims: { sub: USER.id, aal: "aal2" } }, error: null });
+    userTokenForClaims.mockResolvedValue({ token: "user-token", exp: 1_900_000_000 });
+    const minted = await GET(request());
+    expect(minted.status).toBe(200);
+    expect(await minted.json()).toEqual({ token: "user-token", exp: 1_900_000_000 });
+  });
+
+  it("does not look at the claims of an account without a verified factor", async () => {
+    getUser.mockResolvedValue({ data: { user: USER } });
+    userTokenForClaims.mockResolvedValue({ token: "user-token", exp: 1_900_000_000 });
+    expect((await GET(request())).status).toBe(200);
+    expect(getClaims).not.toHaveBeenCalled();
   });
 
   it("fails closed when a token cannot be minted", async () => {

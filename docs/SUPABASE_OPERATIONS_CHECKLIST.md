@@ -25,9 +25,12 @@ behaviour and belongs to the release owner.
 
 - **Supabase account (dashboard login):** Account → Security → enable MFA for
   every person with project access. Cannot be verified from code.
-- **Application users:** TOTP enrol/verify are already *enabled* on the
-  project (`mfa_totp_enroll_enabled = true`), but the app has no enrolment or
-  challenge screens and no `aal2` gate on privileged routes. Treat as unbuilt.
+- **Application users:** two-step sign-in with an authenticator app (TOTP) is
+  built since 2026-09-28, optional for everyone and mandatory for
+  superadmins. Keep TOTP enrolment and verification enabled on the project
+  (`mfa_totp_enroll_enabled`, `mfa_totp_verify_enabled`). What is enforced
+  where, the remaining gap and the lost-phone procedure are in
+  `AUTH_PASSWORD_OPERATIONS.md`, section 3.
 
 ## 3. Backups
 

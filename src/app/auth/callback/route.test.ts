@@ -1,16 +1,17 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { exchangeCodeForSession, verifyOtp, getUser, from, maybeSingle } = vi.hoisted(() => {
+const { exchangeCodeForSession, verifyOtp, getUser, getClaims, from, maybeSingle } = vi.hoisted(() => {
   const maybeSingle = vi.fn();
   return {
-    exchangeCodeForSession: vi.fn(), verifyOtp: vi.fn(), getUser: vi.fn(), maybeSingle,
+    exchangeCodeForSession: vi.fn(), verifyOtp: vi.fn(), getUser: vi.fn(), getClaims: vi.fn(),
+    maybeSingle,
     from: vi.fn(() => ({ select: () => ({ eq: () => ({ maybeSingle }) }) })),
   };
 });
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabaseClient: async () => ({
-    auth: { exchangeCodeForSession, verifyOtp, getUser }, from,
+    auth: { exchangeCodeForSession, verifyOtp, getUser, getClaims }, from,
   }),
 }));
 import { GET } from "./route";
@@ -31,6 +32,7 @@ beforeEach(() => {
     id: "ngo-1", app_metadata: { provider: "email" }, user_metadata: { role: "ngo" },
   } } });
   maybeSingle.mockResolvedValue({ data: { role: "ngo", institution_id: null } });
+  getClaims.mockResolvedValue({ data: null, error: { message: "no session" } });
 });
 
 describe("auth callback recovery", () => {
@@ -126,5 +128,87 @@ describe("auth callback sign-up confirmation", () => {
     getUser.mockResolvedValue({ data: { user: null } });
     expect(await destination("?token_hash=hash&type=email&next=https://evil.test"))
       .toBe("https://dajsrce.test/dashboard");
+  });
+});
+
+describe("auth callback two-step sign-in", () => {
+  const USER_ID = "11111111-2222-4333-8444-555555555555";
+  const VERIFIED_TOTP = { id: "factor-1", factor_type: "totp", status: "verified" };
+
+  /** getUser() as Supabase Auth answers it, with the account's factors. */
+  function enrolled(user: Record<string, unknown>, aal: "aal1" | "aal2" = "aal1") {
+    getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: USER_ID,
+          app_metadata: { provider: "email" },
+          ...user,
+          factors: [VERIFIED_TOTP],
+        },
+      },
+    });
+    getClaims.mockResolvedValue({ data: { claims: { sub: USER_ID, aal } }, error: null });
+  }
+
+  it("asks for the code before the role's dashboard, then continues there", async () => {
+    enrolled({ user_metadata: { role: "individual" } });
+    maybeSingle.mockResolvedValue({ data: { role: "individual", institution_id: null } });
+    expect(await destination("?code=code&next=/dashboard"))
+      .toBe("https://dajsrce.test/auth/mfa?next=%2Fdashboard%2Findividual");
+  });
+
+  it("keeps NGO onboarding after the code", async () => {
+    enrolled({ user_metadata: { role: "ngo" } });
+    expect(await destination("?token_hash=hash&type=email&next=/dashboard"))
+      .toBe("https://dajsrce.test/auth/mfa?next=%2Fauth%2Fsetup");
+  });
+
+  it("keeps the page that was asked for", async () => {
+    enrolled({ user_metadata: {} });
+    maybeSingle.mockResolvedValue({ data: { role: "individual", institution_id: null } });
+    expect(await destination("?code=code&next=/doniraj%3Fview%3Dexplore"))
+      .toBe("https://dajsrce.test/auth/mfa?next=%2Fdoniraj%3Fview%3Dexplore");
+  });
+
+  it("sends an administrator through the code too", async () => {
+    enrolled({ user_metadata: {} });
+    maybeSingle.mockResolvedValue({ data: { role: "superadmin", institution_id: null } });
+    expect(await destination("?code=code"))
+      .toBe("https://dajsrce.test/auth/mfa?next=%2Fdashboard%2Fadmin");
+  });
+
+  it("puts the code before a new password", async () => {
+    enrolled({ user_metadata: {} });
+    expect(await destination("?token_hash=hash&type=recovery"))
+      .toBe("https://dajsrce.test/auth/mfa?next=%2Fauth%2Freset-password");
+    expect(await destination("?code=code&next=/auth/reset-password"))
+      .toBe("https://dajsrce.test/auth/mfa?next=%2Fauth%2Freset-password");
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("goes straight on for a session that already used the app", async () => {
+    enrolled({ user_metadata: { role: "individual" } }, "aal2");
+    maybeSingle.mockResolvedValue({ data: { role: "individual", institution_id: null } });
+    expect(await destination("?code=code&next=/dashboard"))
+      .toBe("https://dajsrce.test/dashboard/individual");
+  });
+
+  it("asks nothing of an account without a verified factor, and reads no claims", async () => {
+    getUser.mockResolvedValue({ data: { user: {
+      id: USER_ID, app_metadata: { provider: "email" }, user_metadata: {},
+      factors: [{ id: "factor-2", factor_type: "totp", status: "unverified" }],
+    } } });
+    maybeSingle.mockResolvedValue({ data: { role: "individual", institution_id: null } });
+    expect(await destination("?code=code&next=/dashboard"))
+      .toBe("https://dajsrce.test/dashboard/individual");
+    expect(getClaims).not.toHaveBeenCalled();
+  });
+
+  it("asks for the code when the session's claims cannot be verified", async () => {
+    enrolled({ user_metadata: {} });
+    getClaims.mockResolvedValue({ data: null, error: { message: "invalid JWT" } });
+    maybeSingle.mockResolvedValue({ data: { role: "individual", institution_id: null } });
+    expect(await destination("?code=code&next=/dashboard"))
+      .toBe("https://dajsrce.test/auth/mfa?next=%2Fdashboard%2Findividual");
   });
 });

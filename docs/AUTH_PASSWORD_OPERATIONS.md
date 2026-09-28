@@ -3,7 +3,9 @@
 **Status: NOT APPLIED.** Everything below is a provider/dashboard setting, not
 application code. It was deliberately left out of the code change because
 faking it in the client would be security theatre; the client can be bypassed
-entirely by calling the Supabase Auth API directly.
+entirely by calling the Supabase Auth API directly. The exception is section
+3: two-step sign-in (TOTP) is built and enforced in the application since
+2026-09-28, and needs only the TOTP settings confirmed.
 
 ## Live values, read from the project on 2026-09-06
 
@@ -17,7 +19,7 @@ from memory. Project `wbxvpdbhddespdsscsnw`.
 | `password_required_characters` | none | none (deliberate) | 1 |
 | `mailer_autoconfirm` | `true` (e-mail confirmation OFF) | `false` | 4 |
 | `security_captcha_enabled` | `false` | decide (hCaptcha/Turnstile) | 4 |
-| `mfa_totp_enroll_enabled` / `mfa_totp_verify_enabled` | `true` | keep; app-side enrolment still unbuilt | 3 |
+| `mfa_totp_enroll_enabled` / `mfa_totp_verify_enabled` | `true` | keep both on: the app's two-step sign-in needs them | 3 |
 | JWT signing key | ES256 in use, HS256 previously used | keep asymmetric | note below |
 
 The three rows marked as gaps can be closed in one call, from a shell that has
@@ -135,40 +137,110 @@ staging and confirm the sign-up is refused.
 user sees `auth.error_weak_password`, "Lozinka je preslaba. Odaberite dulju i
 manje očitu lozinku." No code change needed.
 
-## 3. MFA for privileged accounts (admin, NGO and company owners)
+## 3. Two-step sign-in (TOTP authenticator app)
 
-**What:** enable TOTP multi-factor authentication for the project, then require
-it for accounts that can move money, publish on behalf of an organisation, or
-read donor data.
+**Status: built and enforced in the application (2026-09-28).** Optional for
+individuals and organisations, mandatory for superadmins. TOTP only: Supabase
+has no e-mail factor, and SMS is a paid add-on.
 
-**Where (provider half):** Supabase Dashboard → **Authentication** →
-**Multi-Factor Authentication** → enable **TOTP (App Authenticator)** and set
-**Maximum enrolled factors** (2 is a sensible default, so a user can enrol a
-backup device).
+### What the person sees
 
-**Why it matters:** password rules cap the damage from *guessing*. They do
-nothing against phishing or credential reuse. An NGO dashboard account can
-publish needs, accept pledges and read donor contact details; a company owner
-account controls a billing relationship. Those are exactly the accounts where a
-second factor pays for itself.
+- **Settings** (`/dashboard/postavke#dvostupanjska-prijava`,
+  `src/components/account/TwoFactorSettings.tsx`): "Uključi" removes any
+  unverified factor an abandoned attempt left behind, enrols a TOTP factor
+  named `DajSrce`, shows the QR code and the secret for manual entry, and asks
+  for the six-digit code (`challengeAndVerify`). "Isključi" removes the factor;
+  Supabase allows that only from an `aal2` session, so an `aal1` session is
+  asked for a code first. A superadmin is told it is mandatory and is offered
+  no way to turn it off.
+- **Sign-in** (`/auth/mfa`): after the password (`/auth/login`), Google or an
+  e-mail link (`/auth/callback`), a session whose account has a verified factor
+  is `aal1` and is sent to `/auth/mfa?next=<where it was going>`. The code
+  raises it to `aal2` and the sign-in continues to the same place: onboarding,
+  the role's dashboard or the requested page. A password-recovery link goes
+  through the code before the new-password form, because Supabase refuses a
+  new password from an `aal1` session of an enrolled account. Signing out (this
+  browser only) is the way out.
 
-**Important caveat; the toggle alone enforces nothing.** Enabling the provider
-setting only makes enrolment *possible*. Actually requiring MFA is application
-and database work that is **not implemented**, and needs to be scheduled
-deliberately:
+### What is enforced where
 
-1. Enrolment and challenge UI using `supabase.auth.mfa.enroll()`,
-   `.challenge()` and `.verify()`; there is no such screen in the app today.
-2. Enforcement at the data layer: Supabase encodes the achieved factor level in
-   the JWT `aal` claim (`aal1` = password only, `aal2` = password + second
-   factor). Privileged RLS policies and the service-role RPCs would gate on
-   `auth.jwt() ->> 'aal' = 'aal2'` rather than trusting a client flag; which is
-   consistent with the project invariant that roles and entitlements are never
-   derived from user metadata or request bodies.
-3. A recovery path, agreed with support, for a user who loses their device.
+Two facts decide everything. The session's level (`aal`) is a claim in the
+signed access token, verified locally like every other read of it
+(`getVerifiedClaims`), so nobody can raise it by editing a cookie. Whether the
+account *has* a factor is not in the token: Supabase Auth answers it in
+`auth.getUser()`, and a copy sits in the session cookie.
 
-Enabling the toggle before that work exists is harmless and is a prerequisite,
-but do not record MFA as "done" at that point.
+| Where | Rule | Source of "has a factor" |
+| --- | --- | --- |
+| Admin pages (`src/middleware.ts`, `src/app/dashboard/admin/layout.tsx`) | superadmin needs `aal2`; without a factor → settings, with one → `/auth/mfa` | not needed: the `aal2` claim is the rule |
+| Admin API (`POST /api/institution-claims/[id]/review`, the only superadmin route) | 403 `{ code: "mfa_required" }` unless a verified factor **and** `aal2` | `auth.getUser()` |
+| Every other route that calls `auth.getUser()` (all mutations, own claim, claim search) | 403 `mfa_required` for an enrolled account at `aal1` (`requireSecondFactorIfEnrolled`) | `auth.getUser()` |
+| `GET /api/auth/data-token` (the browser's only Data API token) | 403 `mfa_required` for an enrolled account at `aal1`, so the browser cannot reach its rows on the Data API around the routes | `auth.getUser()` |
+| `/auth/callback` | redirect to `/auth/mfa?next=...` | `auth.getUser()` |
+| Dashboard pages (`src/middleware.ts`, matcher `/dashboard/:path*` only) | enrolled account at `aal1` → `/auth/mfa?next=...` | session cookie |
+| Read-only routes that verify the JWT locally (`/api/notifications`, `/api/pledges` and `/api/volunteer-signups` GET, `/api/institution*` GET) | enrolled account at `aal1` reads nothing: empty lists or 403 `mfa_required` (`readerNeedsSecondFactor`) | session cookie |
+
+The admin claim queue shows `mfa_required` in Croatian
+(`claimReviewErrorMessageKey`). A contract test in `src/lib/auth/mfa.test.ts`
+fails if a route that calls `auth.getUser()` or `getVerifiedClaims()` skips its
+rule.
+
+### What is not covered (known gap)
+
+Read-only paths may not call Supabase Auth on every request, and the token does
+not say whether the account has a factor, so the dashboard guard and the
+read-only routes go by the factor list in the session cookie. The server-side
+Data API token (`sessionDataApiToken`, used by server components and those
+routes) is minted from the locally verified JWT for any session, enrolled or
+not; the two checks above stand in front of it. The cookie's list is Supabase's
+answer from the last sign-in or token refresh, which is right for every honest
+session; but whoever holds a password-only session can edit their own cookie
+and then read (never change) that account's own data: the dashboard pages,
+notifications, an organisation's pledge and volunteer lists. Nothing that
+changes state, no browser Data API token and no admin page is reachable that
+way. Closing it would need either a Supabase Custom Access Token hook that adds
+a signed "has a verified factor" claim from `auth.mfa_factors` (then every local
+check, the server-side token included, becomes authoritative), or one
+`auth.getUser()` on the read-only routes that show other people's personal
+data.
+
+Two smaller timing effects: a session opened *before* the factor was added keeps
+an old factor list in its cookie until its token refreshes (at most an hour), so
+mutations refuse it at once but the dashboard guard only after that refresh; and
+a removed factor leaves an `aal2` token valid until it expires, which the admin
+API guards against by also requiring the factor itself.
+
+### Supabase settings to confirm
+
+- Dashboard → **Authentication** → **Multi-Factor** → **TOTP (App
+  Authenticator)**: enrolment **and** verification enabled. Management API
+  fields `mfa_totp_enroll_enabled` and `mfa_totp_verify_enabled`, both `true` on
+  2026-09-06. With either off, "Uključi" or the code step fails with a Croatian
+  "not available" message and superadmins cannot reach the administration.
+- **Maximum enrolled factors** (`mfa_max_enrolled_factors`): anything from 1 up;
+  the app keeps one TOTP factor per account and clears unverified leftovers.
+- Optional: the security notification e-mails for "verification method
+  added/removed" (templates in `AUTH_EMAIL_TEMPLATES.md`).
+
+Before deploying, make sure every superadmin can reach `/dashboard/postavke`:
+from the deploy on, the administration opens only after they connect an app
+there.
+
+### Lost phone or deleted app
+
+There are no recovery codes. The person writes to kontakt@dajsrce.hr. An
+administrator first confirms their identity out of band (for an organisation:
+through the register's official mailbox or a phone number from the register,
+never only the address the message came from), then deletes the account's TOTP
+factor in the Supabase dashboard (Authentication → Users → the account → its
+MFA factors). If the dashboard does not offer the deletion, the Auth admin API
+does the same from a trusted shell with the service role key, never from the
+app: `GET /auth/v1/admin/users/<user_id>/factors`, then
+`DELETE /auth/v1/admin/users/<user_id>/factors/<factor_id>`. The person then
+signs in with the password alone (`/auth/mfa` notices that the app is gone and
+continues) and can connect a new app in the settings. A superadmin's factor is
+deleted the same way by another superadmin or the project owner, after which
+that superadmin must enrol again before the administration opens.
 
 ---
 
@@ -183,4 +255,9 @@ but do not record MFA as "done" at that point.
 - [ ] Staging: Security Advisor shows no leaked-password lint.
 - [ ] Production: repeat both settings.
 - [ ] Production: re-run the sign-in regression check above.
-- [ ] Backlog ticket opened for MFA enrolment UI + `aal2` enforcement.
+- [ ] TOTP enrolment and verification confirmed on (section 3).
+- [ ] Every superadmin has connected an authenticator app at
+      `/dashboard/postavke` and reached the administration with a code.
+- [ ] On staging: turn two-step sign-in on and off as an individual, sign in
+      with password + code, with Google + code, and reset a password through
+      the code.

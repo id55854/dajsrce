@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { hashBearerToken } from "@/lib/security/runtime";
 import { isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 import { getRequestId, logError } from "@/lib/observability";
@@ -80,6 +81,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { status: 401, headers: NO_STORE }
     );
   }
+  const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+  if (mfaBlocked) return mfaBlocked;
 
   const claimLimited = rateLimit(
     req,

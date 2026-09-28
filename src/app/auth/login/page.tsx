@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Chrome } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { pathAfterSignIn } from "@/lib/auth/mfa";
 import { safeInternalPath } from "@/lib/security/redirects";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
@@ -53,9 +54,11 @@ function LoginForm() {
       return;
     }
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      const target = safeInternalPath(searchParams.get("next"));
-      if (data.user) router.replace(target);
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      // Already signed in, possibly without the code yet (a code page left
+      // halfway): continue where that sign-in would have gone.
+      router.replace(await pathAfterSignIn(supabase, safeInternalPath(searchParams.get("next"))));
     });
   }, [searchParams, router]);
 
@@ -85,7 +88,9 @@ function LoginForm() {
       setCredentialError(true);
       return;
     }
-    router.push(safeInternalPath(searchParams.get("next")));
+    // With an authenticator app on the account, the password is only the
+    // first step: /auth/mfa asks for the code and then continues to `next`.
+    router.push(await pathAfterSignIn(supabase, safeInternalPath(searchParams.get("next"))));
     router.refresh();
   }
 

@@ -16,7 +16,10 @@ import { anonDataApiToken, userDataApiToken } from "@/lib/data-api/token";
 const ensuredProfiles = new Set<string>();
 const ENSURED_LIMIT = 5_000;
 
-export function identityFromClaims(claims: VerifiedClaims) {
+/** What a user token is minted from; `/api/auth/data-token` builds it from auth.getUser(). */
+export type TokenIdentitySource = Pick<VerifiedClaims, "id" | "email" | "userMetadata">;
+
+export function identityFromClaims(claims: TokenIdentitySource) {
   const name = claims.userMetadata.name;
   return {
     id: claims.id,
@@ -40,7 +43,7 @@ export async function ensureProfileOnce(userId: string, token: string): Promise<
   ensuredProfiles.add(userId);
 }
 
-export async function userTokenForClaims(claims: VerifiedClaims): Promise<{ token: string; exp: number }> {
+export async function userTokenForClaims(claims: TokenIdentitySource): Promise<{ token: string; exp: number }> {
   const minted = await userDataApiToken(identityFromClaims(claims));
   await ensureProfileOnce(claims.id, minted.token);
   return minted;

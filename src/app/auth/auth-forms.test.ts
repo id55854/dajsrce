@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// Every auth surface that collects an email or a password.
-const PAGES = ["login", "register", "forgot-password", "reset-password"];
+// Every auth surface that collects an email, a password or a sign-in code.
+const PAGES = ["login", "register", "forgot-password", "reset-password", "mfa"];
 
 function source(page: string): string {
   return readFileSync(resolve(process.cwd(), "src/app/auth", page, "page.tsx"), "utf8");

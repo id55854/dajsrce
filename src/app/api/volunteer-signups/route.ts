@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getVerifiedClaims } from "@/lib/auth/claims";
+import { readerNeedsSecondFactor, requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin, withRequestId } from "@/lib/security/http";
 import { capacityErrorCode } from "@/lib/capacity-errors";
@@ -48,8 +49,9 @@ export async function GET(req: NextRequest) {
     const supabase = await createServerSupabaseClient();
 
     // Read path: the JWT is verified locally; RLS scopes the rows to the user.
+    // A session still owing its authenticator-app code reads like none.
     const user = await getVerifiedClaims(supabase);
-    if (!user) {
+    if (!user || (await readerNeedsSecondFactor(supabase, user))) {
       return NextResponse.json({ signups: [] }, { headers: NO_STORE });
     }
 
@@ -83,6 +85,8 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return jsonError("Not authenticated", 401, requestId, NO_STORE);
     }
+    const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+    if (mfaBlocked) return mfaBlocked;
 
     const { data: existingProfile } = await supabase
       .from("profiles")

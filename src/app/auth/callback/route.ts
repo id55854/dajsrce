@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { mfaChallengePath } from "@/lib/auth/mfa";
+import { secondFactorPending } from "@/lib/auth/mfa-server";
 import { normalizeRole, roleToDashboardPath } from "@/lib/auth/roles";
 import { safeInternalPath } from "@/lib/security/redirects";
 
@@ -26,6 +28,33 @@ function authRedirect(destination: string): NextResponse {
   return response;
 }
 
+/**
+ * The second step comes before wherever the session was going. A code
+ * exchange or an e-mail link only ever yields an `aal1` session, so an
+ * account with an authenticator app goes to /auth/mfa first and continues to
+ * `destination` from there. `user` is what auth.getUser() returned.
+ */
+async function afterSecondFactor(
+  supabase: ServerSupabase,
+  user: Parameters<typeof secondFactorPending>[1] | null,
+  destination: string
+): Promise<string> {
+  return user && (await secondFactorPending(supabase, user))
+    ? mfaChallengePath(destination)
+    : destination;
+}
+
+/**
+ * The password form next. For an account with an authenticator app Supabase
+ * refuses a new password from an `aal1` session, so the code comes first.
+ */
+async function recoveryRedirect(supabase: ServerSupabase, origin: string): Promise<NextResponse> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return authRedirect(`${origin}${await afterSecondFactor(supabase, user, "/auth/reset-password")}`);
+}
+
 /** Where a freshly established session goes: onboarding first, then `next`. */
 async function signedInRedirect(
   supabase: ServerSupabase,
@@ -36,6 +65,7 @@ async function signedInRedirect(
     data: { user },
   } = await supabase.auth.getUser();
 
+  let destination = next;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -60,15 +90,13 @@ async function signedInRedirect(
       (pickedNgo && role !== "ngo") || (role === "ngo" && !profile?.institution_id);
 
     if (isNewOAuth || needsNgoOnboarding) {
-      return authRedirect(`${origin}/auth/setup`);
-    }
-
-    if (next === "/dashboard") {
-      return authRedirect(`${origin}${roleToDashboardPath(role)}`);
+      destination = "/auth/setup";
+    } else if (next === "/dashboard") {
+      destination = roleToDashboardPath(role);
     }
   }
 
-  return authRedirect(`${origin}${next}`);
+  return authRedirect(`${origin}${await afterSecondFactor(supabase, user, destination)}`);
 }
 
 export async function GET(req: NextRequest) {
@@ -89,7 +117,8 @@ export async function GET(req: NextRequest) {
   if (tokenHash && searchParams.get("type") === "recovery") {
     const supabase = await createServerSupabaseClient();
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
-    return authRedirect(error ? `${recoveryUrl}?error=invalid_recovery` : recoveryUrl);
+    if (error) return authRedirect(`${recoveryUrl}?error=invalid_recovery`);
+    return recoveryRedirect(supabase, origin);
   }
 
   // The sign-up confirmation (and e-mail change) templates send a token hash
@@ -117,7 +146,7 @@ export async function GET(req: NextRequest) {
     if (!error) {
       // Password recovery takes priority over OAuth/NGO onboarding.
       if (isRecovery || ("redirectType" in data && data.redirectType === "recovery")) {
-        return authRedirect(recoveryUrl);
+        return recoveryRedirect(supabase, origin);
       }
       return signedInRedirect(supabase, origin, next);
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { rateLimit } from "@/lib/security/http";
 import {
@@ -33,6 +34,8 @@ export async function GET(req: NextRequest) {
       { status: 401, headers: NO_STORE }
     );
   }
+  const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+  if (mfaBlocked) return mfaBlocked;
 
   const parsed = parseClaimSearchInput(req.nextUrl.searchParams);
   if (!parsed.ok) {

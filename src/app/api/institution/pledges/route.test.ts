@@ -1,8 +1,15 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ claims: vi.fn(), from: vi.fn(), adminFrom: vi.fn() }));
-vi.mock("@/lib/supabase/server", () => ({ createServerSupabaseClient: async () => ({ from: mocks.from }) }));
+const mocks = vi.hoisted(() => ({
+  claims: vi.fn(),
+  from: vi.fn(),
+  adminFrom: vi.fn(),
+  getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
+}));
+vi.mock("@/lib/supabase/server", () => ({
+  createServerSupabaseClient: async () => ({ from: mocks.from, auth: { getSession: mocks.getSession } }),
+}));
 vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: { from: mocks.adminFrom } }));
 vi.mock("@/lib/auth/claims", () => ({ getVerifiedClaims: mocks.claims }));
 vi.mock("@/lib/observability", () => ({ getRequestId: () => "request-id", logError: vi.fn() }));
@@ -54,6 +61,19 @@ describe("GET /api/institution/pledges", () => {
     mocks.claims.mockResolvedValue({ id: "someone" });
     mocks.from.mockReturnValue(chain({ data: { role: "individual", institution_id: null } }));
     expect((await GET(new NextRequest("http://localhost/api/institution/pledges"))).status).toBe(403);
+    expect(mocks.adminFrom).not.toHaveBeenCalled();
+  });
+
+  it("shows no donor to a session that has only the password of an account with an authenticator app", async () => {
+    mocks.claims.mockResolvedValue({ id: "ngo-user", aal: "aal1" });
+    mocks.getSession.mockResolvedValueOnce({
+      data: { session: { user: { factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } } },
+      error: null,
+    } as never);
+    const res = await GET(new NextRequest("http://localhost/api/institution/pledges"));
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe("mfa_required");
+    expect(mocks.from).not.toHaveBeenCalled();
     expect(mocks.adminFrom).not.toHaveBeenCalled();
   });
 });

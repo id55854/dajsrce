@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin, withRequestId } from "@/lib/security/http";
 import { VOLUNTEER_EVENT_FIELDS, parseVolunteerEventPatch } from "@/lib/validation";
@@ -60,6 +61,8 @@ export async function PATCH(
   if (!user) {
     return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }
+  const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+  if (mfaBlocked) return mfaBlocked;
 
   let rawBody: unknown;
   try {
@@ -129,6 +132,8 @@ export async function DELETE(
   if (!user) {
     return jsonError("Not authenticated", 401, requestId, NO_STORE);
   }
+  const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+  if (mfaBlocked) return mfaBlocked;
 
   const { data, error } = await supabaseAdmin.rpc("delete_volunteer_event_transaction", {
     p_actor_id: user.id,

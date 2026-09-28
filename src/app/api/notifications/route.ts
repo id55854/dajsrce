@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVerifiedClaims } from "@/lib/auth/claims";
+import { readerNeedsSecondFactor, requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { NO_STORE, isUuid, jsonError, rateLimit, requireSameOrigin } from "@/lib/security/http";
 
@@ -15,8 +16,9 @@ export async function GET(req: NextRequest) {
     const supabase = await createServerSupabaseClient();
 
     // Read path: the JWT is verified locally; RLS scopes the rows to the user.
+    // A session still owing its authenticator-app code reads like none.
     const user = await getVerifiedClaims(supabase);
-    if (!user) {
+    if (!user || (await readerNeedsSecondFactor(supabase, user))) {
       return json({ notifications: [] });
     }
 
@@ -52,6 +54,8 @@ export async function PATCH(req: NextRequest) {
     if (!user) {
       return json({ error: "Not authenticated" }, 401);
     }
+    const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+    if (mfaBlocked) return mfaBlocked;
 
     let body: { id?: unknown; mark_all_read?: unknown };
     try {

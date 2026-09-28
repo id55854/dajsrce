@@ -25,11 +25,20 @@ type ClaimsCapableClient = {
   };
 };
 
+/**
+ * How strongly this session was authenticated. `aal2` means a second factor
+ * (the authenticator-app code) was verified in this session; everything else
+ * is `aal1`. It is a claim inside the signed JWT, so the holder cannot raise
+ * it by editing a cookie.
+ */
+export type AssuranceLevel = "aal1" | "aal2";
+
 export type VerifiedClaims = {
   id: string;
   email: string | null;
   /** Signup intent and display hints only. Never a source of authorization. */
   userMetadata: Record<string, unknown>;
+  aal: AssuranceLevel;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,6 +62,7 @@ export async function getVerifiedClaims(
         claims.user_metadata && typeof claims.user_metadata === "object"
           ? (claims.user_metadata as Record<string, unknown>)
           : {},
+      aal: claims.aal === "aal2" ? "aal2" : "aal1",
     };
   } catch {
     return null;

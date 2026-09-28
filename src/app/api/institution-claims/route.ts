@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { getRequestId, logError } from "@/lib/observability";
 import { rateLimit, requireSameOrigin } from "@/lib/security/http";
 import {
@@ -14,12 +15,24 @@ export const dynamic = "force-dynamic";
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
-async function requireActor() {
+/** The signed-in account's id, or the response that refuses the request. */
+async function requireActor(
+  requestId: string
+): Promise<{ actorId: string } | { refused: NextResponse }> {
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  return user?.id ?? null;
+  if (!user) {
+    return {
+      refused: NextResponse.json(
+        { error: "Not authenticated", request_id: requestId },
+        { status: 401, headers: NO_STORE }
+      ),
+    };
+  }
+  const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+  return mfaBlocked ? { refused: mfaBlocked } : { actorId: user.id };
 }
 
 /** The signed-in account's own claim, if it has one. */
@@ -28,16 +41,11 @@ export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { name: "institution_claims.get", limit: 60, windowMs: 60_000 }, requestId);
   if (limited) return limited;
 
-  const actorId = await requireActor();
-  if (!actorId) {
-    return NextResponse.json(
-      { error: "Not authenticated", request_id: requestId },
-      { status: 401, headers: NO_STORE }
-    );
-  }
+  const actor = await requireActor(requestId);
+  if ("refused" in actor) return actor.refused;
 
   const { data, error } = await supabaseAdmin.rpc("get_own_institution_claim", {
-    p_actor_id: actorId,
+    p_actor_id: actor.actorId,
   });
 
   if (error) {
@@ -65,13 +73,8 @@ export async function POST(req: NextRequest) {
     rateLimit(req, { name: "institution_claims.post", limit: 10, windowMs: 60_000 }, requestId);
   if (blocked) return blocked;
 
-  const actorId = await requireActor();
-  if (!actorId) {
-    return NextResponse.json(
-      { error: "Not authenticated", request_id: requestId },
-      { status: 401, headers: NO_STORE }
-    );
-  }
+  const actor = await requireActor(requestId);
+  if ("refused" in actor) return actor.refused;
 
   let raw: unknown;
   try {
@@ -97,7 +100,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabaseAdmin.rpc(
     "request_institution_claim_transaction",
     {
-      p_actor_id: actorId,
+      p_actor_id: actor.actorId,
       p_udr_id: parsed.value.udrId,
       p_contact_email: parsed.value.contactEmail,
       p_note: parsed.value.evidenceNote,

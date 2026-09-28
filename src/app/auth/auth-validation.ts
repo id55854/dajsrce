@@ -51,6 +51,8 @@ const CODE_KEYS: Record<string, string> = {
   session_not_found: AUTH_NOT_AUTHENTICATED,
   user_not_found: AUTH_NOT_AUTHENTICATED,
   request_timeout: AUTH_NETWORK_ERROR,
+  // A new password from a session that has not used its authenticator app.
+  insufficient_aal: "mfa.error_insufficient_aal",
 };
 
 /** Fallback for GoTrue deployments that answer without a machine code. */

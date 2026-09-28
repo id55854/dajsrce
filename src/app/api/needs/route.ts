@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireSecondFactorIfEnrolled } from "@/lib/auth/mfa-server";
 import { normalizeRole } from "@/lib/auth/roles";
 import { getLocalNeeds } from "@/lib/local-data";
 import { areLocalFixturesEnabled } from "@/lib/env";
@@ -148,6 +149,8 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return jsonError("Not authenticated", 401, requestId, NO_STORE);
     }
+    const mfaBlocked = await requireSecondFactorIfEnrolled(supabase, user, requestId);
+    if (mfaBlocked) return mfaBlocked;
 
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")

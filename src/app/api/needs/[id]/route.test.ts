@@ -1,9 +1,13 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getUser, rpc } = vi.hoisted(() => ({ getUser: vi.fn(), rpc: vi.fn() }));
+const { getUser, getClaims, rpc } = vi.hoisted(() => ({
+  getUser: vi.fn(),
+  getClaims: vi.fn(),
+  rpc: vi.fn(),
+}));
 vi.mock("@/lib/supabase/server", () => ({
-  createServerSupabaseClient: async () => ({ auth: { getUser } }),
+  createServerSupabaseClient: async () => ({ auth: { getUser, getClaims } }),
 }));
 vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: { rpc } }));
 vi.mock("@/lib/observability", () => ({
@@ -109,5 +113,36 @@ describe("DELETE /api/needs/[id]", () => {
     const res = await call(NEED_ID);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, deleted: { need_id: NEED_ID, pledges_removed: 2 } });
+  });
+});
+
+describe("/api/needs/[id] with two-step sign-in on the account", () => {
+  const ACTOR = "22222222-3333-4444-8555-666666666666";
+
+  beforeEach(() => {
+    getUser.mockReset();
+    getClaims.mockReset();
+    rpc.mockReset();
+    // Supabase Auth lists the verified factor; the password alone made this session.
+    getUser.mockResolvedValue({
+      data: { user: { id: ACTOR, factors: [{ id: "f1", factor_type: "totp", status: "verified" }] } },
+    });
+    getClaims.mockResolvedValue({ data: { claims: { sub: ACTOR, aal: "aal1" } }, error: null });
+  });
+
+  it("refuses an edit and a deletion before the transaction", async () => {
+    for (const response of [await edit(NEED_ID, { title: "Jakne" }), await call(NEED_ID)]) {
+      expect(response.status).toBe(403);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      expect(await response.json()).toMatchObject({ code: "mfa_required" });
+    }
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("lets the same account act once the session used the app", async () => {
+    getClaims.mockResolvedValue({ data: { claims: { sub: ACTOR, aal: "aal2" } }, error: null });
+    rpc.mockResolvedValue({ data: { need_id: NEED_ID, pledges_removed: 0 }, error: null });
+    expect((await call(NEED_ID)).status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("delete_need_transaction", { p_actor_id: ACTOR, p_need_id: NEED_ID });
   });
 });

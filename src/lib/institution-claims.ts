@@ -495,6 +495,9 @@ export function claimReviewErrorMessageKey(status: number, code?: string | null)
       return "admin.claims_error_category_invalid";
     case "reviewer_not_admin":
       return "admin.claims_error_forbidden";
+    // An administrator session that has not used its authenticator app.
+    case "mfa_required":
+      return "mfa.error_review_required";
   }
   if (status === 401) return "admin.claims_error_session";
   if (status === 403) return "admin.claims_error_forbidden";

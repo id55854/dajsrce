@@ -220,6 +220,18 @@ describe("admin claim queue", () => {
     expect(text()).not.toContain("could not be recorded");
   });
 
+  it("says a review needs the authenticator-app code, not another account", async () => {
+    respond(403, { error: "Two-step sign-in required", code: "mfa_required" });
+    await render([claim({ email_verified: true })]);
+    await click(button("Odobri"));
+    await click(button("Odobri", dialog()));
+    expect(text()).toContain(
+      "Za odluke o zahtjevima prijava mora biti potvrđena kodom iz aplikacije za autentifikaciju."
+    );
+    expect(text()).not.toContain("Nemate ovlasti");
+    expect(text()).not.toContain("Two-step sign-in required");
+  });
+
   it("shows a refused review in Croatian", async () => {
     respond(409, { error: "The decision could not be recorded", code: "claim_closed" });
     await render([claim()]);

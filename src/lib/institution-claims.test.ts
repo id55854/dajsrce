@@ -296,6 +296,7 @@ describe("claim error messages", () => {
       "reviewer_not_admin",
       "category_required",
       "category_invalid",
+      "mfa_required",
       "unknown",
     ];
     for (const status of [400, 401, 403, 404, 409, 429, 500, 503]) {
@@ -318,6 +319,10 @@ describe("claim error messages", () => {
     expect(claimReviewErrorMessageKey(409, "mailbox_not_verified")).toBe(
       "admin.claims_error_mailbox_not_verified"
     );
+    // An administrator session without the authenticator-app step is not a
+    // missing permission: it needs the code, not another account.
+    expect(claimReviewErrorMessageKey(403, "mfa_required")).toBe("mfa.error_review_required");
+    expect(claimReviewErrorMessageKey(403)).toBe("admin.claims_error_forbidden");
     expect(claimSearchErrorMessageKey(429)).toBe("claims.search_error_rate_limited");
     expect(claimSearchErrorMessageKey(500)).toBe("claims.search_error");
   });
