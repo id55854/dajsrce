@@ -14,6 +14,7 @@ import { CancelActionButton } from "@/components/YourPledgesSection";
 import { ProfileCalendar } from "@/components/ProfileCalendar";
 import { individualCalendarEntries } from "@/lib/profile-calendar";
 import { SignOutButton } from "@/components/SignOutButton";
+import { AccountSettingsLink } from "@/components/account/AccountSettingsLink";
 import { ProfileChip, ProfileHeader } from "@/components/ProfileHeader";
 import {
   RosterDateTile,
@@ -504,7 +505,8 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
           }}
         />
 
-        <div className="border-t border-border-subtle pt-6">
+        <div className="flex flex-wrap gap-3 border-t border-border-subtle pt-6">
+          <AccountSettingsLink />
           <SignOutButton />
         </div>
       </div>

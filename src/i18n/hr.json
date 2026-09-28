@@ -976,6 +976,26 @@
     "profile_cta_question": "Ovo je vaša udruga?",
     "profile_cta_action": "Preuzmite profil"
   },
+  "account": {
+    "settings_link": "Postavke računa",
+    "eyebrow": "Račun",
+    "title": "Postavke računa",
+    "subtitle": "Obavijesti e-poštom i sigurnost prijave.",
+    "back": "Natrag na nadzornu ploču",
+    "email_title": "Obavijesti e-poštom",
+    "email_body": "Obavijesti koje vidite u aplikaciji šaljemo i na {email}: nova obećanja i prijave, promjene i otkazivanja te odluke o zahtjevima. Više obavijesti u kratkom razmaku stiže u jednoj poruci, a promotivne poruke ne šaljemo.",
+    "email_toggle": "Šalji mi obavijesti e-poštom",
+    "email_on_toast": "Obavijesti e-poštom su uključene",
+    "email_off_toast": "Obavijesti e-poštom su isključene",
+    "email_failed": "Postavka nije spremljena. Pokušajte ponovno.",
+    "unsubscribe_title": "Obavijesti e-poštom",
+    "unsubscribe_body": "Isključit ćemo obavijesti e-poštom za ovaj račun. Obavijesti u aplikaciji ostaju, a poruke o prijavi i lozinki i dalje stižu.",
+    "unsubscribe_button": "Isključi obavijesti e-poštom",
+    "unsubscribe_done": "Obavijesti e-poštom su isključene. Ponovno ih možete uključiti u postavkama računa.",
+    "unsubscribe_invalid": "Poveznica za odjavu nije valjana ili je istekla. Obavijesti e-poštom možete isključiti u postavkama računa.",
+    "unsubscribe_error": "Odjava trenutačno nije uspjela. Pokušajte ponovno ili isključite obavijesti u postavkama računa.",
+    "settings_cta": "Otvori postavke računa"
+  },
   "admin": {
     "title": "Nadzorna ploča administratora",
     "subtitle": "Zahtjevi udruga za preuzimanje profila i ukupni brojevi platforme.",

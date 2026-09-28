@@ -6,6 +6,7 @@ import { getTranslator } from "@/i18n/server";
 import { Card, PageHeader, PageShell, Stat } from "@/components/ui";
 import type { InstitutionClaimReviewPage } from "@/lib/institution-claims";
 import { SignOutButton } from "@/components/SignOutButton";
+import { AccountSettingsLink } from "@/components/account/AccountSettingsLink";
 import { InstitutionClaimQueue } from "./institution-claim-queue";
 
 /** The review RPC's own cap; the queue says so when more are waiting. */
@@ -117,7 +118,8 @@ export default async function SuperadminDashboardPage() {
         </p>
       </Card>
 
-      <div className="mt-8 border-t border-border-subtle pt-6">
+      <div className="mt-8 flex flex-wrap gap-3 border-t border-border-subtle pt-6">
+        <AccountSettingsLink />
         <SignOutButton />
       </div>
     </PageShell>

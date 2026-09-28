@@ -976,6 +976,26 @@
     "profile_cta_question": "Is this your association?",
     "profile_cta_action": "Claim the profile"
   },
+  "account": {
+    "settings_link": "Account settings",
+    "eyebrow": "Account",
+    "title": "Account settings",
+    "subtitle": "E-mail notifications and sign-in security.",
+    "back": "Back to the dashboard",
+    "email_title": "E-mail notifications",
+    "email_body": "We also send the notifications you see in the app to {email}: new pledges and signups, changes and cancellations, and decisions on requests. Several notifications close together arrive as one message, and we send no promotional e-mail.",
+    "email_toggle": "Send me notifications by e-mail",
+    "email_on_toast": "E-mail notifications are on",
+    "email_off_toast": "E-mail notifications are off",
+    "email_failed": "The setting was not saved. Please try again.",
+    "unsubscribe_title": "E-mail notifications",
+    "unsubscribe_body": "We will turn off e-mail notifications for this account. In-app notifications stay, and sign-in and password e-mails still arrive.",
+    "unsubscribe_button": "Turn off e-mail notifications",
+    "unsubscribe_done": "E-mail notifications are off. You can turn them back on in your account settings.",
+    "unsubscribe_invalid": "This unsubscribe link is not valid or has expired. You can turn off e-mail notifications in your account settings.",
+    "unsubscribe_error": "Unsubscribing did not work just now. Please try again or turn notifications off in your account settings.",
+    "settings_cta": "Open account settings"
+  },
   "admin": {
     "title": "Administrator dashboard",
     "subtitle": "Association profile claims and platform-wide totals.",

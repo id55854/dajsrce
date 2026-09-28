@@ -20,6 +20,7 @@ import { NewVolunteerEventForm } from "@/components/NewVolunteerEventForm";
 import { NewNeedForm } from "@/components/NewNeedForm";
 import { InstitutionCalendar } from "@/components/InstitutionCalendar";
 import { SignOutButton } from "@/components/SignOutButton";
+import { AccountSettingsLink } from "@/components/account/AccountSettingsLink";
 import type { PublicInstitutionDetail } from "@/lib/location-map";
 import { ProfileHeader } from "@/components/ProfileHeader";
 import {
@@ -190,7 +191,8 @@ function InstitutionDashboardExperience() {
           )}
         </section>
 
-        <div className="border-t border-border-subtle pt-6">
+        <div className="flex flex-wrap gap-3 border-t border-border-subtle pt-6">
+          <AccountSettingsLink />
           <SignOutButton />
         </div>
       </div>

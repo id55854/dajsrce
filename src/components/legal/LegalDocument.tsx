@@ -20,10 +20,13 @@ import type { Locale } from "@/lib/types";
  * Server components only: nothing here needs the browser.
  */
 
-export const LEGAL_VERSION = "1.0";
+export const LEGAL_VERSION = "1.1";
 
-/** Version 1.0 took effect on the day it was last changed. */
-export const LEGAL_DATE = { iso: "2026-09-27", label: "27. rujna 2026." } as const;
+/**
+ * The documents take effect on the day they were last changed. 1.1: the
+ * privacy policy covers notification e-mail (2026-09-28).
+ */
+export const LEGAL_DATE = { iso: "2026-09-28", label: "28. rujna 2026." } as const;
 
 /** The one mailbox every legal document names for requests and notices. */
 export const LEGAL_CONTACT_EMAIL = "kontakt@dajsrce.hr";

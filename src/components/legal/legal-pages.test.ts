@@ -56,9 +56,9 @@ describe.each(PAGES)("$path", ({ path, title, Page, metadata }) => {
     const html = await render(Page, "hr");
     expect(html.match(/<h1[\s>]/g)).toHaveLength(1);
     const body = text(html);
-    expect(body).toContain("Verzija 1.0");
-    expect(body).toContain("27. rujna 2026.");
-    expect(body).toContain("Posljednja izmjena: 27. rujna 2026.");
+    expect(body).toContain("Verzija 1.1");
+    expect(body).toContain("28. rujna 2026.");
+    expect(body).toContain("Posljednja izmjena: 28. rujna 2026.");
     expect(body).toContain("Ukratko");
   });
 

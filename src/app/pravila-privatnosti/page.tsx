@@ -74,7 +74,7 @@ const RECIPIENTS = [
   [
     "Supabase, Inc.",
     "izvršitelj obrade",
-    "prijava i račun, e-poruke za potvrdu adrese i obnovu lozinke",
+    "prijava i račun; poruke za potvrdu adrese i obnovu lozinke (isporučuje ih Resend)",
     "podaci su pohranjeni u EU (Irska); tvrtka je iz SAD-a, prijenos je zaštićen standardnim ugovornim klauzulama",
   ],
   [
@@ -92,8 +92,8 @@ const RECIPIENTS = [
   [
     "Resend",
     "izvršitelj obrade",
-    "slanje e-poruka za potvrdu udruge, potvrde volonterske prijave i podsjetnika",
-    "SAD; Okvir EU-a i SAD-a",
+    "isporuka e-poruka: potvrda adrese i obnova lozinke, potvrda udruge, potvrde volonterske prijave, podsjetnici i obavijesti o aktivnosti na računu",
+    "slanje iz EU-a (Irska); tvrtka je iz SAD-a, prijenos je zaštićen Okvirom EU-a i SAD-a",
   ],
   [
     "Google (Google Workspace)",
@@ -144,6 +144,11 @@ const RETENTION = [
     "povučena obećanja i odjavljene prijave 12 mjeseci od povlačenja, a ostala 24 mjeseca nakon zatvaranja potrebe ili završetka događaja",
   ],
   ["Obavijesti u aplikaciji", "12 mjeseci"],
+  ["Evidencija obavijesti poslanih e-poštom", "90 dana"],
+  [
+    "Poveznice za odjavu od obavijesti e-poštom",
+    "400 dana od slanja poruke; čuvamo samo kriptografski sažetak poveznice",
+  ],
   [
     "Zahtjevi za preuzimanje udruge",
     "odobreni: dok je račun povezan s udrugom i još 3 godine; odbijeni i povučeni: 12 mjeseci",
@@ -366,10 +371,15 @@ export default async function PrivacyPolicyPage() {
               odobren ili odbijen.
             </li>
             <li>
-              <strong>E-poruke.</strong> Putem usluge Resend šaljemo poruku za potvrdu udruge,
-              potvrdu nakon prijave na volonterski događaj i podsjetnik dan prije događaja. Poruke
-              za obnovu lozinke, kao i poruke za potvrdu e-adrese kad je ta potvrda uključena,
-              šalje Supabase putem našeg poslužitelja e-pošte.
+              <strong>Obavijesti e-poštom.</strong> Obavijesti iz aplikacije šaljemo i na
+              e-adresu vašeg računa, a više obavijesti u kratkom razmaku stiže u jednoj poruci.
+              To možete isključiti u postavkama računa ili poveznicom na dnu svake takve poruke;
+              obavijesti u aplikaciji ostaju. Evidenciju poslanih obavijesti čuvamo 90 dana.
+            </li>
+            <li>
+              <strong>Ostale e-poruke.</strong> Šaljemo i poruku za potvrdu udruge, potvrdu nakon
+              prijave na volonterski događaj i podsjetnik dan prije događaja. Poruke za potvrdu
+              e-adrese i obnovu lozinke šalje Supabase. Sve e-poruke isporučuje Resend.
             </li>
             <li>
               Korisnicima ne šaljemo promotivne e-poruke. Ako to ikad uvedemo, činit ćemo to samo
