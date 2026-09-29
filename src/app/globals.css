@@ -59,6 +59,9 @@
      Translucent chrome layers: content scrolls underneath these.            */
   --chrome: rgb(255 255 255 / 0.75);
   --scrim: rgb(0 0 0 / 0.45);
+  /* The walkthrough dims harder than a dialog: the page is the subject, and
+     the one lit control has to stand out against it. */
+  --tour-scrim: rgb(20 16 14 / 0.66);
 
   /* --- layout ------------------------------------------------------------ */
   --nav-height: 3.5rem;        /* h-14 on phones; h-16 + pt-2 from md, keep in sync with Navbar */
@@ -117,6 +120,7 @@
 
   --chrome: rgb(3 7 18 / 0.75);
   --scrim: rgb(0 0 0 / 0.6);
+  --tour-scrim: rgb(0 0 0 / 0.74);
 }
 
 @theme inline {
@@ -197,6 +201,10 @@
   --animate-sheet-out: ui-sheet-out 200ms var(--ease-out-quart) both;
   --animate-toast-in: ui-toast-in 260ms var(--ease-spring) both;
   --animate-toast-out: ui-toast-out 160ms var(--ease-out-quart) both;
+
+  /* Walkthrough: the arrow draws itself in, the highlight ring breathes. */
+  --animate-tour-draw: tour-draw 520ms var(--ease-out-quart) both;
+  --animate-tour-pulse: tour-pulse 1.8s var(--ease-out-quart) infinite;
 }
 
 /* ============================================================================
@@ -355,6 +363,15 @@ html:not(.dyslexia-font) body :is(.text-xs, .text-\[11px\], .text-\[10px\]) {
 @keyframes ui-toast-out {
   from { opacity: 1; transform: translateY(0) scale(1); }
   to { opacity: 0; transform: translateY(0.75rem) scale(0.96); }
+}
+
+@keyframes tour-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes tour-pulse {
+  0% { opacity: 0.9; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(1.05); }
 }
 
 /* ============================================================================

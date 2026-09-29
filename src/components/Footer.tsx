@@ -5,6 +5,7 @@ import { Heart } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { ORGANISATION, organisationAddressLine } from "@/lib/organisation";
 import { useLocale, useT } from "@/i18n/client";
+import { openTour } from "@/components/tour/tour-storage";
 
 // The map is a fixed-height, full-viewport application surface. Rendering the
 // global footer under it makes the document taller than the viewport, so the
@@ -90,6 +91,15 @@ export function Footer() {
                 </Link>
               </li>
             ))}
+            <li>
+              <button
+                type="button"
+                onClick={openTour}
+                className="cursor-pointer rounded-control text-sm font-semibold text-brand underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              >
+                {t("tour.open")}
+              </button>
+            </li>
           </ul>
         </nav>
 
@@ -150,6 +160,13 @@ export function MapLegalStrip() {
             {t(labelKey)}
           </Link>
         ))}
+        <button
+          type="button"
+          onClick={openTour}
+          className="shrink-0 cursor-pointer rounded text-[11px] font-semibold leading-none text-brand underline-offset-2 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          {t("tour.open")}
+        </button>
       </nav>
     </div>
   );

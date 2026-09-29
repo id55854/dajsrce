@@ -197,6 +197,7 @@ function RegisterForm() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <RoleTile
+              tourId="register-role-individual"
               selected={role === "individual"}
               onSelect={() => selectRole("individual")}
               icon={
@@ -210,6 +211,7 @@ function RegisterForm() {
               subtitle={t("auth.role_individual_subtitle")}
             />
             <RoleTile
+              tourId="register-role-ngo"
               selected={role === "ngo"}
               onSelect={() => selectRole("ngo")}
               icon={
@@ -224,7 +226,7 @@ function RegisterForm() {
             />
           </div>
 
-          <Button size="lg" fullWidth onClick={goToForm}>
+          <Button size="lg" fullWidth onClick={goToForm} data-tour="register-continue">
             {t("common.continue")}
           </Button>
         </div>
@@ -290,6 +292,7 @@ function RegisterForm() {
                     field["aria-describedby"],
                     formErrorKey ? FORM_ERROR_ID : undefined
                   )}
+                  data-tour="register-email"
                   name="email"
                   type="email"
                   autoComplete="email"
@@ -348,10 +351,21 @@ function RegisterForm() {
   );
 }
 
+/**
+ * The form reads its role preset once, on mount. Following an association
+ * link while already on this page (the navbar's "Za udruge", the walkthrough)
+ * changes only the query string, so the form is keyed by it to start over on
+ * the screen that link asks for.
+ */
+function RegisterRoute() {
+  const presetRole = signupRoleFromParams(useSearchParams());
+  return <RegisterForm key={presetRole ?? "choose"} />;
+}
+
 export default function RegisterPage() {
   return (
     <Suspense>
-      <RegisterForm />
+      <RegisterRoute />
     </Suspense>
   );
 }

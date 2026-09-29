@@ -101,6 +101,7 @@ function DonateExperience() {
             <Link
               key={candidate}
               href={candidate === DEFAULT_VIEW ? "/doniraj" : `/doniraj?view=${candidate}`}
+              data-tour={`donate-view-${candidate}`}
               aria-current={active ? "page" : undefined}
               className={
                 active

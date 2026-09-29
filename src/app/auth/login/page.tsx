@@ -131,7 +131,7 @@ function LoginForm() {
       footer={
         <>
           {t("auth.no_account")}{" "}
-          <Link href={`/auth/register${nextQuery}`} className={authLinkClasses}>
+          <Link href={`/auth/register${nextQuery}`} className={authLinkClasses} data-tour="login-sign-up">
             {t("auth.sign_up_link")}
           </Link>
         </>
@@ -140,7 +140,7 @@ function LoginForm() {
       {/* POST with a same-page action: submitted before hydration, a GET
           would put the password in the query string (URL bar, history,
           server logs). */}
-      <form method="post" action="#" onSubmit={handleSubmit} className="space-y-5">
+      <form method="post" action="#" onSubmit={handleSubmit} className="space-y-5" data-tour="login-form">
         {errorKey ? (
           <AuthAlert id={FORM_ERROR_ID}>{t(errorKey)}</AuthAlert>
         ) : null}
@@ -203,6 +203,7 @@ function LoginForm() {
         fullWidth
         loading={googleLoading}
         onClick={handleGoogle}
+        data-tour="login-google"
         icon={
           <Chrome className="h-5 w-5 text-brand" strokeWidth={2} aria-hidden="true" />
         }

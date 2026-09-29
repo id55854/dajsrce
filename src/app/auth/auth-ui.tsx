@@ -301,6 +301,7 @@ export function RoleTile({
   selected,
   onSelect,
   className,
+  tourId,
 }: {
   icon: ReactNode;
   title: ReactNode;
@@ -308,11 +309,14 @@ export function RoleTile({
   selected: boolean;
   onSelect: () => void;
   className?: string;
+  /** `data-tour` hook for the walkthrough. */
+  tourId?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
+      data-tour={tourId}
       aria-pressed={selected}
       className={clsx(
         "flex flex-col items-center gap-3 rounded-card border-2 p-6 text-center",

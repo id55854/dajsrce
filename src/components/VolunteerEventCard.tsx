@@ -370,6 +370,7 @@ export function VolunteerEventCard({
       <Card
         id={htmlId}
         as="article"
+        data-tour="volunteer-event"
         tabIndex={-1}
         onClick={() => setDetailsOpen(true)}
         className={clsx(

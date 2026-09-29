@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { TOUR_SETTLED_EVENT, isTourPending } from "@/components/tour/tour-storage";
 
 /**
  * Remembers how the visitor chose to start, so the question is asked once and
@@ -30,12 +31,23 @@ export function useMapStartPrompt(): {
       setShouldAsk(false);
       return;
     }
-    try {
-      setShouldAsk(window.localStorage.getItem(START_PREFERENCE_KEY) == null);
-    } catch {
-      // Private-mode storage failures must not gate the map behind a dialog.
+    const ask = () => {
+      try {
+        setShouldAsk(window.localStorage.getItem(START_PREFERENCE_KEY) == null);
+      } catch {
+        // Private-mode storage failures must not gate the map behind a dialog.
+        setShouldAsk(false);
+      }
+    };
+    // A first visit opens the walkthrough, which covers the map. Two first-
+    // visit dialogs at once would fight for focus, so the start question
+    // waits until the tour is finished or skipped.
+    if (isTourPending()) {
       setShouldAsk(false);
+      window.addEventListener(TOUR_SETTLED_EVENT, ask, { once: true });
+      return () => window.removeEventListener(TOUR_SETTLED_EVENT, ask);
     }
+    ask();
   }, []);
 
   const resolve = useCallback((choice: MapStartPreference) => {

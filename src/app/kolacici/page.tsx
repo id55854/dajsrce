@@ -92,6 +92,20 @@ const STORAGE: readonly {
     lifetime: "dok ga ne obrišete",
   },
   {
+    name: <Code>dajsrce-tour</Code>,
+    kind: "lokalna pohrana",
+    setWhen: "kad završite ili preskočite vodič kroz platformu",
+    purpose: "da se vodič ne otvara sam pri svakom posjetu",
+    lifetime: "dok ga ne obrišete",
+  },
+  {
+    name: <Code>dajsrce-tour-progress</Code>,
+    kind: "privremena pohrana (sessionStorage)",
+    setWhen: "dok prolazite kroz vodič",
+    purpose: "pamti korak vodiča ako osvježite stranicu",
+    lifetime: "briše se kad vodič završi ili zatvaranjem kartice",
+  },
+  {
     name: <Code>password-recovery-email</Code>,
     kind: "privremena pohrana (sessionStorage)",
     setWhen: "kad kliknete „Zaboravili ste lozinku?”",

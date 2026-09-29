@@ -20,6 +20,7 @@ import type { Notification } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { OPEN_A11Y_EVENT } from "@/components/AccessibilityMenu";
+import { openTour } from "@/components/tour/tour-storage";
 import { Menu, buttonClasses, usePresence } from "@/components/ui";
 import { useLocale, useT } from "@/i18n/client";
 import { NGO_SIGNUP_HREF } from "@/lib/auth/onboarding";
@@ -51,8 +52,8 @@ const navLinks = [
 // from the NGO profile as well; this is a second, shorter route to them, not
 // a move.
 const ngoNavLinks = [
-  { href: "/dashboard/institution/pledges", labelKey: "nav.ngo_pledges" },
-  { href: "/dashboard/institution/volunteers", labelKey: "nav.ngo_volunteering" },
+  { href: "/dashboard/institution/pledges", labelKey: "nav.ngo_pledges", tourId: "nav-ngo-pledges" },
+  { href: "/dashboard/institution/volunteers", labelKey: "nav.ngo_volunteering", tourId: "nav-ngo-volunteering" },
 ] as const;
 
 // An NGO account posts volunteer events; it doesn't sign up for them. The
@@ -61,7 +62,7 @@ const ngoNavLinks = [
 // own inbound pledges and volunteer management take that place instead.
 function navLinksForRole(
   role: string | undefined
-): readonly { href: string; labelKey: string }[] {
+): readonly { href: string; labelKey: string; tourId?: string }[] {
   if (role !== "ngo") return navLinks;
   return [
     ...navLinks.filter((link) => link.href !== "/volunteer" && link.href !== "/doniraj"),
@@ -83,7 +84,7 @@ function isNavLinkActive(
 const ICON_BUTTON =
   "relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-ink-secondary transition-colors duration-150 hover:bg-ink/[0.08] hover:text-ink motion-safe:active:scale-[0.92] motion-safe:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
-function NavLink({ href, label }: { href: string; label: string }) {
+function NavLink({ href, label, tourId }: { href: string; label: string; tourId?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentView = searchParams.get("view");
@@ -93,6 +94,7 @@ function NavLink({ href, label }: { href: string; label: string }) {
     <Link
       href={href}
       prefetch={navLinks.some((link) => link.href === href) ? true : undefined}
+      data-tour={tourId}
       aria-current={active ? "page" : undefined}
       className={clsx(
         "cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-medium",
@@ -232,6 +234,7 @@ function ProfileLink({
   return (
     <Link
       href="/dashboard"
+      data-tour="nav-profile"
       aria-label={displayName}
       title={profileEmail}
       className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-secondary transition-[background-color,color,transform] duration-150 ease-out hover:bg-ink/[0.08] hover:text-ink motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
@@ -536,8 +539,8 @@ export function Navbar() {
           )}
           aria-label={t("nav.main_navigation")}
         >
-          {navLinksForRole(meProfile?.role).map(({ href, labelKey }) => (
-            <NavLink key={href} href={href} label={t(labelKey)} />
+          {navLinksForRole(meProfile?.role).map(({ href, labelKey, tourId }) => (
+            <NavLink key={href} href={href} label={t(labelKey)} tourId={tourId} />
           ))}
         </nav>
 
@@ -556,6 +559,7 @@ export function Navbar() {
                   setPanelOpen((o) => !o);
                 }}
                 className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-secondary transition-[background-color,transform] duration-150 hover:bg-ink/[0.08] hover:text-ink motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                data-tour="nav-bell"
                 aria-label={notificationLabel}
                 aria-expanded={panelOpen}
                 aria-controls="notifications-panel"
@@ -572,6 +576,7 @@ export function Navbar() {
                   label would run into the centred track, so it shortens. */}
               <Link
                 href={NGO_SIGNUP_HREF}
+                data-tour="nav-register-ngo"
                 className={buttonClasses({
                   variant: "secondary",
                   size: "sm",
@@ -583,6 +588,7 @@ export function Navbar() {
               </Link>
               <Link
                 href="/auth/login"
+                data-tour="nav-sign-in"
                 className={buttonClasses({ size: "sm", className: "h-9 px-3.5" })}
               >
                 {t("nav.sign_in")}
@@ -600,6 +606,7 @@ export function Navbar() {
                 bellRef.current = event.currentTarget;
                 setPanelOpen((o) => !o);
               }}
+              data-tour="nav-bell"
               className={ICON_BUTTON}
               aria-label={notificationLabel}
               aria-expanded={panelOpen}
@@ -615,6 +622,7 @@ export function Navbar() {
             aria-expanded={mobileOpen}
             aria-controls="mobile-nav"
             ref={mobileTriggerRef}
+            data-tour="nav-menu"
             aria-label={mobileOpen ? t("nav.close_menu") : t("nav.open_menu")}
             onClick={() => setMobileOpen((o) => !o)}
           >
@@ -707,6 +715,16 @@ export function Navbar() {
                 {t(labelKey)}
               </Link>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileOpen(false);
+                openTour();
+              }}
+              className="rounded-control px-3 py-2.5 text-left text-sm font-medium text-ink-secondary transition-colors hover:bg-ink/[0.08] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand md:hidden"
+            >
+              {t("tour.open")}
+            </button>
 
             {user ? (
               <>

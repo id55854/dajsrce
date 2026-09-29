@@ -5,6 +5,7 @@ import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { AccessibilityMenu } from "@/components/AccessibilityMenu";
 import { Footer } from "@/components/Footer";
+import { TourLauncher } from "@/components/tour/TourLauncher";
 import { ToastProvider } from "@/components/ui";
 import { LocaleProvider } from "@/i18n/client";
 import { getLocale, getTranslator } from "@/i18n/server";
@@ -150,6 +151,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Footer />
               <AccessibilityMenu />
             </div>
+            {/* Outside #app-content: while the walkthrough runs, that whole
+                tree is inert and the tour is the only thing in reach. */}
+            <TourLauncher />
           </ToastProvider>
         </LocaleProvider>
       </body>

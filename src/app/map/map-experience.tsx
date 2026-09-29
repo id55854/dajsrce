@@ -754,7 +754,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
           floats over it (full-bleed), on desktop it holds the left 62% as a
           rounded card inset from the page edges. `isolate` keeps Leaflet's
           internal pane z-indexes out of the app's ladder. */}
-      <div className="relative isolate min-h-0 min-w-0 flex-1 md:mb-4 md:h-auto md:w-[60%] md:overflow-hidden md:rounded-sheet md:shadow-raised lg:mb-5">
+      <div data-tour="map-canvas" className="relative isolate min-h-0 min-w-0 flex-1 md:mb-4 md:h-auto md:w-[60%] md:overflow-hidden md:rounded-sheet md:shadow-raised lg:mb-5">
         <div className="h-full w-full">
           <Map
             features={features}
@@ -780,7 +780,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
 
         {/* Sits below the zoom control (two 44px buttons from top-3) so the two
             never collide, and clear of the attribution at any width. */}
-        <div className="absolute right-3 top-28 z-[var(--z-chrome)] flex flex-col items-end gap-2">
+        <div data-tour="map-locate" className="absolute right-3 top-28 z-[var(--z-chrome)] flex flex-col items-end gap-2">
           <button
             type="button"
             onClick={handleLocate}
@@ -846,6 +846,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
               {/* Controls stop the drag gesture from starting, so the field can
                   be typed into and a tap cannot be stolen by pointer capture. */}
               <div
+                data-tour="map-search"
                 className="select-text"
                 onPointerDown={(event) => event.stopPropagation()}
               >
@@ -868,7 +869,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <div onPointerDown={(event) => event.stopPropagation()}>
+                <div onPointerDown={(event) => event.stopPropagation()} data-tour="map-filters">
                   <Button
                     variant="secondary"
                     size="sm"
@@ -889,7 +890,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
             </div>
           }
         >
-          <div aria-busy={refreshing}>
+          <div aria-busy={refreshing} data-tour="map-results">
             <div className={clsx(detailOpen && "hidden")}>
               {compact ? results : null}
             </div>
@@ -960,27 +961,29 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
             {/* Desktop search lives above the category row rather than floating
                 over the tiles; on phones the same field lives in the sheet
                 header, reachable at every detent. */}
-            <MapSearchField
-              idPrefix="map-search"
-              tone="inline"
-              className="mb-3"
-              value={searchQuery}
-              onValueChange={setSearchQuery}
-              onClear={clearSearch}
-              hits={searchHits}
-              places={searchPlaces}
-              totalMatches={meta.totalMatches}
-              pending={searchPending}
-              onSelect={onSelect}
-              onSelectPlace={focusCluster}
-            />
-            <div className="hidden md:block">
+            <div data-tour="map-search" className="mb-3">
+              <MapSearchField
+                idPrefix="map-search"
+                tone="inline"
+                value={searchQuery}
+                onValueChange={setSearchQuery}
+                onClear={clearSearch}
+                hits={searchHits}
+                places={searchPlaces}
+                totalMatches={meta.totalMatches}
+                pending={searchPending}
+                onSelect={onSelect}
+                onSelectPlace={focusCluster}
+              />
+            </div>
+            <div data-tour="map-filters" className="hidden md:block">
               <FilterBar filters={filters} onChange={setFilters} />
             </div>
             <div className="mt-2">{resultsMeta}</div>
           </div>
 
           <div
+            data-tour="map-results"
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 [@media(max-height:600px)]:flex-none [@media(max-height:600px)]:overflow-visible"
             aria-busy={refreshing}
           >

@@ -118,6 +118,7 @@ export function NeedCard({
     <Card
       as="article"
       id={needAnchorId(need.id)}
+      data-tour="need-card"
       className={clsx(
         "flex h-full scroll-mt-24 flex-col transition-[opacity,filter] duration-300 ease-out",
         mine && "border-success ring-1 ring-success/30",
