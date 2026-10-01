@@ -8,8 +8,13 @@ export const PIN_LABEL_HEIGHT = 22;
 /** Distance from the pin's top to the label's bottom edge. */
 export const PIN_LABEL_GAP = 4;
 const PIN_LABEL_MARGIN = 4;
-/** A pin with more than this many others within the radius is not labelled. */
-const CROWD_RADIUS = 72;
+/**
+ * A pin with more than this many others within the radius is not labelled.
+ * 72 px rejected nearly every pin in central Zagreb on a phone (one label
+ * on screen at zoom 15); the overlap tests already keep labels apart, so this
+ * only has to catch a tight knot of pins.
+ */
+const CROWD_RADIUS = 48;
 const CROWD_MAX_NEIGHBOURS = 3;
 
 export type ScreenBox = { left: number; top: number; right: number; bottom: number };

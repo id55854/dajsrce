@@ -613,6 +613,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
         token: nextCommandToken(),
         kind: "drill",
         bounds: cluster.bounds,
+        clusterId: cluster.id,
       });
       // Get out of the way so the move is visible; the results for the new area
       // are one drag away.

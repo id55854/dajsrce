@@ -25,7 +25,7 @@ describe("planPinLabels", () => {
   });
 
   it("labels nothing in a crowded neighbourhood", () => {
-    const crowd = [0, 1, 2, 3, 4].map((index) => pin(`p${index}`, 400 + index * 10, 300 + index * 10, 4, 30));
+    const crowd = [0, 1, 2, 3, 4].map((index) => pin(`p${index}`, 400 + index * 7, 300 + index * 7, 4, 30));
     expect(planPinLabels(crowd, viewport).size).toBe(0);
   });
 

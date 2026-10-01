@@ -94,7 +94,7 @@ export type MapViewport = {
 export type MapCommand =
   | { token: number; kind: "fitBounds"; bounds: MapBounds }
   /** A group activated in the results panel: one level down, never out. */
-  | { token: number; kind: "drill"; bounds: MapBounds }
+  | { token: number; kind: "drill"; bounds: MapBounds; clusterId: string }
   | { token: number; kind: "zoom"; delta: number }
   | { token: number; kind: "flyTo"; center: [number, number]; zoom: number };
 
@@ -317,31 +317,101 @@ export function fitFeatureBounds(map: L.Map, bounds: MapBounds) {
  * 14 turned a street group seen at zoom 14 into a dead end, the same pin
  * redrawn after every tap.
  */
-export function drillIntoCluster(map: L.Map, bounds: MapBounds) {
+export function drillIntoCluster(
+  map: L.Map,
+  bounds: MapBounds,
+  clusterId: string | null = null,
+  hops = 0
+) {
   const [minLng, minLat, maxLng, maxLat] = bounds;
   const animate = !prefersReducedMotion();
   // Mid-animation `getZoom()` is still the old level; the target is what a
   // second quick tap has to build on, or it would undo the first one.
   const current = Math.max(map.getZoom(), drillTargetZoom.get(map) ?? 0);
   const ceiling = Math.min(CLUSTER_DRILL_MAX_ZOOM, map.getMaxZoom());
+  let center: L.LatLngExpression;
+  let next: number;
   if (minLng === maxLng && minLat === maxLat) {
     // A single-point group cannot be fitted; step past the clustering threshold
     // so the tap actually reveals institutions instead of the same circle.
-    map.setView([minLat, minLng], Math.min(Math.max(current + 3, 12), ceiling), {
-      animate,
-    });
-    return;
+    center = [minLat, minLng];
+    next = Math.max(Math.min(Math.max(current + 3, 12), ceiling), current);
+  } else {
+    const extent = L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
+    const fitted = map.getBoundsZoom(extent, false, L.point(64, 64));
+    center = extent.getCenter();
+    next = Math.max(Math.min(Math.max(fitted, current + 1), ceiling), current);
   }
-  const extent = L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
-  const fitted = map.getBoundsZoom(extent, false, L.point(64, 64));
-  const target = Math.min(Math.max(fitted, current + 1), ceiling);
-  const next = Math.max(target, current);
   drillTargetZoom.set(map, next);
   map.once("zoomend moveend", () => drillTargetZoom.delete(map));
-  map.setView(extent.getCenter(), next, { animate });
+  if (clusterId && next < ceiling && hops < CLUSTER_DRILL_MAX_HOPS) {
+    pendingDrill.set(map, { clusterId, zoom: next, hops, settledAt: null });
+  } else {
+    pendingDrill.delete(map);
+  }
+  ownMove.add(map);
+  map.setView(center, next, { animate });
 }
 
 const drillTargetZoom = new WeakMap<L.Map, number>();
+
+/**
+ * A long street or a big district can still be one group after the tap: the
+ * whole of Ilica fits on screen, so the street tier wins again and the visitor
+ * sees the same pin, as if the tap had done nothing. The tapped group is
+ * remembered until the answer for the new view arrives; if that answer still
+ * holds it, the map goes one level further on its own, up to a few hops.
+ */
+const CLUSTER_DRILL_MAX_HOPS = 4;
+/**
+ * A response that lands sooner than this after the move is still the answer
+ * for the previous view (the viewport commit is debounced by 160 ms).
+ */
+const DRILL_STALE_RESPONSE_MS = 200;
+
+type PendingDrill = {
+  clusterId: string;
+  zoom: number;
+  hops: number;
+  settledAt: number | null;
+};
+
+const pendingDrill = new WeakMap<L.Map, PendingDrill>();
+/** Moves started by `drillIntoCluster`; any other move cancels a pending drill. */
+const ownMove = new WeakSet<L.Map>();
+
+function ClusterDrillFollower({ features }: { features: PublicMapFeature[] }) {
+  const map = useMapEvents({
+    movestart() {
+      if (ownMove.has(map)) {
+        ownMove.delete(map);
+        return;
+      }
+      // The visitor took over (drag, wheel, pinch, buttons).
+      pendingDrill.delete(map);
+    },
+    moveend() {
+      const pending = pendingDrill.get(map);
+      if (pending && pending.settledAt === null && map.getZoom() >= pending.zoom) {
+        pending.settledAt = performance.now();
+      }
+    },
+  });
+
+  useEffect(() => {
+    const pending = pendingDrill.get(map);
+    if (!pending || pending.settledAt === null) return;
+    if (performance.now() - pending.settledAt < DRILL_STALE_RESPONSE_MS) return;
+    pendingDrill.delete(map);
+    const same = features.find(
+      (feature): feature is PublicMapCluster =>
+        feature.kind === "cluster" && feature.id === pending.clusterId
+    );
+    if (same) drillIntoCluster(map, same.bounds, same.id, pending.hops + 1);
+  }, [features, map]);
+
+  return null;
+}
 
 /**
  * Name labels over single pins, placed only where they read cleanly.
@@ -708,7 +778,7 @@ function MapCommandRunner({ command }: { command: MapCommand | null }) {
       return;
     }
     if (command.kind === "drill") {
-      drillIntoCluster(map, command.bounds);
+      drillIntoCluster(map, command.bounds, command.clusterId);
       return;
     }
     fitFeatureBounds(map, command.bounds);
@@ -773,7 +843,7 @@ function ClusterMarker({
     : t(pluralKey("map_ui.cluster_title", locale, cluster.count), { count });
   const markerRef = useRef<L.Marker | null>(null);
   useMarkerName(markerRef, label, icon);
-  const focusCluster = () => drillIntoCluster(map, cluster.bounds);
+  const focusCluster = () => drillIntoCluster(map, cluster.bounds, cluster.id);
   const canHover = useCanHover();
 
   return (
@@ -1011,6 +1081,7 @@ export default function Map({
       <MapViewportObserver onChange={onViewportChange} />
       <MapFlyToSelection selectedId={selectedId} institutions={institutions} />
       <MapCommandRunner command={command} />
+      <ClusterDrillFollower features={features} />
       <PinLabelPlanner
         institutions={institutions}
         selectedId={selectedId}
