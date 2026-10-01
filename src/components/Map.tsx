@@ -30,6 +30,12 @@ import { basemapLayer, normalizeCartoApiKey } from "@/lib/basemap";
 import { getCategoryConfig } from "@/lib/constants";
 import { useLocale, useT } from "@/i18n/client";
 import { pluralKey } from "@/i18n/dictionaries";
+import {
+  PIN_LABEL_GAP,
+  PIN_LABEL_HEIGHT,
+  planPinLabels,
+  type ScreenBox,
+} from "@/lib/pin-labels";
 import type { Locale } from "@/lib/types";
 
 /**
@@ -87,6 +93,8 @@ export type MapViewport = {
  */
 export type MapCommand =
   | { token: number; kind: "fitBounds"; bounds: MapBounds }
+  /** A group activated in the results panel: one level down, never out. */
+  | { token: number; kind: "drill"; bounds: MapBounds }
   | { token: number; kind: "zoom"; delta: number }
   | { token: number; kind: "flyTo"; center: [number, number]; zoom: number };
 
@@ -168,7 +176,7 @@ function institutionIcon(status: MapPinStatus, selected: boolean): L.DivIcon {
   const cached = ICON_CACHE[key];
   if (cached) return cached;
 
-  const size = selected ? Math.round(32 * 1.35) : 32;
+  const size = selected ? PIN_SELECTED_SIZE : PIN_SIZE;
   const icon = L.divIcon({
     className: selected ? "dajsrce-pin dajsrce-pin-selected" : "dajsrce-pin",
     html: markerHtml({
@@ -266,22 +274,21 @@ function currentViewport(map: L.Map): MapViewport {
 }
 
 /**
- * Shared by the cluster markers and by the cluster rows in the results panel,
- * so activating a group behaves the same wherever it is activated from.
- *
- * `maxZoom` is a cap, not a floor: `fitBounds` still picks the zoom the group's
- * own extent needs, so a county-wide group drills down one step while a
- * city-block group lands past the zoom-12 clustering threshold immediately.
+ * The deepest zoom a group tap goes to. Past it the server returns single
+ * pins for any viewport (at most a handful of organisations share one
+ * address), so there is no further level to drill into.
+ */
+const CLUSTER_DRILL_MAX_ZOOM = 18;
+
+/**
+ * Fits the map around a set of results (a fresh search or filter). Unlike a
+ * group tap this may zoom out: the answer can cover the whole country.
  */
 export function fitFeatureBounds(map: L.Map, bounds: MapBounds) {
   const [minLng, minLat, maxLng, maxLat] = bounds;
   const animate = !prefersReducedMotion();
   if (minLng === maxLng && minLat === maxLat) {
-    // A single-point group cannot be fitted; step past the clustering threshold
-    // so the tap actually reveals institutions instead of the same circle.
-    map.setView([minLat, minLng], Math.min(Math.max(map.getZoom() + 3, 12), 16), {
-      animate,
-    });
+    map.setView([minLat, minLng], Math.max(map.getZoom(), 12), { animate });
     return;
   }
   map.fitBounds(
@@ -291,6 +298,197 @@ export function fitFeatureBounds(map: L.Map, bounds: MapBounds) {
     ],
     { maxZoom: 14, padding: [32, 32], animate }
   );
+}
+
+/**
+ * Opens a group one level down. Shared by the cluster markers and by the
+ * cluster rows in the results panel, so activating a group behaves the same
+ * wherever it is activated from.
+ *
+ * Never zooms out: zooming out is the visitor's own move (wheel, pinch or the
+ * buttons). The old version reused `fitBounds` with a cap of 14, so a group
+ * tapped at zoom 15 or deeper, or one whose extent was wider than the screen,
+ * pulled the map back out.
+ *
+ * The map lands on the group's own extent, which is what makes the server pick
+ * the next tier down (county → city → district → street → pins): a tier wins
+ * only if it splits the viewport, and the viewport is now that one group.
+ * Every tap goes at least one zoom level deeper. The old `fitBounds` cap of
+ * 14 turned a street group seen at zoom 14 into a dead end, the same pin
+ * redrawn after every tap.
+ */
+export function drillIntoCluster(map: L.Map, bounds: MapBounds) {
+  const [minLng, minLat, maxLng, maxLat] = bounds;
+  const animate = !prefersReducedMotion();
+  // Mid-animation `getZoom()` is still the old level; the target is what a
+  // second quick tap has to build on, or it would undo the first one.
+  const current = Math.max(map.getZoom(), drillTargetZoom.get(map) ?? 0);
+  const ceiling = Math.min(CLUSTER_DRILL_MAX_ZOOM, map.getMaxZoom());
+  if (minLng === maxLng && minLat === maxLat) {
+    // A single-point group cannot be fitted; step past the clustering threshold
+    // so the tap actually reveals institutions instead of the same circle.
+    map.setView([minLat, minLng], Math.min(Math.max(current + 3, 12), ceiling), {
+      animate,
+    });
+    return;
+  }
+  const extent = L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
+  const fitted = map.getBoundsZoom(extent, false, L.point(64, 64));
+  const target = Math.min(Math.max(fitted, current + 1), ceiling);
+  const next = Math.max(target, current);
+  drillTargetZoom.set(map, next);
+  map.once("zoomend moveend", () => drillTargetZoom.delete(map));
+  map.setView(extent.getCenter(), next, { animate });
+}
+
+const drillTargetZoom = new WeakMap<L.Map, number>();
+
+/**
+ * Name labels over single pins, placed only where they read cleanly.
+ *
+ * Density is judged on screen, where crowding is actually felt, not per square
+ * kilometre: a label is drawn only if its box clears every other pin and every
+ * label already placed, and only if its pin has few neighbours close by (a
+ * label that fits between pins in a tight cluster still reads as noise).
+ * Placement is greedy in priority order, so the selected organisation and
+ * then the ones with an account win the space. Below `PIN_LABEL_MIN_ZOOM`
+ * nothing is labelled: the pins are towns apart and the panel names them.
+ */
+const PIN_LABEL_MIN_ZOOM = 12;
+const PIN_SIZE = 32;
+const PIN_SELECTED_SIZE = Math.round(32 * 1.35);
+const PIN_LABEL_MAX_WIDTH = 168;
+const PIN_LABEL_MAX_WIDTH_COMPACT = 132;
+/** Label padding plus border, left and right. */
+const PIN_LABEL_CHROME = 16;
+/** Bounded so a long session of panning cannot grow it without limit. */
+const LABEL_WIDTH_CACHE = new globalThis.Map<string, number>();
+
+function labelPriority(institution: PublicMapInstitution, selectedId: string | null): number {
+  if (institution.id === selectedId) return 0;
+  const status = pinStatus(institution);
+  if (status === "verified") return 1;
+  if (status === "onboarded") return 2;
+  return institution.hasUrgentNeed ? 3 : 4;
+}
+
+function measureLabelWidth(
+  context: CanvasRenderingContext2D | null,
+  font: string,
+  name: string,
+  maxWidth: number
+): number {
+  const key = `${font}|${name}`;
+  let text = LABEL_WIDTH_CACHE.get(key);
+  if (text === undefined) {
+    // Without a canvas, a generous per-character estimate errs towards fewer labels.
+    text = context ? context.measureText(name).width : name.length * 6.5;
+    if (LABEL_WIDTH_CACHE.size > 2000) LABEL_WIDTH_CACHE.clear();
+    LABEL_WIDTH_CACHE.set(key, text);
+  }
+  return Math.min(Math.ceil(text) + PIN_LABEL_CHROME, maxWidth);
+}
+
+function sameIds(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const id of a) if (!b.has(id)) return false;
+  return true;
+}
+
+/**
+ * The floating controls over the map, in container coordinates, so a label is
+ * never drawn underneath one. Both Leaflet's own controls and the page's
+ * glass chrome (`data-ui-material`) count.
+ */
+function mapChromeBoxes(map: L.Map): ScreenBox[] {
+  const container = map.getContainer();
+  const frame = container.getBoundingClientRect();
+  // The page's buttons are siblings of the map, inside its positioned wrapper.
+  const scope = container.offsetParent ?? container;
+  const boxes: ScreenBox[] = [];
+  for (const element of scope.querySelectorAll<HTMLElement>("[data-ui-material], .leaflet-control")) {
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+    if (rect.right < frame.left || rect.left > frame.right) continue;
+    if (rect.bottom < frame.top || rect.top > frame.bottom) continue;
+    boxes.push({
+      left: rect.left - frame.left,
+      top: rect.top - frame.top,
+      right: rect.right - frame.left,
+      bottom: rect.bottom - frame.top,
+    });
+  }
+  return boxes;
+}
+
+function PinLabelPlanner({
+  institutions,
+  selectedId,
+  compact,
+  onChange,
+}: {
+  institutions: PublicMapInstitution[];
+  selectedId: string | null;
+  compact: boolean;
+  onChange: (ids: ReadonlySet<string>) => void;
+}) {
+  const map = useMap();
+  const [revision, setRevision] = useState(0);
+  const lastRef = useRef<ReadonlySet<string>>(new Set());
+  const canvasRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  useMapEvents({
+    zoomend: () => setRevision((value) => value + 1),
+    moveend: () => setRevision((value) => value + 1),
+    resize: () => setRevision((value) => value + 1),
+  });
+
+  useEffect(() => {
+    let next: Set<string> = new Set();
+    if (map.getZoom() >= PIN_LABEL_MIN_ZOOM && institutions.length > 0) {
+      const size = map.getSize();
+      if (!canvasRef.current) {
+        canvasRef.current = document.createElement("canvas").getContext("2d");
+      }
+      const context = canvasRef.current;
+      const family =
+        getComputedStyle(map.getContainer()).getPropertyValue("--font-app-sans").trim() ||
+        "system-ui, sans-serif";
+      const font = `600 11px ${family}`;
+      if (context) context.font = font;
+      const maxWidth = compact ? PIN_LABEL_MAX_WIDTH_COMPACT : PIN_LABEL_MAX_WIDTH;
+      const pins = [];
+      for (const institution of institutions) {
+        // Protected organisations are drawn as an area, not a pin, and say
+        // what they are in their own popup.
+        if (institution.isLocationHidden) continue;
+        const point = map.latLngToContainerPoint([institution.latitude, institution.longitude]);
+        // Pins just off screen still count as obstacles for labels at the edge.
+        if (
+          point.x < -PIN_LABEL_MAX_WIDTH ||
+          point.y < -PIN_SIZE ||
+          point.x > size.x + PIN_LABEL_MAX_WIDTH ||
+          point.y > size.y + PIN_LABEL_HEIGHT + PIN_SIZE
+        ) {
+          continue;
+        }
+        pins.push({
+          id: institution.id,
+          x: point.x,
+          y: point.y,
+          size: institution.id === selectedId ? PIN_SELECTED_SIZE : PIN_SIZE,
+          priority: labelPriority(institution, selectedId),
+          labelWidth: measureLabelWidth(context, font, institution.name, maxWidth),
+        });
+      }
+      next = planPinLabels(pins, { width: size.x, height: size.y }, mapChromeBoxes(map));
+    }
+    if (sameIds(next, lastRef.current)) return;
+    lastRef.current = next;
+    onChange(next);
+  }, [map, institutions, selectedId, compact, revision, onChange]);
+
+  return null;
 }
 
 /**
@@ -509,10 +707,29 @@ function MapCommandRunner({ command }: { command: MapCommand | null }) {
       });
       return;
     }
+    if (command.kind === "drill") {
+      drillIntoCluster(map, command.bounds);
+      return;
+    }
     fitFeatureBounds(map, command.bounds);
   }, [command, map]);
 
   return null;
+}
+
+/** A real hovering pointer (mouse or trackpad), not a touch screen. */
+function useCanHover() {
+  const [canHover, setCanHover] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const sync = () => setCanHover(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
+  return canHover;
 }
 
 function ClusterMarker({
@@ -556,7 +773,8 @@ function ClusterMarker({
     : t(pluralKey("map_ui.cluster_title", locale, cluster.count), { count });
   const markerRef = useRef<L.Marker | null>(null);
   useMarkerName(markerRef, label, icon);
-  const focusCluster = () => fitFeatureBounds(map, cluster.bounds);
+  const focusCluster = () => drillIntoCluster(map, cluster.bounds);
+  const canHover = useCanHover();
 
   return (
     <Marker
@@ -569,15 +787,21 @@ function ClusterMarker({
       eventHandlers={{ click: focusCluster, keydown: activateOnKey(focusCluster) }}
     >
       {/* A styled Leaflet tooltip instead of the browser's native `title`
-          bubble, so the hover hint matches the app's chrome. */}
-      <Tooltip
-        direction="top"
-        offset={[0, -(clusterIconSize(cluster.count) + 6)]}
-        opacity={1}
-        className="dajsrce-tooltip"
-      >
-        {hint}
-      </Tooltip>
+          bubble, so the hover hint matches the app's chrome. Mouse only: on a
+          touch screen Leaflet opens it from the emulated mouseover, and iOS
+          Safari treats a tap that changes the page on hover as a hover alone
+          and swallows the click, so the first tap showed the hint and only a
+          second tap zoomed. */}
+      {canHover ? (
+        <Tooltip
+          direction="top"
+          offset={[0, -(clusterIconSize(cluster.count) + 6)]}
+          opacity={1}
+          className="dajsrce-tooltip"
+        >
+          {hint}
+        </Tooltip>
+      ) : null}
     </Marker>
   );
 }
@@ -585,10 +809,13 @@ function ClusterMarker({
 function InstitutionLayer({
   institution,
   isSelected,
+  showLabel,
   onSelect,
 }: {
   institution: PublicMapInstitution;
   isSelected: boolean;
+  /** Decided by `PinLabelPlanner` from the on-screen crowding. */
+  showLabel: boolean;
   onSelect: (id: string) => void;
 }) {
   const t = useT();
@@ -658,7 +885,21 @@ function InstitutionLayer({
           : `${institution.name}, ${statusLabel}`
       }
       eventHandlers={{ click: select, keydown: activateOnKey(select) }}
-    />
+    >
+      {showLabel ? (
+        // Visual only: the marker's accessible name already starts with the
+        // same organisation name.
+        <Tooltip
+          permanent
+          direction="top"
+          offset={[0, -((isSelected ? PIN_SELECTED_SIZE : PIN_SIZE) + PIN_LABEL_GAP)]}
+          opacity={1}
+          className="dajsrce-pin-label"
+        >
+          <span aria-hidden="true">{institution.name}</span>
+        </Tooltip>
+      ) : null}
+    </Marker>
   );
 }
 
@@ -733,6 +974,7 @@ export default function Map({
       ),
     [features]
   );
+  const [labelledIds, setLabelledIds] = useState<ReadonlySet<string>>(() => new Set());
 
   return (
     <MapContainer
@@ -769,6 +1011,12 @@ export default function Map({
       <MapViewportObserver onChange={onViewportChange} />
       <MapFlyToSelection selectedId={selectedId} institutions={institutions} />
       <MapCommandRunner command={command} />
+      <PinLabelPlanner
+        institutions={institutions}
+        selectedId={selectedId}
+        compact={compact}
+        onChange={setLabelledIds}
+      />
       {userPosition ? (
         // Informational only: nothing happens on activation, so it is not a
         // keyboard stop.
@@ -788,6 +1036,7 @@ export default function Map({
             key={feature.id}
             institution={feature}
             isSelected={feature.id === selectedId}
+            showLabel={labelledIds.has(feature.id)}
             onSelect={onSelect}
           />
         );

@@ -611,7 +611,7 @@ function MapSurface({ bootstrap }: { bootstrap: MapBootstrap | null }) {
     (cluster: PublicMapCluster) => {
       setMapCommand({
         token: nextCommandToken(),
-        kind: "fitBounds",
+        kind: "drill",
         bounds: cluster.bounds,
       });
       // Get out of the way so the move is visible; the results for the new area

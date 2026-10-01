@@ -460,6 +460,34 @@ html:not(.dyslexia-font) body :is(.text-xs, .text-\[11px\], .text-\[10px\]) {
 .leaflet-tooltip.dajsrce-tooltip::before {
   display: none;
 }
+/* Organisation names over single pins (`PinLabelPlanner` in Map.tsx, which
+   assumes this exact height, max width and zero offset margin). Not
+   interactive, so a tap on it reaches the map, never a stale label. */
+.leaflet-tooltip.dajsrce-pin-label {
+  box-sizing: border-box;
+  height: 22px;
+  max-width: 168px;
+  margin: 0;
+  padding: 2px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 11px/16px var(--font-app-sans);
+  color: var(--ink);
+  background: color-mix(in oklab, var(--surface-raised) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  animation: ui-marker-in 180ms ease-out both;
+}
+.leaflet-tooltip.dajsrce-pin-label::before {
+  display: none;
+}
+@media (max-width: 767px) {
+  .leaflet-tooltip.dajsrce-pin-label {
+    max-width: 132px;
+  }
+}
 .dark .leaflet-popup-close-button {
   color: #9ca3af !important;
 }
