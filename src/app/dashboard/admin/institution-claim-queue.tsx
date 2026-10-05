@@ -27,7 +27,9 @@ import {
   claimApprovalNote,
   claimChallengeState,
   claimInitialCategory,
+  claimRegisterOf,
   claimReviewErrorMessageKey,
+  isOfficialOrganisationKey,
   isSocialCategory,
   sameEmailAddress,
   type ClaimChallengeState,
@@ -97,6 +99,11 @@ function ClaimCategory({
 }) {
   if (isSocialCategory(organisation.category)) {
     return <>{categoryLabel(organisation.category, locale)}</>;
+  }
+  // The registers outside the Associations Register carry no category and no
+  // classifier ran on them: the reviewer chooses one, which is not a warning.
+  if (isOfficialOrganisationKey(organisation.id)) {
+    return <span className="text-ink-secondary">{t("admin.claims_category_to_choose")}</span>;
   }
   const suggestion =
     organisation.classification_status === "needs_review" &&
@@ -320,9 +327,32 @@ export function InstitutionClaimQueue({
                 </div>
 
                 <dl className="space-y-2 rounded-control border border-border-subtle bg-surface-sunken p-4">
+                  <DetailRow label={t("admin.claims_register")}>
+                    {t(`claims.register_${claimRegisterOf(claim.udr_id, organisation?.register)}`)}
+                    {organisation?.social_provider &&
+                    claimRegisterOf(claim.udr_id, organisation.register) !== "mrosp" ? (
+                      <span className="text-ink-secondary">
+                        {" · "}
+                        {t("admin.claims_social_provider")}
+                      </span>
+                    ) : null}
+                  </DetailRow>
                   <DetailRow label={t("admin.claims_udr")}>
                     <span className="font-mono text-xs">{claim.udr_id}</span>
                   </DetailRow>
+                  {organisation?.registers && organisation.registers.length > 1 ? (
+                    <DetailRow label={t("admin.claims_other_registers")}>
+                      <ul className="space-y-0.5">
+                        {organisation.registers.map((entry) => (
+                          <li key={`${entry.register}:${entry.number}`}>
+                            {t(`claims.register_${entry.register}`)}
+                            {": "}
+                            <span className="font-mono text-xs">{entry.number}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </DetailRow>
+                  ) : null}
                   {organisation?.oib ? (
                     <DetailRow label={t("admin.claims_oib")}>
                       <span className="font-mono text-xs">{organisation.oib}</span>
@@ -346,6 +376,11 @@ export function InstitutionClaimQueue({
                   <DetailRow label={t("admin.claims_registry_entry")}>
                     {organisation?.address ?? "—"}
                   </DetailRow>
+                  {organisation?.phone ? (
+                    <DetailRow label={t("admin.claims_phone")}>
+                      <span className="break-all">{organisation.phone}</span>
+                    </DetailRow>
+                  ) : null}
                   {website ? (
                     <DetailRow label={t("admin.claims_website")}>
                       <a
@@ -360,7 +395,15 @@ export function InstitutionClaimQueue({
                   ) : null}
                   <DetailRow label={t("admin.claims_registry_email")}>
                     {registryEmail ? (
-                      <span className="break-all">{registryEmail}</span>
+                      <span className="break-all">
+                        {registryEmail}
+                        {organisation?.email_source &&
+                        organisation.email_source !== "registar_udruga" ? (
+                          <span className="ml-2 text-ink-secondary">
+                            ({t(`claims.register_${organisation.email_source}`)})
+                          </span>
+                        ) : null}
+                      </span>
                     ) : (
                       <span className="text-ink-secondary">
                         {t("admin.claims_registry_email_missing")}

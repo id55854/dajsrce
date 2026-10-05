@@ -120,8 +120,10 @@ export default async function TermsOfUsePage() {
           </li>
           <li>
             <strong>Udruga</strong>: neprofitna pravna osoba upisana u Registar udruga Republike
-            Hrvatske čiji smo zahtjev za preuzimanje profila odobrili, zajedno s osobom koja u
-            njezino ime koristi račun udruge;
+            Hrvatske ili, ako nije udruga, u Evidenciju pravnih osoba Katoličke Crkve, Evidenciju
+            vjerskih zajednica, Registar zaklada ili Registar pružatelja socijalnih usluga, čiji
+            smo zahtjev za preuzimanje profila odobrili, zajedno s osobom koja u njezino ime
+            koristi račun udruge;
           </li>
           <li>
             <strong>Potreba</strong>: objava udruge o tome što joj je potrebno;
@@ -166,7 +168,10 @@ export default async function TermsOfUsePage() {
           je udruga na karti ne znači da je provjerena na DajSrcu, da prima donacije ni da surađuje
           s nama. Kategorije udruga automatski predlaže model umjetne inteligencije i mogu biti
           netočne. Za potpunost i točnost podataka iz registra ne jamčimo; netočnosti nam možete
-          prijaviti.
+          prijaviti. Organizacije koje nisu udruge (npr. Caritas, župe, zaklade i ustanove
+          socijalne skrbi) profil preuzimaju prema zapisu iz drugog službenog registra navedenog u
+          točki 1.4. Osim Caritasa, čije sjedište iz registra prikazujemo na karti, njihovi se
+          podaci javno prikazuju tek nakon odobrenog zahtjeva.
         </p>
       </LegalSection>
 
@@ -566,7 +571,7 @@ export default async function TermsOfUsePage() {
       </LegalSection>
 
       <LegalSection entry={SECTIONS.effect}>
-        <p>Ovi uvjeti primjenjuju se od 27. rujna 2026.</p>
+        <p>Ovi uvjeti primjenjuju se od 5. listopada 2026.</p>
       </LegalSection>
     </LegalDocument>
   );

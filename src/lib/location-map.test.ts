@@ -20,6 +20,7 @@ import {
   resolveMapCategories,
   SOCIAL_MAP_CATEGORIES,
   toPublicInstitutionDetail,
+  trustStatus,
   type MapBounds,
   type PublicMapInstitution,
   type PublicMapResponse,
@@ -331,6 +332,11 @@ describe("request viewport", () => {
 });
 
 describe("protected-category locations", () => {
+  it("labels an unclaimed Caritas pin from the official registers as a register entry", () => {
+    expect(trustStatus(false, "official_register")).toBe("registry");
+    expect(trustStatus(true, "organisation_claim")).toBe("contact_verified");
+  });
+
   it("covers the violence category for every source except a curated row", () => {
     expect(PROTECTED_LOCATION_CATEGORIES.has("domestic_violence")).toBe(true);
     for (const source of ["registry", "registry_claim", "user_claimed", null]) {

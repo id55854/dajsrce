@@ -239,6 +239,6 @@ describe("/auth/setup for a signed-in account", () => {
     profile.value = { role: "individual", institution_id: null };
     await renderAt("/auth/setup?role=ngo");
     expect(replace).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("Pronađite svoju udrugu");
+    expect(document.body.textContent).toContain("Pronađite svoju organizaciju");
   });
 });

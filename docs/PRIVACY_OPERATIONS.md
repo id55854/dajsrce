@@ -185,6 +185,10 @@ it is sent; log only that it was sent.
 - **Register data:** we cannot edit the official register. The association corrects it at the
   competent state administration office; a personal e-mail or home address shown meanwhile is
   handled as an objection (section 7).
+- **Other official registers** (`official_organisations`, privacy policy 2.9): the same; to
+  honour an objection to a personal e-mail or phone, set `contacts_suppressed = true` and clear
+  `email`, `email_source` and `phone` (docs/OFFICIAL_ORGANISATIONS.md). The sync then never
+  stores them again.
 - **A claimed association's profile:** the association edits it itself.
 
 ## 7. Objection, opt-out and the suppression list

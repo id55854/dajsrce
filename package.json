@@ -25,6 +25,8 @@
     "registry:addresses:audit": "node scripts/audit-dgu-address-match.mjs",
     "registry:addresses:import": "node scripts/import-dgu-geocodes.mjs",
     "registry:promote": "node scripts/promote-registry.mjs",
+    "organisations:sync": "node scripts/sync-official-organisations.mjs",
+    "organisations:geocodes:import": "node scripts/import-organisation-geocodes.mjs",
     "registry:apply-migration": "node scripts/apply-migration-014.mjs",
     "content:audit": "node scripts/audit-content.mjs"
   },

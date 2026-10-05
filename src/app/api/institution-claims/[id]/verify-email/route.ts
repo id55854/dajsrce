@@ -16,7 +16,11 @@ import {
   claimErrorCode,
   claimErrorStatus,
 } from "@/lib/institution-claims";
-import { buildClaimChallengeEmail, claimEmailSender } from "@/lib/institution-claim-email";
+import {
+  buildClaimChallengeEmail,
+  claimEmailSender,
+  type ClaimEmailSource,
+} from "@/lib/institution-claim-email";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +31,18 @@ type StartedChallenge = {
   registry_email?: string | null;
   /** Older schema versions return the register address here instead. */
   contact_email?: string | null;
+  /** Which register published it, and the organisation's name (20261005120000). */
+  email_source?: string | null;
+  organisation_name?: string | null;
 };
+
+const EMAIL_SOURCES: readonly ClaimEmailSource[] = ["registar_udruga", "rno", "mrosp", "zaklade"];
 
 async function sendChallengeEmail(input: {
   to: string;
   locale: Locale;
   organisationName: string;
+  emailSource: ClaimEmailSource | null;
   applicantName: string | null;
   confirmUrl: string;
   expiresAt: string;
@@ -145,8 +155,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           .maybeSingle(),
       ]);
 
-      let organisationName = claimRow?.udr_id ?? "";
-      if (claimRow?.udr_id) {
+      let organisationName = started.organisation_name?.trim() || claimRow?.udr_id || "";
+      if (!started.organisation_name?.trim() && claimRow?.udr_id) {
         const { data: entry } = await supabaseAdmin.rpc("get_association_registry_entry_v1", {
           p_udr_id: claimRow.udr_id,
         });
@@ -160,6 +170,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         to: recipient,
         locale,
         organisationName,
+        emailSource: EMAIL_SOURCES.find((source) => source === started.email_source) ?? null,
         applicantName: profile?.name ?? null,
         // Keep the raw bearer token in the fragment. Fragments are not sent in
         // HTTP requests or Referer headers, and the setup page removes it before

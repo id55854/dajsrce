@@ -1,0 +1,51 @@
+name: Official organisations sync
+
+# Mirrors the official registers of organisations outside Registar udruga
+# (Church and religious-community registers, foundations, MROSP social-care
+# providers, RNO contacts) into official_organisations, so they can claim a
+# profile (20261005120000), then gives their seats DGU building points.
+
+on:
+  schedule:
+    - cron: "40 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: official-organisations-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NEXT_PUBLIC_DATA_API_URL: ${{ secrets.PRODUCTION_DATA_API_URL }}
+      DATA_API_JWT_PRIVATE_JWK: ${{ secrets.PRODUCTION_DATA_API_JWT_PRIVATE_JWK }}
+      REGISTRY_USER_AGENT: DajSrce/1.0 (+https://dajsrce.hr; official-organisations-sync)
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          test -n "$NEXT_PUBLIC_DATA_API_URL"
+          test -n "$DATA_API_JWT_PRIVATE_JWK"
+      - name: Sync the registers
+        run: npm run organisations:sync
+      - name: Geocode organisation seats against DGU addresses
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location --max-time 900 \
+            -o "$RUNNER_TEMP/dgu-addresses.zip" \
+            "https://geoportal.dgu.hr/services/atom/INSPIRE_Addresses_(AD).zip"
+          node scripts/audit-dgu-address-match.mjs --organisations \
+            --archive "$RUNNER_TEMP/dgu-addresses.zip" \
+            --output "$RUNNER_TEMP/organisation-geocodes.jsonl"
+          npm run organisations:geocodes:import -- --input "$RUNNER_TEMP/organisation-geocodes.jsonl"

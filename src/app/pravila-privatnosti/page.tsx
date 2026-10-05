@@ -35,10 +35,14 @@ const PROCESSING = {
     id: "registar-udruga",
     title: "2.8. Podaci iz Registra udruga (obavijest prema članku 14. Opće uredbe)",
   },
-  outreach: { id: "poziv-udrugama", title: "2.9. Poziv udrugama da preuzmu profil" },
-  reports: { id: "prijave-sadrzaja", title: "2.10. Prijave sadržaja, upiti i zahtjevi" },
-  security: { id: "sigurnost", title: "2.11. Sigurnost i evidencija radnji" },
-  nearby: { id: "obavijesti-u-blizini", title: "2.12. Obavijesti o potrebama u blizini" },
+  officialRegisters: {
+    id: "drugi-sluzbeni-registri",
+    title: "2.9. Podaci iz drugih službenih registara (obavijest prema članku 14. Opće uredbe)",
+  },
+  outreach: { id: "poziv-udrugama", title: "2.10. Poziv udrugama da preuzmu profil" },
+  reports: { id: "prijave-sadrzaja", title: "2.11. Prijave sadržaja, upiti i zahtjevi" },
+  security: { id: "sigurnost", title: "2.12. Sigurnost i evidencija radnji" },
+  nearby: { id: "obavijesti-u-blizini", title: "2.13. Obavijesti o potrebama u blizini" },
 } satisfies Record<string, LegalTocEntry>;
 
 const SECTIONS = {
@@ -110,7 +114,7 @@ const RECIPIENTS = [
   [
     "GitHub, Inc.",
     "izvršitelj obrade",
-    "izvršavanje zakazanih zadataka, uključujući usklađivanje s Registrom udruga",
+    "izvršavanje zakazanih zadataka, uključujući usklađivanje s Registrom udruga i drugim službenim registrima",
     "SAD; Okvir EU-a i SAD-a",
   ],
   [
@@ -159,6 +163,10 @@ const RETENTION = [
   ["Prijave sadržaja, upiti i prepiska", "3 godine od zatvaranja predmeta"],
   ["Popis adresa za odjavu", "dok je potreban da bismo poštovali vaš zahtjev"],
   ["Podaci iz Registra udruga", "dok je udruga u registru upisana kao aktivna"],
+  [
+    "Podaci iz drugih službenih registara",
+    "dok je organizacija u izvornom registru upisana kao aktivna",
+  ],
 ] as const;
 
 export default async function PrivacyPolicyPage() {
@@ -305,18 +313,21 @@ export default async function PrivacyPolicyPage() {
 
         <LegalSubsection entry={PROCESSING.associations}>
           <p>
-            Profil udruge može voditi samo osoba koju odobrimo nakon što zahtjev provjerimo prema
-            službenom Registru udruga.
+            Profil udruge ili druge organizacije može voditi samo osoba koju odobrimo nakon što
+            zahtjev provjerimo prema službenom Registru udruga ili, za organizaciju koja nije
+            udruga, prema drugom službenom registru (točka 2.9.).
           </p>
           <p>
-            <strong>Podaci:</strong> odabrana udruga (njezin identifikator UDR_ID iz registra),
-            službena e-adresa udruge koju navedete, vaše obrazloženje (neobavezno), stanje
-            zahtjeva, podatak je li e-adresa potvrđena te odluka i napomena administratora.
+            <strong>Podaci:</strong> odabrana organizacija (identifikator UDR_ID iz Registra udruga
+            ili oznaka zapisa iz drugog službenog registra), službena e-adresa organizacije koju
+            navedete, vaše obrazloženje (neobavezno), stanje zahtjeva, podatak je li e-adresa
+            potvrđena te odluka i napomena administratora.
           </p>
           <p>
-            <strong>Poruka za potvrdu:</strong> na e-adresu koju Registar udruga objavljuje za tu
-            udrugu šaljemo poveznicu za potvrdu. U poruci navodimo vaše ime i naziv udruge kako bi
-            udruga mogla prepoznati zahtjev. Samu poveznicu ne pohranjujemo, nego samo njezin
+            <strong>Poruka za potvrdu:</strong> na e-adresu koju za tu organizaciju objavljuje
+            službeni registar (Registar udruga, odnosno Registar neprofitnih organizacija, Registar
+            pružatelja socijalnih usluga ili Registar zaklada) šaljemo poveznicu za potvrdu. U
+            poruci navodimo vaše ime i naziv organizacije kako bi je organizacija mogla prepoznati. Samu poveznicu ne pohranjujemo, nego samo njezin
             kriptografski sažetak, i to dok se poveznica ne iskoristi ili ne istekne.
           </p>
           <p>
@@ -452,6 +463,85 @@ export default async function PrivacyPolicyPage() {
             <li>
               Riječ je o desecima tisuća udruga, pa bi pojedinačno obavještavanje svih osoba na
               koje se ti podaci mogu odnositi zahtijevalo nerazmjeran napor. Zato ovu obavijest
+              objavljujemo javno (članak 14. stavak 5. točka (b) Opće uredbe).
+            </li>
+          </ul>
+        </LegalSubsection>
+
+        <LegalSubsection entry={PROCESSING.officialRegisters}>
+          <p>
+            Kako bi profil mogle preuzeti i organizacije koje nisu udruge (npr. Caritas, župe,
+            dobrotvorna tijela drugih vjerskih zajednica, zaklade i ustanove socijalne skrbi),
+            preuzimamo podatke iz ovih službenih registara:
+          </p>
+          <ul>
+            <li>
+              <strong>Evidencija pravnih osoba Katoličke Crkve u Republici Hrvatskoj</strong> i{" "}
+              <strong>Evidencija vjerskih zajednica u Republici Hrvatskoj</strong> s
+              organizacijskim oblicima te <strong>Registar zaklada Republike Hrvatske</strong>:
+              objavljuje ih Ministarstvo pravosuđa, uprave i digitalne transformacije na portalu
+              data.gov.hr, pod Otvorenom dozvolom;
+            </li>
+            <li>
+              <strong>Registar pružatelja socijalnih usluga</strong> Ministarstva rada,
+              mirovinskoga sustava, obitelji i socijalne politike, pod Otvorenom dozvolom, i to
+              samo za pravne osobe koje nisu udruge, trgovačka društva, obrti, zadruge ni jedinice
+              lokalne samouprave;
+            </li>
+            <li>
+              <strong>Registar neprofitnih organizacija</strong> Ministarstva financija: iz njega
+              čitamo samo broj u registru i objavljene kontakte organizacija koje su već u
+              navedenim registrima.
+            </li>
+          </ul>
+          <ul>
+            <li>
+              <strong>Koje podatke preuzimamo:</strong> naziv, skraćeni naziv, OIB, broj u
+              registru, pravni oblik (s biskupijom ili vjerskom zajednicom kojoj organizacija
+              pripada), sjedište (adresu, mjesto, poštanski broj i županiju) i datum upisa, a iz
+              Registra pružatelja socijalnih usluga, Registra neprofitnih organizacija i Registra
+              zaklada još e-adresu, telefon i mrežnu stranicu organizacije.{" "}
+              <strong>Ne preuzimamo</strong> osobe ovlaštene za zastupanje ni osobe za kontakt,
+              bankovne račune, financijska izvješća ni pružatelje usluga koji su fizičke osobe.
+            </li>
+            <li>
+              <strong>Tko ih vidi:</strong> na karti javno prikazujemo samo Caritas: naziv i
+              adresu sjedišta iz Evidencije pravnih osoba Katoličke Crkve ili Evidencije vjerskih
+              zajednica, na lokaciji zgrade prema podacima Državne geodetske uprave, označene kao
+              zapis iz registra koji još nije potvrđen na DajSrcu. Podaci ostalih organizacija ne
+              prikazuju se javno na karti: vide ih samo prijavljeni korisnik koji traži svoju
+              organizaciju i administrator koji pregledava zahtjev. Javni profil organizacija
+              dobiva tek kad odobrimo njezin zahtjev.
+            </li>
+            <li>
+              <strong>Svrha:</strong> omogućiti tim organizacijama da preuzmu profil i potvrde
+              zahtjev porukom na službenu e-adresu. Adrese sjedišta pretvaramo u koordinate pomoću
+              službenih adresnih podataka Državne geodetske uprave.
+            </li>
+            <li>
+              <strong>Zašto je to važno za pojedince:</strong> podaci o organizaciji uglavnom nisu
+              osobni podaci, ali to mogu biti ako je njezina e-adresa ili adresa ujedno nečija
+              osobna adresa.
+            </li>
+            <li>
+              <strong>Osnova:</strong> legitimni interes da organizacije socijalnog karaktera mogu
+              sudjelovati na Platformi (točka (f)). Podaci su javni prema propisima kojima su ti
+              registri uređeni.
+            </li>
+            <li>
+              <strong>Koliko dugo:</strong> dok je organizacija u izvornom registru upisana kao
+              aktivna. Organizacije koje više nisu aktivne pri sljedećem usklađivanju označavamo
+              neaktivnima i više ih ne nudimo za preuzimanje.
+            </li>
+            <li>
+              <strong>Vaša prava:</strong> ako se kao podatak organizacije vodi vaša osobna
+              e-adresa ili kućna adresa, možete se usprotiviti obradi ili zatražiti ispravak na{" "}
+              <MailLink />. Netočne podatke u samom registru ispravlja organizacija kod tijela koje
+              registar vodi.
+            </li>
+            <li>
+              Riječ je o tisućama organizacija, pa bi pojedinačno obavještavanje svih osoba na koje
+              se ti podaci mogu odnositi zahtijevalo nerazmjeran napor. Zato ovu obavijest
               objavljujemo javno (članak 14. stavak 5. točka (b) Opće uredbe).
             </li>
           </ul>

@@ -4,19 +4,38 @@
 // Usage:
 //   node scripts/audit-dgu-address-match.mjs --archive C:\path\addresses.zip
 //   node scripts/audit-dgu-address-match.mjs --archive ... --output matches.jsonl
+//
+// --institutions audits the institutions that carry their own point instead:
+// curated and claimed rows that are not hidden (`source = 'registry'` follows
+// its register row and is covered by the default mode). Each output line then
+// carries `institution_id`, the stored point and its distance from DGU's
+// building, for review before a correction migration. `--input rows.json`
+// ([{id, address, city, lat, lng}]) runs either audit without a database.
+//
+// --organisations audits the seats of official_organisations (20261005120000)
+// instead; its output (`organisation_id`, `address`, the DGU point) is what
+// scripts/import-organisation-geocodes.mjs applies.
 
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
 import proj4 from "proj4";
-import { supabaseAdmin } from "./lib/supabase-admin.mjs";
 
 const args = process.argv.slice(2);
 function argValue(name) {
   const index = args.indexOf(name);
   return index >= 0 ? args[index + 1] : null;
 }
+
+const INSTITUTIONS = args.includes("--institutions");
+const ORGANISATIONS = args.includes("--organisations");
+if (INSTITUTIONS && ORGANISATIONS) throw new Error("--institutions and --organisations are separate audits");
+const inputPath = argValue("--input");
+// Imported lazily so an offline `--input` run needs no database settings.
+const supabaseAdmin = (INSTITUTIONS || ORGANISATIONS) && inputPath
+  ? null
+  : (await import("./lib/supabase-admin.mjs")).supabaseAdmin;
 
 const archivePath = argValue("--archive");
 const outputPath = argValue("--output");
@@ -139,7 +158,23 @@ function streetSimilarity(left, right) {
       score = Math.max(score, 0.94);
     }
   }
+
+  // Everyday addresses use the possessive adjective ("Babonićeva 121",
+  // "Nazorova 49") where DGU has the official genitive with the full name
+  // ("Ulica Stjepana Babonića", "Ulica Vladimira Nazora"). The surname has to
+  // be DGU's last word; two such streets with the same number in one place
+  // still resolve to two points and are quarantined as ambiguous.
+  const genitive = possessiveGenitive(left);
+  if (genitive && rightTokens.length > 1 && rightLast === genitive) {
+    score = Math.max(score, 0.9);
+  }
   return score;
+}
+
+function possessiveGenitive(street) {
+  if (!street || street.includes(" ")) return null;
+  const match = street.match(/^(.{3,})(?:eva|ova)$/);
+  return match ? `${match[1]}a` : null;
 }
 
 function registryVariants(row) {
@@ -207,9 +242,88 @@ async function loadRegistryRows() {
   return rows;
 }
 
+// "Babonićeva 121, Zagreb" -> street "Babonićeva 121", place "Zagreb". The
+// place named in the address wins over the institution's city, which is the
+// municipality ("Dugoselska 71, Sesvetski Kraljevec" is filed under Zagreb).
+function institutionRow(row) {
+  const parts = String(row.address ?? "").split(",").map((part) => part.trim()).filter(Boolean);
+  const place = parts.length > 1 ? parts.at(-1).replace(/^\d{5}\s+/, "") : row.city;
+  return {
+    udr_id: row.id,
+    sjediste: row.address,
+    street: parts[0] ?? null,
+    city: place || row.city || null,
+    lat: row.lat,
+    lng: row.lng,
+    geocode_confidence: null,
+  };
+}
+
+function organisationRow(row) {
+  return {
+    udr_id: row.id,
+    sjediste: row.address,
+    street: row.address,
+    city: row.city,
+    lat: row.lat ?? null,
+    lng: row.lng ?? null,
+    geocode_confidence: null,
+  };
+}
+
+async function loadOrganisationRows() {
+  if (inputPath) {
+    return JSON.parse(fs.readFileSync(path.resolve(inputPath), "utf8"))
+      .filter((row) => row.address)
+      .map(organisationRow);
+  }
+  const rows = [];
+  const pageSize = 1_000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("official_organisations")
+      .select("id,address,city,lat,lng")
+      .eq("status", "active")
+      .not("address", "is", null)
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []).map(organisationRow));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
+async function loadInstitutionRows() {
+  if (inputPath) {
+    return JSON.parse(fs.readFileSync(path.resolve(inputPath), "utf8")).map(institutionRow);
+  }
+  const rows = [];
+  const pageSize = 1_000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("institutions")
+      .select("id,address,city,lat,lng")
+      .neq("source", "registry")
+      .eq("is_location_hidden", false)
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []).map(institutionRow));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
+// Windows' own bsdtar reads zip archives; Git Bash puts a GNU tar first on
+// PATH that reads "C:\..." as a remote host, so name the system one.
+function windowsTar() {
+  return path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+}
+
 function extractionProcess(archive) {
   if (process.platform === "win32") {
-    return spawn("tar.exe", ["-xOf", archive, "Address.gml"], {
+    return spawn(windowsTar(), ["-xOf", archive, "Address.gml"], {
       stdio: ["ignore", "pipe", "pipe"],
     });
   }
@@ -218,7 +332,11 @@ function extractionProcess(archive) {
   });
 }
 
-const registryRows = await loadRegistryRows();
+const registryRows = INSTITUTIONS
+  ? await loadInstitutionRows()
+  : ORGANISATIONS
+    ? await loadOrganisationRows()
+    : await loadRegistryRows();
 const targets = new Map();
 const fuzzyTargets = new Map();
 let unusableRegistryAddresses = 0;
@@ -398,8 +516,21 @@ for (const row of registryRows) {
     });
     continue;
   }
+  const identity = INSTITUTIONS
+    ? {
+      institution_id: row.udr_id,
+      address: row.sjediste,
+      previous_latitude: row.lat,
+      previous_longitude: row.lng,
+      distance_m: Number.isFinite(row.lat) && Number.isFinite(row.lng)
+        ? Math.round(haversineMeters(row.lat, row.lng, latitude, longitude))
+        : null,
+    }
+    : ORGANISATIONS
+      ? { organisation_id: row.udr_id, address: row.sjediste }
+      : { udr_id: row.udr_id };
   const match = {
-    udr_id: row.udr_id,
+    ...identity,
     latitude: Number(latitude.toFixed(8)),
     longitude: Number(longitude.toFixed(8)),
     dgu_address_id: candidate.dguId,

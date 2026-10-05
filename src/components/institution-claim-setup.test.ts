@@ -135,7 +135,7 @@ describe("InstitutionClaimSetup search", () => {
         : { status: 200, body: { claim: null } };
     await render();
     expect(document.querySelector("input[type=search]")?.getAttribute("placeholder")).toBe(
-      "Upišite OIB ili naziv udruge"
+      "Upišite OIB ili naziv organizacije"
     );
     await typeSearch("srce");
     const search = calls.find((call) => call.url.startsWith("/api/institution-claims/search"));
@@ -163,7 +163,7 @@ describe("InstitutionClaimSetup search", () => {
     await render();
     await typeSearch("nepostojeca");
     expect(text()).toContain("Nema aktivne udruge koja odgovara pretrazi.");
-    expect(text()).toContain("Pokušajte s OIB-om udruge ili nam pišite na kontakt@dajsrce.hr.");
+    expect(text()).toContain("Pokušajte s OIB-om organizacije ili nam pišite na kontakt@dajsrce.hr.");
   });
 
   it("explains an organisation someone else already holds", async () => {
@@ -174,7 +174,7 @@ describe("InstitutionClaimSetup search", () => {
     await render();
     await typeSearch("srce");
     expect(text()).toContain("Već preuzeto");
-    expect(text()).toContain("Ovu udrugu već vodi drugi račun na DajSrcu");
+    expect(text()).toContain("Ovu organizaciju već vodi drugi račun na DajSrcu");
     expect(document.querySelector('a[href="mailto:kontakt@dajsrce.hr"]')).not.toBeNull();
   });
 });

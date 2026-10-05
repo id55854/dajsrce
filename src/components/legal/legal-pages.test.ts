@@ -56,9 +56,9 @@ describe.each(PAGES)("$path", ({ path, title, Page, metadata }) => {
     const html = await render(Page, "hr");
     expect(html.match(/<h1[\s>]/g)).toHaveLength(1);
     const body = text(html);
-    expect(body).toContain("Verzija 1.1");
-    expect(body).toContain("28. rujna 2026.");
-    expect(body).toContain("Posljednja izmjena: 28. rujna 2026.");
+    expect(body).toContain("Verzija 1.2");
+    expect(body).toContain("5. listopada 2026.");
+    expect(body).toContain("Posljednja izmjena: 5. listopada 2026.");
     expect(body).toContain("Ukratko");
   });
 
@@ -91,7 +91,16 @@ describe.each(PAGES)("$path", ({ path, title, Page, metadata }) => {
 describe("privacy policy", () => {
   it("links every section and subsection from its table of contents", async () => {
     const html = await render(PrivacyPolicyPage, "hr");
-    expect([...html.matchAll(/href="#/g)]).toHaveLength(23);
+    expect([...html.matchAll(/href="#/g)]).toHaveLength(24);
+  });
+
+  it("says which other registers it reads and what it never takes from them", async () => {
+    const body = text(await render(PrivacyPolicyPage, "hr"));
+    expect(body).toContain("Evidencija pravnih osoba Katoličke Crkve u Republici Hrvatskoj");
+    expect(body).toContain("Registar pružatelja socijalnih usluga");
+    expect(body).toMatch(/Ne preuzimamo\s*osobe ovlaštene za zastupanje ni osobe za kontakt,\s*bankovne račune/);
+    expect(body).toContain("na karti javno prikazujemo samo Caritas");
+    expect(body).toContain("Podaci ostalih organizacija ne prikazuju se javno na karti");
   });
 
   it("names the supervisory authority at the address AZOP publishes", async () => {

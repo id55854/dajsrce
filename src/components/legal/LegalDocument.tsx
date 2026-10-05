@@ -20,13 +20,15 @@ import type { Locale } from "@/lib/types";
  * Server components only: nothing here needs the browser.
  */
 
-export const LEGAL_VERSION = "1.1";
+export const LEGAL_VERSION = "1.2";
 
 /**
  * The documents take effect on the day they were last changed. 1.1: the
- * privacy policy covers notification e-mail (2026-09-28).
+ * privacy policy covers notification e-mail (2026-09-28). 1.2: organisations
+ * outside Registar udruga claim against the other official registers, in the
+ * privacy policy (2.9) and the terms (1.4, 2.4) (2026-10-05).
  */
-export const LEGAL_DATE = { iso: "2026-09-28", label: "28. rujna 2026." } as const;
+export const LEGAL_DATE = { iso: "2026-10-05", label: "5. listopada 2026." } as const;
 
 /** The one mailbox every legal document names for requests and notices. */
 export const LEGAL_CONTACT_EMAIL = "kontakt@dajsrce.hr";

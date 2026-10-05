@@ -33,6 +33,7 @@ import {
   claimErrorMessageKey,
   claimSearchErrorMessageKey,
   maskEmailAddress,
+  claimRegisterOf,
   type ClaimableAssociation,
   type OwnInstitutionClaim,
 } from "@/lib/institution-claims";
@@ -527,7 +528,11 @@ export function InstitutionClaimSetup({
               <p className="mt-1 text-sm text-ink-secondary">
                 {[selected.address, selected.city, selected.county].filter(Boolean).join(", ")}
               </p>
-              <p className="mt-1 font-mono text-xs text-ink-tertiary">{selected.id}</p>
+              <p className="mt-1 text-xs text-ink-tertiary">
+                {t(`claims.register_${claimRegisterOf(selected.id, selected.register)}`)}
+                {" · "}
+                <span className="font-mono">{selected.registry_number ?? selected.id}</span>
+              </p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
               {t("claims.change_selection")}
@@ -605,6 +610,9 @@ export function InstitutionClaimSetup({
                           {entry.name}
                         </span>
                         <span className="mt-0.5 block text-sm text-ink-secondary">{place}</span>
+                        <span className="mt-0.5 block text-xs text-ink-tertiary">
+                          {t(`claims.register_${claimRegisterOf(entry.id, entry.register)}`)}
+                        </span>
                       </button>
                     </li>
                   );
@@ -621,6 +629,9 @@ export function InstitutionClaimSetup({
                       <div className="min-w-0">
                         <p className="break-words font-medium text-ink-secondary">{entry.name}</p>
                         <p className="mt-0.5 text-sm text-ink-tertiary">{place}</p>
+                        <p className="mt-0.5 text-xs text-ink-tertiary">
+                          {t(`claims.register_${claimRegisterOf(entry.id, entry.register)}`)}
+                        </p>
                       </div>
                       <Badge tone="neutral" size="sm">
                         {linked ? t("claims.state_linked") : t("claims.state_claimed")}

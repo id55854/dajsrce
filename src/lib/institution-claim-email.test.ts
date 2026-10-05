@@ -14,6 +14,28 @@ const INPUT = {
 };
 
 describe("buildClaimChallengeEmail", () => {
+  it("names the register that published the address of an organisation that is not an association", () => {
+    const { subject, text } = buildClaimChallengeEmail({
+      ...INPUT,
+      organisationName: "CARITAS ZAGREBAČKE NADBISKUPIJE",
+      emailSource: "rno",
+    });
+    expect(subject).toBe(
+      "Potvrdite zahtjev za upravljanje profilom organizacije: CARITAS ZAGREBAČKE NADBISKUPIJE"
+    );
+    expect(text).toContain("službeni Registar neprofitnih organizacija Ministarstva financija");
+    expect(text).not.toContain("Registar udruga");
+    const english = buildClaimChallengeEmail({ ...INPUT, locale: "en", emailSource: "mrosp" });
+    expect(english.text).toContain("the official Register of Social Service Providers publishes");
+  });
+
+  it("keeps the associations wording by default", () => {
+    expect(buildClaimChallengeEmail(INPUT).text).toContain("službeni Registar udruga");
+    expect(buildClaimChallengeEmail({ ...INPUT, emailSource: "registar_udruga" }).text).toContain(
+      "službeni Registar udruga"
+    );
+  });
+
   it("builds the subject from the unescaped name", () => {
     const { subject } = buildClaimChallengeEmail(INPUT);
     expect(subject).toBe('Potvrdite zahtjev za upravljanje udrugom: Udruga "Srce & ruka"');

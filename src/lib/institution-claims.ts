@@ -1,6 +1,9 @@
 /**
- * "I am this association" is a reviewed claim against the official Croatian
- * Associations Register, not a free-text assertion. Everything here is shape
+ * "I am this organisation" is a reviewed claim against an official Croatian
+ * register, not a free-text assertion: an association by its UDR_ID in the
+ * Associations Register, any other non-profit organisation (a Caritas, a
+ * parish, a foundation, a social-care institution) by its key in the mirror
+ * of the other official registers (20261005120000). Everything here is shape
  * and bounds only, authorisation lives in the transactional RPCs, which read
  * the actor's role from `public.profiles` inside the transaction.
  */
@@ -44,6 +47,42 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 export type ClaimState = "available" | "claimed" | "linked";
 
+/**
+ * The register a claimable organisation comes from: the Associations
+ * Register, or one of the registers mirrored in official_organisations.
+ * `rno` only ever appears among an organisation's other registers.
+ */
+export const CLAIM_REGISTERS = [
+  "registar_udruga",
+  "epokc",
+  "evz",
+  "zaklade",
+  "mrosp",
+  "rno",
+] as const;
+
+export type ClaimRegister = (typeof CLAIM_REGISTERS)[number];
+
+export function isClaimRegister(value: unknown): value is ClaimRegister {
+  return typeof value === "string" && (CLAIM_REGISTERS as readonly string[]).includes(value);
+}
+
+/** A claim key naming an organisation outside the Associations Register (UDR_IDs are digits). */
+export function isOfficialOrganisationKey(value: string | null | undefined): boolean {
+  return typeof value === "string" && /^(epokc|evz|zaklade|oib):/.test(value);
+}
+
+/** The register a claim key belongs to, for a schema that did not say. */
+export function claimRegisterOf(
+  id: string,
+  register?: string | null
+): ClaimRegister {
+  if (isClaimRegister(register)) return register;
+  if (id.startsWith("oib:")) return "mrosp";
+  const prefix = id.split(":")[0];
+  return isClaimRegister(prefix) ? prefix : "registar_udruga";
+}
+
 export type ClaimableAssociation = {
   id: string;
   name: string;
@@ -56,6 +95,8 @@ export type ClaimableAssociation = {
   legal_form: string | null;
   registry_email: string | null;
   claim_state: ClaimState;
+  /** Absent on a schema that predates 20261005120000, which only knew associations. */
+  register?: ClaimRegister;
 };
 
 export type ClaimOrganisationSummary = {
@@ -65,6 +106,12 @@ export type ClaimOrganisationSummary = {
   county: string | null;
   address: string | null;
   registry_email: string | null;
+  register?: ClaimRegister;
+};
+
+export type ClaimRegisterEntry = {
+  register: ClaimRegister;
+  number: string;
 };
 
 export type OwnInstitutionClaim = {
@@ -119,6 +166,13 @@ export type InstitutionClaimReviewItem = {
         classification_status?: string | null;
         /** The classifier's low-confidence guess for a row it left for review. */
         suggested_category?: string | null;
+        /** Every register the organisation appears in (outside the Associations Register). */
+        registers?: ClaimRegisterEntry[];
+        /** Which register published registry_email. */
+        email_source?: "rno" | "mrosp" | "zaklade" | "registar_udruga" | null;
+        phone?: string | null;
+        /** Listed in MROSP's register of social-service providers. */
+        social_provider?: boolean;
       })
     | null;
 };
@@ -277,7 +331,7 @@ export function isSocialCategory(value: unknown): value is InstitutionCategory {
  * The category the approval dialog starts with: the register's when it is
  * social, else the classifier's low-confidence suggestion for a row it left
  * for review, else none, and the reviewer has to choose (or reject the claim:
- * DajSrce is only for associations of a social character).
+ * DajSrce is only for organisations of a social character).
  */
 export function claimInitialCategory(
   organisation: InstitutionClaimReviewItem["organisation"]

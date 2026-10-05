@@ -757,7 +757,9 @@ export function trustStatus(
   source: string | null | undefined
 ): PublicTrustStatus {
   if (isVerified) return "contact_verified";
-  if (source === "registry") return "registry";
+  // A Caritas pin from the official registers nobody has claimed yet
+  // (`official_register`, 20261005120000) is as unconfirmed as a register row.
+  if (source === "registry" || source === "official_register") return "registry";
   return "claimed";
 }
 

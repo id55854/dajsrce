@@ -369,3 +369,60 @@ describe("admin claim queue category", () => {
     });
   });
 });
+
+describe("admin claim queue for organisations outside the Associations Register", () => {
+  function caritas(overrides: Partial<Organisation> = {}) {
+    return claim({
+      id: "cccccccc-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      udr_id: "epokc:1.379",
+      organisation: {
+        ...claim().organisation!,
+        id: "epokc:1.379",
+        register: "epokc",
+        name: "CARITAS ZAGREBAČKE NADBISKUPIJE",
+        oib: "58633897145",
+        address: "Babonićeva 121",
+        registry_email: "czn@czn.hr",
+        email_source: "rno",
+        registry_number: "1.379",
+        legal_form: "Pravna osoba Katoličke Crkve (Zagrebačka nadbiskupija)",
+        category: null,
+        classification_status: null,
+        suggested_category: null,
+        social_provider: true,
+        registers: [
+          { register: "epokc", number: "1.379" },
+          { register: "mrosp", number: "999" },
+          { register: "rno", number: "0053015" },
+        ],
+        ...overrides,
+      },
+    });
+  }
+
+  it("names the register, every register it is in and where the address came from", async () => {
+    await render([caritas()]);
+    const body = card("CARITAS ZAGREBAČKE NADBISKUPIJE").textContent ?? "";
+    expect(body).toContain("Evidencija pravnih osoba Katoličke Crkve");
+    expect(body).toContain("upisana i kao pružatelj socijalnih usluga");
+    expect(body).toContain("Registar pružatelja socijalnih usluga: 999");
+    expect(body).toContain("Registar neprofitnih organizacija: 0053015");
+    expect(body).toContain("czn@czn.hr(Registar neprofitnih organizacija)");
+    expect(body).toContain("Kategoriju birate pri odobrenju");
+    expect(body).not.toContain("Nije svrstana među socijalne");
+  });
+
+  it("approves through the same dialog, with the reviewer's category", async () => {
+    respond(200, { claim: { status: "approved" } });
+    await render([caritas()]);
+    await click(button("Odobri"));
+    await choose("caritas");
+    await typeNote("telefonom s ravnateljem na 01 4817 716.");
+    await click(button("Odobri", dialog()));
+    expect(sentBody()).toEqual({
+      decision: "approve",
+      note: "Provjereno: telefonom s ravnateljem na 01 4817 716.",
+      category: "caritas",
+    });
+  });
+});

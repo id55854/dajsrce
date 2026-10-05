@@ -10,9 +10,11 @@ import {
   claimErrorCode,
   claimErrorMessageKey,
   claimErrorStatus,
+  claimRegisterOf,
   claimReviewErrorMessageKey,
   claimSearchErrorMessageKey,
   isClaimTokenDigest,
+  isOfficialOrganisationKey,
   isInstitutionClaimStatus,
   isOpenInstitutionClaim,
   isRawClaimToken,
@@ -155,6 +157,33 @@ describe("claim review category", () => {
     expect(claimInitialCategory(uncertain)).toBe("disability_support");
     expect(claimInitialCategory({ ...uncertain, classification_status: "unmapped" })).toBeNull();
     expect(claimInitialCategory({ ...uncertain, suggested_category: "association" })).toBeNull();
+  });
+});
+
+describe("claim register keys", () => {
+  it("tells a UDR_ID from the keys of the other official registers", () => {
+    expect(isOfficialOrganisationKey("200307")).toBe(false);
+    for (const key of ["epokc:1.379", "evz:6.10", "zaklade:21000076", "oib:58633897145"]) {
+      expect(isOfficialOrganisationKey(key)).toBe(true);
+    }
+  });
+
+  it("names the register of a key, preferring what the schema said", () => {
+    expect(claimRegisterOf("200307")).toBe("registar_udruga");
+    expect(claimRegisterOf("epokc:1.379")).toBe("epokc");
+    expect(claimRegisterOf("oib:58633897145")).toBe("mrosp");
+    expect(claimRegisterOf("epokc:1.379", "epokc")).toBe("epokc");
+    expect(claimRegisterOf("200307", "nonsense")).toBe("registar_udruga");
+  });
+
+  it("has a label for every register in both languages", () => {
+    for (const locale of ["hr", "en"] as const) {
+      for (const register of ["registar_udruga", "epokc", "evz", "zaklade", "mrosp", "rno"]) {
+        expect(resolveKey(dictionaries[locale], `claims.register_${register}`)).not.toBe(
+          `claims.register_${register}`
+        );
+      }
+    }
   });
 });
 

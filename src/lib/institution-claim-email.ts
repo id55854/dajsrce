@@ -2,8 +2,10 @@ import type { Locale } from "@/lib/types";
 import { ORGANISATION } from "@/lib/organisation";
 
 /**
- * The mailbox-challenge message sent to the address the official register
- * publishes for an association.
+ * The mailbox-challenge message sent to the address an official register
+ * publishes for the organisation: the Associations Register for an
+ * association, RNO, MROSP's provider register or the foundations register for
+ * any other organisation (20261005120000). The message names that register.
  *
  * Built here, apart from the route, so the parts that are easy to get subtly
  * wrong stay testable: the subject is plain text (a name with quotes must not
@@ -11,9 +13,14 @@ import { ORGANISATION } from "@/lib/organisation";
  * lands in a header is flattened to one line.
  */
 
+/** The register that published the recipient address. */
+export type ClaimEmailSource = "registar_udruga" | "rno" | "mrosp" | "zaklade";
+
 export type ClaimChallengeEmailInput = {
   locale: Locale;
   organisationName: string;
+  /** Defaults to the Associations Register, the only source before 20261005120000. */
+  emailSource?: ClaimEmailSource | null;
   /** The applicant's profile name. Self-declared, so it is quoted, never vouched for. */
   applicantName: string | null | undefined;
   confirmUrl: string;
@@ -48,6 +55,39 @@ export function singleLine(value: string): string {
 function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max - 1).trimEnd()}…` : value;
 }
+
+const REGISTER_NAME: Record<Locale, Record<Exclude<ClaimEmailSource, "registar_udruga">, string>> = {
+  hr: {
+    rno: "Registar neprofitnih organizacija Ministarstva financija",
+    mrosp: "Registar pružatelja socijalnih usluga",
+    zaklade: "Registar zaklada",
+  },
+  en: {
+    rno: "Register of Non-profit Organisations of the Ministry of Finance",
+    mrosp: "Register of Social Service Providers",
+    zaklade: "Register of Foundations",
+  },
+};
+
+// The same message for an organisation that is not an association.
+const ORGANISATION_COPY = {
+  hr: {
+    subject: (organisation: string) =>
+      `Potvrdite zahtjev za upravljanje profilom organizacije: ${organisation}`,
+    request: (organisation: string) =>
+      `na platformi DajSrce zaprimili smo zahtjev za upravljanje profilom organizacije ${organisation}.`,
+    why: (register: string) =>
+      `Ova poruka poslana je na adresu koju za tu organizaciju objavljuje službeni ${register}. Ako prepoznajete zahtjev, potvrdite da kontrolirate ovu adresu:`,
+  },
+  en: {
+    subject: (organisation: string) =>
+      `Confirm the request to manage ${organisation} on DajSrce`,
+    request: (organisation: string) =>
+      `DajSrce has received a request to manage the profile of ${organisation}.`,
+    why: (register: string) =>
+      `This message was sent to the address the official ${register} publishes for that organisation. If you recognise the request, confirm you control this mailbox:`,
+  },
+} as const;
 
 const COPY = {
   hr: {
@@ -91,7 +131,18 @@ const COPY = {
 } as const;
 
 export function buildClaimChallengeEmail(input: ClaimChallengeEmailInput): ClaimChallengeEmail {
-  const copy = input.locale === "en" ? COPY.en : COPY.hr;
+  const locale: Locale = input.locale === "en" ? "en" : "hr";
+  const base = COPY[locale];
+  const source = input.emailSource ?? "registar_udruga";
+  const copy =
+    source === "registar_udruga"
+      ? base
+      : {
+          ...base,
+          subject: ORGANISATION_COPY[locale].subject,
+          request: ORGANISATION_COPY[locale].request,
+          why: ORGANISATION_COPY[locale].why(REGISTER_NAME[locale][source]),
+        };
   const organisation = singleLine(input.organisationName);
   const applicant = singleLine(input.applicantName ?? "") || copy.fallbackApplicant;
   const expires = new Date(input.expiresAt).toLocaleString(
