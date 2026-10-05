@@ -41,7 +41,10 @@ export function buttonClasses({
   className?: string;
 } = {}): string {
   return clsx(
-    "inline-flex cursor-pointer items-center justify-center rounded-full font-semibold",
+    // A label never wraps: a two-line pill reads as two controls on a phone.
+    // <Button> wraps a plain-text label in a truncating span, so a button that
+    // is allowed to shrink (fullWidth, min-w-0) ends in an ellipsis instead.
+    "inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full font-semibold",
     "transition-[background-color,border-color,color,box-shadow,transform,filter]",
     "duration-150 ease-out",
     // Feedback lands on press, not on release.

@@ -22,6 +22,10 @@ import { InstitutionCalendar } from "@/components/InstitutionCalendar";
 import { SignOutButton } from "@/components/SignOutButton";
 import { AccountSettingsLink } from "@/components/account/AccountSettingsLink";
 import type { PublicInstitutionDetail } from "@/lib/location-map";
+import {
+  institutionTypeLabel,
+  type InstitutionCategoryRequest,
+} from "@/lib/institution-category";
 import { ProfileHeader } from "@/components/ProfileHeader";
 import {
   Button,
@@ -63,15 +67,25 @@ function InstitutionDashboardExperience() {
   const view = parseView(searchParams.get("view"));
 
   const [institution, setInstitution] = useState<PublicInstitutionDetail | null>(null);
+  const [categoryRequest, setCategoryRequest] = useState<InstitutionCategoryRequest | null>(null);
   const [institutionLoading, setInstitutionLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/institution", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
-      .then((json: { institution?: PublicInstitutionDetail | null } | null) => {
-        if (!cancelled) setInstitution(json?.institution ?? null);
-      })
+      .then(
+        (
+          json: {
+            institution?: PublicInstitutionDetail | null;
+            categoryRequest?: InstitutionCategoryRequest | null;
+          } | null
+        ) => {
+          if (cancelled) return;
+          setInstitution(json?.institution ?? null);
+          setCategoryRequest(json?.categoryRequest ?? null);
+        }
+      )
       .catch(() => {
         if (!cancelled) setInstitution(null);
       })
@@ -132,8 +146,10 @@ function InstitutionDashboardExperience() {
           <InstitutionProfileEditor
             panelId={profilePanelId}
             institution={institution}
+            categoryRequest={categoryRequest}
             onClose={() => setPanel(null)}
             onSaved={setInstitution}
+            onCategoryRequest={setCategoryRequest}
           />
         ) : null}
 
@@ -232,7 +248,7 @@ function InstitutionProfileHeader({
               style={categoryVars(institution.category)}
               className="category-chip inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
             >
-              {locale === "hr" ? category.labelHr : category.label}
+              {institutionTypeLabel(institution, locale)}
             </span>
           ) : null}
           {institution.isVerified ? (

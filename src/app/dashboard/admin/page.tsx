@@ -7,10 +7,13 @@ import { Card, PageHeader, PageShell, Stat } from "@/components/ui";
 import type { InstitutionClaimReviewPage } from "@/lib/institution-claims";
 import { SignOutButton } from "@/components/SignOutButton";
 import { AccountSettingsLink } from "@/components/account/AccountSettingsLink";
+import type { CategoryRequestReviewItem } from "@/lib/institution-category";
 import { InstitutionClaimQueue } from "./institution-claim-queue";
+import { CategoryRequestQueue } from "./category-request-queue";
 
 /** The review RPC's own cap; the queue says so when more are waiting. */
 const CLAIM_QUEUE_LIMIT = 100;
+const CATEGORY_QUEUE_LIMIT = 100;
 
 export default async function SuperadminDashboardPage() {
   const profile = await getCurrentUserProfile();
@@ -19,7 +22,7 @@ export default async function SuperadminDashboardPage() {
 
   const t = await getTranslator();
 
-  const [profiles, needs, pledges, institutions, claimQueue] = await Promise.all([
+  const [profiles, needs, pledges, institutions, claimQueue, categoryQueue] = await Promise.all([
     supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("needs").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("pledges").select("id", { count: "exact", head: true }),
@@ -34,7 +37,20 @@ export default async function SuperadminDashboardPage() {
       p_status: "open",
       p_limit: CLAIM_QUEUE_LIMIT,
     }),
+    // Service role behind the redirect above; the review RPC re-checks the
+    // role before anything changes.
+    supabaseAdmin
+      .from("institution_category_requests")
+      .select(
+        "id, label, created_at, institution:institutions(id, name, category, category_label, city)",
+        { count: "exact" }
+      )
+      .eq("status", "pending")
+      .order("created_at", { ascending: true })
+      .limit(CATEGORY_QUEUE_LIMIT),
   ]);
+
+  const categoryRequests = (categoryQueue.data ?? []) as unknown as CategoryRequestReviewItem[];
 
   const queuePayload = (claimQueue.data ?? {}) as InstitutionClaimReviewPage;
   // Oldest first, so the earliest applicants are not the ones who wait
@@ -109,6 +125,20 @@ export default async function SuperadminDashboardPage() {
         </Card>
       ) : (
         <InstitutionClaimQueue claims={claims} total={claimTotal} renderedAt={Date.now()} />
+      )}
+
+      {categoryQueue.error ? (
+        <Card padding="lg" className="mt-8">
+          <h2 className="text-lg font-semibold text-ink">{t("admin.category_requests_title")}</h2>
+          <p className="mt-2 text-base leading-7 text-ink-secondary">
+            {t("admin.category_requests_unavailable")}
+          </p>
+        </Card>
+      ) : (
+        <CategoryRequestQueue
+          requests={categoryRequests}
+          total={categoryQueue.count ?? categoryRequests.length}
+        />
       )}
 
       <Card padding="lg" className="mt-8">

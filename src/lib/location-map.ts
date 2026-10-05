@@ -263,6 +263,12 @@ export type PublicInstitutionDetail = {
   id: string;
   name: string;
   category: InstitutionCategory;
+  /**
+   * The organisation's own name for its type, shown in place of the
+   * category's; set only by an administrator's approval. The category still
+   * decides filters and the pin.
+   */
+  categoryLabel: string | null;
   description: string;
   address: string | null;
   city: string;
@@ -782,6 +788,8 @@ export type PublicInstitutionDetailRpcRow = {
   source: string | null;
   created_at: string;
   updated_at: string;
+  /** Absent on a schema that predates 20261005100000. */
+  category_label?: string | null;
 };
 
 /**
@@ -808,6 +816,7 @@ export function toPublicInstitutionDetail(
     id: row.id,
     name: row.name,
     category: row.category,
+    categoryLabel: row.category_label?.trim() || null,
     description: row.description,
     address: hidden ? null : row.address,
     city: row.city,

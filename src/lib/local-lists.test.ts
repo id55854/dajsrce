@@ -27,6 +27,14 @@ describe("explicit local list mode", () => {
     expect(createPublicSupabaseClient).not.toHaveBeenCalled();
   });
 
+  it("filters fixture needs by any of several donation types", async () => {
+    const response = await getNeeds(new NextRequest("http://localhost/api/needs?donation_types=food,hygiene&limit=100"));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    const types = new Set(body.needs.map((need: { donation_type: string }) => need.donation_type));
+    expect(types).toEqual(new Set(["food", "hygiene"]));
+  });
+
   it("serves events without creating a database client", async () => {
     const response = await getEvents(new NextRequest("http://localhost/api/volunteer-events"));
     const body = await response.json();

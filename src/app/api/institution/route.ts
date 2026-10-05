@@ -17,6 +17,7 @@ import {
   withRequestId,
 } from "@/lib/security/http";
 import { toPublicInstitutionDetail, type PublicInstitutionDetailRpcRow } from "@/lib/location-map";
+import type { InstitutionCategoryRequest } from "@/lib/institution-category";
 import {
   parseInstitutionProfilePatch,
   profileFieldFromMessage,
@@ -63,14 +64,46 @@ export async function GET(req: NextRequest) {
 
   const row = ((data ?? []) as PublicInstitutionDetailRpcRow[])[0] ?? null;
   return NextResponse.json(
-    { institution: row ? toPublicInstitutionDetail(row) : null },
+    {
+      institution: row ? toPublicInstitutionDetail(row) : null,
+      categoryRequest: row ? await latestCategoryRequest(supabase, row.id, requestId) : null,
+    },
     { headers: NO_STORE }
   );
 }
 
 /**
- * The linked NGO edits its own public profile: contact, opening hours, when
- * and where it takes donations, and what it accepts.
+ * The organisation's most recent own-type request, so the editor can say one
+ * is waiting or was turned down. Row security limits the read to the
+ * account's own organisation. A failure (or a schema that predates
+ * 20261005100000) only hides that note; the profile itself still loads.
+ */
+async function latestCategoryRequest(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  institutionId: string,
+  requestId: string
+): Promise<InstitutionCategoryRequest | null> {
+  const { data, error } = await supabase
+    .from("institution_category_requests")
+    .select("id, label, status, review_note, created_at, reviewed_at")
+    .eq("institution_id", institutionId)
+    .neq("status", "withdrawn")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    logError("institution.category_request_read_failed", error, {
+      request_id: requestId,
+      code: error.code ?? null,
+    });
+    return null;
+  }
+  return (data as InstitutionCategoryRequest | null) ?? null;
+}
+
+/**
+ * The linked NGO edits its own public profile: category, contact, opening
+ * hours, when and where it takes donations, and what it accepts.
  *
  * Nothing in the body names an institution. `update_own_institution_profile`
  * resolves it from the actor's `ngo` profile and refuses anyone else, and

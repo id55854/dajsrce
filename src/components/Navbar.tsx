@@ -7,6 +7,7 @@ import {
   Accessibility,
   Bell,
   Heart,
+  LogOut,
   MapPin,
   Menu as MenuIcon,
   User,
@@ -221,8 +222,9 @@ function NotificationPanel({
 
 /**
  * The account icon: a direct link to the profile, not a dropdown. Sign out
- * used to hide behind a click here; now it lives at the bottom of the
- * profile page itself, so this is just navigation.
+ * used to hide behind a click here; on desktop it is now its own icon right
+ * next to this one (and still at the bottom of the profile page), so this is
+ * just navigation.
  */
 function ProfileLink({
   displayName,
@@ -548,9 +550,9 @@ export function Navbar() {
           <LocaleSwitcher />
           <ThemeToggle />
           {user ? (
-            // The bell and profile icon share one pill so they read as one
-            // control. A lone sign-in button doesn't need that wrapper -- it
-            // only added a redundant outer ring around the button itself.
+            // The bell, profile and sign-out icons share one pill so they read
+            // as one control. A lone sign-in button doesn't need that wrapper
+            // -- it only added a redundant outer ring around the button itself.
             <div className="inline-flex items-center rounded-full border border-border-subtle bg-surface-raised p-1 shadow-raised">
               <button
                 type="button"
@@ -568,6 +570,15 @@ export function Navbar() {
                 {notificationBadge}
               </button>
               <ProfileLink displayName={displayName} profileEmail={profileEmail} />
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                aria-label={t("nav.sign_out")}
+                title={t("nav.sign_out")}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-secondary transition-[background-color,color,transform] duration-150 ease-out hover:bg-ink/[0.08] hover:text-ink motion-safe:active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              >
+                <LogOut className="h-5 w-5" aria-hidden="true" />
+              </button>
             </div>
           ) : (
             <>
@@ -728,16 +739,25 @@ export function Navbar() {
 
             {user ? (
               <>
+                {/* The account reads as one brand bubble, the way the signed-out
+                    menu ends in the brand sign-in button; sign-out stays a
+                    quiet row under it. */}
                 <Link
                   href="/dashboard"
                   title={profileEmail}
                   className={clsx(
-                    "rounded-control px-3 py-3 text-base font-medium text-brand transition-colors hover:bg-brand-soft",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    "mt-2 flex items-center gap-3 rounded-card bg-brand px-3 py-2.5 text-white shadow-raised transition-colors hover:bg-brand-strong",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                   )}
                   onClick={() => setMobileOpen(false)}
                 >
-                  {displayName}
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
+                    <User className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-semibold">{displayName}</span>
+                    <span className="block text-sm text-white/90">{t("nav.my_profile")}</span>
+                  </span>
                 </Link>
                 <button
                   type="button"
@@ -746,10 +766,11 @@ export function Navbar() {
                     handleLogout();
                   }}
                   className={clsx(
-                    "rounded-control px-3 py-3 text-left text-base font-medium text-ink-secondary transition-colors hover:bg-surface-sunken",
+                    "inline-flex items-center gap-2 rounded-control px-3 py-3 text-left text-base font-medium text-ink-secondary transition-colors hover:bg-surface-sunken",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                   )}
                 >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
                   {t("nav.sign_out")}
                 </button>
               </>

@@ -118,6 +118,37 @@ describe("needs category filters", () => {
     expect(query.in).not.toHaveBeenCalled();
     expect(response.headers.get("cache-control")).toContain("public");
   });
+  it("reads several donation types as 'any of these', deduped and unioned with the legacy parameter", async () => {
+    const response = await GET(new NextRequest("http://localhost/api/needs?donation_types=food,hygiene,food&donation_type=clothes"));
+    expect(response.status).toBe(200);
+    expect(query.in).toHaveBeenCalledWith("donation_type", ["clothes", "food", "hygiene"]);
+    expect(query.eq).not.toHaveBeenCalledWith("donation_type", expect.anything());
+    expect(query.in.mock.invocationCallOrder[0]).toBeLessThan(query.limit.mock.invocationCallOrder[0]);
+    expect(response.headers.get("cache-control")).toContain("public");
+  });
+  it("keeps one donation type an equality filter, from either parameter", async () => {
+    await GET(new NextRequest("http://localhost/api/needs?donation_types=food"));
+    expect(query.eq).toHaveBeenCalledWith("donation_type", "food");
+    vi.clearAllMocks();
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.order.mockReturnValue(query);
+    query.limit.mockResolvedValue({ data: [], error: null });
+    await GET(new NextRequest("http://localhost/api/needs?donation_type=food&donation_types=food"));
+    expect(query.eq).toHaveBeenCalledWith("donation_type", "food");
+    expect(query.in).not.toHaveBeenCalled();
+  });
+  it.each([
+    "donation_types=food,unknown",
+    "donation_types=constructor",
+    "donation_type=constructor",
+    "donation_type=unknown&donation_types=food",
+  ])("rejects invalid donation types (%s) before querying", async (search) => {
+    const response = await GET(new NextRequest(`http://localhost/api/needs?${search}`));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatch(/^donation_types? is invalid$/);
+    expect(from).not.toHaveBeenCalled();
+  });
   it.each(["unknown", "constructor", "association,unknown"])("rejects invalid category %s before querying", async (category) => {
     const response = await GET(new NextRequest(`http://localhost/api/needs?categories=${category}`));
     expect(response.status).toBe(400);

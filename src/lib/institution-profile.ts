@@ -1,6 +1,11 @@
 import { DONATION_TYPES } from "./constants";
+import {
+  OWN_CATEGORY,
+  isSelfServiceCategory,
+  normalizeCategoryLabel,
+} from "./institution-category";
 import type { PublicInstitutionDetail } from "./location-map";
-import type { DonationType } from "./types";
+import type { DonationType, InstitutionCategory } from "./types";
 
 /**
  * What an organisation may change about its own public profile, and how.
@@ -9,8 +14,11 @@ import type { DonationType } from "./types";
  * is the only edit path (direct UPDATE on `institutions` is revoked). This
  * copy exists so the form can say what is wrong next to the field, and so the
  * route refuses a malformed patch before it costs a transaction. Name,
- * category, address and coordinates are absent on purpose: they come from the
- * official register and the reviewed claim, never from a typed value.
+ * address and coordinates are absent on purpose: they come from the official
+ * register and the reviewed claim, never from a typed value. The category is
+ * one of the listed social categories (`SELF_SERVICE_CATEGORIES`); a type the
+ * organisation writes itself goes through review instead
+ * (`/api/institution/category-request`).
  */
 export const INSTITUTION_PROFILE_FIELDS = [
   "description",
@@ -20,6 +28,7 @@ export const INSTITUTION_PROFILE_FIELDS = [
   "working_hours",
   "drop_off_hours",
   "accepts_donations",
+  "category",
 ] as const;
 
 export type InstitutionProfileField = (typeof INSTITUTION_PROFILE_FIELDS)[number];
@@ -32,6 +41,7 @@ export type InstitutionProfilePatch = {
   working_hours?: string | null;
   drop_off_hours?: string | null;
   accepts_donations?: DonationType[];
+  category?: InstitutionCategory;
 };
 
 export const PROFILE_LIMITS = {
@@ -43,7 +53,7 @@ export const PROFILE_LIMITS = {
   hours: 300,
 } as const;
 
-type TextField = Exclude<InstitutionProfileField, "accepts_donations">;
+type TextField = Exclude<InstitutionProfileField, "accepts_donations" | "category">;
 
 type PatchResult =
   | { ok: true; value: InstitutionProfilePatch }
@@ -148,10 +158,16 @@ function donationTypes(value: unknown): FieldResult<DonationType[]> {
   return { ok: true, value: DONATION_KEYS.filter((key) => chosen.has(key)) };
 }
 
+function category(value: unknown): FieldResult<InstitutionCategory> {
+  return isSelfServiceCategory(value)
+    ? { ok: true, value }
+    : fail("category", "category must be one of the social categories");
+}
+
 function parseField(
   field: InstitutionProfileField,
   raw: unknown
-): FieldResult<string | null> | FieldResult<DonationType[]> {
+): FieldResult<string | null> | FieldResult<DonationType[]> | FieldResult<InstitutionCategory> {
   switch (field) {
     case "description":
       return optionalText(raw, "description", PROFILE_LIMITS.description);
@@ -166,6 +182,8 @@ function parseField(
       return optionalText(raw, field, PROFILE_LIMITS.hours);
     case "accepts_donations":
       return donationTypes(raw);
+    case "category":
+      return category(raw);
   }
 }
 
@@ -233,15 +251,30 @@ export type InstitutionProfileDraft = {
   working_hours: string;
   drop_off_hours: string;
   accepts_donations: DonationType[];
+  /** A listed category, or `OWN_CATEGORY` while the organisation writes its own type. */
+  category: InstitutionCategory | typeof OWN_CATEGORY;
+  /** The organisation's own type; used only with `OWN_CATEGORY`. */
+  category_label: string;
 };
 
 type ProfileSource = Pick<
   PublicInstitutionDetail,
-  "description" | "phone" | "email" | "website" | "workingHours" | "dropOffHours" | "acceptsDonations"
+  | "description"
+  | "phone"
+  | "email"
+  | "website"
+  | "workingHours"
+  | "dropOffHours"
+  | "acceptsDonations"
+  | "category"
+  | "categoryLabel"
 >;
 
 export function profileDraftFrom(detail: ProfileSource): InstitutionProfileDraft {
   return {
+    // An approved own type is what the profile shows, so the form opens on it.
+    category: detail.categoryLabel ? OWN_CATEGORY : detail.category,
+    category_label: detail.categoryLabel ?? "",
     description: detail.description ?? "",
     phone: detail.phone ?? "",
     email: detail.email ?? "",
@@ -268,15 +301,42 @@ export function changedProfileFields(
       if (before !== after) patch.accepts_donations = draft.accepts_donations;
       continue;
     }
+    if (field === "category") {
+      // Choosing a listed category also drops an approved own type, so
+      // leaving the own type for the same category is still a change.
+      if (draft.category !== OWN_CATEGORY && draft.category !== initial.category) {
+        patch.category = draft.category;
+      }
+      continue;
+    }
     if (draft[field].trim() !== initial[field].trim()) patch[field] = draft[field];
   }
   return patch;
+}
+
+/**
+ * The own type to send for review, or null when there is nothing new: the
+ * organisation did not choose to write one, or wrote the one already approved.
+ * An invalid text is returned as "" so the form can say so.
+ */
+export function categoryLabelRequest(
+  initial: InstitutionProfileDraft,
+  draft: InstitutionProfileDraft
+): string | null {
+  if (draft.category !== OWN_CATEGORY) return null;
+  const label = normalizeCategoryLabel(draft.category_label);
+  if (label === null) return "";
+  const approved = initial.category === OWN_CATEGORY ? normalizeCategoryLabel(initial.category_label) : null;
+  return label === approved ? null : label;
 }
 
 /** What `update_own_institution_profile` returns. */
 export type InstitutionProfileResult = {
   id: string;
   name: string;
+  /** Absent on a schema that predates 20261005100000. */
+  category?: InstitutionCategory;
+  category_label?: string | null;
   description: string | null;
   phone: string | null;
   email: string | null;
@@ -295,6 +355,9 @@ export function applyProfileResult(
 ): PublicInstitutionDetail {
   return {
     ...detail,
+    category: result.category ?? detail.category,
+    categoryLabel:
+      result.category_label === undefined ? detail.categoryLabel : result.category_label?.trim() || null,
     description: result.description ?? "",
     phone: result.phone,
     email: result.email,

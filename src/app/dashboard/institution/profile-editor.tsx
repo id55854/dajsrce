@@ -5,10 +5,19 @@ import { AlertCircle, Building2, X } from "lucide-react";
 import { useLocale, useT } from "@/i18n/client";
 import { DONATION_TYPES } from "@/lib/constants";
 import type { PublicInstitutionDetail } from "@/lib/location-map";
-import type { DonationType } from "@/lib/types";
+import type { DonationType, InstitutionCategory } from "@/lib/types";
+import {
+  CATEGORY_LABEL_LIMITS,
+  OWN_CATEGORY,
+  SELF_SERVICE_CATEGORIES,
+  categoryLockedForOrganisation,
+  institutionTypeLabel,
+  type InstitutionCategoryRequest,
+} from "@/lib/institution-category";
 import {
   PROFILE_LIMITS,
   applyProfileResult,
+  categoryLabelRequest,
   changedProfileFields,
   institutionProfileErrorKey,
   isInstitutionProfileField,
@@ -25,13 +34,17 @@ import {
   Field,
   Input,
   SectionHeader,
+  Select,
   Textarea,
   useToast,
 } from "@/components/ui";
 
 const DONATION_KEYS = Object.keys(DONATION_TYPES) as DonationType[];
 
-type SaveError = { field: InstitutionProfileField | null; key: string };
+type SaveError = {
+  field: InstitutionProfileField | "category_label" | null;
+  key: string;
+};
 
 /**
  * The organisation's own edit of its public profile.
@@ -42,17 +55,26 @@ type SaveError = { field: InstitutionProfileField | null; key: string };
  * panel is how the organisation fills them in. Only changed fields are sent,
  * which matters most for the donation types: sending an untouched list would
  * record a guess as the organisation's own confirmation.
+ *
+ * The type of organisation is the last section: a listed category is saved
+ * with the rest, while a type the organisation writes itself is sent to the
+ * administrators and shown only once they approve it.
  */
 export function InstitutionProfileEditor({
   panelId,
   institution,
+  categoryRequest,
   onClose,
   onSaved,
+  onCategoryRequest,
 }: {
   panelId: string;
   institution: PublicInstitutionDetail;
+  /** The latest own-type request, when the dashboard could read one. */
+  categoryRequest: InstitutionCategoryRequest | null;
   onClose: () => void;
   onSaved: (institution: PublicInstitutionDetail) => void;
+  onCategoryRequest: (request: InstitutionCategoryRequest) => void;
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -80,37 +102,42 @@ export function InstitutionProfileEditor({
     event.preventDefault();
     setSaveError(null);
     const patch = changedProfileFields(initial, draft);
-    if (Object.keys(patch).length === 0) {
+    const ownType = categoryLabelRequest(initial, draft);
+    if (ownType === "") {
+      setSaveError({ field: "category_label", key: "institution_profile.error_category_label" });
+      return;
+    }
+    const hasPatch = Object.keys(patch).length > 0;
+    if (!hasPatch && ownType === null) {
       toast({ tone: "info", title: t("institution_profile.no_changes") });
       onClose();
       return;
     }
     // The same rules the route and the database apply, checked here first so
     // the message can sit next to the field that caused it.
-    const checked = parseInstitutionProfilePatch(patch);
-    if (!checked.ok) {
+    const checked = hasPatch ? parseInstitutionProfilePatch(patch) : null;
+    if (checked && !checked.ok) {
       setSaveError({ field: checked.field, key: institutionProfileErrorKey(400, checked.field) });
       return;
     }
     setSaving(true);
     try {
-      const res = await fetch("/api/institution", {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(checked.value),
-      });
-      const json = (await res.json().catch(() => null)) as {
-        institution?: InstitutionProfileResult;
-        field?: unknown;
-      } | null;
-      if (!res.ok || !json?.institution) {
-        const field = isInstitutionProfileField(json?.field) ? json.field : null;
-        setSaveError({ field, key: institutionProfileErrorKey(res.ok ? 500 : res.status, field) });
-        return;
+      if (checked?.ok) {
+        const saved = await saveProfile(checked.value);
+        if (!saved) return;
+        onSaved(saved);
       }
-      onSaved(applyProfileResult(institution, json.institution));
-      toast({ tone: "success", title: t("institution_profile.saved") });
+      if (ownType !== null) {
+        const request = await sendOwnType(ownType);
+        if (!request) return;
+        onCategoryRequest(request);
+      }
+      toast({
+        tone: "success",
+        title: t(
+          ownType !== null ? "institution_profile.category_request_sent" : "institution_profile.saved"
+        ),
+      });
       onClose();
     } catch {
       setSaveError({ field: null, key: "institution_profile.error_network" });
@@ -119,8 +146,65 @@ export function InstitutionProfileEditor({
     }
   }
 
-  const errorFor = (field: InstitutionProfileField) =>
+  async function saveProfile(
+    value: Record<string, unknown>
+  ): Promise<PublicInstitutionDetail | null> {
+    const res = await fetch("/api/institution", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(value),
+    });
+    const json = (await res.json().catch(() => null)) as {
+      institution?: InstitutionProfileResult;
+      field?: unknown;
+    } | null;
+    if (!res.ok || !json?.institution) {
+      const field = isInstitutionProfileField(json?.field) ? json.field : null;
+      setSaveError({ field, key: institutionProfileErrorKey(res.ok ? 500 : res.status, field) });
+      return null;
+    }
+    return applyProfileResult(institution, json.institution);
+  }
+
+  async function sendOwnType(label: string): Promise<InstitutionCategoryRequest | null> {
+    const res = await fetch("/api/institution/category-request", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label }),
+    });
+    const json = (await res.json().catch(() => null)) as {
+      request?: InstitutionCategoryRequest;
+    } | null;
+    if (!res.ok || !json?.request) {
+      setSaveError({
+        field: res.status === 400 ? "category_label" : null,
+        key:
+          res.status === 400
+            ? "institution_profile.error_category_label"
+            : res.status === 429
+              ? "institution_profile.error_category_request_limit"
+              : res.status === 401 || res.status === 403
+                ? institutionProfileErrorKey(res.status, null)
+                : "institution_profile.error_category_request",
+      });
+      return null;
+    }
+    return json.request;
+  }
+
+  const errorFor = (field: InstitutionProfileField | "category_label") =>
     saveError?.field === field ? t(saveError.key) : undefined;
+
+  const categoryLocked = categoryLockedForOrganisation(institution.category);
+  const listedCategory = institutionTypeLabel({ category: institution.category }, locale);
+  const pendingRequest = categoryRequest?.status === "pending" ? categoryRequest : null;
+  // A refusal is worth repeating only until the organisation has moved on.
+  const rejectedRequest =
+    categoryRequest?.status === "rejected" && categoryRequest.label !== institution.categoryLabel
+      ? categoryRequest
+      : null;
 
   return (
     <Card padding="lg" id={panelId}>
@@ -270,6 +354,81 @@ export function InstitutionProfileEditor({
               {t(saveError.key)}
             </p>
           ) : null}
+        </fieldset>
+
+        <fieldset aria-describedby={`${panelId}-category-hint`} className="space-y-3">
+          <legend className="text-sm font-medium text-ink">
+            {t("institution_profile.category_section")}
+          </legend>
+          <p id={`${panelId}-category-hint`} className="text-sm text-ink-tertiary">
+            {categoryLocked
+              ? t("institution_profile.category_locked", { category: listedCategory })
+              : t("institution_profile.category_hint")}
+          </p>
+          {categoryLocked ? null : (
+            <>
+              <Field label={t("institution_profile.category_label")} error={errorFor("category")}>
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={draft.category}
+                    invalid={saveError?.field === "category"}
+                    onChange={(e) =>
+                      update("category", e.target.value as InstitutionCategory | typeof OWN_CATEGORY)
+                    }
+                  >
+                    {/* A category outside the list (the unclassified catch-all
+                        an older approval could leave) stays visible until a
+                        listed one is chosen. */}
+                    {draft.category !== OWN_CATEGORY &&
+                    !SELF_SERVICE_CATEGORIES.includes(draft.category) ? (
+                      <option value={draft.category} disabled>
+                        {institutionTypeLabel({ category: draft.category }, locale)}
+                      </option>
+                    ) : null}
+                    {SELF_SERVICE_CATEGORIES.map((option) => (
+                      <option key={option} value={option}>
+                        {institutionTypeLabel({ category: option }, locale)}
+                      </option>
+                    ))}
+                    <option value={OWN_CATEGORY}>{t("institution_profile.category_other")}</option>
+                  </Select>
+                )}
+              </Field>
+              {draft.category === OWN_CATEGORY ? (
+                <Field
+                  label={t("institution_profile.category_own_label")}
+                  hint={t("institution_profile.category_own_hint", { category: listedCategory })}
+                  error={errorFor("category_label")}
+                >
+                  {(field) => (
+                    <Input
+                      {...field}
+                      maxLength={CATEGORY_LABEL_LIMITS.max}
+                      placeholder={t("institution_profile.category_own_placeholder")}
+                      value={draft.category_label}
+                      invalid={saveError?.field === "category_label"}
+                      onChange={(e) => update("category_label", e.target.value)}
+                    />
+                  )}
+                </Field>
+              ) : null}
+              {pendingRequest ? (
+                <p className="rounded-control border border-border-subtle bg-surface-sunken px-3 py-2 text-sm text-ink-secondary">
+                  {t("institution_profile.category_request_pending", { label: pendingRequest.label })}
+                </p>
+              ) : rejectedRequest ? (
+                <p className="rounded-control border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning-on-soft">
+                  {t("institution_profile.category_request_rejected", { label: rejectedRequest.label })}
+                  {rejectedRequest.review_note
+                    ? ` ${t("institution_profile.category_request_rejected_note", {
+                        note: rejectedRequest.review_note,
+                      })}`
+                    : null}
+                </p>
+              ) : null}
+            </>
+          )}
         </fieldset>
 
         <div className="flex flex-col gap-3 sm:flex-row">
