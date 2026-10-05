@@ -366,6 +366,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
                             <CancelActionButton
                               endpoint={`/api/pledges/${pl.id}`}
                               label={t("your_pledges.cancel")}
+                              ariaLabel={t("your_pledges.cancel_aria")}
                               title={t("your_pledges.cancel_title")}
                               description={t("your_pledges.cancel_body", { title: need?.title ?? "" })}
                               confirmLabel={t("your_pledges.cancel_confirm")}
@@ -478,6 +479,7 @@ export function IndividualDashboardClient({ profile }: { profile: AuthProfile })
               <CancelActionButton
                 endpoint={`/api/pledges/${openPledgeId}`}
                 label={t("your_pledges.cancel")}
+                ariaLabel={t("your_pledges.cancel_aria")}
                 title={t("your_pledges.cancel_title")}
                 description={t("your_pledges.cancel_body", {
                   title: current.find((row) => row.id === openPledgeId)?.need?.title ?? "",

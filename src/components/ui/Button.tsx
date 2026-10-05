@@ -1,6 +1,7 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Children, type ButtonHTMLAttributes, type ReactNode } from "react";
+import clsx from "clsx";
 import { Loader2 } from "lucide-react";
 import { buttonClasses, type ButtonSize, type ButtonVariant } from "./button-classes";
 
@@ -14,6 +15,16 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: ReactNode;
 };
 
+/**
+ * True when the label is only text (a string, a number or several of them),
+ * so it can sit in one truncating span. Anything else, an icon passed as a
+ * child for instance, is left as separate flex items to keep the gap.
+ */
+function isTextLabel(children: ReactNode): boolean {
+  const parts = Children.toArray(children);
+  return parts.length > 0 && parts.every((part) => typeof part === "string" || typeof part === "number");
+}
+
 export function Button({
   variant,
   size,
@@ -26,12 +37,20 @@ export function Button({
   type = "button",
   ...rest
 }: ButtonProps) {
+  const textLabel = isTextLabel(children);
   return (
     <button
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={buttonClasses({ variant, size, fullWidth, className })}
+      className={buttonClasses({
+        variant,
+        size,
+        fullWidth,
+        // A text label truncates, so the button may be capped at its
+        // container's width instead of pushing past it.
+        className: textLabel ? clsx("max-w-full", className) : className,
+      })}
       {...rest}
     >
       {loading ? (
@@ -39,7 +58,7 @@ export function Button({
       ) : (
         icon
       )}
-      {children}
+      {textLabel ? <span className="min-w-0 truncate">{children}</span> : children}
     </button>
   );
 }

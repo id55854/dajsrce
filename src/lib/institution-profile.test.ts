@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyProfileResult,
+  categoryLabelRequest,
   changedProfileFields,
   institutionProfileErrorKey,
   missingProfileEssentials,
@@ -15,6 +16,7 @@ const detail: PublicInstitutionDetail = {
   id: "11111111-1111-4111-8111-111111111111",
   name: "UDRUGA TEST",
   category: "association",
+  categoryLabel: null,
   description: "Opis iz registra",
   address: "Ilica 1",
   city: "Zagreb",
@@ -72,7 +74,7 @@ describe("parseInstitutionProfilePatch", () => {
     });
   });
 
-  it.each(["name", "category", "address", "lat", "institution_id"])(
+  it.each(["name", "address", "lat", "institution_id"])(
     "refuses the register-owned or unknown field %s",
     (key) => {
       const result = parseInstitutionProfilePatch({ [key]: "x" });
@@ -80,6 +82,20 @@ describe("parseInstitutionProfilePatch", () => {
       if (!result.ok) expect(result.field).toBeNull();
     }
   );
+
+  it("accepts a listed social category and refuses the rest, naming the field", () => {
+    expect(parseInstitutionProfilePatch({ category: "elderly_care" })).toEqual({
+      ok: true,
+      value: { category: "elderly_care" },
+    });
+    // The catch-all is invisible on public listings, and the violence-support
+    // category hides a location: neither is the organisation's own choice.
+    for (const category of ["association", "domestic_violence", "other", 3]) {
+      const result = parseInstitutionProfilePatch({ category });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.field).toBe("category");
+    }
+  });
 
   it("refuses an empty patch and a non-object body", () => {
     expect(parseInstitutionProfilePatch({}).ok).toBe(false);
@@ -190,5 +206,66 @@ describe("profile form helpers", () => {
     expect(profileFieldFromMessage("invalid phone")).toBe("phone");
     expect(profileFieldFromMessage("something else")).toBeNull();
     expect(profileFieldFromMessage(null)).toBeNull();
+  });
+});
+
+describe("category and own type", () => {
+  it("opens on the approved own type, or on the category", () => {
+    expect(profileDraftFrom(detail)).toMatchObject({ category: "association", category_label: "" });
+    expect(
+      profileDraftFrom({ ...detail, category: "elderly_care", categoryLabel: "Dnevni boravak" })
+    ).toMatchObject({ category: "other", category_label: "Dnevni boravak" });
+  });
+
+  it("sends a listed category only when the choice changed", () => {
+    const initial = profileDraftFrom({ ...detail, category: "elderly_care" });
+    expect(changedProfileFields(initial, { ...initial })).toEqual({});
+    expect(changedProfileFields(initial, { ...initial, category: "caritas" })).toEqual({
+      category: "caritas",
+    });
+    // Choosing "other" changes nothing until the type is approved.
+    expect(changedProfileFields(initial, { ...initial, category: "other" })).toEqual({});
+  });
+
+  it("leaving an approved own type for the same category is a change", () => {
+    const initial = profileDraftFrom({ ...detail, category: "elderly_care", categoryLabel: "Dnevni boravak" });
+    expect(changedProfileFields(initial, { ...initial, category: "elderly_care" })).toEqual({
+      category: "elderly_care",
+    });
+  });
+
+  it("asks for review only for a new own type", () => {
+    const listed = profileDraftFrom({ ...detail, category: "elderly_care" });
+    expect(categoryLabelRequest(listed, listed)).toBeNull();
+    expect(
+      categoryLabelRequest(listed, { ...listed, category: "other", category_label: "  Dnevni   boravak " })
+    ).toBe("Dnevni boravak");
+    expect(categoryLabelRequest(listed, { ...listed, category: "other", category_label: "x" })).toBe("");
+
+    const own = profileDraftFrom({ ...detail, category: "elderly_care", categoryLabel: "Dnevni boravak" });
+    expect(categoryLabelRequest(own, { ...own, category_label: "Dnevni boravak " })).toBeNull();
+    expect(categoryLabelRequest(own, { ...own, category_label: "Dnevni centar" })).toBe("Dnevni centar");
+  });
+
+  it("folds the saved category and own type back into the detail", () => {
+    const next = applyProfileResult(
+      { ...detail, categoryLabel: "Staro" },
+      {
+        id: detail.id,
+        name: detail.name,
+        category: "caritas",
+        category_label: null,
+        description: null,
+        phone: null,
+        email: null,
+        website: null,
+        working_hours: null,
+        drop_off_hours: null,
+        accepts_donations: [],
+        updated_at: "2026-10-05T00:00:00Z",
+      }
+    );
+    expect(next.category).toBe("caritas");
+    expect(next.categoryLabel).toBeNull();
   });
 });

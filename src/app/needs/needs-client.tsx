@@ -1,15 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { AlertTriangle, PackageSearch, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, PackageSearch, SearchX, SlidersHorizontal } from "lucide-react";
 import type { DonationType, InstitutionCategory, UrgencyLevel } from "@/lib/types";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { DonationFilter } from "@/components/DonationFilter";
 import { FilterDropdown } from "@/components/FilterDropdown";
 import { NeedCard, type NeedCardNeed } from "@/components/NeedCard";
 import { LaunchNotice } from "./launch-notice";
+import { ListSearchField } from "./list-search-field";
 import type { PledgeSuccessPayload } from "@/components/PledgeButton";
 import {
   YourPledgesSection,
@@ -18,6 +19,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { fetchMe } from "@/lib/me-client";
 import { readPublicList, rememberPublicList } from "@/lib/public-list-cache";
+import { filterBySearch, needSearchFields, searchTerms } from "@/lib/list-search";
+import { DONATION_TYPES } from "@/lib/constants";
 import {
   clearPledgeIntent,
   focusedNeedFrom,
@@ -38,6 +41,35 @@ import {
 
 /** Fewer open needs than this, unfiltered, and the page explains why. */
 const FEW_NEEDS = 3;
+
+/**
+ * The API's own maximum. The text search filters what is loaded, so the
+ * list fetches as much as one cacheable response may hold.
+ */
+const NEEDS_LIMIT = 100;
+
+const DONATION_TYPE_ORDER = Object.keys(DONATION_TYPES) as DonationType[];
+
+/**
+ * The list request for a set of filters. Donation types go in their fixed
+ * order, so the same selection always shares one cache key, and `limit` comes
+ * last so the unfiltered key is stable.
+ */
+function needsListKey(
+  donationTypes: readonly DonationType[],
+  urgency: UrgencyLevel | "all",
+  categories: readonly InstitutionCategory[]
+): `/api/needs?${string}` {
+  const params = new URLSearchParams();
+  const types = DONATION_TYPE_ORDER.filter((type) => donationTypes.includes(type));
+  if (types.length) params.set("donation_types", types.join(","));
+  if (urgency !== "all") params.set("urgency", urgency);
+  if (categories.length) params.set("categories", categories.join(","));
+  params.set("limit", String(NEEDS_LIMIT));
+  return `/api/needs?${params.toString()}`;
+}
+
+const UNFILTERED_KEY = needsListKey([], "all", []);
 
 const URGENCY_OPTIONS: Array<{
   value: UrgencyLevel | "all";
@@ -83,14 +115,16 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const t = useT();
   const toast = useToast();
   const [categories, setCategories] = useState<InstitutionCategory[]>([]);
-  const [needs, setNeeds] = useState<NeedCardNeed[]>(() => readPublicList<NeedCardNeed[]>("/api/needs?") ?? []);
-  const [donationType, setDonationType] = useState<DonationType | "all">("all");
+  const [needs, setNeeds] = useState<NeedCardNeed[]>(() => readPublicList<NeedCardNeed[]>(UNFILTERED_KEY) ?? []);
+  /** "Needs of any of these types"; empty means every type. */
+  const [donationTypes, setDonationTypes] = useState<DonationType[]>([]);
+  const [query, setQuery] = useState("");
   const [urgency, setUrgency] = useState<UrgencyLevel | "all">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Skeletons are for the cold load only. A filter change dims the results
   // that are already on screen instead of destroying and rebuilding the grid.
-  const [settled, setSettled] = useState(() => readPublicList("/api/needs?") !== undefined);
+  const [settled, setSettled] = useState(() => readPublicList(UNFILTERED_KEY) !== undefined);
   const [retry, setRetry] = useState(0);
 
   // "Your pledges" state, separate fetch, only when authenticated.
@@ -147,11 +181,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams();
-        if (donationType !== "all") params.set("donation_type", donationType);
-        if (urgency !== "all") params.set("urgency", urgency);
-        if (categories.length) params.set("categories", categories.join(","));
-        const key = `/api/needs?${params.toString()}` as const;
+        const key = needsListKey(donationTypes, urgency, categories);
         const cached = readPublicList<NeedCardNeed[]>(key);
         if (cached) {
           setNeeds(cached);
@@ -182,7 +212,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
       cancelled = true;
       controller.abort();
     };
-  }, [donationType, categories, urgency, retry, refreshKey]);
+  }, [donationTypes, categories, urgency, retry, refreshKey]);
 
   // 3. A link to one need (`?need=<id>`, or `?pledge=<id>` on the way back
   //    from signing in) scrolls to it once the fresh list is in, and says so
@@ -259,14 +289,22 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
     );
   }, [userPledges]);
 
-  const filtersActive = donationType !== "all" || urgency !== "all" || categories.length > 0;
+  const filtersActive = donationTypes.length > 0 || urgency !== "all" || categories.length > 0;
   const activeFilterCount =
-    (donationType !== "all" ? 1 : 0) + (urgency !== "all" ? 1 : 0) + (categories.length > 0 ? 1 : 0);
+    (donationTypes.length > 0 ? 1 : 0) + (urgency !== "all" ? 1 : 0) + (categories.length > 0 ? 1 : 0);
+
+  // The text search narrows what is already loaded; typing never refetches.
+  const deferredQuery = useDeferredValue(query);
+  const searching = searchTerms(deferredQuery).length > 0;
+  const visibleNeeds = useMemo(
+    () => filterBySearch(needs, deferredQuery, needSearchFields),
+    [needs, deferredQuery]
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const filtersId = useId();
 
   const clearFilters = useCallback(() => {
-    setDonationType("all");
+    setDonationTypes([]);
     setCategories([]);
     setUrgency("all");
   }, []);
@@ -345,6 +383,15 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
         />
       )}
 
+      <ListSearchField
+        className="mb-4"
+        value={query}
+        onChange={setQuery}
+        label={t("needs_page.search_label")}
+        placeholder={t("needs_page.search_placeholder")}
+        clearLabel={t("needs_page.clear_search")}
+      />
+
       {/* Phones fold the three filters behind one button, the same pattern as
           the map sheet, so the first need is on the first screen. */}
       <div className="mb-4 flex items-center justify-between gap-2 md:hidden">
@@ -378,7 +425,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
       >
         <div className="flex flex-wrap gap-3">
           <CategoryFilter value={categories} onChange={setCategories} />
-          <DonationFilter value={donationType === "all" ? [] : [donationType]} onChange={(value) => setDonationType(value[0] ?? "all")} />
+          <DonationFilter multiple value={donationTypes} onChange={setDonationTypes} />
           <FilterDropdown
             label={t("needs_page.urgency")}
             allLabel={t("needs_page.all")}
@@ -440,16 +487,36 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
             </div>
           }
         />
+      ) : visibleNeeds.length === 0 ? (
+        // Needs are open, the search alone hides them all: say what was
+        // searched for and offer the way back, without blaming the filters.
+        <div role="status">
+          <EmptyState
+            icon={<SearchX className="h-10 w-10" aria-hidden="true" />}
+            title={t("needs_page.search_empty", { query: deferredQuery.trim() })}
+            description={t("needs_page.search_empty_hint")}
+            action={
+              <Button variant="secondary" onClick={() => setQuery("")}>
+                {t("needs_page.clear_search")}
+              </Button>
+            }
+          />
+        </div>
       ) : (
         <>
+          {searching ? (
+            <p role="status" className="mb-4 text-sm text-ink-secondary">
+              {t("needs_page.search_count", { count: visibleNeeds.length, total: needs.length })}
+            </p>
+          ) : null}
           <div
             className={clsx(
               "grid grid-cols-1 gap-6 transition-opacity duration-150 ease-out md:grid-cols-2 lg:grid-cols-3",
-              loading && "opacity-60"
+              (loading || query !== deferredQuery) && "opacity-60"
             )}
             aria-busy={loading}
           >
-            {needs.map((need) => (
+            {visibleNeeds.map((need) => (
               <NeedCard
                 key={need.id}
                 need={need}
@@ -462,7 +529,7 @@ export function NeedsClient({ refreshKey = 0 }: { refreshKey?: number } = {}) {
               />
             ))}
           </div>
-          {!filtersActive && needs.length < FEW_NEEDS ? (
+          {!filtersActive && !searching && needs.length < FEW_NEEDS ? (
             <LaunchNotice hasNeeds className="mt-8" />
           ) : null}
         </>

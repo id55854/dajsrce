@@ -4,7 +4,6 @@ import type { ComponentType, ReactNode } from "react";
 import Link from "next/link";
 import { ExternalLink, Info, Mail, MapPin } from "lucide-react";
 import { Badge, buttonClasses } from "@/components/ui";
-import { ClaimProfileCta } from "@/components/ClaimProfileCta";
 import {
   REGISTRY_LINK_CLASSES,
   RegistryField,
@@ -154,16 +153,9 @@ export function RegistryDetailPanel({
           </dl>
         </section>
 
-        {/* Only active associations can be claimed. */}
-        {organisation.status === "AKTIVAN" ? (
-          <ClaimProfileCta
-            question={t("claims.profile_cta_question")}
-            action={t("claims.profile_cta_action")}
-          />
-        ) : null}
-
         <Link
           href={`/organisations/${encodeURIComponent(organisation.id)}`}
+          aria-label={t("map_page.open_full_record_aria")}
           className={buttonClasses({ variant: "secondary", size: "sm", className: "w-full" })}
         >
           {t("map_page.open_full_record")}

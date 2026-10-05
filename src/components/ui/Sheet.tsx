@@ -11,6 +11,47 @@ import {
   type SpringHandle,
 } from "./spring";
 
+/** Movement (px) before a press counts as a drag, so a shaky tap stays a tap. */
+const DRAG_SLOP = 6;
+
+/**
+ * Where a press must never become a sheet drag: text entry keeps its caret and
+ * selection gestures, and the search suggestions are their own scroller.
+ */
+const NO_SHEET_DRAG =
+  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="listbox"], [data-no-sheet-drag]';
+
+export type SheetGestureDecision = "pending" | "sheet" | "native";
+
+/**
+ * Who owns a touch that began on the sheet's content rather than its handle,
+ * decided once, at the first movement past the slop:
+ *
+ * - sideways movement stays native (a chip row keeps its horizontal scroll);
+ * - below the top detent every vertical movement moves the sheet, so a swipe up
+ *   over the list or a detail expands it instead of scrolling a sliver;
+ * - at the top detent the content scrolls, except a pull down from its very
+ *   top, which collapses the sheet as in the platform maps apps.
+ */
+export function decideSheetGesture({
+  dx,
+  dy,
+  atFullDetent,
+  contentAtTop,
+  slop = DRAG_SLOP,
+}: {
+  dx: number;
+  dy: number;
+  atFullDetent: boolean;
+  contentAtTop: boolean;
+  slop?: number;
+}): SheetGestureDecision {
+  if (Math.abs(dx) <= slop && Math.abs(dy) <= slop) return "pending";
+  if (Math.abs(dy) <= Math.abs(dx)) return "native";
+  if (!atFullDetent) return "sheet";
+  return dy > 0 && contentAtTop ? "sheet" : "native";
+}
+
 export type SheetProps = {
   /**
    * Resting positions as a fraction of the container's height, ascending.
@@ -40,6 +81,11 @@ export type SheetProps = {
  * there is no seam between dragging and animating. Grabbing it mid-flight
  * cancels the spring and re-targets from the live position.
  *
+ * The handle drags with any pointer (and a tap on it cycles detents); a touch
+ * anywhere else on the sheet drags it too once it is clearly vertical, which
+ * below the top detent is every vertical swipe and at the top detent only a
+ * pull down from the top of the content.
+ *
  * Must be rendered inside a `relative` container.
  */
 export function Sheet({
@@ -68,6 +114,17 @@ export function Sheet({
   // DOM once per frame instead of re-rendering the whole subtree.
   const translateRef = useRef(0);
   const suppressHandleClickRef = useRef(false);
+  const handleStripRef = useRef<HTMLDivElement>(null);
+  // A touch that began on the header or the content (see decideSheetGesture).
+  const touchDragRef = useRef<{
+    id: number;
+    target: Element;
+    startX: number;
+    startY: number;
+    state: SheetGestureDecision;
+    grabOffset: number;
+    startTranslate: number;
+  } | null>(null);
   // Until the container has been measured we cannot know where the detents are.
   // The first placement must therefore be a jump, not a spring, or the sheet
   // visibly animates up from nothing on mount.
@@ -144,11 +201,174 @@ export function Sheet({
 
   // Follow the controlled index (and re-settle when the container resizes).
   useEffect(() => {
-    if (height <= 0 || dragRef.current) return;
+    if (height <= 0 || dragRef.current || touchDragRef.current?.state === "sheet") return;
     settleTo(detentIndex, 0);
   }, [detentIndex, height, settleTo]);
 
   useEffect(() => () => springRef.current?.cancel(), []);
+
+  function followFinger(startTranslate: number, delta: number) {
+    let next = startTranslate + delta;
+
+    const min = translateForIndex(sorted.length - 1);
+    const max = translateForIndex(0);
+    if (next < min) {
+      next = min - rubberband(min - next, height);
+    } else if (next > max) {
+      next = max + rubberband(next - max, height);
+    }
+
+    applyTranslate(next);
+  }
+
+  function release(velocity: number) {
+    // Decide the destination from where the gesture was *going*, not from where
+    // the finger happened to lift. This is what makes a flick feel thrown.
+    const projected = translateRef.current + projectMomentum(velocity);
+
+    let bestIndex = 0;
+    let bestDistance = Infinity;
+    for (let i = 0; i < sorted.length; i += 1) {
+      const distance = Math.abs(translateForIndex(i) - projected);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = i;
+      }
+    }
+
+    // Let the parent's state drive the settle so the two stay in sync.
+    if (bestIndex !== detentIndex) onDetentChange(bestIndex);
+    settleTo(bestIndex, velocity);
+  }
+
+  const atFullDetent = detentIndex === sorted.length - 1;
+
+  // The touch listeners below are bound once; they read this render's values.
+  const latestRef = useRef({ atFullDetent, followFinger, release });
+  useLayoutEffect(() => {
+    latestRef.current = { atFullDetent, followFinger, release };
+  });
+
+  // Drag from anywhere: the header and the content move the sheet too, not just
+  // the handle. Touch events rather than pointer events, because a pointer
+  // stream ends in pointercancel the moment the browser starts a native pan,
+  // and only a non-passive touchmove can refuse that pan (React's are
+  // passive). A touch stays bound to the element it began on, so no capture is
+  // needed, and nothing is claimed until the movement is clearly vertical, so
+  // taps, text selection and horizontal scrollers inside keep working.
+  useEffect(() => {
+    const root = sheetRef.current;
+    if (!root) return;
+    let suppressClickUntil = 0;
+
+    function findTouch(list: TouchList, id: number) {
+      for (let i = 0; i < list.length; i += 1) {
+        if (list[i]!.identifier === id) return list[i]!;
+      }
+      return null;
+    }
+
+    // A pull down only belongs to the sheet when nothing under the finger
+    // (the sheet's scroller or a scroller nested in it) is scrolled.
+    function contentAtTop(target: Element) {
+      for (let node: Element | null = target; node && node !== root; node = node.parentElement) {
+        if (node.scrollTop > 0) return false;
+      }
+      return true;
+    }
+
+    function onTouchStart(event: TouchEvent) {
+      // A tap after a drag is a new gesture; only the drag's own click is eaten.
+      suppressClickUntil = 0;
+      const active = touchDragRef.current;
+      if (active) {
+        // A second finger before the first was decided is a pinch, not a drag.
+        if (active.state === "pending") active.state = "native";
+        return;
+      }
+      const touch = event.changedTouches[0];
+      const target = event.target;
+      if (dragRef.current || event.touches.length > 1 || !touch) return;
+      if (!(target instanceof Element)) return;
+      // The handle strip runs its own pointer gesture (with tap-to-cycle).
+      if (handleStripRef.current?.contains(target) || target.closest(NO_SHEET_DRAG)) return;
+
+      touchDragRef.current = {
+        id: touch.identifier,
+        target,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        state: "pending",
+        grabOffset: touch.clientY,
+        startTranslate: translateRef.current,
+      };
+      tracker.current.reset();
+      tracker.current.add(touch.clientY, event.timeStamp);
+    }
+
+    function onTouchMove(event: TouchEvent) {
+      const drag = touchDragRef.current;
+      if (!drag || drag.state === "native") return;
+      const touch = findTouch(event.changedTouches, drag.id);
+      if (!touch) return;
+      tracker.current.add(touch.clientY, event.timeStamp);
+
+      if (drag.state === "pending") {
+        const { atFullDetent: atFull } = latestRef.current;
+        drag.state = decideSheetGesture({
+          dx: touch.clientX - drag.startX,
+          dy: touch.clientY - drag.startY,
+          atFullDetent: atFull,
+          contentAtTop: atFull ? contentAtTop(drag.target) : true,
+        });
+        if (drag.state !== "sheet") return;
+        // Take over from the live position, as a grab on the handle does. The
+        // slop is not replayed, so the sheet starts from rest under the finger.
+        springRef.current?.cancel();
+        drag.grabOffset = touch.clientY;
+        drag.startTranslate = translateRef.current;
+      }
+
+      // No native scroll, overscroll or pull-to-refresh while the sheet moves.
+      if (event.cancelable) event.preventDefault();
+      latestRef.current.followFinger(drag.startTranslate, touch.clientY - drag.grabOffset);
+    }
+
+    function onTouchEnd(event: TouchEvent) {
+      const drag = touchDragRef.current;
+      if (!drag || !findTouch(event.changedTouches, drag.id)) return;
+      touchDragRef.current = null;
+      if (drag.state !== "sheet") return;
+
+      // Lifting over a button or a row must not activate it. Cancelling the
+      // touchend stops the compatibility click; the capture listener below is
+      // the backstop for browsers that synthesise one anyway.
+      if (event.cancelable) event.preventDefault();
+      suppressClickUntil = performance.now() + 600;
+      latestRef.current.release(event.type === "touchcancel" ? 0 : tracker.current.velocity());
+    }
+
+    function onClickCapture(event: MouseEvent) {
+      if (performance.now() > suppressClickUntil) return;
+      suppressClickUntil = 0;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    root.addEventListener("touchstart", onTouchStart, { passive: true });
+    root.addEventListener("touchmove", onTouchMove, { passive: false });
+    root.addEventListener("touchend", onTouchEnd, { passive: false });
+    root.addEventListener("touchcancel", onTouchEnd, { passive: false });
+    root.addEventListener("click", onClickCapture, true);
+    return () => {
+      root.removeEventListener("touchstart", onTouchStart);
+      root.removeEventListener("touchmove", onTouchMove);
+      root.removeEventListener("touchend", onTouchEnd);
+      root.removeEventListener("touchcancel", onTouchEnd);
+      root.removeEventListener("click", onClickCapture, true);
+      touchDragRef.current = null;
+    };
+  }, []);
 
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 0 && event.pointerType === "mouse") return;
@@ -182,18 +402,8 @@ export function Sheet({
     const delta = event.clientY - drag.grabOffset;
     // A few pixels of hysteresis before a press is treated as a drag, so a
     // slightly imprecise tap still reads as a tap.
-    if (Math.abs(delta) > 6) drag.moved = true;
-    let next = drag.startTranslate + delta;
-
-    const min = translateForIndex(sorted.length - 1);
-    const max = translateForIndex(0);
-    if (next < min) {
-      next = min - rubberband(min - next, height);
-    } else if (next > max) {
-      next = max + rubberband(next - max, height);
-    }
-
-    applyTranslate(next);
+    if (Math.abs(delta) > DRAG_SLOP) drag.moved = true;
+    followFinger(drag.startTranslate, delta);
   }
 
   function endDrag(event: ReactPointerEvent<HTMLDivElement>) {
@@ -212,31 +422,8 @@ export function Sheet({
       return;
     }
 
-    const velocity = tracker.current.velocity();
-    // Decide the destination from where the gesture was *going*, not from where
-    // the finger happened to lift. This is what makes a flick feel thrown.
-    const projected = translateRef.current + projectMomentum(velocity);
-
-    let bestIndex = 0;
-    let bestDistance = Infinity;
-    for (let i = 0; i < sorted.length; i += 1) {
-      const distance = Math.abs(translateForIndex(i) - projected);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestIndex = i;
-      }
-    }
-
-    if (bestIndex === detentIndex) {
-      settleTo(bestIndex, velocity);
-    } else {
-      // Let the parent's state drive the settle so the two stay in sync.
-      onDetentChange(bestIndex);
-      settleTo(bestIndex, velocity);
-    }
+    release(tracker.current.velocity());
   }
-
-  const atFullDetent = detentIndex === sorted.length - 1;
 
   return (
     <div
@@ -258,6 +445,7 @@ export function Sheet({
       }}
     >
       <div
+        ref={handleStripRef}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
@@ -295,7 +483,13 @@ export function Sheet({
 
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        className={clsx(
+          "min-h-0 flex-1 overscroll-contain px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+          // Below the top detent the content does not scroll at all, so a swipe
+          // over it can only move the sheet. Programmatic scrolling (focus,
+          // scrollIntoView) still works, and the offset survives a collapse.
+          atFullDetent ? "overflow-y-auto" : "overflow-y-hidden"
+        )}
       >
         {children}
       </div>

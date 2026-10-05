@@ -6,11 +6,11 @@ import { useLocale, useT } from "@/i18n/client";
 import { FilterDropdown } from "./FilterDropdown";
 
 /**
- * `multiple` is the caller's choice because the two surfaces mean different
- * things by a donation type. The map asks which kinds of help an organisation
- * accepts, and an organisation accepts several, so picking more than one reads
- * as "any of these". A need on `/doniraj` has exactly one type, so there the
- * single-choice list is the honest control.
+ * Both public surfaces use it as a multi-select meaning "any of these": on the
+ * map, organisations that accept any of the picked kinds of help; on
+ * `/doniraj`, needs whose (single) type is any of the picked ones, sent as
+ * `donation_types=a,b` to `/api/needs`. `multiple` stays the caller's choice
+ * for any surface where only one type makes sense.
  */
 export function DonationFilter({ value, onChange, multiple = false }: {
   value: DonationType[];

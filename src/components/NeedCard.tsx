@@ -221,6 +221,7 @@ export function NeedCard({
           <CancelActionButton
             endpoint={myPledgeIds.map((id) => `/api/pledges/${id}`)}
             label={t("your_pledges.cancel")}
+            ariaLabel={t("your_pledges.cancel_aria")}
             title={t("your_pledges.cancel_title")}
             description={t("your_pledges.cancel_body", { title: need.title })}
             confirmLabel={t("your_pledges.cancel_confirm")}

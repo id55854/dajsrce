@@ -49,7 +49,6 @@ export async function GET(req: NextRequest) {
   const startedAt = performance.now();
   const { searchParams } = new URL(req.url);
   const requestId = getRequestId(req.headers);
-  const donationType = searchParams.get("donation_type");
   const urgency = searchParams.get("urgency");
   const categories = [...new Set((searchParams.get("categories") ?? "").split(",").filter(Boolean))];
   if (categories.some((category) => !Object.hasOwn(CATEGORY_CONFIG, category))) {
@@ -60,9 +59,21 @@ export async function GET(req: NextRequest) {
   if (!limitResult.ok) {
     return NextResponse.json({ error: limitResult.error, request_id: requestId }, { status: 400 });
   }
-  if (donationType && !(donationType in DONATION_TYPES)) {
+  // `donation_types` is the multi-select filter ("needs of any of these
+  // types"); the single `donation_type` is still read, and unioned with it, so
+  // older links and cached pages keep working. Validation plus de-duplication
+  // bounds the list by the number of known types.
+  const legacyDonationType = searchParams.get("donation_type");
+  if (legacyDonationType && !Object.hasOwn(DONATION_TYPES, legacyDonationType)) {
     return NextResponse.json({ error: "donation_type is invalid", request_id: requestId }, { status: 400 });
   }
+  const requestedDonationTypes = (searchParams.get("donation_types") ?? "").split(",").filter(Boolean);
+  if (requestedDonationTypes.some((type) => !Object.hasOwn(DONATION_TYPES, type))) {
+    return NextResponse.json({ error: "donation_types is invalid", request_id: requestId }, { status: 400 });
+  }
+  const donationTypes = [
+    ...new Set(legacyDonationType ? [legacyDonationType, ...requestedDonationTypes] : requestedDonationTypes),
+  ];
   if (urgency && !["routine", "needed_soon", "urgent"].includes(urgency)) {
     return NextResponse.json({ error: "urgency is invalid", request_id: requestId }, { status: 400 });
   }
@@ -77,7 +88,7 @@ export async function GET(req: NextRequest) {
   if (areLocalFixturesEnabled()) {
     let needs = getLocalNeeds();
     if (categories.length) needs = needs.filter((need) => need.institution && categories.includes(need.institution.category));
-    if (donationType) needs = needs.filter((n) => n.donation_type === donationType);
+    if (donationTypes.length) needs = needs.filter((n) => donationTypes.includes(n.donation_type));
     if (urgency) needs = needs.filter((n) => n.urgency === urgency);
     if (institutionId) needs = needs.filter((n) => n.institution_id === institutionId);
     needs = needs.slice(0, limitResult.value);
@@ -107,7 +118,8 @@ export async function GET(req: NextRequest) {
 
     if (categories.length) query = query.in("institution.category", categories);
 
-    if (donationType) query = query.eq("donation_type", donationType);
+    if (donationTypes.length === 1) query = query.eq("donation_type", donationTypes[0]);
+    else if (donationTypes.length > 1) query = query.in("donation_type", donationTypes);
 
     if (urgency) query = query.eq("urgency", urgency);
 

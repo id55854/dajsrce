@@ -46,9 +46,10 @@ describe("PATCH /api/institution", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("never lets the body rename or recategorise the institution", async () => {
+  it("never lets the body rename the institution or pick an unlisted category", async () => {
     expect((await patch({ name: "Nova udruga" })).status).toBe(400);
-    expect((await patch({ category: "caritas", phone: "01 234 5678" })).status).toBe(400);
+    expect((await patch({ category: "association", phone: "01 234 5678" })).status).toBe(400);
+    expect((await patch({ category: "domestic_violence" })).status).toBe(400);
     expect((await patch("not json")).status).toBe(400);
     expect(rpc).not.toHaveBeenCalled();
   });

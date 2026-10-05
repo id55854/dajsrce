@@ -83,7 +83,6 @@ export function InstitutionDetailPanel({
     ? `tel:${institution.phone.replace(/\s/g, "")}`
     : null;
   const website = safeHttpUrl(institution.website);
-  const actionClasses = "min-w-[10rem] flex-1";
 
   return (
     <div
@@ -131,7 +130,11 @@ export function InstitutionDetailPanel({
               className="category-chip inline-flex rounded-full px-3 py-1 text-xs font-semibold"
               style={categoryStyle}
             >
-              {locale === "hr" ? cat.labelHr : cat.label}
+              {isPublicDetail && institution.categoryLabel
+                ? institution.categoryLabel
+                : locale === "hr"
+                  ? cat.labelHr
+                  : cat.label}
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-2xl font-bold leading-tight tracking-[-0.01em] text-ink">
@@ -254,20 +257,20 @@ export function InstitutionDetailPanel({
 
           {/* One primary action per surface. Directions is the action for a
               place you can visit; when the address is protected, calling is the
-              only way in, so it takes the primary slot instead. */}
-          <div className="flex flex-wrap gap-3 pt-1">
+              only way in, so it takes the primary slot instead. One action per
+              row in a narrow panel, side by side (sharing the row evenly) once
+              the panel has room; a lone action spans it. */}
+          <div className="grid grid-cols-1 gap-3 pt-1 @sm:grid-flow-col @sm:auto-cols-fr">
             {!isLocationHidden ? (
               <a
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={buttonClasses({
-                  variant: "primary",
-                  className: actionClasses,
-                })}
+                aria-label={t("institution_detail.open_maps_aria")}
+                className={buttonClasses({ variant: "primary", fullWidth: true })}
               >
-                <ExternalLink className="h-4 w-4" aria-hidden />
-                {t("institution_detail.open_maps")}
+                <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="min-w-0 truncate">{t("institution_detail.open_maps")}</span>
               </a>
             ) : null}
             {institution.phone ? (
@@ -275,11 +278,11 @@ export function InstitutionDetailPanel({
                 href={telHref!}
                 className={buttonClasses({
                   variant: isLocationHidden ? "primary" : "secondary",
-                  className: actionClasses,
+                  fullWidth: true,
                 })}
               >
-                <Phone className="h-4 w-4" aria-hidden />
-                {t("institution_detail.call")}
+                <Phone className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="min-w-0 truncate">{t("institution_detail.call")}</span>
               </a>
             ) : null}
           </div>
@@ -299,8 +302,8 @@ export function InstitutionDetailSkeleton({ framed = true }: { framed?: boolean 
       aria-hidden="true"
       className={
         framed
-          ? "rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised sm:p-5"
-          : undefined
+          ? "@container rounded-card border border-border-subtle bg-surface-raised p-4 shadow-raised sm:p-5"
+          : "@container"
       }
     >
       <Skeleton className="h-6 w-32 rounded-full" />
@@ -325,9 +328,9 @@ export function InstitutionDetailSkeleton({ framed = true }: { framed?: boolean 
         <Skeleton className="h-6 w-20 rounded-full" />
         <Skeleton className="h-6 w-24 rounded-full" />
       </div>
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Skeleton className="h-11 min-w-[10rem] flex-1 rounded-full" />
-        <Skeleton className="h-11 min-w-[10rem] flex-1 rounded-full" />
+      <div className="mt-5 grid grid-cols-1 gap-3 @sm:grid-cols-2">
+        <Skeleton className="h-11 rounded-full" />
+        <Skeleton className="h-11 rounded-full" />
       </div>
     </div>
   );

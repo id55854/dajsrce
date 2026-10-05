@@ -63,6 +63,7 @@ function ConfirmActionButton({
   icon,
   variant,
   label,
+  ariaLabel,
   title,
   description,
   confirmLabel,
@@ -82,6 +83,8 @@ function ConfirmActionButton({
   icon: ReactNode;
   variant: "ghost" | "secondary";
   label: string;
+  /** The fuller name for assistive tech when `label` is a short verb. */
+  ariaLabel?: string;
   title: string;
   description: string;
   confirmLabel: string;
@@ -129,7 +132,7 @@ function ConfirmActionButton({
   return (
     <>
       {/* Default size: 44px, the minimum comfortable touch target. */}
-      <Button variant={variant} icon={icon} onClick={() => setOpen(true)}>
+      <Button variant={variant} icon={icon} aria-label={ariaLabel} onClick={() => setOpen(true)}>
         {label}
       </Button>
       <Dialog
@@ -320,6 +323,7 @@ export function YourPledgesSection({
                 <CancelActionButton
                   endpoint={`/api/pledges/${p.id}`}
                   label={t("your_pledges.cancel")}
+                  ariaLabel={t("your_pledges.cancel_aria")}
                   title={t("your_pledges.cancel_title")}
                   description={t("your_pledges.cancel_body", {
                     title: p.need?.title ?? "",
@@ -350,6 +354,7 @@ export function YourPledgesSection({
             <CancelActionButton
               endpoint={`/api/pledges/${openId}`}
               label={t("your_pledges.cancel")}
+              ariaLabel={t("your_pledges.cancel_aria")}
               title={t("your_pledges.cancel_title")}
               description={t("your_pledges.cancel_body", {
                 title: current.find((p) => p.id === openId)?.need?.title ?? "",

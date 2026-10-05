@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import clsx from "clsx";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { readPublicList, rememberPublicList } from "@/lib/public-list-cache";
-import { AlertTriangle, CalendarHeart } from "lucide-react";
+import { AlertTriangle, CalendarHeart, SearchX } from "lucide-react";
 import {
   VolunteerEventCard,
   type VolunteerEventCardProps,
@@ -12,6 +13,8 @@ import {
 import { endOfMonth, endOfWeek, format } from "date-fns";
 import { useT } from "@/i18n/client";
 import { hasVolunteerEventEnded } from "@/lib/volunteer-events";
+import { filterBySearch, searchTerms, volunteerEventSearchFields } from "@/lib/list-search";
+import { ListSearchField } from "@/app/needs/list-search-field";
 import {
   Button,
   Card,
@@ -65,6 +68,9 @@ export function VolunteerClient({ focusEventId = null }: {
 }) {
   const t = useT();
   const [period, setPeriod] = useState<"all" | "week" | "month">("all");
+  const [query, setQuery] = useState("");
+  // Filters the loaded events only; typing never refetches.
+  const deferredQuery = useDeferredValue(query);
   const [events, setEvents] = useState<EventRow[]>(() => cachedList()?.events ?? []);
   const [truncated, setTruncated] = useState(() => cachedList()?.truncated ?? false);
   const [loading, setLoading] = useState(() => cachedList() === undefined);
@@ -239,6 +245,12 @@ export function VolunteerClient({ focusEventId = null }: {
     [upcoming, period]
   );
 
+  const searching = searchTerms(deferredQuery).length > 0;
+  const visibleEvents = useMemo(
+    () => filterBySearch(sortedEvents, deferredQuery, volunteerEventSearchFields),
+    [sortedEvents, deferredQuery]
+  );
+
   return (
     <PageShell>
       <PageHeader
@@ -302,6 +314,14 @@ export function VolunteerClient({ focusEventId = null }: {
         />
       ) : (
         <div>
+          <ListSearchField
+            className="mb-4"
+            value={query}
+            onChange={setQuery}
+            label={t("volunteer_page.search_label")}
+            placeholder={t("volunteer_page.search_placeholder")}
+            clearLabel={t("volunteer_page.clear_search")}
+          />
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-5">
             <div role="group" data-tour="volunteer-period" aria-label={t("volunteer_page.period_label")} className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto">
               {(["all", "week", "month"] as const).map((value) => (
@@ -312,7 +332,9 @@ export function VolunteerClient({ focusEventId = null }: {
             </div>
             <div className="text-sm text-ink-secondary sm:text-right">
               <p role="status">
-                {t("volunteer_calendar.upcoming_count", { count: sortedEvents.length })}
+                {searching
+                  ? t("volunteer_page.search_count", { count: visibleEvents.length, total: sortedEvents.length })
+                  : t("volunteer_calendar.upcoming_count", { count: sortedEvents.length })}
               </p>
               {/* The list is one page of the soonest events; say so rather
                   than let later ones look as if they did not exist. */}
@@ -330,9 +352,21 @@ export function VolunteerClient({ focusEventId = null }: {
               description={t("volunteer_page.period_empty_hint")}
               action={<Button variant="secondary" onClick={() => setPeriod("all")}>{t("volunteer_page.period_all")}</Button>}
             />
+          ) : visibleEvents.length === 0 ? (
+            <EmptyState
+              icon={<SearchX className="h-10 w-10" aria-hidden="true" />}
+              title={t("volunteer_page.search_empty", { query: deferredQuery.trim() })}
+              description={t("volunteer_page.search_empty_hint")}
+              action={<Button variant="secondary" onClick={() => setQuery("")}>{t("volunteer_page.clear_search")}</Button>}
+            />
           ) : (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {sortedEvents.map((event) => (
+            <div
+              className={clsx(
+                "grid grid-cols-1 gap-6 transition-opacity duration-150 ease-out md:grid-cols-2 lg:grid-cols-3",
+                query !== deferredQuery && "opacity-60"
+              )}
+            >
+              {visibleEvents.map((event) => (
                 <VolunteerEventCard
                   key={event.id}
                   event={event}

@@ -111,13 +111,15 @@ describe("capacity on the public cards", () => {
 
   it("offers withdraw on a need only to someone who pledged to it", () => {
     const open = { ...need, quantity_pledged: 4 };
-    expect(render(createElement(NeedCard, { need: open, onPledgesCancelled: () => {} }))).not.toContain("Otkaži obećanje");
+    expect(render(createElement(NeedCard, { need: open, onPledgesCancelled: () => {} }))).not.toContain("Otkaži");
     const html = render(createElement(NeedCard, {
       need: open,
       myPledgedQty: 2,
       myPledgeIds: ["p1", "p2"],
       onPledgesCancelled: () => {},
     }));
-    expect(html).toContain("Otkaži obećanje");
+    // A short label that never wraps, with the full name for screen readers.
+    expect(html).toContain(">Otkaži<");
+    expect(html).toContain('aria-label="Otkaži obećanje"');
   });
 });
