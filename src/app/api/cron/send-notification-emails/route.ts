@@ -25,7 +25,7 @@ const TIME_BUDGET_MS = 45_000;
 
 /**
  * Sends the e-mail copy of queued in-app notifications (20260928100000).
- * Meant to run every minute. The queue decides who is due (at most one
+ * Runs every 15 minutes (vercel.json). The queue decides who is due (at most one
  * message per person every ten minutes) and every outcome is recorded, so a
  * failed or overlapping run neither loses nor repeats a message.
  */

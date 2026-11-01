@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/process-notification-jobs",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/event-reminders",
@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/send-notification-emails",
-      "schedule": "* * * * *"
+      "schedule": "*/15 * * * *"
     }
   ],
   "regions": [
